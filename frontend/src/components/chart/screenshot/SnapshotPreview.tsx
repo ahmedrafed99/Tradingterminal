@@ -1,28 +1,65 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type { ScreenshotOptions } from './chartRegistry';
 
 interface SnapshotPreviewProps {
-  captureChartCanvas: (showDrawings: boolean) => HTMLCanvasElement | null;
+  captureChartCanvas: (options: ScreenshotOptions) => HTMLCanvasElement | null;
   onClose: () => void;
+}
+
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+      <div className="relative">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="sr-only peer"
+        />
+        <div className="w-8 h-[18px] rounded-full bg-[#2a2e39] peer-checked:bg-[#1e3a5f] transition-colors" />
+        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-[#787b86] peer-checked:bg-[#4a9eff] peer-checked:translate-x-[14px] transition-all" />
+      </div>
+      <span className="text-xs text-[#9598a1] group-hover:text-[#d1d4dc] transition-colors">
+        {label}
+      </span>
+    </label>
+  );
 }
 
 export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreviewProps) {
   const [showDrawings, setShowDrawings] = useState(true);
+  const [showPositions, setShowPositions] = useState(true);
+  const [showTrades, setShowTrades] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const backdropRef = useRef<HTMLDivElement>(null);
+  // Pre-capture all 8 toggle combinations on modal open.
+  // All captures run synchronously (single JS task) so the browser
+  // paints only once — any chart refresh coincides with the modal appearing.
+  useEffect(() => {
+    const cache = new Map<string, HTMLCanvasElement>();
+    for (const d of [true, false]) {
+      for (const t of [true, false]) {
+        for (const p of [true, false]) {
+          const canvas = captureChartCanvas({ showDrawings: d, showTrades: t, showPositions: p });
+          if (canvas) cache.set(`${d}-${t}-${p}`, canvas);
+        }
+      }
+    }
+    cacheRef.current = cache;
+  }, [captureChartCanvas]);
 
-  const capture = useCallback((drawings: boolean) => {
-    const canvas = captureChartCanvas(drawings);
+  // Swap cached screenshot when any toggle changes (also fires on mount)
+  useEffect(() => {
+    if (cacheRef.current.size === 0) return;
+    const key = `${showDrawings}-${showTrades}-${showPositions}`;
+    const canvas = cacheRef.current.get(key);
     if (!canvas) return;
     canvasRef.current = canvas;
     setPreviewUrl(canvas.toDataURL('image/png'));
-  }, [captureChartCanvas]);
-
-  // Capture on mount and when showDrawings changes
-  useEffect(() => {
-    capture(showDrawings);
-  }, [capture, showDrawings]);
+  }, [showDrawings, showTrades, showPositions]);
 
   async function handleCopy() {
     const canvas = canvasRef.current;
@@ -114,22 +151,12 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-[#2a2e39]/50" style={{ padding: '14px 20px' }}>
-          {/* Drawings toggle */}
-          <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-            <div className="relative">
-              <input
-                type="checkbox"
-                checked={showDrawings}
-                onChange={(e) => setShowDrawings(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-8 h-[18px] rounded-full bg-[#2a2e39] peer-checked:bg-[#1e3a5f] transition-colors" />
-              <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-[#787b86] peer-checked:bg-[#4a9eff] peer-checked:translate-x-[14px] transition-all" />
-            </div>
-            <span className="text-xs text-[#9598a1] group-hover:text-[#d1d4dc] transition-colors">
-              Show drawings
-            </span>
-          </label>
+          {/* Toggles */}
+          <div className="flex items-center gap-5">
+            <Toggle checked={showDrawings} onChange={setShowDrawings} label="Drawings" />
+            <Toggle checked={showPositions} onChange={setShowPositions} label="Positions" />
+            <Toggle checked={showTrades} onChange={setShowTrades} label="Trades" />
+          </div>
 
           {/* Copy button */}
           <button

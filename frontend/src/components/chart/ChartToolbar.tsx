@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useStore, MORE_TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { InstrumentSelector } from '../InstrumentSelector';
-import { getChartEntry, type ChartEntry } from './screenshot/chartRegistry';
+import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { COLOR_PALETTE } from './ColorPopover';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
@@ -303,19 +303,102 @@ export function ChartToolbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  /** Take a screenshot of a single chart entry, toggling drawings and painting overlay text */
-  function screenshotEntry(entry: ChartEntry, showDrawings: boolean): HTMLCanvasElement {
+  /** Paint overlay labels (positions, orders) onto the screenshot canvas */
+  function paintOverlayLabels(ctx: CanvasRenderingContext2D, overlayEl: HTMLElement, canvasWidth: number) {
+    const font = "bold 11px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+    ctx.font = font;
+    const padH = 6;
+    const cellHeight = 20;
+
+    const rows = overlayEl.children;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i] as HTMLElement;
+      if (row.style.display === 'none') continue;
+
+      const top = parseFloat(row.style.top);
+      if (isNaN(top)) continue;
+
+      // Gather visible cells (skip interactive buttons like ✕, +SL, +TP)
+      const cells: { text: string; bg: string; color: string }[] = [];
+      for (let j = 0; j < row.children.length; j++) {
+        const cell = row.children[j] as HTMLElement;
+        const text = cell.textContent || '';
+        if (text === '\u2715' || text === '+SL' || text === '+TP') continue;
+        cells.push({
+          text,
+          bg: cell.style.background || cell.style.backgroundColor || '#787b86',
+          color: cell.style.color || '#000',
+        });
+      }
+      if (cells.length === 0) continue;
+
+      // Measure cell widths
+      let totalWidth = 0;
+      const cellWidths: number[] = [];
+      for (const cell of cells) {
+        const w = Math.ceil(ctx.measureText(cell.text).width) + padH * 2;
+        cellWidths.push(w);
+        totalWidth += w;
+      }
+
+      // Center horizontally in canvas
+      const startX = (canvasWidth - totalWidth) / 2;
+      const y = top;
+
+      // Draw each cell
+      let x = startX;
+      for (let j = 0; j < cells.length; j++) {
+        const cell = cells[j];
+        const w = cellWidths[j];
+
+        // Cell background
+        ctx.fillStyle = cell.bg;
+        ctx.fillRect(x, y - cellHeight / 2, w, cellHeight);
+
+        // Cell border-left separator
+        if (j > 0) {
+          ctx.fillStyle = '#000';
+          ctx.fillRect(x, y - cellHeight / 2, 1, cellHeight);
+        }
+
+        // Cell text
+        ctx.fillStyle = cell.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cell.text, x + w / 2, y);
+
+        x += w;
+      }
+    }
+    // Reset text alignment
+    ctx.textAlign = 'start';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  /** Take a screenshot of a single chart entry, toggling drawings/trades and painting overlays */
+  function screenshotEntry(entry: ChartEntry, options: ScreenshotOptions): HTMLCanvasElement {
     // Toggle drawings visibility
-    if (entry.primitive && !showDrawings) entry.primitive.visible = false;
+    if (entry.primitive && !options.showDrawings) entry.primitive.visible = false;
+    // Toggle trade zones visibility
+    if (entry.tradeZonePrimitive && !options.showTrades) entry.tradeZonePrimitive.visible = false;
 
     const canvas = entry.chart.takeScreenshot(true);
 
-    // Restore drawings
-    if (entry.primitive && !showDrawings) entry.primitive.visible = true;
+    // Restore
+    if (entry.primitive && !options.showDrawings) entry.primitive.visible = true;
+    if (entry.tradeZonePrimitive && !options.showTrades) entry.tradeZonePrimitive.visible = true;
 
-    // Paint instrument label + OHLC onto the canvas
     const ctx = canvas.getContext('2d');
     if (ctx) {
+      const plotWidth = entry.chart.timeScale().width();
+
+      // Paint instrument label + OHLC, clipped to the plot area
+      // so text doesn't overshoot into the price scale on narrow charts (dual mode)
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, plotWidth, canvas.height);
+      ctx.clip();
+
       const font = "12px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
       const instrText = entry.instrumentEl?.textContent || '';
       const ohlcText = entry.ohlcEl?.textContent || '';
@@ -330,51 +413,67 @@ export function ChartToolbar() {
         x += ctx.measureText(instrText).width + 10;
       }
       if (ohlcText) {
-        // OHLC has a semi-transparent background pill
         const metrics = ctx.measureText(ohlcText);
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(x - 3, y - 12, metrics.width + 6, 16);
         ctx.fillStyle = '#d1d4dc';
         ctx.fillText(ohlcText, x, y);
       }
+
+      ctx.restore();
+
+      // Paint overlay labels (positions, orders) clipped to plot area
+      if (options.showPositions && entry.overlayEl) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, plotWidth, canvas.height);
+        ctx.clip();
+        paintOverlayLabels(ctx, entry.overlayEl, plotWidth);
+        ctx.restore();
+      }
     }
 
     return canvas;
   }
 
-  const captureChartCanvas = useCallback((showDrawings: boolean): HTMLCanvasElement | null => {
+  const captureChartCanvas = useCallback((options: ScreenshotOptions): HTMLCanvasElement | null => {
     const leftEntry = getChartEntry('left');
     if (!leftEntry) return null;
 
+    let chartCanvas: HTMLCanvasElement;
+
     if (!dualChart) {
-      return screenshotEntry(leftEntry, showDrawings);
+      chartCanvas = screenshotEntry(leftEntry, options);
+    } else {
+      // Dual mode: composite both charts side-by-side
+      const rightEntry = getChartEntry('right');
+      if (!rightEntry) {
+        chartCanvas = screenshotEntry(leftEntry, options);
+      } else {
+        const leftCanvas = screenshotEntry(leftEntry, options);
+        const rightCanvas = screenshotEntry(rightEntry, options);
+        const gap = 2;
+        const w = leftCanvas.width + gap + rightCanvas.width;
+        const h = Math.max(leftCanvas.height, rightCanvas.height);
+
+        chartCanvas = document.createElement('canvas');
+        chartCanvas.width = w;
+        chartCanvas.height = h;
+        const ctx = chartCanvas.getContext('2d')!;
+        ctx.fillStyle = '#131722';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(leftCanvas, 0, 0);
+        ctx.fillStyle = '#2a2e39';
+        ctx.fillRect(leftCanvas.width, 0, gap, h);
+        ctx.drawImage(rightCanvas, leftCanvas.width + gap, 0);
+      }
     }
 
-    // Dual mode: composite both charts side-by-side
-    const rightEntry = getChartEntry('right');
-    if (!rightEntry) return screenshotEntry(leftEntry, showDrawings);
-
-    const leftCanvas = screenshotEntry(leftEntry, showDrawings);
-    const rightCanvas = screenshotEntry(rightEntry, showDrawings);
-    const gap = 2;
-    const w = leftCanvas.width + gap + rightCanvas.width;
-    const h = Math.max(leftCanvas.height, rightCanvas.height);
-
-    const composite = document.createElement('canvas');
-    composite.width = w;
-    composite.height = h;
-    const ctx = composite.getContext('2d')!;
-    ctx.fillStyle = '#131722';
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(leftCanvas, 0, 0);
-    ctx.fillStyle = '#2a2e39';
-    ctx.fillRect(leftCanvas.width, 0, gap, h);
-    ctx.drawImage(rightCanvas, leftCanvas.width + gap, 0);
-    return composite;
+    return chartCanvas;
   }, [dualChart]);
 
   async function handleCopyChartImage() {
-    const canvas = captureChartCanvas(true);
+    const canvas = captureChartCanvas({ showDrawings: true, showPositions: true, showTrades: true });
     if (!canvas) return;
     setCameraOpen(false);
     try {

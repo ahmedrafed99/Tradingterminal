@@ -1,9 +1,18 @@
 import type { IChartApi } from 'lightweight-charts';
 import type { DrawingsPrimitive } from '../drawings/DrawingsPrimitive';
+import type { TradeZonePrimitive } from '../TradeZonePrimitive';
+
+export interface ScreenshotOptions {
+  showDrawings: boolean;
+  showPositions: boolean;
+  showTrades: boolean;
+}
 
 export interface ChartEntry {
   chart: IChartApi;
   primitive: DrawingsPrimitive | null;
+  overlayEl: HTMLElement | null;
+  tradeZonePrimitive: TradeZonePrimitive | null;
   instrumentEl: HTMLElement | null;
   ohlcEl: HTMLElement | null;
 }

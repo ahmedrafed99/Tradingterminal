@@ -369,6 +369,7 @@ export class TradeZonePrimitive implements ISeriesPrimitive<Time> {
   private _paneView: TradeZonePaneView;
   private _paneViewsArr: readonly IPrimitivePaneView[];
   private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
+  visible = true;
 
   constructor() {
     this._paneView = new TradeZonePaneView(this);
@@ -418,7 +419,7 @@ export class TradeZonePrimitive implements ISeriesPrimitive<Time> {
   }
 
   paneViews(): readonly IPrimitivePaneView[] {
-    if (this._zones.length === 0) return this._emptyPaneViews;
+    if (!this.visible || this._zones.length === 0) return this._emptyPaneViews;
     return this._paneViewsArr;
   }
 

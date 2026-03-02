@@ -198,6 +198,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     registerChart(chartId, {
       chart,
       primitive: drawingsPrimitive,
+      overlayEl: overlayRef.current,
+      tradeZonePrimitive,
       instrumentEl: instrumentLabelRef.current,
       ohlcEl: ohlcRef.current,
     });
