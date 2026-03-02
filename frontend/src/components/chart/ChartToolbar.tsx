@@ -383,7 +383,24 @@ export function ChartToolbar() {
     // Toggle trade zones visibility
     if (entry.tradeZonePrimitive && !options.showTrades) entry.tradeZonePrimitive.visible = false;
 
+    // Hide order/position price lines (SL, TP, entry) by making them transparent
+    const linesToHide = !options.showPositions
+      ? [...entry.orderLinesRef.current, ...entry.previewLinesRef.current]
+      : [];
+    const savedLineOpts = linesToHide.map((line) => {
+      const opts = line.options();
+      return { color: opts.color, axisLabelVisible: opts.axisLabelVisible };
+    });
+    for (const line of linesToHide) {
+      line.applyOptions({ color: 'transparent', axisLabelVisible: false });
+    }
+
     const canvas = entry.chart.takeScreenshot(true);
+
+    // Restore order/position price lines
+    linesToHide.forEach((line, i) => {
+      line.applyOptions(savedLineOpts[i]);
+    });
 
     // Restore
     if (entry.primitive && !options.showDrawings) entry.primitive.visible = true;
