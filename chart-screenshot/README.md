@@ -57,6 +57,7 @@ A `ScreenshotOptions` type controls what each capture includes:
 4. **Paint text overlays** — read text content from the instrument and OHLC DOM refs and draw them onto the canvas with Canvas 2D API (these are HTML overlays that `takeScreenshot` doesn't capture).
 5. **Paint position labels** — if `showPositions` is true, `paintOverlayLabels()` reads children from the overlay div and paints each position/order row as colored cell rectangles (skipping interactive buttons like close, +SL, +TP).
 6. **Dual-chart composite** — if in dual mode, repeat for the right chart and draw both canvases side-by-side onto a new composite canvas.
+7. **Time banner** — before copying to clipboard, `addTimeBanner()` composites a 30 px black header strip above the chart image showing the current date and NY time (e.g. "Mar 2, 2026  14:32:07 New York"). This banner only appears in the final copied PNG — the preview modal shows the raw chart.
 
 ### Clipboard write
 
@@ -89,6 +90,7 @@ This keeps the write within the original user-activation window.
 frontend/src/components/chart/screenshot/
   chartRegistry.ts    Module-level chart API registry
   SnapshotPreview.tsx  Custom snapshot preview modal
+  addTimeBanner.ts    Composites a date+time header onto the final PNG
 ```
 
 ---

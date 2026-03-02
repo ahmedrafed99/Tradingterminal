@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react'
 import { useStore, MORE_TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { InstrumentSelector } from '../InstrumentSelector';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
+import { addTimeBanner } from './screenshot/addTimeBanner';
 import { COLOR_PALETTE } from './ColorPopover';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
@@ -477,11 +478,11 @@ export function ChartToolbar() {
     if (!canvas) return;
     setCameraOpen(false);
     try {
-      // Pass a Promise to ClipboardItem to preserve user activation context
+      const final = addTimeBanner(canvas);
       await navigator.clipboard.write([
         new ClipboardItem({
           'image/png': new Promise((resolve) => {
-            canvas.toBlob((blob) => resolve(blob!), 'image/png');
+            final.toBlob((blob) => resolve(blob!), 'image/png');
           }),
         }),
       ]);

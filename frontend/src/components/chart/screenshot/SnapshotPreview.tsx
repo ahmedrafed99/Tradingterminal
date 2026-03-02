@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ScreenshotOptions } from './chartRegistry';
+import { addTimeBanner } from './addTimeBanner';
 
 interface SnapshotPreviewProps {
   captureChartCanvas: (options: ScreenshotOptions) => HTMLCanvasElement | null;
@@ -65,10 +66,11 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
     const canvas = canvasRef.current;
     if (!canvas) return;
     try {
+      const final = addTimeBanner(canvas);
       await navigator.clipboard.write([
         new ClipboardItem({
           'image/png': new Promise((resolve) => {
-            canvas.toBlob((blob) => resolve(blob!), 'image/png');
+            final.toBlob((blob) => resolve(blob!), 'image/png');
           }),
         }),
       ]);
