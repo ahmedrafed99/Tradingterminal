@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
@@ -12,7 +13,21 @@ export function BuySellButtons() {
     bracketPresets, activePresetId, draftSlPoints, draftTpPoints,
     adHocSlPoints, adHocTpLevels,
     clearDraftOverrides, clearAdHocBrackets,
-  } = useStore();
+  } = useStore(useShallow((s) => ({
+    activeAccountId: s.activeAccountId,
+    orderContract: s.orderContract,
+    orderType: s.orderType,
+    limitPrice: s.limitPrice,
+    orderSize: s.orderSize,
+    bracketPresets: s.bracketPresets,
+    activePresetId: s.activePresetId,
+    draftSlPoints: s.draftSlPoints,
+    draftTpPoints: s.draftTpPoints,
+    adHocSlPoints: s.adHocSlPoints,
+    adHocTpLevels: s.adHocTpLevels,
+    clearDraftOverrides: s.clearDraftOverrides,
+    clearAdHocBrackets: s.clearAdHocBrackets,
+  })));
   const typeLabel = orderType === 'market' ? 'Market' : 'Limit';
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);

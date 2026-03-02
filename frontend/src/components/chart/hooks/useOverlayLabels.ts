@@ -147,7 +147,6 @@ export function useOverlayLabels(
                 accountId: acct, contractId: contract.id,
                 type: 2, side: isLong ? 1 : 0, size: pos.size,
               }).catch((err) => {
-                console.error('Failed to close position:', err);
                 showToast('error', 'Failed to close position', errorMessage(err));
               });
             },
@@ -282,7 +281,6 @@ export function useOverlayLabels(
             const acct = useStore.getState().activeAccountId;
             if (!acct) return;
             orderService.cancelOrder(acct, orderId).catch((err) => {
-              console.error('[Chart] Failed to cancel order:', err);
               showToast('error', 'Failed to cancel order', errorMessage(err));
             });
           },
@@ -398,7 +396,6 @@ export function useOverlayLabels(
               useStore.setState({ previewHideEntry: true });
             }
           } catch (err) {
-            console.error('[Chart] Failed to place order from preview:', err);
             showToast('error', 'Order placement failed', errorMessage(err));
           }
         };

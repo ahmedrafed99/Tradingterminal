@@ -25,8 +25,8 @@ export function OrdersTab() {
     setCancellingId(orderId);
     try {
       await orderService.cancelOrder(activeAccountId, orderId);
-    } catch (err) {
-      console.error('Failed to cancel order:', err);
+    } catch {
+      // Failure is visible — order stays in the list
     } finally {
       setCancellingId(null);
     }

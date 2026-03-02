@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { realtimeService } from '../../services/realtimeService';
 import { orderService } from '../../services/orderService';
@@ -12,13 +13,24 @@ import { ContractsSpinner } from './ContractsSpinner';
 import { BracketSummary } from './BracketSummary';
 import { BuySellButtons } from './BuySellButtons';
 import { PositionDisplay } from './PositionDisplay';
-import { BracketSettingsModal } from './BracketSettingsModal';
+
+const BracketSettingsModal = lazy(() => import('./BracketSettingsModal').then(m => ({ default: m.BracketSettingsModal })));
 
 export function OrderPanel() {
   const {
     orderContract, activeAccountId, setLastPrice, upsertPosition, upsertOrder, removeOrder,
-    suspendPreset, restorePreset,
-  } = useStore();
+    suspendPreset, restorePreset, editingPresetId,
+  } = useStore(useShallow((s) => ({
+    orderContract: s.orderContract,
+    activeAccountId: s.activeAccountId,
+    setLastPrice: s.setLastPrice,
+    upsertPosition: s.upsertPosition,
+    upsertOrder: s.upsertOrder,
+    removeOrder: s.removeOrder,
+    suspendPreset: s.suspendPreset,
+    restorePreset: s.restorePreset,
+    editingPresetId: s.editingPresetId,
+  })));
 
   const subscribedAccountRef = useRef<number | null>(null);
 
@@ -36,7 +48,6 @@ export function OrderPanel() {
     const handler = (order: RealtimeOrder, _action: number) => {
       // Forward to bracket engine first (may need to place manual TPs or evaluate conditions)
       bracketEngine.onOrderEvent(order).catch((err) => {
-        console.error('[OrderPanel] Bracket engine error:', err);
         showToast('error', 'Bracket engine error', errorMessage(err));
       });
 
@@ -88,13 +99,11 @@ export function OrderPanel() {
             );
             for (const o of contractOrders) {
               orderService.cancelOrder(acctId, o.id).catch((err) => {
-                console.error('[OrderPanel] Failed to cancel order on position close:', err);
                 showToast('warning', `Failed to cancel order #${o.id}`,
                   'Order may still be open. Check manually.');
               });
             }
           }).catch((err) => {
-            console.error('[OrderPanel] Failed to fetch orders for cleanup:', err);
             showToast('warning', 'Failed to fetch orders for cleanup',
               'Some orders may not have been cancelled after position close.');
           });
@@ -115,13 +124,12 @@ export function OrderPanel() {
               && o.size !== pos.size,
           );
           if (slOrder) {
-            console.log(`[OrderPanel] Position size changed — syncing SL size: ${slOrder.size} → ${pos.size}`);
+            if (import.meta.env.DEV) console.log(`[OrderPanel] Position size changed — syncing SL size: ${slOrder.size} → ${pos.size}`);
             orderService.modifyOrder({
               accountId: activeAccountId,
               orderId: slOrder.id,
               size: pos.size,
             }).catch((err) => {
-              console.error('[OrderPanel] Failed to sync SL size:', err);
               showToast('warning', 'SL size sync failed',
                 `SL size may not match position size (${pos.size}). Check manually.`);
             });
@@ -205,7 +213,11 @@ export function OrderPanel() {
         <PositionDisplay />
       </div>
 
-      <BracketSettingsModal />
+      {editingPresetId !== null && (
+        <Suspense fallback={null}>
+          <BracketSettingsModal />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -130,7 +130,6 @@ function MoveToBEButton({
         });
       }
     } catch (err) {
-      console.error('[SL to BE] Failed:', err);
       showToast('error', 'Failed to move SL to breakeven', errorMessage(err));
     } finally {
       setBusy(false);

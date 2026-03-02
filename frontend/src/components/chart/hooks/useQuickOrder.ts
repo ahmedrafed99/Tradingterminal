@@ -303,7 +303,6 @@ export function useQuickOrder(
           });
         }
       }).catch((err) => {
-        console.error('[Chart] Quick order failed:', err);
         showToast('error', 'Quick order failed', errorMessage(err));
         // Cleanup: remove stale preview state
         if (pendingFillUnsub) {

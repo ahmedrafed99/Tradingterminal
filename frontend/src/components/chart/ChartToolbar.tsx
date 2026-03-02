@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useStore, MORE_TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { InstrumentSelector } from '../InstrumentSelector';
 import { getChartEntry, type ChartEntry } from './screenshot/chartRegistry';
-import { SnapshotPreview } from './screenshot/SnapshotPreview';
 import { COLOR_PALETTE } from './ColorPopover';
+
+const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
 const UNIT_OPTIONS = [
   { value: 1, label: 'Seconds', suffix: 's' },
@@ -181,7 +182,7 @@ function IndicatorsDropdown() {
                 <div
                   style={{
                     width: 12, height: 12, borderRadius: 2, flexShrink: 0,
-                    background: vpColor, border: '1px solid #3a3e4a',
+                    background: vpColor, border: '1px solid #2a2e39',
                     marginRight: 8,
                   }}
                 />
@@ -222,7 +223,7 @@ function IndicatorsDropdown() {
                     onClick={() => setVpColor(c)}
                     style={{
                       width: 20, height: 20, background: c, borderRadius: 3,
-                      border: c === vpColor ? '2px solid #fff' : '1px solid #3a3e4a',
+                      border: c === vpColor ? '2px solid #fff' : '1px solid #2a2e39',
                       cursor: 'pointer',
                       boxShadow: c === vpColor ? '0 0 0 1px #1e222d' : 'none',
                     }}
@@ -387,8 +388,8 @@ export function ChartToolbar() {
       ]);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
-      console.error('Clipboard write failed:', e);
+    } catch {
+      // Clipboard API may be blocked — non-critical
     }
   }
 
@@ -628,10 +629,12 @@ export function ChartToolbar() {
       </span>
 
       {snapshotOpen && (
-        <SnapshotPreview
-          captureChartCanvas={captureChartCanvas}
-          onClose={() => setSnapshotOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <SnapshotPreview
+            captureChartCanvas={captureChartCanvas}
+            onClose={() => setSnapshotOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   );

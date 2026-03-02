@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
@@ -70,7 +71,21 @@ export function TopBar() {
     realizedPnl,
     realizedFees,
     setRealizedPnl,
-  } = useStore();
+  } = useStore(useShallow((s) => ({
+    connected: s.connected,
+    accounts: s.accounts,
+    activeAccountId: s.activeAccountId,
+    setAccounts: s.setAccounts,
+    setActiveAccountId: s.setActiveAccountId,
+    setSettingsOpen: s.setSettingsOpen,
+    updateAccount: s.updateAccount,
+    positions: s.positions,
+    lastPrice: s.lastPrice,
+    orderContract: s.orderContract,
+    realizedPnl: s.realizedPnl,
+    realizedFees: s.realizedFees,
+    setRealizedPnl: s.setRealizedPnl,
+  })));
 
   // Auto-select first account when accounts load, or if persisted ID is stale
   useEffect(() => {
@@ -83,7 +98,7 @@ export function TopBar() {
   // Reload accounts when connection state becomes true
   useEffect(() => {
     if (connected) {
-      accountService.searchAccounts().then(setAccounts).catch(console.error);
+      accountService.searchAccounts().then(setAccounts).catch(() => {});
     } else {
       setAccounts([]);
     }
@@ -105,7 +120,7 @@ export function TopBar() {
         const { pnl, fees } = aggregatePnl(trades);
         setRealizedPnl(pnl, fees);
       })
-      .catch(console.error);
+      .catch(() => {});
 
     return () => { cancelled = true; };
   }, [connected, activeAccountId, setRealizedPnl]);
@@ -126,7 +141,7 @@ export function TopBar() {
             const { pnl, fees } = aggregatePnl(trades);
             useStore.getState().setRealizedPnl(pnl, fees);
           })
-          .catch(console.error);
+          .catch(() => {});
       }, 500);
     };
 

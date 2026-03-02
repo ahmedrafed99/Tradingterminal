@@ -126,7 +126,7 @@ export function useChartBars(
         try {
           await realtimeService.connect();
         } catch (err) {
-          console.error('[chart] Failed to connect SignalR:', err);
+          if (import.meta.env.DEV) console.error('[chart] Failed to connect SignalR:', err);
           return;
         }
       }

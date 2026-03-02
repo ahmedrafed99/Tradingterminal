@@ -59,7 +59,7 @@ export function BracketSummary() {
       <div ref={containerRef} className="relative mb-1">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center justify-center bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e]"
+          className="w-full flex items-center justify-center bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff]"
           style={{ padding: '6px 8px' }}
         >
           <span className="truncate">{displayName}</span>

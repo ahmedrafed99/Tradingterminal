@@ -47,7 +47,7 @@ export function TradesTab() {
       .then((trades) => {
         if (!cancelled) setSessionTrades(trades);
       })
-      .catch(console.error);
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [connected, activeAccountId, setSessionTrades]);
 
@@ -63,7 +63,7 @@ export function TradesTab() {
         tradeService
           .searchTrades(acctId, getCmeSessionStart())
           .then((trades) => useStore.getState().setSessionTrades(trades))
-          .catch(console.error);
+          .catch(() => {});
       }, 500);
     };
     realtimeService.onTrade(handler);

@@ -40,8 +40,8 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         setCopied(false);
         onClose();
       }, 800);
-    } catch (e) {
-      console.error('Clipboard write failed:', e);
+    } catch {
+      // Clipboard API may be blocked — non-critical
     }
   }
 
@@ -58,7 +58,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
     <div
       ref={backdropRef}
       className="fixed inset-0 z-50 flex items-center justify-center animate-backdrop-in"
-      style={{ background: 'rgba(0, 0, 0, 0.55)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
       onMouseDown={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}
@@ -69,7 +69,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
           maxWidth: '75vw',
           maxHeight: '82vh',
           minWidth: 420,
-          boxShadow: '0 24px 80px rgba(0,0,0,0.55), 0 0 1px rgba(255,255,255,0.06)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)',
         }}
       >
         {/* Header */}
@@ -94,7 +94,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         {/* Preview image */}
         <div className="flex-1 overflow-auto" style={{ padding: '4px 20px 16px', minHeight: 180 }}>
           {previewUrl ? (
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #2a2e39' }}>
               <img
                 src={previewUrl}
                 alt="Chart snapshot"

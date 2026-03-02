@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TopBar } from './components/TopBar';
-import { SettingsModal } from './components/SettingsModal';
 import { ToastContainer } from './components/Toast';
+
+const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
 import { ChartArea, ChartToolbar } from './components/chart';
 import { BottomPanel } from './components/bottom-panel/BottomPanel';
 import { OrderPanel } from './components/order-panel';
@@ -53,6 +54,7 @@ export default function App() {
   const setConnected = useStore((s) => s.setConnected);
   const setContract = useStore((s) => s.setContract);
   const setOrderContract = useStore((s) => s.setOrderContract);
+  const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
@@ -142,7 +144,11 @@ export default function App() {
         )}
       </main>
 
-      <SettingsModal />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsModal />
+        </Suspense>
+      )}
       <ToastContainer />
     </div>
   );

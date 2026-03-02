@@ -161,7 +161,7 @@ function TextPopover({
                   height: 20,
                   background: c,
                   borderRadius: 3,
-                  border: c === color ? '2px solid #fff' : '1px solid #3a3e4a',
+                  border: c === color ? '2px solid #fff' : '1px solid #2a2e39',
                   cursor: 'pointer',
                   boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
                 }}
@@ -425,7 +425,7 @@ function TemplatePopover({
           <div style={{
             width: 10, height: 10, borderRadius: '50%',
             background: t.color, flexShrink: 0,
-            border: '1px solid rgba(255,255,255,0.15)',
+            border: '1px solid #2a2e39',
           }} />
           <div style={{
             width: 16, height: t.strokeWidth, background: t.color,
@@ -585,7 +585,7 @@ export function DrawingEditToolbar({
           <div style={{
             position: 'absolute', bottom: 4, right: 4,
             width: 8, height: 8, borderRadius: '50%',
-            background: drawing.color, border: '1px solid rgba(255,255,255,0.2)',
+            background: drawing.color, border: '1px solid #2a2e39',
           }} />
         </button>
         {showColor && (
@@ -612,7 +612,7 @@ export function DrawingEditToolbar({
           <div style={{
             position: 'absolute', bottom: 4, right: 4,
             width: 8, height: 8, borderRadius: '50%',
-            background: drawing.text?.color ?? '#ffffff', border: '1px solid rgba(255,255,255,0.2)',
+            background: drawing.text?.color ?? '#ffffff', border: '1px solid #2a2e39',
           }} />
         </button>
         {showText && (

@@ -15,8 +15,9 @@ import { DEFAULT_BRACKET_CONFIG, MAX_TP_LEVELS } from '../../types/bracket';
 // ---------------------------------------------------------------------------
 
 function getErrors(name: string, c: BracketConfig, triedSave: boolean): string[] {
+  if (!triedSave) return [];
   const errs: string[] = [];
-  if (triedSave && name.trim().length === 0) errs.push('Preset name is required');
+  if (name.trim().length === 0) errs.push('Preset name is required');
   if (c.takeProfits.length > 0 && c.stopLoss.points < 1) {
     errs.push('Stop loss must be at least 1 point when take profits are set');
   }
@@ -30,15 +31,6 @@ function getErrors(name: string, c: BracketConfig, triedSave: boolean): string[]
     }
   }
   return errs;
-}
-
-function getWarnings(c: BracketConfig): string[] {
-  const warns: string[] = [];
-  if (c.takeProfits.length > 0) {
-    const sum = c.takeProfits.reduce((s, tp) => s + tp.size, 0);
-    warns.push(`TP sizes sum to ${sum} contract${sum !== 1 ? 's' : ''}`);
-  }
-  return warns;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +67,6 @@ export function BracketSettingsModal() {
   if (!isOpen) return null;
 
   const errors = getErrors(name, draft, triedSave);
-  const warnings = getWarnings(draft);
 
   function handleSave() {
     setTriedSave(true);
@@ -95,7 +86,7 @@ export function BracketSettingsModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[520px] max-h-[85vh] flex flex-col rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl">
+      <div className="w-[520px] max-h-[85vh] flex flex-col rounded-xl bg-black border border-[#2a2e39] shadow-2xl">
         {/* Header */}
         <div
           className="flex items-center justify-between border-b border-[#2a2e39] shrink-0"
@@ -123,7 +114,7 @@ export function BracketSettingsModal() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Scalp, Swing, etc."
-                className="w-full bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e]"
+                className="w-full bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff]"
                 style={{ padding: '7px 12px' }}
                 autoFocus
               />
@@ -148,16 +139,10 @@ export function BracketSettingsModal() {
               onChange={(conditions) => setDraft((d) => ({ ...d, conditions }))}
             />
 
-            {/* Errors */}
+            {/* Errors (shown after first save attempt) */}
             {errors.map((e, i) => (
               <p key={i} className="text-xs text-[#a62a3d] bg-[#a62a3d]/10 rounded-lg px-4 py-2.5">
                 {e}
-              </p>
-            ))}
-            {/* Warnings */}
-            {warnings.map((w, i) => (
-              <p key={i} className="text-xs text-[#b08a3a] bg-[#b08a3a]/10 rounded-lg px-4 py-2.5">
-                {w}
               </p>
             ))}
           </div>
@@ -198,7 +183,7 @@ export function BracketSettingsModal() {
             <button
               onClick={handleSave}
               disabled={errors.length > 0}
-              className="text-sm font-medium rounded-lg bg-[#1a3a6e] text-white hover:bg-[#244d8a] transition-colors disabled:opacity-50"
+              className="text-sm font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50"
               style={{ padding: '9px 20px' }}
             >
               Save
@@ -234,7 +219,7 @@ function StopLossSection({
               step={1}
               value={sl.points}
               onChange={(e) => onChange({ ...sl, points: Math.max(0, +e.target.value || 0) })}
-              className="w-full bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e] [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-full bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff] [&::-webkit-inner-spin-button]:appearance-none"
               style={{ padding: '6px 10px' }}
             />
             <span className="text-[10px] text-[#787b86] whitespace-nowrap">pts</span>
@@ -245,7 +230,7 @@ function StopLossSection({
           <select
             value={sl.type}
             onChange={(e) => onChange({ ...sl, type: e.target.value as StopLossType })}
-            className="w-full bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e]"
+            className="w-full bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff]"
             style={{ padding: '6px 10px' }}
           >
             <option value="Stop">Stop</option>
@@ -332,7 +317,7 @@ function TakeProfitRow({
         step={1}
         value={tp.points}
         onChange={(e) => onChange({ ...tp, points: Math.max(1, +e.target.value || 1) })}
-        className="w-16 bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e] [&::-webkit-inner-spin-button]:appearance-none"
+        className="w-16 bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff] [&::-webkit-inner-spin-button]:appearance-none"
         style={{ padding: '5px 8px' }}
         title="Points"
       />
@@ -343,7 +328,7 @@ function TakeProfitRow({
         step={1}
         value={tp.size}
         onChange={(e) => onChange({ ...tp, size: Math.max(1, +e.target.value || 1) })}
-        className="w-14 bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e] [&::-webkit-inner-spin-button]:appearance-none"
+        className="w-14 bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff] [&::-webkit-inner-spin-button]:appearance-none"
         style={{ padding: '5px 8px' }}
         title="Contracts"
       />
@@ -478,7 +463,7 @@ function ConditionRow({
               trigger: { kind: 'tpFilled', tpIndex: +e.target.value },
             })
           }
-          className="bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e]"
+          className="bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff]"
           style={{ padding: '5px 8px' }}
         >
           {Array.from({ length: tpCount }, (_, i) => (
@@ -500,7 +485,7 @@ function ConditionRow({
         <select
           value={encodeAction()}
           onChange={(e) => onChange({ ...condition, action: decodeAction(e.target.value) })}
-          className="bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e]"
+          className="bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff]"
           style={{ padding: '5px 8px' }}
         >
           {actionOptions.map((o) => (
@@ -523,7 +508,7 @@ function ConditionRow({
                 action: { kind: 'customOffset', points: Math.max(1, +e.target.value || 1) },
               })
             }
-            className="w-16 bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#1a3a6e] [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-16 bg-[#111] border border-[#2a2e39] rounded text-xs text-white focus:outline-none focus:border-[#2962ff] [&::-webkit-inner-spin-button]:appearance-none"
             style={{ padding: '5px 8px' }}
           />
           <span className="text-[10px] text-[#434651]">pts past entry</span>

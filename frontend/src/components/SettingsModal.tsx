@@ -86,7 +86,7 @@ export function SettingsModal() {
                 onChange={(e) => setUserName(e.target.value)}
                 disabled={connected || loading}
                 placeholder="your-projectx-username"
-                className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
                 style={{ padding: '10px 14px' }}
               />
             </label>
@@ -99,7 +99,7 @@ export function SettingsModal() {
                 onChange={(e) => setApiKey(e.target.value)}
                 disabled={connected || loading}
                 placeholder="••••••••••••••••"
-                className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
                 style={{ padding: '10px 14px' }}
               />
             </label>
@@ -112,7 +112,7 @@ export function SettingsModal() {
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={connected || loading}
                 placeholder={DEFAULT_BASE_URL}
-                className="w-full bg-[#131722] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
                 style={{ padding: '10px 14px' }}
               />
             </label>

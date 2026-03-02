@@ -56,7 +56,7 @@ export function ColorPopover({
               height: 20,
               background: c,
               borderRadius: 3,
-              border: c === current ? '2px solid #fff' : '1px solid #3a3e4a',
+              border: c === current ? '2px solid #fff' : '1px solid #2a2e39',
               cursor: 'pointer',
               boxShadow: c === current ? '0 0 0 1px #1e222d' : 'none',
             }}

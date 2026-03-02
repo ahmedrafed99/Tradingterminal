@@ -455,7 +455,6 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       }
 
       orderService.modifyOrder(params).catch((err) => {
-        console.error('[Chart] Failed to modify order:', err);
         showToast('error', 'Order modification failed', errorMessage(err));
         // Revert line back to original price
         const line = refs.orderLines.current[dragIdx];
@@ -636,7 +635,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
             && o.side === oppositeSide,
         );
         if (existingSL) {
-          console.warn('[Chart] SL already exists for this position');
+          showToast('warning', 'SL already exists for this position');
           return;
         }
         orderService.placeOrder({
@@ -647,7 +646,6 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
           size: drag.posSize,
           stopPrice: drag.snappedPrice,
         }).catch((err) => {
-          console.error('[Chart] Failed to place SL from drag:', err);
           showToast('error', 'Stop Loss placement failed', errorMessage(err));
         });
       } else {
@@ -661,7 +659,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
           .reduce((sum, o) => sum + o.size, 0);
         const remaining = drag.posSize - existingTpSize;
         if (remaining <= 0) {
-          console.warn('[Chart] No remaining contracts for TP');
+          showToast('warning', 'No remaining contracts for TP');
           return;
         }
         orderService.placeOrder({
@@ -672,7 +670,6 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
           size: Math.min(1, remaining),
           limitPrice: drag.snappedPrice,
         }).catch((err) => {
-          console.error('[Chart] Failed to place TP from drag:', err);
           showToast('error', 'Take Profit placement failed', errorMessage(err));
         });
       }

@@ -5,6 +5,8 @@ import { TICKS_PER_POINT } from '../types/bracket';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 
+const DEV = import.meta.env.DEV;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -69,7 +71,7 @@ class BracketEngine {
     this.armedConfig = config;
     this.confirmedOrderId = null;
     this.bufferedFills = [];
-    console.log('[BracketEngine] Armed for entry', config.contractId);
+    if (DEV) console.log('[BracketEngine] Armed for entry', config.contractId);
   }
 
   /**
@@ -79,20 +81,19 @@ class BracketEngine {
   confirmEntryOrderId(orderId: number) {
     if (!this.armedConfig) return;
     this.confirmedOrderId = orderId;
-    console.log('[BracketEngine] Confirmed orderId', orderId);
+    if (DEV) console.log('[BracketEngine] Confirmed orderId', orderId);
 
     // Check if we already buffered a fill for this order
     const fill = this.bufferedFills.find(
       (o) => o.id === orderId && o.status === 2,
     );
     if (fill) {
-      console.log('[BracketEngine] Found buffered fill, processing now');
+      if (DEV) console.log('[BracketEngine] Found buffered fill, processing now');
       const cfg = this.armedConfig;
       this.armedConfig = null;
       this.confirmedOrderId = null;
       this.bufferedFills = [];
       this.onEntryFilled(cfg, fill.filledPrice ?? 0).catch((err) => {
-        console.error('[BracketEngine] onEntryFilled error:', err);
         showToast('error', 'Bracket placement error after fill', errorMessage(err));
       });
     }
@@ -124,7 +125,6 @@ class BracketEngine {
         if (!snapshot.filledTPs.has(tpIdx)) handledIds.add(orderId);
       }
       this.cancelSessionOrders(snapshot).catch((err) => {
-        console.error('[BracketEngine] Session cleanup error:', err);
         showToast('warning', 'Failed to cancel some bracket orders',
           'Check open orders and cancel manually if needed.');
       });
@@ -147,7 +147,6 @@ class BracketEngine {
       });
       return true;
     } catch (err) {
-      console.error('[BracketEngine] Failed to move SL to BE:', err);
       showToast('error', 'Failed to move SL to breakeven', errorMessage(err));
       return false;
     }
@@ -158,7 +157,7 @@ class BracketEngine {
    */
   async onOrderEvent(order: RealtimeOrder): Promise<void> {
     // Debug: log every order event when engine is active
-    if (this.armedConfig || this.session) {
+    if (DEV && (this.armedConfig || this.session)) {
       console.log('[BracketEngine] onOrderEvent:', {
         orderId: order.id,
         status: order.status,
@@ -175,7 +174,7 @@ class BracketEngine {
     if (this.armedConfig && this.confirmedOrderId === null) {
       if (order.status === 2) {
         this.bufferedFills.push(order);
-        console.log('[BracketEngine] Buffered fill event, orderId:', order.id);
+        if (DEV) console.log('[BracketEngine] Buffered fill event, orderId:', order.id);
       }
       return;
     }
@@ -183,7 +182,7 @@ class BracketEngine {
     // --- Armed with confirmed orderId: check for entry fill ---
     if (this.armedConfig && this.confirmedOrderId !== null) {
       if (order.id === this.confirmedOrderId && order.status === 2) {
-        console.log('[BracketEngine] Entry filled! price:', order.filledPrice);
+        if (DEV) console.log('[BracketEngine] Entry filled! price:', order.filledPrice);
         const cfg = this.armedConfig;
         this.armedConfig = null;
         this.confirmedOrderId = null;
@@ -200,7 +199,7 @@ class BracketEngine {
 
     // Check if SL was filled → cancel all remaining TPs
     if (this.session.slOrderId !== null && order.id === this.session.slOrderId) {
-      console.log('[BracketEngine] SL filled! Cancelling remaining TPs...');
+      if (DEV) console.log('[BracketEngine] SL filled! Cancelling remaining TPs...');
       const snapshot = this.session;
       this.session = null; // Clear immediately so clearSession() won't double-cancel
       await this.cancelSessionTPs(snapshot);
@@ -220,7 +219,7 @@ class BracketEngine {
     if (filledTpIndex === null) return;
     if (this.session.filledTPs.has(filledTpIndex)) return;
 
-    console.log(`[BracketEngine] TP${filledTpIndex + 1} filled`);
+    if (DEV) console.log(`[BracketEngine] TP${filledTpIndex + 1} filled`);
     this.session.filledTPs.add(filledTpIndex);
 
     // Reduce SL size to match remaining position
@@ -228,7 +227,7 @@ class BracketEngine {
       const filledTpSize = this.getFilledTPSize();
       const remainingSize = this.session.entrySize - filledTpSize;
       if (remainingSize > 0) {
-        console.log(`[BracketEngine] Modifying SL size: ${this.session.entrySize} → ${remainingSize}`);
+        if (DEV) console.log(`[BracketEngine] Modifying SL size: ${this.session.entrySize} → ${remainingSize}`);
         const slOrderId = this.session.slOrderId;
         const accountId = this.session.accountId;
         try {
@@ -243,8 +242,8 @@ class BracketEngine {
               },
             },
           );
-        } catch (err) {
-          console.error('[BracketEngine] Failed to modify SL size:', err);
+        } catch {
+          // Toast already shown by onExhausted
         }
       }
     }
@@ -334,7 +333,7 @@ class BracketEngine {
     const origTotal = rawTps.reduce((s, t) => s + t.size, 0);
     const normTotal = normalizedTPs.reduce((s, t) => s + t.size, 0);
     if (origTotal !== normTotal && normalizedTPs.length > 0) {
-      console.warn(`[BracketEngine] TP sizes normalized: ${origTotal} → ${normTotal} (entrySize=${entrySize})`);
+      if (DEV) console.log(`[BracketEngine] TP sizes normalized: ${origTotal} → ${normTotal} (entrySize=${entrySize})`);
       showToast('warning', 'TP sizes adjusted to match order size',
         `Total TP contracts (${origTotal}) normalized to entry size (${entrySize}).`);
     }
@@ -366,7 +365,7 @@ class BracketEngine {
 
       const slType = config.stopLoss.type === 'Stop' ? 4 : 5;
 
-      console.log(`[BracketEngine] Placing SL: side=${oppositeSide} stopPrice=${stopPrice} type=${slType}`);
+      if (DEV) console.log(`[BracketEngine] Placing SL: side=${oppositeSide} stopPrice=${stopPrice} type=${slType}`);
 
       try {
         const { orderId } = await retryAsync(
@@ -382,7 +381,6 @@ class BracketEngine {
             maxAttempts: 3,
             baseDelay: 500,
             onRetry: (err, attempt) => {
-              console.warn(`[BracketEngine] SL placement retry ${attempt}:`, err);
               showToast('warning', `Retrying SL placement (attempt ${attempt + 1})...`,
                 errorMessage(err));
             },
@@ -393,7 +391,7 @@ class BracketEngine {
             },
           },
         );
-        console.log('[BracketEngine] SL placed, orderId:', orderId);
+        if (DEV) console.log('[BracketEngine] SL placed, orderId:', orderId);
         if (this.session) {
           this.session.slOrderId = orderId;
         }
@@ -406,8 +404,8 @@ class BracketEngine {
             await this.executeAction(action);
           }
         }
-      } catch (err) {
-        console.error('[BracketEngine] Failed to place SL after all retries:', err);
+      } catch {
+        // Toast already shown by onExhausted
       }
     }
 
@@ -420,7 +418,7 @@ class BracketEngine {
           ? entryPrice + tpOffset
           : entryPrice - tpOffset;
 
-      console.log(`[BracketEngine] Placing TP${i + 1}: side=${oppositeSide} limitPrice=${limitPrice} size=${tp.size}`);
+      if (DEV) console.log(`[BracketEngine] Placing TP${i + 1}: side=${oppositeSide} limitPrice=${limitPrice} size=${tp.size}`);
 
       try {
         const { orderId } = await retryAsync(
@@ -441,10 +439,10 @@ class BracketEngine {
             },
           },
         );
-        console.log(`[BracketEngine] TP${i + 1} placed, orderId:`, orderId);
+        if (DEV) console.log(`[BracketEngine] TP${i + 1} placed, orderId:`, orderId);
         this.session?.tpOrderIds.set(i, orderId);
-      } catch (err) {
-        console.error(`[BracketEngine] Failed to place TP${i + 1}:`, err);
+      } catch {
+        // Toast already shown by onExhausted
       }
     }
   }
@@ -454,10 +452,9 @@ class BracketEngine {
     for (const [tpIdx, orderId] of tpOrderIds) {
       if (!filledTPs.has(tpIdx)) {
         try {
-          console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
+          if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
           await orderService.cancelOrder(accountId, orderId);
         } catch (err) {
-          console.error(`[BracketEngine] Failed to cancel TP${tpIdx + 1}:`, err);
           showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
         }
       }
@@ -470,10 +467,9 @@ class BracketEngine {
     // Cancel SL
     if (slOrderId !== null) {
       try {
-        console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
+        if (DEV) console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
         await orderService.cancelOrder(accountId, slOrderId);
       } catch (err) {
-        console.error('[BracketEngine] Failed to cancel SL:', err);
         showToast('warning', 'Failed to cancel Stop Loss order',
           'Check open orders manually. ' + errorMessage(err));
       }
@@ -483,10 +479,9 @@ class BracketEngine {
     for (const [tpIdx, orderId] of tpOrderIds) {
       if (!filledTPs.has(tpIdx)) {
         try {
-          console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
+          if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
           await orderService.cancelOrder(accountId, orderId);
         } catch (err) {
-          console.error(`[BracketEngine] Failed to cancel TP${tpIdx + 1}:`, err);
           showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
         }
       }
@@ -567,7 +562,6 @@ class BracketEngine {
         }
       }
     } catch (err) {
-      console.error('[BracketEngine] Failed to execute action:', action.kind, err);
       showToast('error', `Condition action failed: ${actionLabels[action.kind] ?? action.kind}`,
         errorMessage(err));
     }
