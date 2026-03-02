@@ -18,6 +18,17 @@ export function getBaseUrl(): string {
   return store.baseUrl;
 }
 
+/** Derive RTC (SignalR) base URL from API base URL: api.x.com → rtc.x.com */
+export function getRtcBaseUrl(): string {
+  try {
+    const url = new URL(store.baseUrl);
+    url.hostname = url.hostname.replace(/^api\./, 'rtc.');
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return store.baseUrl.replace('//api.', '//rtc.');
+  }
+}
+
 export function getToken(): string | null {
   return store.token;
 }

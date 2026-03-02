@@ -4,7 +4,7 @@ import cors from 'cors';
 import express from 'express';
 import httpProxy from 'http-proxy';
 
-import { getBaseUrl, getToken, isConnected, authHeaders } from './auth';
+import { getRtcBaseUrl, getToken, isConnected, authHeaders } from './auth';
 import authRoutes from './routes/authRoutes';
 import accountRoutes from './routes/accountRoutes';
 import marketDataRoutes from './routes/marketDataRoutes';
@@ -17,7 +17,7 @@ const app = express();
 // ---------------------------------------------------------------------------
 // Middleware
 // ---------------------------------------------------------------------------
-app.use(cors({ origin: '*' })); // tighten to localhost:5173 once frontend is running
+app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ app.use('/hubs', async (req, res) => {
   }
 
   try {
-    const targetUrl = `${getBaseUrl()}${req.originalUrl}`;
+    const targetUrl = `${getRtcBaseUrl()}${req.originalUrl}`;
     const response = await axios({
       method: req.method as 'GET' | 'POST' | 'PUT' | 'DELETE',
       url: targetUrl,
@@ -80,7 +80,7 @@ app.use('/hubs', async (req, res) => {
 //
 // After negotiate, the SignalR client upgrades to WebSocket.
 // Incoming WS path:  ws://localhost:3001/hubs/market
-// Forwarded to:      wss://gateway-api-demo.s2f.projectx.com/hubs/market
+// Forwarded to:      wss://rtc.topstepx.com/hubs/market
 // The JWT is injected via the Authorization header here server-side.
 // ---------------------------------------------------------------------------
 const wsProxy = httpProxy.createProxyServer({ changeOrigin: true });
@@ -94,25 +94,31 @@ const server = http.createServer(app);
 
 server.on('upgrade', (req, socket, head) => {
   const url = req.url ?? '';
+  console.log(`[WS upgrade] ${url}`);
 
   // Only proxy WebSocket connections to /hubs/*
   if (!url.startsWith('/hubs/')) {
+    console.log('[WS upgrade] not a /hubs/ path, destroying');
     socket.destroy();
     return;
   }
 
   const token = getToken();
   if (!token) {
+    console.log('[WS upgrade] no token, rejecting');
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();
     return;
   }
 
-  // Inject the JWT — browsers can't set WS headers, proxy does it for them
-  req.headers['authorization'] = `Bearer ${token}`;
+  // Inject the JWT as a query parameter — SignalR servers read access_token
+  // from the URL, not the Authorization header, for WebSocket connections.
+  const sep = url.includes('?') ? '&' : '?';
+  req.url = `${url}${sep}access_token=${encodeURIComponent(token)}`;
 
-  // Convert https → wss for the target
-  const baseWss = getBaseUrl().replace(/^https/, 'wss').replace(/^http/, 'ws');
+  // Convert https → wss for the target (uses RTC host, not API host)
+  const baseWss = getRtcBaseUrl().replace(/^https/, 'wss').replace(/^http/, 'ws');
+  console.log(`[WS upgrade] proxying ${url} → ${baseWss}`);
 
   wsProxy.ws(req, socket, head, { target: baseWss }, (err) => {
     console.error('[WS proxy upgrade error]', err?.message);

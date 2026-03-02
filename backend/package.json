@@ -11,7 +11,8 @@
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "http-proxy": "^1.18.1"
+    "http-proxy": "^1.18.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@microsoft/signalr": "^10.0.0",

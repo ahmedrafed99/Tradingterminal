@@ -1,12 +1,24 @@
 import { Router } from 'express';
 import axios from 'axios';
+import { z } from 'zod';
 import { getBaseUrl, authHeaders, isConnected } from '../auth';
+import { validateBody } from '../validate';
 
 const router = Router();
 
+const RetrieveBarsSchema = z.object({
+  contractId: z.string().min(1),
+  live: z.boolean().default(false),
+  unit: z.number().int().positive(),
+  unitNumber: z.number().int().positive(),
+  startTime: z.string().min(1),
+  endTime: z.string().min(1),
+  limit: z.number().int().positive().max(50000).optional(),
+  includePartialBar: z.boolean().optional(),
+});
+
 // POST /market/bars
-// Body: { contractId, unit, unitNumber, startTime, endTime, limit?, includePartialBar? }
-router.post('/bars', async (req, res) => {
+router.post('/bars', validateBody(RetrieveBarsSchema), async (req, res) => {
   if (!isConnected()) {
     res.status(401).json({ success: false, errorMessage: 'Not connected' });
     return;
@@ -20,6 +32,9 @@ router.post('/bars', async (req, res) => {
     );
     res.json(response.data);
   } catch (err: unknown) {
+    if (axios.isAxiosError(err) && err.response) {
+      console.error(`[bars] upstream ${err.response.status}`, err.response.data);
+    }
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
   }
@@ -33,7 +48,6 @@ router.get('/contracts/search', async (req, res) => {
   }
 
   try {
-    // `live` is required by the API — pass as query param ?live=true for live data
     const live = req.query['live'] === 'true';
     const response = await axios.post(
       `${getBaseUrl()}/api/Contract/search`,

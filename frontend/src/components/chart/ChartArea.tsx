@@ -47,70 +47,88 @@ export function ChartArea() {
   }, [dualChart, secondContract, setSecondContract]);
 
   // -- Crosshair sync between charts --
+  // Uses rAF retry to wait for both chart APIs, avoiding timing races with
+  // the deferred right-chart mount and child effect ordering.
   useEffect(() => {
     if (!dualChart) return;
 
-    const leftChart = leftRef.current?.getChartApi();
-    const rightChart = rightRef.current?.getChartApi();
-    const leftSeries = leftRef.current?.getSeriesApi();
-    const rightSeries = rightRef.current?.getSeriesApi();
+    let cancelled = false;
+    let retryId = 0;
+    let unsub: (() => void) | null = null;
 
-    if (!leftChart || !rightChart || !leftSeries || !rightSeries) return;
+    function trySubscribe() {
+      if (cancelled) return;
 
-    let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
-    let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
+      const leftChart = leftRef.current?.getChartApi();
+      const rightChart = rightRef.current?.getChartApi();
+      const leftSeries = leftRef.current?.getSeriesApi();
+      const rightSeries = rightRef.current?.getSeriesApi();
 
-    const onLeftMove = (param: MouseEventParams) => {
-      // Only sync on real user interaction — ignore programmatic setCrosshairPosition events
-      if (!param.sourceEvent) return;
-      if (!param.time || !param.point) {
-        // Delay the clear so that if the mouse is transitioning to the
-        // quick-order button overlay, the synced crosshair persists.
+      if (!leftChart || !rightChart || !leftSeries || !rightSeries) {
+        retryId = requestAnimationFrame(trySubscribe);
+        return;
+      }
+
+      let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
+      let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const onLeftMove = (param: MouseEventParams) => {
+        if (!param.sourceEvent) return;
+        if (!param.time || !param.point) {
+          if (rightClearTimer) clearTimeout(rightClearTimer);
+          rightClearTimer = setTimeout(() => {
+            if (!leftRef.current?.isQoHovered()) {
+              rightChart.clearCrosshairPosition();
+            }
+          }, 16);
+          return;
+        }
+        if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
+        const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
+        if (sourcePrice != null) {
+          rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
+        } else {
+          rightChart.clearCrosshairPosition();
+        }
+      };
+
+      const onRightMove = (param: MouseEventParams) => {
+        if (!param.sourceEvent) return;
+        if (!param.time || !param.point) {
+          if (leftClearTimer) clearTimeout(leftClearTimer);
+          leftClearTimer = setTimeout(() => {
+            if (!rightRef.current?.isQoHovered()) {
+              leftChart.clearCrosshairPosition();
+            }
+          }, 16);
+          return;
+        }
+        if (leftClearTimer) { clearTimeout(leftClearTimer); leftClearTimer = null; }
+        const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
+        if (sourcePrice != null) {
+          leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
+        } else {
+          leftChart.clearCrosshairPosition();
+        }
+      };
+
+      leftChart.subscribeCrosshairMove(onLeftMove);
+      rightChart.subscribeCrosshairMove(onRightMove);
+
+      unsub = () => {
         if (rightClearTimer) clearTimeout(rightClearTimer);
-        rightClearTimer = setTimeout(() => {
-          if (!leftRef.current?.isQoHovered()) {
-            rightChart.clearCrosshairPosition();
-          }
-        }, 16);
-        return;
-      }
-      if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
-      const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
-      if (sourcePrice != null) {
-        rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
-      } else {
-        rightChart.clearCrosshairPosition();
-      }
-    };
-
-    const onRightMove = (param: MouseEventParams) => {
-      if (!param.sourceEvent) return;
-      if (!param.time || !param.point) {
         if (leftClearTimer) clearTimeout(leftClearTimer);
-        leftClearTimer = setTimeout(() => {
-          if (!rightRef.current?.isQoHovered()) {
-            leftChart.clearCrosshairPosition();
-          }
-        }, 16);
-        return;
-      }
-      if (leftClearTimer) { clearTimeout(leftClearTimer); leftClearTimer = null; }
-      const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
-      if (sourcePrice != null) {
-        leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
-      } else {
-        leftChart.clearCrosshairPosition();
-      }
-    };
+        leftChart.unsubscribeCrosshairMove(onLeftMove);
+        rightChart.unsubscribeCrosshairMove(onRightMove);
+      };
+    }
 
-    leftChart.subscribeCrosshairMove(onLeftMove);
-    rightChart.subscribeCrosshairMove(onRightMove);
+    trySubscribe();
 
     return () => {
-      if (rightClearTimer) clearTimeout(rightClearTimer);
-      if (leftClearTimer) clearTimeout(leftClearTimer);
-      leftChart.unsubscribeCrosshairMove(onLeftMove);
-      rightChart.unsubscribeCrosshairMove(onRightMove);
+      cancelled = true;
+      cancelAnimationFrame(retryId);
+      unsub?.();
     };
   }, [dualChart, contract, secondContract]);
 

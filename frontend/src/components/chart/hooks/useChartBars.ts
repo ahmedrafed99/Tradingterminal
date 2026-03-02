@@ -1,0 +1,268 @@
+import { useEffect, useState } from 'react';
+import type { CandlestickData, UTCTimestamp } from 'lightweight-charts';
+import type { Contract } from '../../../services/marketDataService';
+import type { Timeframe } from '../../../store/useStore';
+import { useStore } from '../../../store/useStore';
+import { marketDataService } from '../../../services/marketDataService';
+import { realtimeService, type GatewayQuote, type DepthEntry } from '../../../services/realtimeService';
+import {
+  barToCandle,
+  sortBarsAscending,
+  computeStartTime,
+  getCandlePeriodSeconds,
+  floorToCandlePeriod,
+  generateWhitespace,
+} from '../barUtils';
+import type { ChartRefs } from './types';
+
+/**
+ * Handles historical bar loading, real-time quote subscription, and volume profile.
+ */
+export function useChartBars(
+  refs: ChartRefs,
+  chartId: 'left' | 'right',
+  contract: Contract | null,
+  timeframe: Timeframe,
+): { loading: boolean; error: string | null } {
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
+  const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
+
+  // -- Historical bars loading --
+  useEffect(() => {
+    if (!contract || !refs.series.current) return;
+
+    const series = refs.series.current;
+    let cancelled = false;
+
+    async function loadBars() {
+      setLoading(true);
+      setError(null);
+      try {
+        const startTime = computeStartTime(timeframe);
+        const endTime = new Date().toISOString();
+        const bars = await marketDataService.retrieveBars({
+          contractId: contract!.id,
+          live: false,
+          unit: timeframe.unit,
+          unitNumber: timeframe.unitNumber,
+          startTime,
+          endTime,
+          limit: 20000,
+          includePartialBar: true,
+        });
+
+        if (cancelled) return;
+
+        const sorted = sortBarsAscending(bars);
+        refs.bars.current = sorted;
+        const candles = sorted.map(barToCandle);
+        series.setData(candles);
+        refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
+
+        // Push future whitespace to the separate invisible series so the
+        // crosshair time label shows beyond the last candle
+        const periodSec = getCandlePeriodSeconds(timeframe);
+        const lastTime = candles.length > 0 ? (candles[candles.length - 1].time as number) : 0;
+        if (lastTime > 0 && refs.whitespaceSeries.current) {
+          refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, 100));
+        }
+
+        // Populate data map for crosshair sync
+        refs.dataMap.current.clear();
+        for (const c of candles) {
+          refs.dataMap.current.set(c.time as number, c.close);
+        }
+
+        refs.chart.current?.timeScale().fitContent();
+
+        // Configure series price format to snap crosshair label to tick size
+        if (contract) {
+          const dec = contract.tickSize.toString().split('.')[1]?.length ?? 0;
+          series.applyOptions({
+            priceFormat: { type: 'price', minMove: contract.tickSize, precision: dec },
+          });
+        }
+
+        // Seed countdown primitive with initial price + config
+        const cd = refs.countdown.current;
+        if (cd) {
+          const dec = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
+          cd.setDecimals(dec);
+          cd.setPeriod(periodSec);
+          refs.drawingsPrimitive.current?.setDecimals(dec);
+          refs.crosshairLabel.current?.setDecimals(dec);
+          refs.crosshairLabel.current?.setTickSize(contract?.tickSize ?? 0);
+          if (refs.lastBar.current) {
+            cd.updatePrice(refs.lastBar.current.close, false);
+          }
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load bars');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadBars();
+    return () => { cancelled = true; };
+  }, [contract, timeframe]);
+
+  // -- Real-time quote subscription --
+  useEffect(() => {
+    if (!contract || !refs.series.current) return;
+
+    const contractId = contract.id;
+    const periodSec = getCandlePeriodSeconds(timeframe);
+    let cancelled = false;
+
+    async function startRealtime() {
+      if (!realtimeService.isConnected()) {
+        try {
+          await realtimeService.connect();
+        } catch (err) {
+          console.error('[chart] Failed to connect SignalR:', err);
+          return;
+        }
+      }
+      if (!cancelled) {
+        realtimeService.subscribeQuotes(contractId);
+      }
+    }
+
+    startRealtime();
+
+    function handleQuote(quoteContractId: string, data: GatewayQuote) {
+      if (quoteContractId !== contractId || !refs.series.current) return;
+
+      const price = data.lastPrice;
+      if (price == null || !isFinite(price)) return;
+
+      const lastBar = refs.lastBar.current;
+      // Don't process quotes until historical data has loaded
+      if (!lastBar) return;
+
+      const quoteSec = new Date(data.lastUpdated).getTime() / 1000;
+      const candleTime = floorToCandlePeriod(quoteSec, periodSec);
+
+      // Skip quotes older than the current bar (lightweight-charts rejects these)
+      if (candleTime < lastBar.time) return;
+
+      if (lastBar.time === candleTime) {
+        // Update existing bar
+        const updated: CandlestickData<UTCTimestamp> = {
+          time: candleTime,
+          open: lastBar.open,
+          high: Math.max(lastBar.high, price),
+          low: Math.min(lastBar.low, price),
+          close: price,
+        };
+        refs.series.current.update(updated);
+        refs.lastBar.current = updated;
+        refs.dataMap.current.set(updated.time as number, updated.close);
+      } else {
+        // New candle period
+        const newBar: CandlestickData<UTCTimestamp> = {
+          time: candleTime,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+        };
+        refs.series.current.update(newBar);
+        refs.lastBar.current = newBar;
+        refs.dataMap.current.set(newBar.time as number, newBar.close);
+      }
+
+      // Feed live price into countdown primitive
+      refs.countdown.current?.updatePrice(price, true);
+    }
+
+    realtimeService.onQuote(handleQuote);
+
+    return () => {
+      cancelled = true;
+      refs.countdown.current?.setLive(false);
+      realtimeService.offQuote(handleQuote);
+      realtimeService.unsubscribeQuotes(contractId);
+    };
+  }, [contract, timeframe]);
+
+  // -- Volume profile depth subscription --
+  useEffect(() => {
+    const vp = refs.vpPrimitive.current;
+    if (!vp) return;
+
+    vp.setEnabled(vpEnabled);
+    if (!vpEnabled || !contract) {
+      vp.clear();
+      return;
+    }
+
+    const contractId = contract.id;
+    const tickSize = contract.tickSize;
+    vp.setTickSize(tickSize);
+    vp.clear();
+
+    function handleDepth(depthContractId: string, entries: DepthEntry[]) {
+      if (depthContractId !== contractId || !vp) return;
+
+      for (const entry of entries) {
+        if (entry.type === 6) {
+          // Reset marker — clear and prepare for snapshot
+          vp.clear();
+          continue;
+        }
+        if (entry.type === 5) {
+          // Volume at Price — snapshot or incremental update
+          vp.updateLevel(entry.price, entry.volume);
+        }
+      }
+    }
+
+    realtimeService.onDepth(handleDepth);
+    realtimeService.subscribeDepth(contractId);
+
+    return () => {
+      realtimeService.offDepth(handleDepth);
+      realtimeService.unsubscribeDepth(contractId);
+      vp.clear();
+      vp.setEnabled(false);
+    };
+  }, [contract, vpEnabled]);
+
+  // -- VP color sync (separate so color changes don't re-subscribe depth) --
+  useEffect(() => {
+    refs.vpPrimitive.current?.setColor(vpColor);
+  }, [vpColor]);
+
+  // -- VP hover tracking (crosshair move feeds hover price to primitive) --
+  useEffect(() => {
+    const chart = refs.chart.current;
+    const vp = refs.vpPrimitive.current;
+    if (!chart || !vp || !vpEnabled) return;
+
+    function onCrosshairMove(param: import('lightweight-charts').MouseEventParams) {
+      if (!vp) return;
+      if (!param.point || !refs.series.current) {
+        vp.setHoverPrice(null);
+        return;
+      }
+      const price = refs.series.current.coordinateToPrice(param.point.y);
+      vp.setHoverPrice(price != null ? price : null);
+    }
+
+    chart.subscribeCrosshairMove(onCrosshairMove);
+    return () => {
+      chart.unsubscribeCrosshairMove(onCrosshairMove);
+      vp.setHoverPrice(null);
+    };
+  }, [vpEnabled]);
+
+  return { loading, error };
+}

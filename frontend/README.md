@@ -40,7 +40,7 @@ frontend/
 │   │   └── retry.ts            ← retryAsync() — exponential backoff with jitter
 │   ├── services/
 │   │   ├── api.ts              ← axios instance + error interceptor
-│   │   ├── authService.ts      ← connect / disconnect / status / getToken
+│   │   ├── authService.ts      ← connect / disconnect / status
 │   │   ├── accountService.ts   ← searchAccounts (filtered)
 │   │   ├── marketDataService.ts← retrieveBars, searchContracts, listAvailable
 │   │   ├── orderService.ts     ← place / cancel / modify / searchOpen
@@ -56,13 +56,23 @@ frontend/
 │       ├── InstrumentSelector.tsx ← contract search dropdown in toolbar
 │       ├── chart/
 │       │   ├── index.ts         ← barrel export
-│       │   ├── CandlestickChart.tsx ← chart + historical bars + real-time quotes
+│       │   ├── CandlestickChart.tsx ← 342-line orchestrator (refs, chart init, hook calls, JSX)
+│       │   ├── ChartArea.tsx    ← dual chart layout, crosshair sync, draggable separator
 │       │   ├── ChartToolbar.tsx ← timeframe selector (pinned + dropdown + custom)
 │       │   ├── chartTheme.ts    ← chart/candlestick style constants + NY timezone formatters
 │       │   ├── barUtils.ts      ← bar conversion, sorting, period math
 │       │   ├── DrawingToolbar.tsx   ← collapsible left-edge sidebar (select, hline, oval, arrow path)
 │       │   ├── DrawingEditToolbar.tsx ← floating edit popup (color, text, stroke, template, delete)
 │       │   ├── TradeZonePrimitive.ts  ← ISeriesPrimitive for entry/exit trade zone visualization
+│       │   ├── hooks/
+│       │   │   ├── types.ts              ← ChartRefs interface, shared types (HitTarget, PriceLine, etc.)
+│       │   │   ├── resolvePreviewConfig.ts ← unifies preset+draft and ad-hoc state into BracketConfig
+│       │   │   ├── useChartWidgets.ts    ← trade zones, OHLC tooltip, crosshair label, scroll button
+│       │   │   ├── useChartBars.ts       ← bar fetching, real-time quotes, volume profile
+│       │   │   ├── useChartDrawings.ts   ← drawing creation, drag, resize, undo, keyboard shortcuts
+│       │   │   ├── useQuickOrder.ts      ← + button on price scale, bracket preview, order placement
+│       │   │   ├── useOrderLines.ts      ← preview/order/position price lines, all drag interactions
+│       │   │   └── useOverlayLabels.ts   ← HTML labels (P&L, cancel, +SL/+TP), hit targets, sync
 │       │   └── drawings/
 │       │       ├── DrawingsPrimitive.ts ← ISeriesPrimitive orchestrator for all drawings
 │       │       ├── HLineRenderer.ts    ← horizontal line renderer + hit test
@@ -130,7 +140,7 @@ that doesn't visually apply — this is reliable and already the pattern used ac
 ## Service Layer (`src/services/`)
 
 ### `api.ts`
-Axios instance with `baseURL: ''` (relative, forwarded by Vite proxy).
+Axios instance with `baseURL: ''` (relative, forwarded by Vite proxy) and `timeout: 30_000` (30s cap on all requests).
 
 Response interceptor: if `res.data.success === false`, throws `new Error(res.data.errorMessage)`.
 This means callers never need to check `success` manually — any failure throws.
@@ -141,7 +151,6 @@ This means callers never need to check `success` manually — any failure throws
 authService.connect(userName, apiKey, baseUrl?)  // POST /auth/connect
 authService.disconnect()                          // POST /auth/disconnect
 authService.getStatus()                           // GET  /auth/status → { connected, baseUrl }
-authService.getToken()                            // GET  /auth/token  → JWT string (for SignalR)
 ```
 
 ### `accountService.ts`
@@ -172,6 +181,8 @@ orderService.modifyOrder(params)                      // PATCH /orders/modify
 orderService.searchOpenOrders(accountId)              // GET   /orders/open?accountId=...
 ```
 
+All methods wrapped with `retryAsync()` (3 attempts, exponential backoff with jitter) for transient network failures.
+
 Order type enum: `1`=Limit, `2`=Market, `4`=Stop, `5`=TrailingStop.
 Order side enum: `0`=Buy, `1`=Sell.
 
@@ -199,35 +210,40 @@ interface Trade {
 
 ### `realtimeService.ts`
 
-Singleton class managing two SignalR hubs connected directly to `rtc.topstepx.com` (not proxied through backend):
+Singleton class managing two SignalR hubs **proxied through the backend** (JWT injected server-side, never exposed to browser):
 
-| Hub | URL | Events |
-|-----|-----|--------|
-| Market | `wss://rtc.topstepx.com/hubs/market` | `GatewayQuote(contractId, data)` |
-| User | `wss://rtc.topstepx.com/hubs/user` | `GatewayUserOrder`, `GatewayUserPosition`, `GatewayUserBalance`, `GatewayUserTrade` |
+| Hub | Frontend URL | Proxied To | Events |
+|-----|-------------|------------|--------|
+| Market | `/hubs/market` | `wss://rtc.topstepx.com/hubs/market` | `GatewayQuote(contractId, data)`, `GatewayDepth(contractId, entries[])` |
+| User | `/hubs/user` | `wss://rtc.topstepx.com/hubs/user` | `GatewayUserOrder`, `GatewayUserPosition`, `GatewayUserAccount`, `GatewayUserTrade` |
 
 ```ts
-realtimeService.connect(token)                    // start both hubs (token from authService.getToken())
+realtimeService.connect()                         // start both hubs (no token needed — proxy injects it)
 realtimeService.subscribeQuotes(contractId)       // invoke SubscribeContractQuotes
 realtimeService.unsubscribeQuotes(contractId)     // invoke UnsubscribeContractQuotes
-realtimeService.subscribeUserEvents(accountId)    // invoke SubscribeAccounts
+realtimeService.subscribeDepth(contractId)        // invoke SubscribeContractMarketDepth
+realtimeService.unsubscribeDepth(contractId)      // invoke UnsubscribeContractMarketDepth
+realtimeService.subscribeUserEvents(accountId)    // invoke SubscribeAccounts + Orders + Positions + Trades
 
 realtimeService.onQuote(handler)     // (contractId, GatewayQuote) => void
+realtimeService.onDepth(handler)     // (contractId, DepthEntry[]) => void
 realtimeService.onOrder(handler)
 realtimeService.onPosition(handler)
-realtimeService.onBalance(handler)
-
+realtimeService.onAccount(handler)
 realtimeService.onTrade(handler)
+
 realtimeService.offQuote(handler)    // remove specific handler
+realtimeService.offDepth(handler)
 realtimeService.offOrder(handler)
 realtimeService.offPosition(handler)
-realtimeService.offBalance(handler)
+realtimeService.offAccount(handler)
 realtimeService.offTrade(handler)
 
+realtimeService.ping()               // WebSocket round-trip latency in ms
 realtimeService.disconnect()
 ```
 
-Uses `skipNegotiation: true` + `transport: WebSockets`. Auto-reconnects and resubscribes on reconnect.
+Uses `skipNegotiation: true` + `transport: WebSockets`. Vite proxies `/hubs` to Express (port 3001), which appends `?access_token=<JWT>` server-side during WebSocket upgrade. Auto-reconnects and resubscribes on reconnect.
 
 ### `bracketEngine.ts`
 
@@ -350,19 +366,38 @@ Toast notification system. `<ToastContainer />` is mounted in `App.tsx` (renders
 - Enter/exit animations via CSS classes `animate-toast-in` / `animate-toast-out` (defined in `index.css`)
 - Triggered from anywhere via `showToast()` from `utils/toast.ts` (works from non-React code)
 
-### `chart/CandlestickChart.tsx`
+### `chart/CandlestickChart.tsx` (Orchestrator — 342 lines)
 
-Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.memo` to prevent unnecessary re-renders from parent state changes.
+Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.memo` + `forwardRef`. Declares 28 refs bundled into a typed `ChartRefs` bag, runs the chart init effect (createChart, series, primitives), then delegates all behavior to 6 hooks. Exposes `getChartApi()`, `getSeriesApi()`, `getDataMap()`, `isQoHovered()` via `useImperativeHandle`.
+
+Hook call order (preserves original effect ordering):
+1. `useChartWidgets(refs, contract, timeframe)` → `{ showScrollBtn, scrollBtnPos }`
+2. `useChartBars(refs, chartId, contract, timeframe)` → `{ loading, error }`
+3. `useChartDrawings(refs, contract)`
+4. `useQuickOrder(refs, contract, timeframe, isOrderChart)`
+5. `useOrderLines(refs, contract, isOrderChart)`
+6. `useOverlayLabels(refs, contract, isOrderChart)`
+
+### `chart/hooks/useChartWidgets.ts` (193 lines)
+
+Trade zone primitive sync, OHLC tooltip on crosshair hover, crosshair price label primitive configuration, scroll-to-latest button visibility and positioning.
+
+### `chart/hooks/useChartBars.ts` (270 lines)
 
 - **Historical bars**: loads on mount and when `contract` or `timeframe` changes
 - **Real-time updates**: subscribes to `GatewayQuote` via SignalR, updates/creates candles
 - Guards against race conditions with stale quotes
+- **Volume profile**: depth subscription, color sync, hover tracking
 
-**Trade zone overlay** (entry/exit visualization):
-- `TradeZonePrimitive` attached to the candlestick series (renders above candles)
-- Subscribes to `visibleTradeIds` and `sessionTrades` store changes via `useStore.subscribe()`
-- When trades are toggled visible in the Trades tab, calls `matchTrades()` to produce zones, feeds them to the primitive via `setData()`
-- Primitive attachment order on series: CountdownPrimitive → TradeZonePrimitive → DrawingsPrimitive → CrosshairLabelPrimitive
+### `chart/hooks/useChartDrawings.ts` (900 lines)
+
+Complete drawing system: click-to-place (hline), drag-to-create (oval), multi-click creation (arrow path), click-to-select, drag-to-move, 4-handle resize (oval), per-node drag (arrow path), ruler creation. Keyboard shortcuts (Del, Ctrl+Z, Escape). Contains `onOverlayHitTest` handler registered on container mousedown.
+
+### `chart/hooks/useQuickOrder.ts` (343 lines)
+
+The + button on the price scale: appears on hover, shows bracket preview lines (SL/TP) when hovered, places limit order on click with bracket engine arming. Full cleanup on error (disarm, clear preview, toast).
+
+### `chart/hooks/useOrderLines.ts` (697 lines)
 
 **Preview overlay** (when preview checkbox is ticked):
 - Entry line always shown when preview is on (even with no preset)
@@ -370,13 +405,16 @@ Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.mem
 - Dashed price lines for Entry (grey `#787b86`), SL (semi-transparent red `#ff444480`), each TP (solid green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`
 - Two-effect pattern: structural effect creates/destroys lines on config change; price-update effect calls `applyOptions()` in-place to avoid flicker
-- Initial prices read imperatively via `useStore.getState()` to avoid flash-at-bottom on first toggle
 
 **Live order & position lines** (always visible, regardless of preview):
 - Position entry: solid grey `#cac8cb` at `averagePrice`
 - Stop orders (type 4/5): solid red `#ff0000` at `stopPrice`
 - Limit orders (type 1): solid green `#00c805` at `limitPrice` (all TPs are green regardless of side)
 - Each line tracks its `Order` object via `orderLineMetaRef` for drag identification
+
+**Drag interactions**: Preview line drag (entry/SL/TP), order drag-to-modify, position drag-to-create SL/TP.
+
+### `chart/hooks/useOverlayLabels.ts` (784 lines)
 
 **Overlay label system** (HTML labels positioned over price lines):
 - Imperative DOM (`document.createElement`) — avoids React render cycles for smooth 60fps updates
@@ -393,8 +431,12 @@ Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.mem
 - Also listens to `visibleLogicalRangeChange` (horizontal scroll), `ResizeObserver`, and `wheel` events
 - Zero overhead when idle — rAF loop only active during pointer drag
 
+### `chart/hooks/types.ts` (113 lines)
+
+Shared type definitions: `ChartRefs` interface (28 refs), `PriceLine`, `PreviewLineRole`, `OrderLineMeta`, `HitTarget`, `QoPreviewLines`, `PosDragState`, `OrderDragState`.
+
 **Label-initiated drag** (click label to edit price):
-- All labels are `pointer-events: none` — interaction detected by container-level `onOverlayHitTest` handler via coordinate hit testing
+- All labels are `pointer-events: none` — interaction detected by container-level `onOverlayHitTest` handler (in useChartDrawings) via coordinate hit testing
 - `onOverlayHitTest` fires the registered drag handler, which sets shared drag state refs (`previewDragStateRef` or `orderDragStateRef`)
 - `mousemove` / `mouseup` listeners on `window` handle the drag (works even when mouse leaves the label)
 - Cursor switches to `grabbing` during drag, resets to `pointer` on release
@@ -481,7 +523,7 @@ Canvas rendering via LWC `ISeriesPrimitive` plugin:
 - **ArrowPathRenderer**: multi-segment polyline with open V-shaped arrowhead on last segment. Per-node selection handles. Text label at path midpoint. Arrowhead size clamped to 40% of final segment length.
 - **hitTesting**: `hitTestHLine` (Y-distance), `hitTestOval` (normalized ellipse perimeter distance), `hitTestArrowPath` (point-to-segment distance across all segments)
 
-Drawing interactions in CandlestickChart.tsx: click-to-place (hline), drag-to-create (oval), multi-click creation (arrow path: left-click adds nodes, right-click finalizes with rubber-band preview), click-to-select, drag-to-move (hline vertical, oval 2D, arrow path shifts all nodes), 4-handle resize (oval), per-node drag (arrow path), Escape to cancel/revert, Delete to remove. Selection handles across all drawing types use black fill with dark blue border. Drawings scoped per contractId, persisted to localStorage.
+Drawing interactions in `useChartDrawings.ts`: click-to-place (hline), drag-to-create (oval), multi-click creation (arrow path: left-click adds nodes, right-click finalizes with rubber-band preview), click-to-select, drag-to-move (hline vertical, oval 2D, arrow path shifts all nodes), 4-handle resize (oval), per-node drag (arrow path), Escape to cancel/revert, Delete to remove. Selection handles across all drawing types use black fill with dark blue border. Drawings scoped per contractId, persisted to localStorage.
 
 ### `chart/ChartToolbar.tsx`
 
@@ -565,7 +607,7 @@ Ephemeral point overrides for bracket config, set by dragging preview lines on c
 - `draftSlPoints: number | null` — overrides `config.stopLoss.points`
 - `draftTpPoints: (number | null)[]` — overrides `config.takeProfits[i].points`
 - Auto-cleared on: preview toggle off, preset change, preset suspend, order placement
-- Used by: `BuySellButtons` (merged into bracket config), `BracketSummary` (visual indicator), `CandlestickChart` (line positions)
+- Used by: `BuySellButtons` (merged into bracket config), `BracketSummary` (visual indicator), `useOrderLines` hook (line positions)
 
 ### Ad-Hoc Brackets (No Preset Required)
 

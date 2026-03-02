@@ -110,9 +110,11 @@ chart/
                      │ HTTP / WebSocket
 ┌────────────────────▼────────────────────────────────────────────────┐
 │         Node.js / Express Proxy  (localhost:3001)                    │
-│  • Holds API key in memory — never exposed to browser               │
+│  • JWT held in memory — never exposed to browser                    │
+│  • CORS locked to localhost:5173                                     │
+│  • Zod validation on all routes                                      │
 │  • Forwards REST calls to ProjectX Gateway                          │
-│  • Proxies SignalR WebSocket upgrade                                 │
+│  • Proxies SignalR WS upgrade (injects JWT server-side)             │
 └────────────────────┬────────────────────────────────────────────────┘
                      │ HTTPS / WSS
 ┌────────────────────▼────────────────────────────────────────────────┐

@@ -1,8 +1,6 @@
 import * as signalR from '@microsoft/signalr';
 import { HttpTransportType } from '@microsoft/signalr';
 
-const RTC_HOST = 'https://rtc.topstepx.com';
-
 export interface GatewayQuote {
   symbol: string;
   symbolName: string;
@@ -108,11 +106,11 @@ class RealtimeService {
   private subscribedOrderAccounts: Set<number> = new Set();
   private connectingPromise: Promise<void> | null = null;
 
-  async connect(token: string) {
+  async connect() {
     if (this.isConnected()) return;
     if (this.connectingPromise) return this.connectingPromise;
 
-    this.connectingPromise = this.doConnect(token);
+    this.connectingPromise = this.doConnect();
     try {
       await this.connectingPromise;
     } finally {
@@ -120,9 +118,12 @@ class RealtimeService {
     }
   }
 
-  private async doConnect(token: string) {
+  private async doConnect() {
+    // Connect through the backend proxy — JWT is injected server-side.
+    // The proxy handles negotiate (HTTP) and WebSocket upgrade, so the
+    // browser never sees the token.
     this.marketHub = new signalR.HubConnectionBuilder()
-      .withUrl(`${RTC_HOST}/hubs/market?access_token=${token}`, {
+      .withUrl('/hubs/market', {
         skipNegotiation: true,
         transport: HttpTransportType.WebSockets,
       })
@@ -131,7 +132,7 @@ class RealtimeService {
       .build();
 
     this.userHub = new signalR.HubConnectionBuilder()
-      .withUrl(`${RTC_HOST}/hubs/user?access_token=${token}`, {
+      .withUrl('/hubs/user', {
         skipNegotiation: true,
         transport: HttpTransportType.WebSockets,
       })

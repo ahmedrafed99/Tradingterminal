@@ -13,10 +13,16 @@ backend proxy — all wired to a live trading API. The architecture is
 fundamentally sound, TypeScript usage is excellent, and the state management
 is well-designed.
 
-However, the codebase has reached an inflection point. A 3,354-line god
+However, the codebase has reached an inflection point. ~~A 3,354-line god
 component, zero tests, silent failures in financial-critical paths, and no
 retry logic represent compounding technical debt that will bite hard on the
-next iteration.
+next iteration.~~ **Update (2026-03-02):** Phase 1 (Safety Net) and Phase 2
+(Decompose) are now complete. The god component has been split into a 342-line
+orchestrator + 8 focused hooks. Bracket engine has retry logic with toasts,
+and 15 unit tests cover the financial-critical paths. Phase 3 (Harden) added
+request timeouts, retry on order HTTP calls, CORS lockdown, JWT hidden from
+browser via SignalR proxy, Zod input validation on all backend routes.
+Remaining work: Phase 4 (Polish).
 
 ### Scorecard
 
@@ -24,12 +30,12 @@ next iteration.
  Category            Score   Status
  ──────────────────── ─────── ──────────────────────────
  Type Safety          9 / 10  Excellent — strict TS, 2 `any` uses
- Architecture         7 / 10  Good bones, god component problem
+ Architecture         8 / 10  Clean hook decomposition (was 7 — god component resolved)
  State Management     8 / 10  Well-partitioned Zustand slices
- Reliability          4 / 10  Silent failures, no retries
- Security             6 / 10  Good proxy design, token leaks
+ Reliability          7 / 10  Retry + toasts + 30s timeout (was 6 — order retry, timeouts added)
+ Security             8 / 10  JWT hidden, CORS locked, Zod validation (was 6 — token leak + CORS fixed)
  Performance          5 / 10  Zero memoization, no code splitting
- Test Coverage        0 / 10  No tests exist
+ Test Coverage        2 / 10  15 bracket engine tests (was 0)
  Accessibility        2 / 10  No ARIA, no keyboard nav
  Design Consistency   6 / 10  Tokens defined but not enforced
  Documentation        8 / 10  Feature READMEs are excellent
@@ -55,20 +61,15 @@ next iteration.
  │  │                                                          │   │
  │  │  ┌──────────────────────┐  ┌────────────────────────┐   │   │
  │  │  │  CandlestickChart    │  │  OrderPanel            │   │   │
- │  │  │  *** 3,354 LINES *** │  │  Market/Limit + Bracket│   │   │
- │  │  │                      │  │  Buy/Sell + Preview     │   │   │
- │  │  │  - Chart rendering   │  └────────────────────────┘   │   │
- │  │  │  - Drawing tools     │                               │   │
- │  │  │  - Order management  │                               │   │
- │  │  │  - Mouse handlers    │                               │   │
- │  │  │  - Keyboard shortcuts│                               │   │
- │  │  │  - Preview overlay   │                               │   │
- │  │  │  - Drag-to-modify    │                               │   │
- │  │  │  - Quick orders      │                               │   │
- │  │  │  - Crosshair labels  │                               │   │
- │  │  │  - Trade zones       │                               │   │
- │  │  │  - Volume profile    │                               │   │
- │  │  │  - 20+ useEffects    │                               │   │
+ │  │  │  (342-line orch.)    │  │  Market/Limit + Bracket│   │   │
+ │  │  │  ┌── hooks/ ───────┐ │  │  Buy/Sell + Preview     │   │   │
+ │  │  │  │ useChartWidgets  │ │  └────────────────────────┘   │   │
+ │  │  │  │ useChartBars     │ │                               │   │
+ │  │  │  │ useChartDrawings │ │                               │   │
+ │  │  │  │ useQuickOrder    │ │                               │   │
+ │  │  │  │ useOrderLines    │ │                               │   │
+ │  │  │  │ useOverlayLabels │ │                               │   │
+ │  │  │  └──────────────────┘ │                               │   │
  │  │  └──────────────────────┘                               │   │
  │  │                                                          │   │
  │  │  ┌──────────────────────────────────────────────────┐   │   │
@@ -91,11 +92,11 @@ next iteration.
  ┌──────────────────────────▼──────────────────────────────────────┐
  │  Express Proxy (localhost:3001)                                  │
  │                                                                  │
- │  - JWT held in memory (never exposed to browser... mostly)      │
- │  - /auth/token endpoint DOES expose JWT  ◄── SECURITY CONCERN   │
- │  - CORS: origin '*'                      ◄── SECURITY CONCERN   │
- │  - No input validation on any route      ◄── RELIABILITY CONCERN│
- │  - No retry logic                        ◄── RELIABILITY CONCERN│
+ │  - JWT held in memory (never exposed to browser)                │
+ │  - ✅ /auth/token removed — JWT stays server-side              │
+ │  - ✅ CORS locked to localhost:5173                            │
+ │  - ✅ Zod validation on all routes                             │
+ │  - ✅ 30s request timeout + retry on order calls               │
  └──────────────────────────┬──────────────────────────────────────┘
                             │ HTTPS / WSS
  ┌──────────────────────────▼──────────────────────────────────────┐
@@ -169,73 +170,71 @@ CLAUDE.md with design tokens is smart. Most projects this size have zero docs.
 
 ## 4. The Bad
 
-### 4.1 — God Component: CandlestickChart.tsx (3,354 lines)
+### 4.1 — ~~God Component: CandlestickChart.tsx (3,354 lines)~~ RESOLVED
 
-This is the single biggest problem in the codebase. One file handles
-everything the chart does:
+> **Status: Fixed in Phase 2.** CandlestickChart.tsx decomposed from 3,354
+> lines into a 342-line orchestrator + 8 focused modules in `hooks/`.
 
 ```
- CandlestickChart.tsx — 3,354 lines
+ CandlestickChart.tsx — 342 lines (orchestrator)
  ┌─────────────────────────────────────────────────────────────┐
+ │  Refs (28) → ChartRefs bag → passed to all hooks            │
+ │  Chart init useEffect (createChart, series, primitives)     │
+ │  Hook calls (preserves original effect ordering):           │
  │                                                             │
- │  Lines 1-200       Chart initialization & lifecycle         │
- │  Lines 200-340     Bar fetching, caching, real-time updates │
- │  Lines 340-860     Drawing tools (hline, oval, arrow, ruler)│
- │                    - Mouse down/move/up handlers            │
- │                    - Hit testing                            │
- │                    - Drag & resize state machines            │
- │  Lines 860-1160    Primitive attachment & management        │
- │  Lines 1160-1410   Crosshair, countdown, symbol overlay    │
- │  Lines 1410-1720   + Button / Quick order placement         │
- │  Lines 1720-1900   Preview overlay (ghost SL/TP lines)     │
- │  Lines 1900-2080   Drag-to-modify order prices             │
- │  Lines 2080-2300   Order/position lines on chart           │
- │  Lines 2300-2500   Overlay labels (P&L, size, cancel)      │
- │  Lines 2500-2700   Trade zone visualization                │
- │  Lines 2700-2900   Volume profile integration              │
- │  Lines 2900-3100   Keyboard shortcuts (Esc, Del, Ctrl+Z)   │
- │  Lines 3100-3354   Cleanup, render, ref forwarding         │
+ │  hooks/types.ts              113 lines  Shared types        │
+ │  hooks/resolvePreviewConfig  37 lines   Bracket helper      │
+ │  hooks/useChartWidgets       193 lines  OHLC, crosshair,   │
+ │                                         trade zones, scroll │
+ │  hooks/useChartBars          270 lines  Bar fetch, RT quotes│
+ │                                         volume profile      │
+ │  hooks/useChartDrawings      900 lines  All drawing tools   │
+ │  hooks/useQuickOrder         343 lines  + button, preview   │
+ │  hooks/useOrderLines         697 lines  Lines + drag        │
+ │  hooks/useOverlayLabels      784 lines  Labels, P&L, sync  │
  │                                                             │
- │  20+ useEffect hooks                                        │
- │  20+ useRef variables                                       │
- │  100+ useStore selectors                                    │
- │                                                             │
+ │  Total: 3,679 lines across 9 files                          │
  └─────────────────────────────────────────────────────────────┘
 ```
 
-Problems this causes:
-- Adding a feature risks breaking unrelated behavior
-- Debugging requires searching 3,000+ lines
-- No one else can onboard to this component
-- Cannot test individual behaviors in isolation
+~~Problems this causes:~~
+- ~~Adding a feature risks breaking unrelated behavior~~
+- ~~Debugging requires searching 3,000+ lines~~
+- ~~No one else can onboard to this component~~
+- ~~Cannot test individual behaviors in isolation~~
 
-### 4.2 — Zero Tests
+### 4.2 — ~~Zero Tests~~ PARTIALLY RESOLVED
+
+> **Status: Phase 1 added Vitest + 15 bracket engine tests.** Remaining
+> services (orderService, realtimeService, useStore) still untested.
 
 ```
  Test Coverage Map
- ┌──────────────────────────────────────────┐
- │                                          │
- │  bracketEngine.ts  (469 lines)    0%  ██ │  ◄── FINANCIAL LOGIC
- │  CandlestickChart  (3,354 lines)  0%  ██ │  ◄── ALL INTERACTIONS
- │  realtimeService   (296 lines)    0%  ██ │  ◄── REAL-TIME DATA
- │  orderService      (61 lines)     0%  ██ │  ◄── ORDER PLACEMENT
- │  useStore          (601 lines)    0%  ██ │  ◄── STATE LOGIC
- │  DrawingsPrimitive (597 lines)    0%  ██ │  ◄── HIT TESTING
- │                                          │
- │  Total test files:  0                    │
- │  Test framework:    none installed       │
- │  Test scripts:      none in package.json │
- │                                          │
- └──────────────────────────────────────────┘
+ ┌──────────────────────────────────────────────┐
+ │                                              │
+ │  bracketEngine.ts  (469 lines)  15 tests  ✓  │  ◄── COVERED
+ │  CandlestickChart  (9 files)        0%    ██ │  ◄── hooks testable now
+ │  realtimeService   (296 lines)      0%    ██ │  ◄── REAL-TIME DATA
+ │  orderService      (61 lines)       0%    ██ │  ◄── ORDER PLACEMENT
+ │  useStore          (601 lines)      0%    ██ │  ◄── STATE LOGIC
+ │  DrawingsPrimitive (597 lines)      0%    ██ │  ◄── HIT TESTING
+ │                                              │
+ │  Total test files:  1                        │
+ │  Test framework:    Vitest                   │
+ │  Test scripts:      npm test                 │
+ │                                              │
+ └──────────────────────────────────────────────┘
 ```
 
-This is a **financial application**. The bracket engine alone handles
-SL/TP placement, condition evaluation, and size allocation. All untested.
+This is a **financial application**. The bracket engine now has basic
+coverage, but remaining services still need tests.
 
-### 4.3 — Silent Failures in Financial-Critical Paths
+### 4.3 — ~~Silent Failures in Financial-Critical Paths~~ RESOLVED
 
-This is the scariest finding. The diagram below shows what happens
-when things go wrong:
+> **Status: Fixed in Phase 1.** Bracket engine now uses `retryAsync()`
+> (3 attempts, exponential backoff) for SL/TP placement and modification.
+> All failures surface via `showToast()` — critical SL failures use
+> `duration: null` (non-dismissible). Quick order failures also show toasts.
 
 ```
  HAPPY PATH                          FAILURE PATH (current behavior)
@@ -256,104 +255,97 @@ when things go wrong:
  bracketEngine places SL  ─── OK    bracketEngine places SL ─── FAILS
        │                                   │
        ▼                                   ▼
- bracketEngine places TPs ─── OK    console.error(err)    ◄── THAT'S IT
+ bracketEngine places TPs ─── OK    retryAsync (3x backoff)
        │                                   │
-       ▼                                   ▼
- Position protected                  POSITION IS UNPROTECTED
- User sees SL/TP lines              USER HAS NO IDEA
-                                     NO TOAST, NO BANNER, NO WARNING
-                                     JUST A LINE IN THE BROWSER CONSOLE
+       ▼                                   ├── succeeds on retry → OK
+ Position protected                  │
+ User sees SL/TP lines              └── still fails →
+                                          showToast('critical')
+                                          NON-DISMISSIBLE WARNING
 ```
 
-Same pattern for:
-- Quick order from chart (+button) — failure is `console.error` only
-- SL modification after TP fill — if modify fails, SL size drifts
-- All bracket operations — `.catch(console.error)` everywhere
+### 4.4 — ~~No Retry Logic~~ RESOLVED
 
-### 4.4 — No Retry Logic
+> **Status: Fixed in Phase 1 + Phase 3.** `retryAsync()` in `utils/retry.ts`
+> used by bracket engine (SL/TP placement) and orderService (all 4 HTTP methods).
+> Axios timeout set to 30s on all frontend requests.
 
 ```
  Current Error Handling
  ┌──────────────────────────────────────────────────────┐
  │                                                      │
- │   HTTP Request ────► Success ────► Continue           │
- │       │                                              │
- │       └──── Failure ────► throw Error ────► DONE     │
+ │   bracketEngine SL/TP ────► retryAsync (3x, backoff) │
+ │       └──── all fail ────► showToast(critical)       │
  │                                                      │
- │   No retry.                                          │
- │   No exponential backoff.                            │
- │   No timeout (Axios default = infinite).             │
- │   No circuit breaker.                                │
+ │   orderService HTTP ──────► retryAsync (3x, backoff) │
+ │       └──── all fail ────► throw Error               │
  │                                                      │
- │   One network hiccup during SL placement =           │
- │   unprotected position, silently.                    │
+ │   All HTTP ────► 30s timeout (axios)                 │
  │                                                      │
  └──────────────────────────────────────────────────────┘
 ```
 
-### 4.5 — No Input Validation on Backend
+### 4.5 — ~~No Input Validation on Backend~~ RESOLVED
+
+> **Status: Fixed in Phase 3.** All backend routes now validate request
+> body/query with Zod schemas. Invalid input returns 400 with error details
+> before reaching the upstream API.
 
 ```
  Frontend                 Backend Proxy              Gateway API
  ────────                 ─────────────              ───────────
 
- req.body ──────────────► req.body ──────────────► req.body
-              (no validation)         (no validation)
-
- Order size: -5?          Passes through.            ???
- Price: 0?                Passes through.            ???
- accountId: NaN?          Passes through.            ???
- Bar range: 1 year?       Passes through.            Potential DoS
+ req.body ──────────────► Zod schema ──► validated ──► req.body
+                          validates      body
+                          │
+                          └── invalid? ──► 400 + error message
+                                          (never reaches Gateway)
 ```
 
 ---
 
 ## 5. Security Findings
 
-### 5.1 — Token Exposure Chain
+### 5.1 — ~~Token Exposure Chain~~ RESOLVED
+
+> **Status: Fixed in Phase 3.** `/auth/token` endpoint removed. SignalR
+> connects through the backend proxy (`/hubs/market`, `/hubs/user`) with
+> `skipNegotiation: true` + WebSocket-only transport. The proxy's `upgrade`
+> handler injects the JWT as `?access_token=` server-side before forwarding
+> to `wss://rtc.topstepx.com`. Browser never sees the token.
 
 ```
  ┌──────────────────────────────────────────────────────────────┐
- │  INTENDED FLOW (secure)                                      │
+ │  CURRENT FLOW (secure)                                       │
  │                                                              │
  │  Browser ──POST /auth/connect──► Proxy ──► Gateway           │
  │                                    │                         │
- │                               JWT stored                     │
- │                               in memory                      │
+ │                               JWT stored in memory           │
  │                                    │                         │
- │  Browser ──any request──────► Proxy injects                  │
- │                               Authorization                  │
- │                               header                         │
+ │  Browser ──REST request──────► Proxy injects Auth header     │
  │                                                              │
- │  Browser NEVER sees JWT                ◄── DESIGN INTENT     │
- └──────────────────────────────────────────────────────────────┘
-
- ┌──────────────────────────────────────────────────────────────┐
- │  ACTUAL FLOW (leaky)                                         │
+ │  Browser ──WS /hubs/market──► Vite proxy ──► Backend         │
+ │                                              │               │
+ │                                         injects JWT as       │
+ │                                         ?access_token=       │
+ │                                         in upgrade URL       │
+ │                                              │               │
+ │                                         ──► wss://rtc.topstepx.com
  │                                                              │
- │  Browser ──GET /auth/token──► Proxy returns JWT as JSON      │
- │                                                              │
- │  Browser ──SignalR connect──► ?access_token=<JWT>            │
- │                                  │                           │
- │                                  ├── Visible in browser      │
- │                                  │   dev tools Network tab   │
- │                                  ├── Logged by proxies       │
- │                                  └── Stored in browser       │
- │                                      history                 │
- │                                                              │
- │  CORS: origin: '*'  ◄── Any origin can call /auth/token      │
+ │  Browser NEVER sees JWT                ◄── ACHIEVED          │
+ │  CORS locked to localhost:5173         ◄── ACHIEVED          │
  └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 — Security Fixes Needed
+### 5.2 — Security Fixes ~~Needed~~ Applied
 
-| # | Issue | Fix |
-|---|-------|-----|
-| 1 | `cors({ origin: '*' })` | Change to `origin: 'http://localhost:5173'` |
-| 2 | `/auth/token` exposes JWT | Use `accessTokenFactory` in SignalR, proxy negotiate |
-| 3 | Token in WebSocket URL query param | Move to header via `accessTokenFactory` |
-| 4 | No request body validation | Add schema validation (zod or joi) |
-| 5 | No rate limiting | Add per-route rate limits |
+| # | Issue | Fix | Status |
+|---|-------|-----|--------|
+| 1 | `cors({ origin: '*' })` | Changed to `origin: 'http://localhost:5173'` | ✅ Done |
+| 2 | `/auth/token` exposes JWT | Endpoint removed, SignalR proxied | ✅ Done |
+| 3 | Token in WebSocket URL query param | Token injected server-side by proxy | ✅ Done |
+| 4 | No request body validation | Zod schemas on all routes | ✅ Done |
+| 5 | No rate limiting | Add per-route rate limits | Deferred |
 
 ---
 
@@ -438,8 +430,9 @@ production code. These should either be:
 - Gated behind `if (import.meta.env.DEV)`, or
 - Replaced with a proper notification system (toasts)
 
-Key files: CandlestickChart.tsx (12 statements), OrderPanel.tsx (3),
-bracketEngine.ts (5+), TradesTab.tsx (2), OrdersTab.tsx (1).
+Key files: chart hooks (12 statements across useChartBars, useChartDrawings,
+useOrderLines, useOverlayLabels), OrderPanel.tsx (3), bracketEngine.ts (5+),
+TradesTab.tsx (2), OrdersTab.tsx (1).
 
 ---
 
@@ -529,19 +522,19 @@ how its state machine works and where it breaks:
  ┌─────────────────────────────────────────────────────────────────┐
  │  CRITICAL — Fix before trusting with real money                 │
  │  ─────────────────────────────────────────────────              │
- │  1. Silent bracket engine failures (SL/TP placement)           │
- │  2. No error feedback to user on order failures                │
- │  3. Zero test coverage on financial logic                      │
- │  4. TP size allocation can silently lose contracts              │
+ │  1. ✅ Silent bracket engine failures → retry + toasts         │
+ │  2. ✅ No error feedback → showToast() on all failures         │
+ │  3. ⚠️  15 bracket tests added, other services still at 0%     │
+ │  4. ✅ TP size allocation → normalized in bracketEngine        │
  │                                                                 │
  │  HIGH — Fix soon, compounds over time                           │
  │  ────────────────────────────────────────                       │
- │  5. CandlestickChart.tsx is 3,354 lines (god component)        │
- │  6. No retry logic on any HTTP request                         │
- │  7. No request timeouts (Axios default = infinite)             │
- │  8. CORS set to origin: '*'                                    │
- │  9. JWT exposed via /auth/token + query parameter              │
- │  10. No input validation on backend routes                     │
+ │  5. ✅ God component → 342-line orchestrator + 8 hooks         │
+ │  6. ✅ Retry extended to orderService HTTP calls               │
+ │  7. ✅ 30s request timeout on all frontend HTTP                │
+ │  8. ✅ CORS locked to localhost:5173                           │
+ │  9. ✅ JWT hidden — /auth/token removed, SignalR proxied       │
+ │  10. ✅ Zod validation on all backend routes                   │
  │                                                                 │
  │  MEDIUM — Quality improvements                                  │
  │  ──────────────────────────────                                 │
@@ -572,15 +565,15 @@ how its state machine works and where it breaks:
  ┌────────────────────────────────────────────────────────────────────────┐
  │                                                                        │
  │  Phase 1          Phase 2          Phase 3           Phase 4           │
- │  SAFETY NET       DECOMPOSE        HARDEN            POLISH            │
+ │  SAFETY NET ✅    DECOMPOSE ✅     HARDEN ✅         POLISH            │
  │                                                                        │
  │  ┌──────────┐    ┌──────────┐    ┌──────────┐     ┌──────────┐       │
- │  │ Add tests│    │ Split god│    │ Retry    │     │ Design   │       │
- │  │ Add toast│    │ component│    │ logic    │     │ system   │       │
- │  │ Fix SL/TP│    │ Extract  │    │ Timeouts │     │ a11y     │       │
- │  │ failures │    │ shared UI│    │ Security │     │ Perf     │       │
- │  └──────────┘    └──────────┘    └──────────┘     └──────────┘       │
- │                                                                        │
+ │  │ ✅ Tests │    │ ✅ Split │    │ ✅ Retry │     │ Design   │       │
+ │  │ ✅ Toast │    │ god comp.│    │ ✅ Timeout│     │ system   │       │
+ │  │ ✅ SL/TP │    │ ✅ 9 files│    │ ✅ CORS  │     │ a11y     │       │
+ │  │ ✅ Retry │    │ 342-line │    │ ✅ JWT   │     │ Perf     │       │
+ │  └──────────┘    │ orch.    │    │ ✅ Zod   │     └──────────┘       │
+ │                   └──────────┘    └──────────┘                        │
  │  "Stop the        "Make it        "Make it          "Make it           │
  │   bleeding"        manageable"     resilient"         right"           │
  │                                                                        │
@@ -589,9 +582,13 @@ how its state machine works and where it breaks:
 
 ---
 
-## Phase 1 — Safety Net (Stop the Bleeding)
+## Phase 1 — Safety Net (Stop the Bleeding) ✅ COMPLETE
 
 **Goal:** Make failures visible. Add minimum viable test coverage.
+
+> **Completed.** Toast notification system, bracket engine retry with
+> exponential backoff, TP size normalization, Vitest + 15 bracket engine
+> tests. All verified working in live trading.
 
 ### 1.1 — Notification System (Toast)
 
@@ -705,60 +702,49 @@ Add a lightweight toast/notification component for user-facing errors.
 
 ---
 
-## Phase 2 — Decompose (Make It Manageable)
+## Phase 2 — Decompose (Make It Manageable) ✅ COMPLETE
 
 **Goal:** Break the god component. Extract shared UI.
+
+> **Completed.** CandlestickChart.tsx decomposed from 3,354 lines to 342-line
+> orchestrator + 8 hook/helper files (3,679 lines total). All features
+> verified working in live trading including dual chart mode.
 
 ### 2.1 — Split CandlestickChart.tsx
 
 ```
- BEFORE (1 file, 3,354 lines)
+ BEFORE (1 file, 3,354 lines)            AFTER (9 files, 3,679 lines)
+ ─────────────────────────               ───────────────────────────────
 
- CandlestickChart.tsx
- ┌─────────────────────────────────────────────────────────────┐
- │  everything                                                 │
- └─────────────────────────────────────────────────────────────┘
-
-
- AFTER (7 focused modules)
-
- CandlestickChart.tsx  (~400 lines — orchestrator)
- ┌─────────────────────────────────────────────────────────────┐
- │  Chart lifecycle, composition, ref forwarding               │
- │  Delegates to focused hooks and sub-components              │
- └─────────────────────────────────────────────────────────────┘
-        │
-        ├── hooks/
-        │   ├── useChartBars.ts         (~200 lines)
-        │   │   Bar fetching, caching, real-time candle updates
-        │   │
-        │   ├── useChartDrawings.ts     (~500 lines)
-        │   │   Drawing creation, drag, resize, hit testing,
-        │   │   keyboard shortcuts (Del, Ctrl+Z, Esc)
-        │   │
-        │   ├── useChartTrading.ts      (~400 lines)
-        │   │   + button, quick order, preview overlay,
-        │   │   drag-to-modify, order/position lines
-        │   │
-        │   ├── useChartPrimitives.ts   (~200 lines)
-        │   │   Primitive lifecycle, attachment, cleanup
-        │   │
-        │   └── useChartCrosshair.ts    (~150 lines)
-        │       Crosshair label, OHLC tooltip, countdown
-        │
-        └── sub-components/
-            ├── OverlayLabels.tsx        (~200 lines)
-            │   P&L labels, cancel buttons, size indicators
-            │
-            └── TradeZoneOverlay.tsx     (~150 lines)
-                FIFO trade zone visualization
+ CandlestickChart.tsx                    CandlestickChart.tsx  (342 lines)
+ ┌──────────────────────┐                ┌───────────────────────────────┐
+ │  everything           │                │  Orchestrator: refs, init,    │
+ └──────────────────────┘                │  hook calls, JSX              │
+                                          └───────────────┬───────────────┘
+                                                          │
+                                           hooks/types.ts (113 lines)
+                                           hooks/resolvePreviewConfig.ts (37)
+                                                          │
+                                          ┌───────────────┼───────────────┐
+                                          │               │               │
+                                    useChartWidgets  useChartBars   useChartDrawings
+                                     (193 lines)     (270 lines)     (900 lines)
+                                    OHLC, scroll,   Bars, quotes,   All drawing
+                                    trade zones,    volume profile  tools + undo
+                                    crosshair
+                                          │               │               │
+                                    useQuickOrder   useOrderLines  useOverlayLabels
+                                     (343 lines)     (697 lines)     (784 lines)
+                                    + button,       Preview lines,  HTML labels,
+                                    bracket arming  order drag,     P&L, hit targets,
+                                                    pos drag        sync loop
 ```
 
-**Extraction Strategy — no behavior changes:**
-1. Extract hooks first (pure logic, no JSX) — easiest to test
-2. Move state + effects into hooks, keep refs local
-3. CandlestickChart becomes a thin shell that calls hooks and renders
-4. Each hook gets its own test file
+**Extraction Strategy (executed):**
+1. Created `ChartRefs` typed bag (28 refs bundled, passed to all hooks)
+2. Extracted hooks one at a time, preserving effect ordering
+3. CandlestickChart became a thin orchestrator calling 6 hooks
+4. Each hook declares its own store selectors (no shared selector coupling)
 
 ### 2.2 — Extract Shared UI Components
 
@@ -814,100 +800,71 @@ Add a lightweight toast/notification component for user-facing errors.
 
 ---
 
-## Phase 3 — Harden (Make It Resilient)
+## Phase 3 — Harden (Make It Resilient) ✅ COMPLETE
 
 **Goal:** Network resilience, security fixes, input validation.
 
-### 3.1 — Retry Logic with Exponential Backoff
+> **Completed.** 30s request timeout on all frontend HTTP. Retry logic
+> extended to all orderService methods. CORS locked to localhost:5173.
+> JWT no longer exposed to browser — `/auth/token` removed, SignalR
+> routed through backend proxy with server-side token injection. Zod
+> validation on all backend routes.
+
+### 3.1 — Retry Logic with Exponential Backoff ✅
 
 ```
- utils/retry.ts
+ utils/retry.ts — retryAsync()
 
  ┌──────────────────────────────────────────────────────────┐
  │                                                          │
- │  async function retryWithBackoff<T>(                     │
- │    fn: () => Promise<T>,                                 │
- │    maxRetries = 3,                                       │
- │    baseDelay = 500                                       │
- │  ): Promise<T>                                           │
- │                                                          │
- │  Attempt 1 ──► fail ──► wait 500ms                       │
+ │  Attempt 1 ──► fail ──► wait 500ms (±25% jitter)        │
  │  Attempt 2 ──► fail ──► wait 1000ms                      │
  │  Attempt 3 ──► fail ──► throw (all retries exhausted)    │
  │                                                          │
  │  Used in:                                                │
  │    bracketEngine — SL placement, TP placement, SL modify │
- │    orderService — placeOrder, modifyOrder                │
+ │    orderService — placeOrder, cancelOrder, modifyOrder,  │
+ │                   searchOpenOrders                        │
  │                                                          │
  └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 — Request Timeouts
+### 3.2 — Request Timeouts ✅
 
 ```
- api.ts changes:
-
- const api = axios.create({
-   baseURL: '',
-   timeout: 30_000,          ◄── NEW: 30 second timeout
- });
+ api.ts: axios.create({ baseURL: '', timeout: 30_000 })
 ```
 
-### 3.3 — Security Fixes
+### 3.3 — Security Fixes ✅
 
 ```
- Fix 1: CORS
- ────────────
- // backend/src/index.ts
- - app.use(cors({ origin: '*' }));
- + app.use(cors({ origin: 'http://localhost:5173' }));
+ Fix 1: CORS ──► cors({ origin: 'http://localhost:5173' })       ✅
 
+ Fix 2: SignalR proxied through backend                           ✅
+ ──────────────────────────────────────────────────────────────
+ Frontend connects to /hubs/market with skipNegotiation + WS.
+ Vite proxies WS upgrade to Express (port 3001).
+ Express upgrade handler appends ?access_token=<JWT> server-side
+ and proxies to wss://rtc.topstepx.com.
+ Browser never sees the token.
 
- Fix 2: SignalR Token Handling
- ──────────────────────────────
- // realtimeService.ts
- - .withUrl(`${RTC_HOST}/hubs/market?access_token=${token}`, {
- -   skipNegotiation: true,
- -   transport: HttpTransportType.WebSockets,
- - })
- + .withUrl(`/hubs/market`, {
- +   accessTokenFactory: () => token,
- + })
-
- This routes SignalR through the proxy, which injects the
- JWT server-side. Browser never sees the token.
-
-
- Fix 3: Remove /auth/token endpoint
- ────────────────────────────────────
- No longer needed once SignalR goes through the proxy.
- The proxy's negotiate handler + WS upgrade already inject JWT.
+ Fix 3: /auth/token endpoint removed                              ✅
 ```
 
-### 3.4 — Backend Input Validation
+### 3.4 — Backend Input Validation ✅
 
 ```
- Add zod schemas for each route:
+ Zod schemas added to all routes via validateBody/validateQuery middleware:
 
- // routes/orderRoutes.ts
- const PlaceOrderSchema = z.object({
-   accountId:  z.number().int().positive(),
-   contractId: z.string().min(1),
-   type:       z.enum(['Limit', 'Market', 'StopMarket', 'StopLimit']),
-   side:       z.enum(['Buy', 'Sell']),
-   size:       z.number().int().positive(),
-   limitPrice: z.number().optional(),
-   stopPrice:  z.number().optional(),
- });
+ ┌──────────────────────────────────────────────────────────┐
+ │  authRoutes     ConnectSchema (userName/username, apiKey) │
+ │  orderRoutes    PlaceOrderSchema, CancelOrderSchema,     │
+ │                 ModifyOrderSchema, OpenOrdersQuery        │
+ │  marketRoutes   RetrieveBarsSchema (incl. live default)  │
+ │  tradeRoutes    TradeSearchQuery                         │
+ └──────────────────────────────────────────────────────────┘
 
- router.post('/place', async (req, res) => {
-   const parsed = PlaceOrderSchema.safeParse(req.body);
-   if (!parsed.success) {
-     return res.status(400).json({
-       success: false,
-       errorMessage: parsed.error.message,
-     });
-   }
+ Invalid input → 400 + error details (never reaches upstream API)
    // ... proceed with parsed.data
  });
 ```
@@ -1012,10 +969,32 @@ Add a lightweight toast/notification component for user-facing errors.
 ## File Impact Map
 
 ```
- Files that will be MODIFIED:
+ Files MODIFIED (Phases 1+2):
  ┌──────────────────────────────────────────────────────────────────────┐
- │  frontend/src/components/chart/CandlestickChart.tsx  (split apart)  │
- │  frontend/src/services/bracketEngine.ts              (error handling)│
+ │  ✅ frontend/src/components/chart/CandlestickChart.tsx (342-line orch.)│
+ │  ✅ frontend/src/services/bracketEngine.ts           (retry + toasts) │
+ │  ✅ frontend/src/components/chart/ChartArea.tsx       (crosshair fix) │
+ │  ✅ frontend/package.json                            (added vitest)   │
+ └──────────────────────────────────────────────────────────────────────┘
+
+ Files CREATED (Phases 1+2):
+ ┌──────────────────────────────────────────────────────────────────────┐
+ │  ✅ frontend/src/components/Toast.tsx                                │
+ │  ✅ frontend/src/utils/toast.ts                                     │
+ │  ✅ frontend/src/utils/retry.ts                                     │
+ │  ✅ frontend/src/components/chart/hooks/types.ts            (113 ln)│
+ │  ✅ frontend/src/components/chart/hooks/resolvePreviewConfig.ts (37)│
+ │  ✅ frontend/src/components/chart/hooks/useChartWidgets.ts  (193 ln)│
+ │  ✅ frontend/src/components/chart/hooks/useChartBars.ts     (270 ln)│
+ │  ✅ frontend/src/components/chart/hooks/useChartDrawings.ts (900 ln)│
+ │  ✅ frontend/src/components/chart/hooks/useQuickOrder.ts    (343 ln)│
+ │  ✅ frontend/src/components/chart/hooks/useOrderLines.ts    (697 ln)│
+ │  ✅ frontend/src/components/chart/hooks/useOverlayLabels.ts (784 ln)│
+ │  ✅ frontend/src/__tests__/bracketEngine.test.ts       (15 tests)   │
+ └──────────────────────────────────────────────────────────────────────┘
+
+ Files to MODIFY (Phases 3+4, remaining):
+ ┌──────────────────────────────────────────────────────────────────────┐
  │  frontend/src/services/realtimeService.ts            (token fix)    │
  │  frontend/src/services/api.ts                        (timeout)      │
  │  frontend/src/components/chart/ChartToolbar.tsx       (design fixes)│
@@ -1026,33 +1005,6 @@ Add a lightweight toast/notification component for user-facing errors.
  │  backend/src/routes/orderRoutes.ts                   (validation)  │
  │  backend/src/routes/marketDataRoutes.ts              (validation)  │
  │  backend/src/routes/authRoutes.ts                    (remove token)│
- │  frontend/package.json                               (add vitest)  │
  │  frontend/tsconfig.json                              (path aliases)│
- └──────────────────────────────────────────────────────────────────────┘
-
- Files that will be CREATED:
- ┌──────────────────────────────────────────────────────────────────────┐
- │  frontend/src/components/ui/Toast.tsx                                │
- │  frontend/src/services/notifications.ts                             │
- │  frontend/src/utils/retry.ts                                        │
- │  frontend/src/utils/format.ts                                       │
- │  frontend/src/components/ui/Dropdown.tsx                            │
- │  frontend/src/components/ui/FormInput.tsx                           │
- │  frontend/src/components/chart/hooks/useChartBars.ts               │
- │  frontend/src/components/chart/hooks/useChartDrawings.ts           │
- │  frontend/src/components/chart/hooks/useChartTrading.ts            │
- │  frontend/src/components/chart/hooks/useChartPrimitives.ts         │
- │  frontend/src/components/chart/hooks/useChartCrosshair.ts          │
- │  frontend/src/components/chart/OverlayLabels.tsx                   │
- │  frontend/src/components/chart/TradeZoneOverlay.tsx                │
- │  frontend/src/__tests__/bracketEngine.test.ts                      │
- │  frontend/src/__tests__/orderService.test.ts                       │
- │  frontend/src/__tests__/realtimeService.test.ts                    │
- │  frontend/src/__tests__/useStore.test.ts                           │
- └──────────────────────────────────────────────────────────────────────┘
-
- Files that will be DELETED:
- ┌──────────────────────────────────────────────────────────────────────┐
- │  (none — all changes are additive or in-place modifications)        │
  └──────────────────────────────────────────────────────────────────────┘
 ```

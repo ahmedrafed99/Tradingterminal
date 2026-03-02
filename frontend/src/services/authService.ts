@@ -18,9 +18,4 @@ export const authService = {
     const res = await api.get<AuthStatus>('/auth/status');
     return res.data;
   },
-
-  async getToken(): Promise<string> {
-    const res = await api.get<{ success: boolean; token: string }>('/auth/token');
-    return res.data.token;
-  },
 };

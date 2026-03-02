@@ -1,4 +1,5 @@
 import api from './api';
+import { retryAsync } from '../utils/retry';
 
 export interface Order {
   id: number;
@@ -39,21 +40,25 @@ export interface ModifyOrderParams {
 
 export const orderService = {
   async placeOrder(params: PlaceOrderParams): Promise<{ orderId: number }> {
-    const res = await api.post<{ orderId: number; success: boolean }>('/orders/place', params);
-    return { orderId: res.data.orderId };
+    return retryAsync(async () => {
+      const res = await api.post<{ orderId: number; success: boolean }>('/orders/place', params);
+      return { orderId: res.data.orderId };
+    });
   },
 
   async cancelOrder(accountId: number, orderId: number): Promise<void> {
-    await api.post('/orders/cancel', { accountId, orderId });
+    await retryAsync(() => api.post('/orders/cancel', { accountId, orderId }));
   },
 
   async modifyOrder(params: ModifyOrderParams): Promise<void> {
-    await api.patch('/orders/modify', params);
+    await retryAsync(() => api.patch('/orders/modify', params));
   },
 
   async searchOpenOrders(accountId: number): Promise<Order[]> {
-    const res = await api.get<{ orders: Order[]; success: boolean }>(
-      `/orders/open?accountId=${accountId}`,
+    const res = await retryAsync(() =>
+      api.get<{ orders: Order[]; success: boolean }>(
+        `/orders/open?accountId=${accountId}`,
+      ),
     );
     return res.data.orders ?? [];
   },

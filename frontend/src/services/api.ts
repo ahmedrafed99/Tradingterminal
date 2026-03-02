@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '' });
+const api = axios.create({ baseURL: '', timeout: 30_000 });
 
 // Throw a plain Error with the errorMessage from the proxy envelope
 api.interceptors.response.use(

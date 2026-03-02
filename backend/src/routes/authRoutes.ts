@@ -1,27 +1,29 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import * as auth from '../auth';
+import { validateBody } from '../validate';
 
 const router = Router();
+
+const ConnectSchema = z
+  .object({
+    userName: z.string().min(1).optional(),
+    username: z.string().min(1).optional(),
+    apiKey: z.string().min(1, 'apiKey is required'),
+    baseUrl: z.string().url().optional(),
+  })
+  .refine((d) => d.userName || d.username, {
+    message: 'userName (or username) is required',
+  });
 
 // POST /auth/connect
 // Accepts both "userName" (ProjectX style) and "username" (our style)
 // baseUrl is optional — defaults to https://api.topstepx.com
-// Minimal body: { "userName": "yourname", "apiKey": "yourkey" }
-router.post('/connect', async (req, res) => {
+router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
   const body = req.body as Record<string, string>;
-
-  // Accept either casing
   const username = body['username'] ?? body['userName'];
-  const apiKey   = body['apiKey'];
-  const baseUrl  = body['baseUrl'];   // optional
-
-  if (!username || !apiKey) {
-    res.status(400).json({
-      success: false,
-      errorMessage: 'userName (or username) and apiKey are required',
-    });
-    return;
-  }
+  const apiKey = body['apiKey'];
+  const baseUrl = body['baseUrl'];
 
   try {
     await auth.connect(username, apiKey, baseUrl);
@@ -44,16 +46,6 @@ router.get('/status', (_req, res) => {
     connected: auth.isConnected(),
     baseUrl: auth.getBaseUrl(),
   });
-});
-
-// GET /auth/token — exposes JWT for internal use (SignalR direct connect)
-router.get('/token', (_req, res) => {
-  const token = auth.getToken();
-  if (!token) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-  res.json({ success: true, token });
 });
 
 export default router;
