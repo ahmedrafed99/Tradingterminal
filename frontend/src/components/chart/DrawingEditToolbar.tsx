@@ -1,0 +1,715 @@
+import { useEffect, useRef, useState } from 'react';
+import { useStore } from '../../store/useStore';
+import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
+import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
+import { ColorPopover, COLOR_PALETTE } from './ColorPopover';
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function TextPopover({
+  drawing,
+  onUpdate,
+  onClose,
+}: {
+  drawing: Drawing;
+  onUpdate: (patch: Partial<Drawing>) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const customColorRef = useRef<HTMLInputElement>(null);
+  const [content, setContent] = useState(drawing.text?.content ?? '');
+  const [color, setColor] = useState(drawing.text?.color ?? '#ffffff');
+  const [fontSize, setFontSize] = useState(drawing.text?.fontSize ?? 12);
+  const [bold, setBold] = useState(drawing.text?.bold ?? true);
+  const [italic, setItalic] = useState(drawing.text?.italic ?? false);
+  const [hAlign, setHAlign] = useState<TextHAlign>(drawing.text?.hAlign ?? 'center');
+  const [vAlign, setVAlign] = useState<TextVAlign>(drawing.text?.vAlign ?? 'middle');
+  const [showColorGrid, setShowColorGrid] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  const apply = () => {
+    if (content.trim()) {
+      onUpdate({ text: { content: content.trim(), color, fontSize, bold, italic, hAlign, vAlign } });
+    } else {
+      onUpdate({ text: null });
+    }
+    onClose();
+  };
+
+  const cancel = () => {
+    onClose();
+  };
+
+  const vAlignLabel: Record<TextVAlign, string> = { top: 'Top', middle: 'Middle', bottom: 'Bottom' };
+  const hAlignLabel: Record<TextHAlign, string> = { left: 'Left', center: 'Center', right: 'Right' };
+
+  const selectStyle: React.CSSProperties = {
+    background: '#2a2e39',
+    color: '#d1d4dc',
+    border: '1px solid #434651',
+    borderRadius: 4,
+    padding: '4px 6px',
+    fontSize: 11,
+    cursor: 'pointer',
+    flex: 1,
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      style={{ padding: 12, width: 272 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Row 1: Color swatch + Font size + Bold + Italic */}
+      <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
+        {/* Color swatch */}
+        <button
+          onClick={() => setShowColorGrid(!showColorGrid)}
+          style={{
+            width: 28,
+            height: 28,
+            background: color,
+            borderRadius: 4,
+            border: '1px solid #434651',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+          title="Text color"
+        />
+        {/* Font size */}
+        <select
+          value={fontSize}
+          onChange={(e) => setFontSize(Number(e.target.value))}
+          style={{
+            background: '#2a2e39',
+            color: '#d1d4dc',
+            border: '1px solid #434651',
+            borderRadius: 4,
+            padding: '4px 6px',
+            fontSize: 12,
+            cursor: 'pointer',
+            width: 56,
+          }}
+          title="Font size"
+        >
+          {FONT_SIZE_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        {/* Bold toggle */}
+        <button
+          onClick={() => setBold(!bold)}
+          className={`rounded ${bold ? 'bg-[#363a45] text-white' : 'text-[#787b86] hover:text-white'}`}
+          style={{
+            width: 28,
+            height: 28,
+            fontSize: 14,
+            fontWeight: 700,
+            border: bold ? '1px solid #434651' : '1px solid transparent',
+            cursor: 'pointer',
+            background: bold ? '#363a45' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title="Bold"
+        >
+          B
+        </button>
+        {/* Italic toggle */}
+        <button
+          onClick={() => setItalic(!italic)}
+          className={`rounded ${italic ? 'bg-[#363a45] text-white' : 'text-[#787b86] hover:text-white'}`}
+          style={{
+            width: 28,
+            height: 28,
+            fontSize: 14,
+            fontStyle: 'italic',
+            border: italic ? '1px solid #434651' : '1px solid transparent',
+            cursor: 'pointer',
+            background: italic ? '#363a45' : 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          title="Italic"
+        >
+          I
+        </button>
+      </div>
+
+      {/* Color palette grid (toggle) */}
+      {showColorGrid && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: 6 }}>
+            {COLOR_PALETTE.flat().map((c, i) => (
+              <button
+                key={`txt-${c}-${i}`}
+                onClick={() => setColor(c)}
+                style={{
+                  width: 20,
+                  height: 20,
+                  background: c,
+                  borderRadius: 3,
+                  border: c === color ? '2px solid #fff' : '1px solid #3a3e4a',
+                  cursor: 'pointer',
+                  boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
+                }}
+              />
+            ))}
+          </div>
+          <button
+            onClick={() => customColorRef.current?.click()}
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 3,
+              border: '1px dashed #787b86',
+              background: 'transparent',
+              color: '#787b86',
+              fontSize: 14,
+              lineHeight: '18px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            +
+          </button>
+          <input
+            ref={customColorRef}
+            type="color"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+          />
+        </div>
+      )}
+
+      {/* Row 2: Textarea */}
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        placeholder="text"
+        className="w-full bg-[#131722] text-white text-xs rounded outline-none"
+        style={{
+          padding: '8px 10px',
+          marginBottom: 8,
+          resize: 'vertical',
+          minHeight: 60,
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+          fontSize: 12,
+          lineHeight: '1.4',
+          border: '1px solid #2a2e39',
+        }}
+        autoFocus
+      />
+
+      {/* Row 3: Text alignment */}
+      <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
+        <span className="text-[11px] text-[#787b86]" style={{ flexShrink: 0 }}>Text alignment</span>
+        <select
+          value={vAlign}
+          onChange={(e) => setVAlign(e.target.value as TextVAlign)}
+          style={selectStyle}
+          title="Vertical alignment"
+        >
+          <option value="top">{vAlignLabel.top}</option>
+          <option value="middle">{vAlignLabel.middle}</option>
+          <option value="bottom">{vAlignLabel.bottom}</option>
+        </select>
+        <select
+          value={hAlign}
+          onChange={(e) => setHAlign(e.target.value as TextHAlign)}
+          style={selectStyle}
+          title="Horizontal alignment"
+        >
+          <option value="left">{hAlignLabel.left}</option>
+          <option value="center">{hAlignLabel.center}</option>
+          <option value="right">{hAlignLabel.right}</option>
+        </select>
+      </div>
+
+      {/* Row 4: Cancel + Ok */}
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={cancel}
+          className="text-xs text-[#d1d4dc] bg-[#2a2e39] border border-[#434651] rounded hover:bg-[#363a45]"
+          style={{ padding: '5px 16px' }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={apply}
+          className="text-xs text-white bg-[#2962ff] rounded hover:bg-[#1e53e5]"
+          style={{ padding: '5px 16px' }}
+        >
+          Ok
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Toolbar separator
+// ---------------------------------------------------------------------------
+function Divider() {
+  return <div style={{ width: 1, height: 20, background: '#434651', flexShrink: 0 }} />;
+}
+
+// ---------------------------------------------------------------------------
+// Stroke width popover (visual line previews)
+// ---------------------------------------------------------------------------
+function StrokePopover({
+  current,
+  onChange,
+  onClose,
+}: {
+  current: number;
+  onChange: (w: number) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-1/2 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      style={{ transform: 'translateX(-50%)', padding: '6px 4px', width: 120 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {STROKE_WIDTH_OPTIONS.map((w) => (
+        <button
+          key={w}
+          onClick={() => { onChange(w); onClose(); }}
+          className="flex items-center w-full rounded hover:bg-[#363a45]"
+          style={{
+            padding: '6px 10px',
+            gap: 10,
+            cursor: 'pointer',
+            background: w === current ? '#363a45' : 'transparent',
+            border: 'none',
+          }}
+        >
+          {/* Line preview */}
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+            <div style={{ width: '100%', height: w, background: '#d1d4dc', borderRadius: w / 2 }} />
+          </div>
+          {/* Label */}
+          <span style={{ color: '#787b86', fontSize: 11, flexShrink: 0 }}>{w}px</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Template popover (hline only)
+// ---------------------------------------------------------------------------
+function TemplatePopover({
+  drawing,
+  onApply,
+  onClose,
+}: {
+  drawing: Drawing;
+  onApply: (template: HLineTemplate) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const templates = useStore((s) => s.hlineTemplates);
+  const addTemplate = useStore((s) => s.addHLineTemplate);
+  const removeTemplate = useStore((s) => s.removeHLineTemplate);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    window.addEventListener('mousedown', handler);
+    return () => window.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (saving) nameRef.current?.focus();
+  }, [saving]);
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    addTemplate({
+      id: crypto.randomUUID(),
+      name: trimmed,
+      color: drawing.color,
+      strokeWidth: drawing.strokeWidth,
+      text: drawing.text ? { ...drawing.text } : null,
+    });
+    setSaving(false);
+    setName('');
+  };
+
+  const handleApplyDefaults = () => {
+    onApply({ id: '', name: '', color: DEFAULT_HLINE_COLOR, strokeWidth: 1, text: null });
+    onClose();
+  };
+
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = () => {
+    const json = JSON.stringify(templates, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hline-templates.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        if (!Array.isArray(data)) return;
+        for (const t of data) {
+          if (t.name && t.color && typeof t.strokeWidth === 'number') {
+            addTemplate({ ...t, id: crypto.randomUUID() });
+          }
+        }
+      } catch { /* ignore malformed JSON */ }
+    };
+    reader.readAsText(file);
+    // Reset so the same file can be re-imported
+    e.target.value = '';
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      style={{ padding: '4px 0', width: 220, maxHeight: 300, overflowY: 'auto', overflowX: 'hidden' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Saved templates */}
+      {templates.map((t) => (
+        <div
+          key={t.id}
+          className="flex items-center gap-2 hover:bg-[#363a45] group"
+          style={{ padding: '6px 10px', cursor: 'pointer' }}
+          onClick={() => { onApply(t); onClose(); }}
+        >
+          <div style={{
+            width: 10, height: 10, borderRadius: '50%',
+            background: t.color, flexShrink: 0,
+            border: '1px solid rgba(255,255,255,0.15)',
+          }} />
+          <div style={{
+            width: 16, height: t.strokeWidth, background: t.color,
+            borderRadius: t.strokeWidth / 2, flexShrink: 0,
+          }} />
+          <span className="text-[#d1d4dc] text-xs truncate" style={{ flex: 1 }}>{t.name}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); removeTemplate(t.id); }}
+            className="text-[#787b86] hover:text-[#f44336] opacity-0 group-hover:opacity-100"
+            style={{ fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: 0 }}
+          >
+            &times;
+          </button>
+        </div>
+      ))}
+
+      {templates.length > 0 && (
+        <div style={{ height: 1, background: '#2a2e39', margin: '2px 0' }} />
+      )}
+
+      {/* Save as... */}
+      {saving ? (
+        <div style={{ padding: '6px 10px' }}>
+          <div className="flex items-center gap-1">
+            <input
+              ref={nameRef}
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSave();
+                if (e.key === 'Escape') { setSaving(false); setName(''); }
+              }}
+              placeholder="Template name"
+              className="bg-[#131722] text-white text-xs rounded outline-none"
+              style={{
+                flex: 1, minWidth: 0, padding: '4px 8px',
+                border: '1px solid #2a2e39',
+              }}
+            />
+            <button
+              onClick={handleSave}
+              className="text-xs text-white bg-[#2962ff] rounded hover:bg-[#1e53e5]"
+              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setSaving(true)}
+          className="flex items-center gap-2 w-full text-left text-[#d1d4dc] text-xs hover:bg-[#363a45]"
+          style={{ padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer' }}
+        >
+          Save as...
+        </button>
+      )}
+
+      {/* Apply defaults */}
+      <button
+        onClick={handleApplyDefaults}
+        className="flex items-center gap-2 w-full text-left text-[#d1d4dc] text-xs hover:bg-[#363a45]"
+        style={{ padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer' }}
+      >
+        Apply defaults
+      </button>
+
+      <div style={{ height: 1, background: '#2a2e39', margin: '2px 0' }} />
+
+      {/* Export / Import */}
+      <div className="flex items-center" style={{ padding: '4px 10px', gap: 4 }}>
+        <button
+          onClick={handleExport}
+          disabled={templates.length === 0}
+          className="text-xs text-[#d1d4dc] hover:bg-[#363a45] rounded"
+          style={{
+            flex: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
+            opacity: templates.length === 0 ? 0.4 : 1,
+          }}
+        >
+          Export
+        </button>
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="text-xs text-[#d1d4dc] hover:bg-[#363a45] rounded"
+          style={{ flex: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer' }}
+        >
+          Import
+        </button>
+        <input ref={fileRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main edit toolbar
+// ---------------------------------------------------------------------------
+export function DrawingEditToolbar({
+  contractId,
+}: {
+  contractId: string | undefined;
+}) {
+  const selectedId = useStore((s) => s.selectedDrawingId);
+  const drawings = useStore((s) => s.drawings);
+  const updateDrawing = useStore((s) => s.updateDrawing);
+  const removeDrawing = useStore((s) => s.removeDrawing);
+  const setSelectedDrawingId = useStore((s) => s.setSelectedDrawingId);
+
+  const [showColor, setShowColor] = useState(false);
+  const [showText, setShowText] = useState(false);
+  const [showStroke, setShowStroke] = useState(false);
+  const [showTemplate, setShowTemplate] = useState(false);
+
+  const toolbarRef = useRef<HTMLDivElement>(null);
+
+  const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
+
+  const closeAll = () => { setShowColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); };
+
+  if (!drawing) return null;
+
+  const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-[#787b86] transition-colors duration-150";
+  const btnHover = "hover:bg-[#363a45] hover:text-[#d1d4dc]";
+  const btnActive = "bg-[#363a45] text-white";
+
+  return (
+    <div
+      ref={toolbarRef}
+      className="absolute z-40 flex items-center pointer-events-auto animate-toolbar-in"
+      style={{
+        left: '10%',
+        top: '10%',
+        padding: '4px 6px',
+        gap: 4,
+        background: '#000000',
+        border: '1px solid #2a2e39',
+        borderRadius: 8,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Color picker */}
+      <div className="relative">
+        <button
+          onClick={() => { const v = !showColor; closeAll(); setShowColor(v); }}
+          className={`${btnBase} ${showColor ? btnActive : btnHover}`}
+          title="Color"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            <path d="m15 5 4 4" />
+          </svg>
+          {/* Color dot overlay on pencil tip */}
+          <div style={{
+            position: 'absolute', bottom: 4, right: 4,
+            width: 8, height: 8, borderRadius: '50%',
+            background: drawing.color, border: '1px solid rgba(255,255,255,0.2)',
+          }} />
+        </button>
+        {showColor && (
+          <ColorPopover
+            current={drawing.color}
+            onChange={(color) => updateDrawing(drawing.id, { color })}
+            onClose={() => setShowColor(false)}
+          />
+        )}
+      </div>
+
+      <Divider />
+
+      {/* Text */}
+      <div className="relative">
+        <button
+          onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
+          className={`${btnBase} ${showText ? btnActive : btnHover}`}
+          style={{ fontWeight: 700, fontSize: 15, fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif" }}
+          title="Text"
+        >
+          T
+          {/* Text color dot */}
+          <div style={{
+            position: 'absolute', bottom: 4, right: 4,
+            width: 8, height: 8, borderRadius: '50%',
+            background: drawing.text?.color ?? '#ffffff', border: '1px solid rgba(255,255,255,0.2)',
+          }} />
+        </button>
+        {showText && (
+          <TextPopover
+            drawing={drawing}
+            onUpdate={(patch) => updateDrawing(drawing.id, patch)}
+            onClose={() => setShowText(false)}
+          />
+        )}
+      </div>
+
+      <Divider />
+
+      {/* Stroke width */}
+      <div className="relative">
+        <button
+          onClick={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
+          className={`${btnBase} !w-auto ${showStroke ? btnActive : btnHover}`}
+          style={{ padding: '0 8px', gap: 6 }}
+          title="Line width"
+        >
+          {/* Line preview */}
+          <div style={{ width: 18, height: drawing.strokeWidth, background: 'currentColor', borderRadius: drawing.strokeWidth / 2 }} />
+          <span style={{ fontSize: 11, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
+        </button>
+        {showStroke && (
+          <StrokePopover
+            current={drawing.strokeWidth}
+            onChange={(w) => updateDrawing(drawing.id, { strokeWidth: w })}
+            onClose={() => setShowStroke(false)}
+          />
+        )}
+      </div>
+
+      {/* Extend left toggle (hline only) */}
+      {drawing.type === 'hline' && (
+        <>
+          <Divider />
+          <button
+            onClick={() => updateDrawing(drawing.id, { extendLeft: drawing.extendLeft === false ? true : false })}
+            className={`${btnBase} ${drawing.extendLeft === false ? btnActive : btnHover}`}
+            title="Extend left"
+          >
+            {/* Ray icon: arrow pointing right from a vertical bar */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="5" y1="6" x2="5" y2="18" />
+              <line x1="5" y1="12" x2="21" y2="12" />
+              <polyline points="17 8 21 12 17 16" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* Template dropdown (hline only) */}
+      {drawing.type === 'hline' && (
+        <>
+          <Divider />
+          <div className="relative">
+            <button
+              onClick={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
+              className={`${btnBase} !w-auto ${showTemplate ? btnActive : btnHover}`}
+              style={{ padding: '0 8px', gap: 4, fontSize: 11, fontWeight: 500 }}
+              title="Template"
+            >
+              <span>Template</span>
+              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"
+                style={{ transform: showTemplate ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+              >
+                <path d="M2.5 4L5 6.5L7.5 4" />
+              </svg>
+            </button>
+            {showTemplate && (
+              <TemplatePopover
+                drawing={drawing}
+                onApply={(t) => updateDrawing(drawing.id, { color: t.color, strokeWidth: t.strokeWidth, text: t.text })}
+                onClose={() => setShowTemplate(false)}
+              />
+            )}
+          </div>
+        </>
+      )}
+
+      <Divider />
+
+      {/* Delete */}
+      <button
+        onClick={() => { removeDrawing(drawing.id); setSelectedDrawingId(null); }}
+        className={`${btnBase} hover:bg-[#363a45] hover:text-[#f44336]`}
+        title="Delete"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+          <line x1="10" y1="11" x2="10" y2="17" />
+          <line x1="14" y1="11" x2="14" y2="17" />
+        </svg>
+      </button>
+    </div>
+  );
+}

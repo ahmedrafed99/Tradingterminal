@@ -1,0 +1,149 @@
+import { useEffect, useRef, useState } from 'react';
+import { TopBar } from './components/TopBar';
+import { SettingsModal } from './components/SettingsModal';
+import { ToastContainer } from './components/Toast';
+import { ChartArea, ChartToolbar } from './components/chart';
+import { BottomPanel } from './components/bottom-panel/BottomPanel';
+import { OrderPanel } from './components/order-panel';
+import { authService } from './services/authService';
+import { marketDataService } from './services/marketDataService';
+import { useStore } from './store/useStore';
+
+function VerticalSeparator({
+  containerRef,
+  onDrag,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  onDrag: (ratio: number) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!dragging) return;
+    function onMouseMove(e: MouseEvent) {
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const ratio = (e.clientY - rect.top) / rect.height;
+      onDrag(ratio);
+    }
+    function onMouseUp() { setDragging(false); }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging, containerRef, onDrag]);
+
+  return (
+    <div
+      className={`h-1 cursor-row-resize flex-shrink-0 transition-colors ${
+        dragging ? 'bg-[#2962ff]' : 'bg-black hover:bg-[#434651]'
+      }`}
+      onMouseDown={(e) => { e.preventDefault(); setDragging(true); }}
+    />
+  );
+}
+
+export default function App() {
+  const connected = useStore((s) => s.connected);
+  const contract = useStore((s) => s.contract);
+  const orderContract = useStore((s) => s.orderContract);
+  const setConnected = useStore((s) => s.setConnected);
+  const setContract = useStore((s) => s.setContract);
+  const setOrderContract = useStore((s) => s.setOrderContract);
+  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
+  const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
+  const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+
+  // On mount, check if the backend is already connected (e.g. after page refresh)
+  useEffect(() => {
+    authService
+      .getStatus()
+      .then((status) => {
+        setConnected(status.connected, status.baseUrl);
+      })
+      .catch(() => {
+        // Backend might not be running yet — ignore
+      });
+  }, [setConnected]);
+
+  // Auto-load NQ when connected and no contract selected (left chart)
+  useEffect(() => {
+    if (!connected || contract) return;
+    marketDataService
+      .searchContracts('NQ')
+      .then((contracts) => {
+        const active = contracts.find((c) => c.activeContract);
+        if (active) setContract(active);
+      })
+      .catch(() => {});
+  }, [connected, contract, setContract]);
+
+  // Auto-load NQ into order panel when connected and no order contract selected
+  useEffect(() => {
+    if (!connected || orderContract) return;
+    marketDataService
+      .searchContracts('NQ')
+      .then((contracts) => {
+        const active = contracts.find((c) => c.activeContract);
+        if (active) setOrderContract(active);
+      })
+      .catch(() => {});
+  }, [connected, orderContract, setOrderContract]);
+
+  return (
+    <div className="flex flex-col h-screen bg-[#131722] text-[#d1d4dc]">
+      <TopBar />
+
+      {/* Main content area */}
+      <main className="flex-1 flex flex-row min-h-0">
+        {connected ? (
+          <>
+            <OrderPanel />
+            <div className="flex-1 flex flex-col min-h-0">
+              <ChartToolbar />
+              <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
+                <div
+                  style={{ flex: 1 - bottomPanelRatio }}
+                  className="flex flex-col min-h-0 overflow-hidden"
+                >
+                  <ChartArea />
+                </div>
+                <VerticalSeparator
+                  containerRef={splitContainerRef}
+                  onDrag={(mouseRatio) => {
+                    setBottomPanelRatio(1 - mouseRatio);
+                  }}
+                />
+                <div
+                  style={{ flex: bottomPanelRatio, minHeight: 40 }}
+                  className="overflow-hidden"
+                >
+                  <BottomPanel />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <p className="text-[#434651] text-sm">Not connected</p>
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="text-sm rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors" style={{ padding: '10px 28px' }}
+              >
+                Connect to TopstepX
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+
+      <SettingsModal />
+      <ToastContainer />
+    </div>
+  );
+}

@@ -1,0 +1,66 @@
+import type { UTCTimestamp, CandlestickData } from 'lightweight-charts';
+import type { Bar } from '../../services/marketDataService';
+import type { Timeframe } from '../../store/useStore';
+
+/** Convert API Bar to Lightweight Charts CandlestickData */
+export function barToCandle(bar: Bar): CandlestickData<UTCTimestamp> {
+  return {
+    time: (new Date(bar.t).getTime() / 1000) as UTCTimestamp,
+    open: bar.o,
+    high: bar.h,
+    low: bar.l,
+    close: bar.c,
+  };
+}
+
+/** Sort bars ascending by time (API returns reverse chronological) */
+export function sortBarsAscending(bars: Bar[]): Bar[] {
+  return [...bars].sort(
+    (a, b) => new Date(a.t).getTime() - new Date(b.t).getTime(),
+  );
+}
+
+/** Get the candle period duration in seconds for a given timeframe */
+export function getCandlePeriodSeconds(tf: Timeframe): number {
+  switch (tf.unit) {
+    case 1: return tf.unitNumber;            // seconds
+    case 2: return tf.unitNumber * 60;       // minutes
+    case 3: return tf.unitNumber * 3600;     // hours
+    case 4: return tf.unitNumber * 86400;    // days
+    case 5: return tf.unitNumber * 604800;   // weeks
+    case 6: return tf.unitNumber * 2592000;  // months (~30 days)
+    default: return 300;
+  }
+}
+
+/** Compute an appropriate startTime lookback for the given timeframe */
+export function computeStartTime(tf: Timeframe): string {
+  const periodSec = getCandlePeriodSeconds(tf);
+  const MS_DAY = 86_400_000;
+  // ~500 candles of lookback, clamped between 7 days and 365 days
+  // 7-day minimum ensures we always span a full trading week (covers weekends/holidays)
+  const lookbackMs = Math.min(Math.max(periodSec * 500 * 1000, 7 * MS_DAY), 365 * MS_DAY);
+  return new Date(Date.now() - lookbackMs).toISOString();
+}
+
+/** Generate whitespace data points (time-only, no OHLC) beyond the last candle
+ *  so the crosshair time label remains visible when hovering past the latest bar */
+export function generateWhitespace(
+  lastTime: number,
+  periodSec: number,
+  count = 50,
+): { time: UTCTimestamp }[] {
+  const result: { time: UTCTimestamp }[] = [];
+  for (let i = 1; i <= count; i++) {
+    result.push({ time: (lastTime + periodSec * i) as UTCTimestamp });
+  }
+  return result;
+}
+
+/** Floor a UTC timestamp to the start of its candle period */
+export function floorToCandlePeriod(
+  timestampSec: number,
+  periodSec: number,
+): UTCTimestamp {
+  return (Math.floor(timestampSec / periodSec) * periodSec) as UTCTimestamp;
+}

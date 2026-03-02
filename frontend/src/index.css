@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  background-color: #131722;
+  color: #d1d4dc;
+  min-height: 100vh;
+}
+
+/* Hide Lightweight Charts TradingView watermark */
+.tv-lightweight-charts a[href*="tradingview"] {
+  display: none !important;
+}
+
+/* Drawing edit toolbar entrance animation */
+@keyframes toolbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-toolbar-in {
+  animation: toolbar-in 0.15s ease-out;
+}
+
+/* Drawing tool sidebar slide-from-left */
+@keyframes toolbar-left {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-toolbar-left {
+  animation: toolbar-left 0.15s ease-out;
+}
+
+/* Drawing tool sidebar slide-out-left (collapse) */
+@keyframes toolbar-left-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+.animate-toolbar-left-out {
+  animation: toolbar-left-out 0.15s ease-in forwards;
+}
+
+/* Dropdown popover entrance */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-dropdown-in {
+  animation: dropdown-in 0.15s ease-out;
+}
+
+/* Modal backdrop + panel entrance */
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+.animate-backdrop-in {
+  animation: backdrop-in 0.2s ease-out;
+}
+.animate-modal-in {
+  animation: modal-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Toast enter (slide from right + fade in) */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.animate-toast-in {
+  animation: toast-in 0.2s ease-out;
+}
+
+/* Toast exit (fade out + slide right) */
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+.animate-toast-out {
+  animation: toast-out 0.15s ease-in forwards;
+}
