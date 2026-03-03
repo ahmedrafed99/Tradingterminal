@@ -382,7 +382,7 @@ Hook call order (preserves original effect ordering):
 
 ### `chart/PriceLevelLine.ts` (347 lines)
 
-Unified imperative class that renders a horizontal price line, optional label pill, and axis label badge — all as HTML `<div>` elements in the chart overlay. Replaces the previous two-layer system (LWC `series.createPriceLine()` + separate HTML `buildRow()` labels). Only LWC dependency: `series.priceToCoordinate(price)` for Y positioning. Key API: `setPrice()`, `setLineColor()`, `setLabel(sections)`, `updateSection()`, `syncPosition()`, `paintToCanvas()`, `destroy()`. Axis labels use `z-index:20`.
+Unified imperative class that renders a horizontal price line, optional label pill, and axis label badge — all as HTML `<div>` elements in the chart overlay. Replaces the previous two-layer system (LWC `series.createPriceLine()` + separate HTML `buildRow()` labels). Only LWC dependency: `series.priceToCoordinate(price)` for Y positioning. Key API: `setPrice()`, `setLineColor()`, `setLabelLeft(fraction)`, `setLabel(sections)`, `updateSection()`, `syncPosition()`, `paintToCanvas()`, `destroy()`. Labels default to 50% horizontal position; entry/position labels use `setLabelLeft(0.65)` to avoid overlap with SL/TP labels. Axis labels use `z-index:20`.
 
 ### `chart/CrosshairLabelPrimitive.ts` (73 lines)
 
@@ -412,7 +412,7 @@ The + button on the price scale: appears on hover, creates `PriceLevelLine` inst
 **Preview overlay** (when preview checkbox is ticked):
 - Entry line always shown when preview is on (even with no preset)
 - SL/TP lines shown when a bracket preset is active **or** ad-hoc SL/TP have been added
-- Dashed `PriceLevelLine` instances for Entry (grey `#787b86`), SL (semi-transparent red `#ff444480`), each TP (solid green `#00c805`)
+- Dashed `PriceLevelLine` instances for Entry (grey `#787b86`), SL (red `#ff0000`), each TP (green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`
 - Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
 

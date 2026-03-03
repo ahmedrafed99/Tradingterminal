@@ -96,6 +96,7 @@ export function useOverlayLabels(
         const posIdx = refs.orderLineMeta.current.findIndex((m) => m.kind === 'position');
         const posLine = posIdx >= 0 ? refs.orderLines.current[posIdx] : null;
         if (posLine) {
+          posLine.setLabelLeft(0.65);
           posLine.setLabel([
             { text: initText, bg: initBg, color: textFor(initBg) },
             { text: String(pos.size), bg: sideBg, color: textFor(sideBg) },
@@ -247,6 +248,13 @@ export function useOverlayLabels(
       }
       const orderLine = orderLineIdx >= 0 ? refs.orderLines.current[orderLineIdx] : null;
       if (!orderLine) continue;
+
+      // Shift entry-order labels right so they don't overlap SL/TP labels
+      const isEntryOrder = oType === OrderType.Limit && (
+        (qoPendingPreview != null && oSide === qoPendingPreview.side) ||
+        (previewHideEntry && oSide === previewSide)
+      );
+      if (isEntryOrder) orderLine.setLabelLeft(0.65);
 
       orderLine.setLabel([
         { text: initPnlText, bg: initPnlBg, color: initPnlBg === '#cac9cb' ? '#000' : textFor(initPnlBg) },
@@ -490,6 +498,7 @@ export function useOverlayLabels(
         buttonCells.push({ index: cancelBtnIdx, handler: onCancel });
       }
 
+      if (isEntry) pvLine.setLabelLeft(0.65);
       pvLine.setLabel(sections);
       const cells = pvLine.getCells();
       const labelEl = pvLine.getLabelEl();

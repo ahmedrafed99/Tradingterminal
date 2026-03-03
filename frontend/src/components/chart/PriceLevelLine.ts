@@ -64,6 +64,7 @@ export class PriceLevelLine {
   private _decimals: number;
   private _visible = true;
   private _dead = false;
+  private _labelLeft = 0.5;   // fraction of plot width (0..1)
 
   // DOM elements (all appended to overlay)
   private _lineEl: HTMLDivElement;
@@ -146,6 +147,14 @@ export class PriceLevelLine {
   setAxisLabelVisible(visible: boolean): void {
     this._axisVisible = visible;
     if (!visible) this._axisEl.style.display = 'none';
+  }
+
+  /** Set horizontal position of the label pill as a fraction of plot width (0–1, default 0.5 = centered). */
+  setLabelLeft(fraction: number): void {
+    this._labelLeft = fraction;
+    if (this._labelEl) {
+      this._labelEl.style.left = `${fraction * 100}%`;
+    }
   }
 
   // ── Label ──────────────────────────────────────────────
@@ -262,7 +271,7 @@ export class PriceLevelLine {
       }
 
       if (vis.length > 0) {
-        let x = (plotWidth - totalW) / 2;
+        let x = plotWidth * this._labelLeft - totalW / 2;
         for (let j = 0; j < vis.length; j++) {
           const v = vis[j];
           const w = widths[j];
@@ -317,7 +326,7 @@ export class PriceLevelLine {
   private _buildLabel(sections: LabelSection[]): void {
     const row = document.createElement('div');
     row.style.cssText =
-      `position:absolute;left:50%;display:flex;height:20px;font-size:12px;font-weight:bold;` +
+      `position:absolute;left:${this._labelLeft * 100}%;display:flex;height:20px;font-size:12px;font-weight:bold;` +
       `font-family:${FONT};line-height:20px;transform:translate(-50%,-50%);` +
       `white-space:nowrap;border-radius:3px;overflow:hidden;`;
     this._cells = [];

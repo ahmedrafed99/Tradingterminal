@@ -133,7 +133,7 @@ When a bracket preset is active (`activePresetId` in the store), the button inte
 
 **On hover** — `createPreviewLines()` creates `PriceLevelLine` instances with labels baked in:
 - Entry reference line (`#787b86` gray dashed, no label)
-- SL line (`#ff444480` red dashed) + label sections with projected P&L (red) and size
+- SL line (`#ff0000` red dashed) + label sections with projected P&L (red) and size
 - TP lines (`#00c805` green dashed) + label sections with projected P&L (green) and size
 
 Price offsets computed via `points * tickSize * TICKS_PER_POINT`, same formula as the main preview system. Labels are passed as `LabelSection[]` to the `PriceLevelLine` constructor — no separate `buildRow()` or `createHoverLabels()` step.
@@ -234,7 +234,7 @@ Always visible (regardless of preview toggle). Each line is a `PriceLevelLine` i
 Rendered when `previewEnabled = true` (set from OrderPanel checkbox). Each preview line is a `PriceLevelLine` instance:
 - Entry line always shown when preview is on (even with no preset)
 - SL/TP lines shown when a bracket preset is active **or** ad-hoc SL/TP have been added
-- Dashed price lines for Entry (grey `#787b86`), SL (semi-transparent red `#ff444480`), each TP (solid green `#00c805`)
+- Dashed price lines for Entry (grey `#787b86`), SL (red `#ff0000`), each TP (green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`
 - Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
 - Initial prices read imperatively via `useStore.getState()` to avoid flash-at-bottom on first toggle
@@ -252,6 +252,13 @@ Shows ghost price lines (semi-transparent) for:
 Labels are managed by `PriceLevelLine.setLabel(sections)` — each line owns its own label pill as an HTML `<div>` in the overlay. `useOverlayLabels` configures the label sections (P&L, size, buttons) and registers hit targets, but does not create DOM elements directly.
 
 Each label is a row of colored cells: `[P&L or label] [size] [X]`
+
+### Label horizontal offset (anti-overlap)
+
+Entry and position labels are positioned at 65% of the plot width (`setLabelLeft(0.65)`), while SL/TP labels stay centered at 50%. This prevents overlap when entry and SL/TP prices are close together (e.g. a tight 4-point stop loss when zoomed out). The offset applies to:
+- Position labels (live position entry line)
+- Preview entry labels (order panel preview)
+- Pending entry order labels (+ button flow with `qoPendingPreview`, or Buy/Sell flow with `previewHideEntry`)
 
 **All overlay labels use `pointer-events: none`** — mouse events pass through to the LWC canvas so the crosshair stays visible when hovering over any label. Interactions (click, drag) are detected via coordinate-based hit testing at the chart container level using `getBoundingClientRect()`.
 

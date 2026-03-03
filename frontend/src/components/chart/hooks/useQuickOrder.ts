@@ -86,7 +86,7 @@ export function useQuickOrder(
         const slPnl = (slDiff / tickSize) * tickValue * st.orderSize;
         const slLine = new PriceLevelLine({
           price: computedSlPrice, series, overlay, chartApi: chart,
-          lineColor: '#ff444480', lineStyle: 'dashed', lineWidth: 1,
+          lineColor: '#ff0000', lineStyle: 'dashed', lineWidth: 1,
           axisLabelVisible: true, tickSize,
           label: [
             { text: `-$${Math.abs(slPnl).toFixed(2)}`, bg: '#ff0000', color: '#000' },

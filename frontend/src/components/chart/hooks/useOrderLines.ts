@@ -78,7 +78,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         refs.previewLines.current.push(new PriceLevelLine({
           price: slPrice,
           series, overlay, chartApi: chart,
-          lineColor: '#ff444480', lineStyle: 'dashed', lineWidth: 1,
+          lineColor: '#ff0000', lineStyle: 'dashed', lineWidth: 1,
           axisLabelVisible: true, tickSize,
         }));
         refs.previewRoles.current.push({ kind: 'sl' });
