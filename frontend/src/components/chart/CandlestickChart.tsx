@@ -65,7 +65,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   // Quick-order preview line refs
   const qoPreviewLinesRef = useRef<QoPreviewLines>({ sl: null, tps: [] });
-  const qoPreviewPricesRef = useRef<{ sl: number | null; tps: number[] }>({ sl: null, tps: [] });
+  const qoPreviewPricesRef = useRef<{ entry: number; sl: number | null; tps: number[] }>({ entry: 0, sl: null, tps: [] });
 
   // Preview line refs
   const previewLinesRef = useRef<PriceLevelLine[]>([]);

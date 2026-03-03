@@ -556,7 +556,7 @@ export function useOverlayLabels(
       const qoEntryPrice = qo.entryPrice;
 
       // Initialize mutable prices ref (used by priceGetter during drag)
-      refs.qoPreviewPrices.current = { sl: qo.slPrice, tps: [...qo.tpPrices] };
+      refs.qoPreviewPrices.current = { entry: qo.entryPrice, sl: qo.slPrice, tps: [...qo.tpPrices] };
 
       // SL label — cancel removes SL from armed config + preview
       if (qo.slPrice != null) {
@@ -614,7 +614,8 @@ export function useOverlayLabels(
           pnlUpdaters.push(() => {
             const sp = refs.qoPreviewPrices.current.sl;
             if (sp == null) return;
-            const diff = qo.side === OrderSide.Buy ? qoEntryPrice - sp : sp - qoEntryPrice;
+            const ep = refs.qoPreviewPrices.current.entry;
+            const diff = qo.side === OrderSide.Buy ? ep - sp : sp - ep;
             const pnl = (diff / tickSize) * tickValue * qo.orderSize;
             slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, '#ff0000');
           });
@@ -693,7 +694,8 @@ export function useOverlayLabels(
         pnlUpdaters.push(() => {
           const tp = refs.qoPreviewPrices.current.tps[capturedTpIdx];
           if (tp == null) return;
-          const diff = qo.side === OrderSide.Buy ? tp - qoEntryPrice : qoEntryPrice - tp;
+          const ep = refs.qoPreviewPrices.current.entry;
+          const diff = qo.side === OrderSide.Buy ? tp - ep : ep - tp;
           const pnl = (diff / tickSize) * tickValue * capturedTpSize;
           tpLine.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, '#00c805');
         });

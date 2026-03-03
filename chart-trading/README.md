@@ -84,13 +84,16 @@ The button only renders on the chart whose contract matches the order panel's co
 
 ```ts
 const onMove = (param) => {
+  if (isDragging || awaitingClick) return;  // frozen during drag/await
   if (!param.point) { /* hide with delay */ return; }
 
   const rawPrice = series.coordinateToPrice(param.point.y);
   const lastP = useStore.getState().lastPrice ?? lastBarRef.current?.close;
 
   snappedPrice = Math.round(rawPrice / contract.tickSize) * contract.tickSize;
-  isBuy = lastP != null ? snappedPrice < lastP : true;
+  if (!isHovered) {
+    isBuy = lastP != null ? snappedPrice < lastP : true;
+  }
 
   el.style.display = 'flex';
   el.style.top = `${param.point.y}px`;
@@ -99,7 +102,7 @@ const onMove = (param) => {
 ```
 
 - **Price snapping**: rounds to the nearest tick size for valid order placement
-- **Direction**: compares snapped price to market price (`lastPrice` from real-time, falls back to `lastBarRef.current.close` from historical data)
+- **Direction**: compares snapped price to market price (`lastPrice` from real-time, falls back to `lastBarRef.current.close` from historical data). **Side is locked once hovered** — `isBuy` only recalculates when `!isHovered`, preventing the label from flipping between "Buy Limit" and "Sell Limit" if the market price crosses while the user is hovering.
 - **Position**: `top` tracks the crosshair Y, `right` aligns with the price scale edge
 
 ### Hover behavior
@@ -164,7 +167,20 @@ The bracket engine then listens for the entry fill event and places SL + TP orde
 
 **No preset selected** — places a naked limit order with no SL/TP.
 
-### Click -> place limit order
+### Click and drag-to-adjust
+
+The + button supports click+drag to adjust the entry price before placing:
+
+1. **Simple click** (< 3px movement): places limit order immediately at the hovered price
+2. **Click + drag**: slides the entry price and all bracket preview lines (SL/TP) in real-time. During drag, chart scroll/scale is disabled. P&L labels update live via `updatePreviewPrices()`.
+3. **Release after drag**: enters `awaitingClick` mode — the + button freezes in place, `onMove` and `onLeave` are blocked, preview lines stay visible.
+4. **Click while awaiting** (< 3px movement): places the order at the adjusted price.
+5. **Drag while awaiting**: re-adjusts the position (returns to step 3, does NOT place).
+6. **Click outside the + button while awaiting**: cancels — cleans up preview lines and hides the button.
+
+State machine flags: `isDragging` (true during mousedown→mouseup), `awaitingClick` (true after drag release until click or cancel), `didDrag` (3px threshold distinguishes click from drag).
+
+### Place limit order
 
 ```ts
 orderService.placeOrder({
@@ -303,6 +319,10 @@ Click label to edit price:
 
 ### Order drag
 - On mouse up calls `orderService.modifyOrder()` with new `stopPrice` or `limitPrice`
+- **Limit entry drag shifts bracket previews**: when dragging a pending limit entry order, all associated SL/TP preview lines shift by the same delta. Two paths:
+  - *QO pending preview* (+ button flow): reads `qoPendingPreview` from store, shifts `qoPreviewLines` and `qoPreviewPrices` ref. On mouseup, optimistically commits shifted prices to `qoPendingPreview` store state. On API error, reverts all positions.
+  - *Preview with hidden entry* (Buy/Sell button flow): shifts `previewPrices` and `previewLines` refs using `resolvePreviewConfig()` offsets. On mouseup, updates `limitPrice` in store. On API error, reverts.
+- **Real-time P&L during entry drag**: `qoPreviewPrices.entry` ref field tracks the dragged entry price. P&L updater closures in `useOverlayLabels` read from this ref (not a stale closure) so P&L values update correctly during drag.
 
 ### Position drag
 - Drag from position label to create SL/TP orders directly (see Position label above)
@@ -342,6 +362,8 @@ Drag from position label on chart to create real SL/TP orders directly:
 - Position drag uses capture-phase event listeners to ensure events aren't consumed by the chart canvas
 
 **Position close -> auto-cancel all orders**: When a position closes (size=0), all open orders for that contract are cancelled automatically. Uses fresh API fetch (`searchOpenOrders`) rather than store state (which may be stale due to SignalR event ordering). Orders already being cancelled by the bracket engine (returned from `clearSession()`) are skipped to avoid double-cancel toasts. `contractId` comparison uses `String()` coercion (API may return number, SignalR sends string).
+
+**Position size change -> SL size sync**: When a position's size changes (TP partial fill, manual partial close, or added contracts), the SL order size is automatically synced to match. Runs unconditionally (regardless of whether bracket engine has an active session) as both the primary handler for ad-hoc SL and a safety net for bracket engine failures. Duplicate modifies are harmless. Uses `useStore.getState().activeAccountId` (fresh read) to avoid stale closure issues.
 
 ---
 

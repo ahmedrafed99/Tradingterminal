@@ -99,7 +99,7 @@ export interface ChartRefs {
 
   // Quick-order preview
   qoPreviewLines: React.MutableRefObject<QoPreviewLines>;
-  qoPreviewPrices: React.MutableRefObject<{ sl: number | null; tps: number[] }>;
+  qoPreviewPrices: React.MutableRefObject<{ entry: number; sl: number | null; tps: number[] }>;
 
   // Position drag-to-create SL/TP
   posDrag: React.MutableRefObject<PosDragState | null>;

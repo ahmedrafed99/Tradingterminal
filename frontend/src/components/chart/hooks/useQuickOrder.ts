@@ -45,6 +45,9 @@ export function useQuickOrder(
       tpPrices: number[]; tpSizes: number[];
       side: 0 | 1; orderSize: number;
     } | null = null;
+    let isDragging = false;
+    let awaitingClick = false;
+    let cancelAwaitHandler: ((e: MouseEvent) => void) | null = null;
 
     function removePreviewLines() {
       qoPreviewLines.forEach((l) => l.destroy());
@@ -123,6 +126,44 @@ export function useQuickOrder(
       };
     }
 
+    function updatePreviewPrices(ep: number) {
+      if (qoPreviewLines.length === 0) return;
+      const st = useStore.getState();
+      const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
+      const bc = activePreset?.config;
+      const tickSize = contract!.tickSize;
+      const tickValue = contract!.tickValue || 0.50;
+      const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
+      const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
+
+      // Entry line (index 0)
+      qoPreviewLines[0].setPrice(ep);
+      qoPreviewLines[0].syncPosition();
+
+      let lineIdx = 1;
+      if (bc) {
+        if (bc.stopLoss.points > 0 && qoPreviewLines[lineIdx]) {
+          const slPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
+          qoPreviewLines[lineIdx].setPrice(slPrice);
+          qoPreviewLines[lineIdx].syncPosition();
+          const slDiff = side === OrderSide.Buy ? ep - slPrice : slPrice - ep;
+          const slPnl = (slDiff / tickSize) * tickValue * st.orderSize;
+          qoPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, '#ff0000');
+          lineIdx++;
+        }
+        bc.takeProfits.forEach((tp) => {
+          if (!qoPreviewLines[lineIdx]) return;
+          const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
+          qoPreviewLines[lineIdx].setPrice(tpPrice);
+          qoPreviewLines[lineIdx].syncPosition();
+          const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
+          const tpPnl = (tpDiff / tickSize) * tickValue * tp.size;
+          qoPreviewLines[lineIdx].updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, '#00c805');
+          lineIdx++;
+        });
+      }
+    }
+
     function refreshLabel() {
       const sz = useStore.getState().orderSize;
       label.textContent = isBuy ? `Buy Limit ${sz}` : `Sell Limit ${sz}`;
@@ -131,6 +172,7 @@ export function useQuickOrder(
     }
 
     const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
+      if (isDragging || awaitingClick) return;
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
 
       if (!param.point) {
@@ -150,7 +192,9 @@ export function useQuickOrder(
       snappedPrice = Math.round((rawPrice as number) / contract.tickSize) * contract.tickSize;
       lastCrosshairTime = param.time ?? null;
       if (param.time) lastValidTime = param.time;
-      isBuy = lastP != null ? snappedPrice < lastP : true;
+      if (!isHovered) {
+        isBuy = lastP != null ? snappedPrice < lastP : true;
+      }
 
       let psWidth = 56;
       try { psWidth = chart.priceScale('right').width(); } catch (_) { psWidth = 56; }
@@ -181,6 +225,7 @@ export function useQuickOrder(
     };
 
     const onLeave = () => {
+      if (isDragging || awaitingClick) return;
       isHovered = false;
       refs.qoHovered.current = false;
       label.style.display = 'none';
@@ -195,9 +240,7 @@ export function useQuickOrder(
       }, 100);
     };
 
-    const onClick = (e: MouseEvent) => {
-      e.stopPropagation();
-      e.preventDefault();
+    function placeQuickOrder() {
       if (snappedPrice == null) return;
       const st = useStore.getState();
       if (!st.activeAccountId) return;
@@ -282,15 +325,106 @@ export function useQuickOrder(
         useStore.getState().setQoPendingPreview(null);
         removePreviewLines();
       });
+    }
+
+    function cleanupAwait() {
+      if (cancelAwaitHandler) {
+        window.removeEventListener('mousedown', cancelAwaitHandler, true);
+        cancelAwaitHandler = null;
+      }
+      awaitingClick = false;
+    }
+
+    function resetHoverState() {
+      isHovered = false;
+      refs.qoHovered.current = false;
+      label.style.display = 'none';
+      plusEl.style.borderRadius = '2px';
+      plusEl.style.background = '#2a2e39';
+      chart.clearCrosshairPosition();
+    }
+
+    const onMouseDown = (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (snappedPrice == null) return;
+      if (!useStore.getState().activeAccountId) return;
+
+      const startY = e.clientY;
+      let didDrag = false;
+      const wasAwaiting = awaitingClick;
+      if (wasAwaiting) cleanupAwait();
+      isDragging = true;
+      chart.applyOptions({ handleScroll: false, handleScale: false });
+
+      const onDragMove = (me: MouseEvent) => {
+        if (!didDrag && Math.abs(me.clientY - startY) > 3) didDrag = true;
+        if (!didDrag) return;
+
+        const container = refs.container.current;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const chartY = me.clientY - rect.top;
+        const rawPrice = series.coordinateToPrice(chartY);
+        if (rawPrice == null) return;
+
+        snappedPrice = Math.round((rawPrice as number) / contract.tickSize) * contract.tickSize;
+
+        // Reposition + button
+        const y = series.priceToCoordinate(snappedPrice);
+        if (y != null) el.style.top = `${y}px`;
+
+        // Keep crosshair at dragged position
+        const timeToUse = lastCrosshairTime ?? lastValidTime;
+        if (timeToUse != null) {
+          chart.setCrosshairPosition(snappedPrice, timeToUse as Parameters<typeof chart.setCrosshairPosition>[1], series);
+        }
+
+        // Update preview line positions and P&L
+        updatePreviewPrices(snappedPrice);
+      };
+
+      const onDragEnd = () => {
+        window.removeEventListener('mousemove', onDragMove);
+        window.removeEventListener('mouseup', onDragEnd);
+        isDragging = false;
+        chart.applyOptions({ handleScroll: true, handleScale: true });
+
+        if (didDrag) {
+          // Drag completed (or re-drag while awaiting) — freeze and wait for a clean click
+          awaitingClick = true;
+          cancelAwaitHandler = (me: MouseEvent) => {
+            // Click outside the + button → cancel
+            if (wrap.contains(me.target as Node)) return;
+            cleanupAwait();
+            resetHoverState();
+            removePreviewLines();
+            el.style.display = 'none';
+          };
+          window.addEventListener('mousedown', cancelAwaitHandler, true);
+        } else if (wasAwaiting) {
+          // Clean click while awaiting → place order
+          placeQuickOrder();
+          resetHoverState();
+        } else {
+          // First-time simple click (no prior drag) → place immediately
+          placeQuickOrder();
+          resetHoverState();
+        }
+      };
+
+      window.addEventListener('mousemove', onDragMove);
+      window.addEventListener('mouseup', onDragEnd);
     };
 
     wrap.addEventListener('mouseenter', onEnter);
     wrap.addEventListener('mouseleave', onLeave);
-    wrap.addEventListener('click', onClick);
+    wrap.addEventListener('mousedown', onMouseDown);
     chart.subscribeCrosshairMove(onMove);
 
     return () => {
       if (hideTimer) clearTimeout(hideTimer);
+      cleanupAwait();
       refs.qoHovered.current = false;
       if (pendingFillUnsub) {
         pendingFillUnsub(); pendingFillUnsub = null;
@@ -300,7 +434,7 @@ export function useQuickOrder(
       chart.unsubscribeCrosshairMove(onMove);
       wrap.removeEventListener('mouseenter', onEnter);
       wrap.removeEventListener('mouseleave', onLeave);
-      wrap.removeEventListener('click', onClick);
+      wrap.removeEventListener('mousedown', onMouseDown);
       el.style.display = 'none';
     };
   }, [contract, timeframe, isOrderChart]);

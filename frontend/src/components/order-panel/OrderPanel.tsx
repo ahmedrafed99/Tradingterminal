@@ -111,9 +111,12 @@ export function OrderPanel() {
         }
         restorePreset();
       } else {
-        // Position still open but size may have changed (TP partial fill or added contracts) —
-        // sync SL size to match if bracket engine isn't managing
-        if (!bracketEngine.hasActiveSession() && activeAccountId) {
+        // Position still open but size may have changed (TP partial fill, manual partial close,
+        // or added contracts) — always sync SL size to match position.
+        // This acts as both the primary handler (ad-hoc SL) and a safety net (bracket engine
+        // session active but its modify failed). Duplicate modifies are harmless.
+        const acctId = useStore.getState().activeAccountId;
+        if (acctId) {
           const contractId = String(pos.contractId);
           const posType = pos.type;
           const slSide = posType === PositionType.Long ? OrderSide.Sell : OrderSide.Buy;
@@ -127,7 +130,7 @@ export function OrderPanel() {
           if (slOrder) {
             if (import.meta.env.DEV) console.log(`[OrderPanel] Position size changed — syncing SL size: ${slOrder.size} → ${pos.size}`);
             orderService.modifyOrder({
-              accountId: activeAccountId,
+              accountId: acctId,
               orderId: slOrder.id,
               size: pos.size,
             }).catch((err) => {

@@ -433,6 +433,57 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       }
       refs.orderLinePrices.current[drag.idx] = snapped;
       drag.draggedPrice = snapped;
+
+      // Shift pending bracket SL/TP preview lines to follow the dragged entry
+      if (drag.meta.kind === 'order' && drag.meta.order.type === OrderType.Limit) {
+        const delta = snapped - drag.originalPrice;
+        const st = useStore.getState();
+
+        // Path 1: Quick-order pending preview (+ button)
+        const qo = st.qoPendingPreview;
+        if (qo) {
+          refs.qoPreviewPrices.current.entry = snapped;
+          const sl = refs.qoPreviewLines.current.sl;
+          if (sl && qo.slPrice != null) {
+            sl.setPrice(qo.slPrice + delta); sl.syncPosition();
+            refs.qoPreviewPrices.current.sl = qo.slPrice + delta;
+          }
+          qo.tpPrices.forEach((origTp, i) => {
+            const tpLine = refs.qoPreviewLines.current.tps[i];
+            if (tpLine) {
+              tpLine.setPrice(origTp + delta); tpLine.syncPosition();
+              refs.qoPreviewPrices.current.tps[i] = origTp + delta;
+            }
+          });
+        }
+
+        // Path 2: Preview with hidden entry (Buy/Sell button flow)
+        if (st.previewHideEntry) {
+          refs.previewPrices.current[0] = snapped;
+          const tickSize = contract!.tickSize;
+          const toP = (points: number) => points * tickSize * TICKS_PER_POINT;
+          const cfg = resolvePreviewConfig();
+          const pvSide = st.previewSide;
+          let idx = 1; // skip entry line (index 0)
+          if (cfg) {
+            if (cfg.stopLoss.points > 0) {
+              const slPrice = pvSide === OrderSide.Buy ? snapped - toP(cfg.stopLoss.points) : snapped + toP(cfg.stopLoss.points);
+              const slLine = refs.previewLines.current[idx];
+              if (slLine) { slLine.setPrice(slPrice); slLine.syncPosition(); }
+              refs.previewPrices.current[idx] = slPrice;
+              idx++;
+            }
+            cfg.takeProfits.forEach((tp) => {
+              const tpPrice = pvSide === OrderSide.Buy ? snapped + toP(tp.points) : snapped - toP(tp.points);
+              const tpLine = refs.previewLines.current[idx];
+              if (tpLine) { tpLine.setPrice(tpPrice); tpLine.syncPosition(); }
+              refs.previewPrices.current[idx] = tpPrice;
+              idx++;
+            });
+          }
+        }
+      }
+
       refs.updateOverlay.current();
     }
 
@@ -492,6 +543,22 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         params.limitPrice = newPrice;
       }
 
+      // Optimistically commit bracket preview positions to store
+      const prevQo = order.type === OrderType.Limit ? useStore.getState().qoPendingPreview : null;
+      const wasHideEntry = order.type === OrderType.Limit && useStore.getState().previewHideEntry;
+      if (prevQo) {
+        const d = newPrice - originalPrice;
+        useStore.getState().setQoPendingPreview({
+          ...prevQo,
+          entryPrice: prevQo.entryPrice + d,
+          slPrice: prevQo.slPrice != null ? prevQo.slPrice + d : null,
+          tpPrices: prevQo.tpPrices.map((p) => p + d),
+        });
+      }
+      if (wasHideEntry) {
+        useStore.getState().setLimitPrice(newPrice);
+      }
+
       orderService.modifyOrder(params).catch((err) => {
         showToast('error', 'Order modification failed', errorMessage(err));
         // Revert line back to original price
@@ -512,6 +579,21 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
           line.syncPosition();
           refs.orderLinePrices.current[dragIdx] = originalPrice;
           refs.updateOverlay.current();
+        }
+        // Revert bracket preview positions
+        if (prevQo) {
+          useStore.getState().setQoPendingPreview(prevQo);
+          refs.qoPreviewPrices.current.entry = prevQo.entryPrice;
+          const sl = refs.qoPreviewLines.current.sl;
+          if (sl && prevQo.slPrice != null) { sl.setPrice(prevQo.slPrice); sl.syncPosition(); refs.qoPreviewPrices.current.sl = prevQo.slPrice; }
+          prevQo.tpPrices.forEach((tp, i) => {
+            const l = refs.qoPreviewLines.current.tps[i];
+            if (l) { l.setPrice(tp); l.syncPosition(); refs.qoPreviewPrices.current.tps[i] = tp; }
+          });
+        }
+        if (wasHideEntry) {
+          refs.previewPrices.current[0] = originalPrice;
+          useStore.getState().setLimitPrice(originalPrice);
         }
       });
     }
