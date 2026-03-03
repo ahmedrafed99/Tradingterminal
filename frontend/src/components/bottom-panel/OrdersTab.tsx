@@ -21,6 +21,8 @@ function shortSymbol(contractId: string): string {
   return contractId;
 }
 
+const cols = 'grid-cols-[0.7fr_0.8fr_1fr_0.5fr_1fr_0.4fr]';
+
 export function OrdersTab() {
   const openOrders = useStore((s) => s.openOrders);
   const activeAccountId = useStore((s) => s.activeAccountId);
@@ -47,44 +49,49 @@ export function OrdersTab() {
   }
 
   return (
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="text-[#787b86] border-b border-[#2a2e39]">
-          <th className="text-left font-normal px-3 py-1.5">Side</th>
-          <th className="text-left font-normal px-3 py-1.5">Type</th>
-          <th className="text-left font-normal px-3 py-1.5">Symbol</th>
-          <th className="text-right font-normal px-3 py-1.5">Size</th>
-          <th className="text-right font-normal px-3 py-1.5">Price</th>
-          <th className="text-center font-normal px-3 py-1.5"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {openOrders.map((order) => {
-          const isBuy = order.side === OrderSide.Buy;
-          const price = order.type === OrderType.Stop || order.type === OrderType.TrailingStop
-            ? order.stopPrice
-            : order.limitPrice;
-          return (
-            <tr
-              key={order.id}
-              className="border-b border-[#1e222d] hover:bg-[#1e222d] transition-colors"
-            >
-              <td className="px-3 py-1.5">
+    <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-black border-b border-[#2a2e39]">
+        <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '70%' }}>
+          <div className="px-3 text-center">Side</div>
+          <div className="px-3 text-center">Type</div>
+          <div className="px-3 text-center">Symbol</div>
+          <div className="px-3 text-center">Qty</div>
+          <div className="px-3 text-center">Price</div>
+          <div className="px-3 text-center"></div>
+        </div>
+      </div>
+
+      {/* Rows */}
+      {openOrders.map((order, i) => {
+        const isBuy = order.side === OrderSide.Buy;
+        const price = order.type === OrderType.Stop || order.type === OrderType.TrailingStop
+          ? order.stopPrice
+          : order.limitPrice;
+        const stripe = i % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+
+        return (
+          <div
+            key={order.id}
+            className={`${stripe} hover:bg-[#1e222d]/50 transition-colors`}
+          >
+            <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
+              <div className="px-3 text-center whitespace-nowrap">
                 <span className={`font-medium ${isBuy ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
-                  {isBuy ? 'BUY' : 'SELL'}
+                  {isBuy ? 'Buy' : 'Sell'}
                 </span>
-              </td>
-              <td className="px-3 py-1.5 text-[#d1d4dc]">
+              </div>
+              <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
                 {TYPE_LABELS[order.type] ?? order.type}
-              </td>
-              <td className="px-3 py-1.5 text-[#d1d4dc]">
+              </div>
+              <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
                 {shortSymbol(order.contractId)}
-              </td>
-              <td className="px-3 py-1.5 text-right text-[#d1d4dc]">{order.size}</td>
-              <td className="px-3 py-1.5 text-right text-[#d1d4dc]">
-                {price != null ? price.toFixed(2) : '—'}
-              </td>
-              <td className="px-3 py-1.5 text-center">
+              </div>
+              <div className="px-3 text-center text-[#d1d4dc]">{order.size}</div>
+              <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+                {price != null ? price.toFixed(2) : '\u2014'}
+              </div>
+              <div className="px-3 text-center">
                 <button
                   onClick={() => handleCancel(order.id)}
                   disabled={cancellingId === order.id}
@@ -93,11 +100,11 @@ export function OrdersTab() {
                 >
                   {cancellingId === order.id ? '...' : '\u2715'}
                 </button>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
