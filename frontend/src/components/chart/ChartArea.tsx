@@ -79,6 +79,7 @@ export function ChartArea() {
           rightClearTimer = setTimeout(() => {
             if (!leftRef.current?.isQoHovered()) {
               rightChart.clearCrosshairPosition();
+              rightRef.current?.setCrosshairPrice(null);
             }
           }, 16);
           return;
@@ -87,8 +88,10 @@ export function ChartArea() {
         const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
           rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
+          rightRef.current?.setCrosshairPrice(sourcePrice);
         } else {
           rightChart.clearCrosshairPosition();
+          rightRef.current?.setCrosshairPrice(null);
         }
       };
 
@@ -99,6 +102,7 @@ export function ChartArea() {
           leftClearTimer = setTimeout(() => {
             if (!rightRef.current?.isQoHovered()) {
               leftChart.clearCrosshairPosition();
+              leftRef.current?.setCrosshairPrice(null);
             }
           }, 16);
           return;
@@ -107,8 +111,10 @@ export function ChartArea() {
         const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
           leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
+          leftRef.current?.setCrosshairPrice(sourcePrice);
         } else {
           leftChart.clearCrosshairPosition();
+          leftRef.current?.setCrosshairPrice(null);
         }
       };
 

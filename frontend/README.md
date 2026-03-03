@@ -63,9 +63,11 @@ frontend/
 │       │   ├── barUtils.ts      ← bar conversion, sorting, period math
 │       │   ├── DrawingToolbar.tsx   ← collapsible left-edge sidebar (select, hline, oval, arrow path)
 │       │   ├── DrawingEditToolbar.tsx ← floating edit popup (color, text, stroke, template, delete)
+│       │   ├── PriceLevelLine.ts       ← unified imperative class: horizontal line + label pill + axis label (HTML)
+│       │   ├── CrosshairLabelPrimitive.ts ← HTML crosshair price label (z-index:30, above PriceLevelLine)
 │       │   ├── TradeZonePrimitive.ts  ← ISeriesPrimitive for entry/exit trade zone visualization
 │       │   ├── hooks/
-│       │   │   ├── types.ts              ← ChartRefs interface, shared types (HitTarget, PriceLine, etc.)
+│       │   │   ├── types.ts              ← ChartRefs interface, shared types (HitTarget, PreviewLineRole, etc.)
 │       │   │   ├── resolvePreviewConfig.ts ← unifies preset+draft and ad-hoc state into BracketConfig
 │       │   │   ├── useChartWidgets.ts    ← trade zones, OHLC tooltip, crosshair label, scroll button
 │       │   │   ├── useChartBars.ts       ← bar fetching, real-time quotes, volume profile
@@ -366,9 +368,9 @@ Toast notification system. `<ToastContainer />` is mounted in `App.tsx` (renders
 - Enter/exit animations via CSS classes `animate-toast-in` / `animate-toast-out` (defined in `index.css`)
 - Triggered from anywhere via `showToast()` from `utils/toast.ts` (works from non-React code)
 
-### `chart/CandlestickChart.tsx` (Orchestrator — 342 lines)
+### `chart/CandlestickChart.tsx` (Orchestrator — 346 lines)
 
-Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.memo` + `forwardRef`. Declares 28 refs bundled into a typed `ChartRefs` bag, runs the chart init effect (createChart, series, primitives), then delegates all behavior to 6 hooks. Exposes `getChartApi()`, `getSeriesApi()`, `getDataMap()`, `isQoHovered()` via `useImperativeHandle`.
+Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.memo` + `forwardRef`. Declares 28 refs bundled into a typed `ChartRefs` bag, runs the chart init effect (createChart, series, primitives, HTML crosshair label), then delegates all behavior to 6 hooks. Exposes `getChartApi()`, `getSeriesApi()`, `getDataMap()`, `isQoHovered()`, `setCrosshairPrice()` via `useImperativeHandle`.
 
 Hook call order (preserves original effect ordering):
 1. `useChartWidgets(refs, contract, timeframe)` → `{ showScrollBtn, scrollBtnPos }`
@@ -378,9 +380,17 @@ Hook call order (preserves original effect ordering):
 5. `useOrderLines(refs, contract, isOrderChart)`
 6. `useOverlayLabels(refs, contract, isOrderChart)`
 
+### `chart/PriceLevelLine.ts` (347 lines)
+
+Unified imperative class that renders a horizontal price line, optional label pill, and axis label badge — all as HTML `<div>` elements in the chart overlay. Replaces the previous two-layer system (LWC `series.createPriceLine()` + separate HTML `buildRow()` labels). Only LWC dependency: `series.priceToCoordinate(price)` for Y positioning. Key API: `setPrice()`, `setLineColor()`, `setLabel(sections)`, `updateSection()`, `syncPosition()`, `paintToCanvas()`, `destroy()`. Axis labels use `z-index:20`.
+
+### `chart/CrosshairLabelPrimitive.ts` (73 lines)
+
+HTML crosshair price label in the overlay div (`z-index:30`). Positioned over the price scale, matching LWC's native crosshair label style (`#2a2e39` bg, `#d1d4dc` text, bold 12px). Updated via `updateCrosshairPrice(price)` from `subscribeCrosshairMove` (local chart) and `setCrosshairPrice()` imperative handle (dual-chart sync).
+
 ### `chart/hooks/useChartWidgets.ts` (193 lines)
 
-Trade zone primitive sync, OHLC tooltip on crosshair hover, crosshair price label primitive configuration, scroll-to-latest button visibility and positioning.
+Trade zone primitive sync, OHLC tooltip on crosshair hover, crosshair price label feed (calls `updateCrosshairPrice` on crosshair move), scroll-to-latest button visibility and positioning.
 
 ### `chart/hooks/useChartBars.ts` (270 lines)
 
@@ -393,18 +403,18 @@ Trade zone primitive sync, OHLC tooltip on crosshair hover, crosshair price labe
 
 Complete drawing system: click-to-place (hline), drag-to-create (oval), multi-click creation (arrow path), click-to-select, drag-to-move, 4-handle resize (oval), per-node drag (arrow path), ruler creation. Keyboard shortcuts (Del, Ctrl+Z, Escape). Contains `onOverlayHitTest` handler registered on container mousedown.
 
-### `chart/hooks/useQuickOrder.ts` (343 lines)
+### `chart/hooks/useQuickOrder.ts` (307 lines)
 
-The + button on the price scale: appears on hover, shows bracket preview lines (SL/TP) when hovered, places limit order on click with bracket engine arming. Full cleanup on error (disarm, clear preview, toast).
+The + button on the price scale: appears on hover, creates `PriceLevelLine` instances with baked-in labels (P&L + size) for bracket preview. Places limit order on click with bracket engine arming. Full cleanup on error (disarm, clear preview, toast).
 
-### `chart/hooks/useOrderLines.ts` (697 lines)
+### `chart/hooks/useOrderLines.ts` (530 lines)
 
 **Preview overlay** (when preview checkbox is ticked):
 - Entry line always shown when preview is on (even with no preset)
 - SL/TP lines shown when a bracket preset is active **or** ad-hoc SL/TP have been added
-- Dashed price lines for Entry (grey `#787b86`), SL (semi-transparent red `#ff444480`), each TP (solid green `#00c805`)
+- Dashed `PriceLevelLine` instances for Entry (grey `#787b86`), SL (semi-transparent red `#ff444480`), each TP (solid green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`
-- Two-effect pattern: structural effect creates/destroys lines on config change; price-update effect calls `applyOptions()` in-place to avoid flicker
+- Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
 
 **Live order & position lines** (always visible, regardless of preview):
 - Position entry: solid grey `#cac8cb` at `averagePrice`
@@ -412,28 +422,29 @@ The + button on the price scale: appears on hover, shows bracket preview lines (
 - Limit orders (type 1): solid green `#00c805` at `limitPrice` (all TPs are green regardless of side)
 - Each line tracks its `Order` object via `orderLineMetaRef` for drag identification
 
-**Drag interactions**: Preview line drag (entry/SL/TP), order drag-to-modify, position drag-to-create SL/TP.
+**Drag interactions**: Preview line drag (entry/SL/TP), order drag-to-modify, position drag-to-create SL/TP. Drag updates use `line.setPrice()` + `line.setLineColor()` + `line.syncPosition()`.
 
-### `chart/hooks/useOverlayLabels.ts` (784 lines)
+### `chart/hooks/useOverlayLabels.ts` (700 lines)
 
-**Overlay label system** (HTML labels positioned over price lines):
-- Imperative DOM (`document.createElement`) — avoids React render cycles for smooth 60fps updates
-- **All labels use `pointer-events: none`** — mouse events pass through to the LWC canvas so the crosshair stays visible. Interactions detected via coordinate-based hit testing (`getBoundingClientRect()`) at the container level using `hitTargetsRef` (priority: 0=buttons, 1=entry-click, 2=row-drag)
+**Overlay label system** (labels managed via `PriceLevelLine.setLabel(sections)` / `updateSection()`):
+- `useOverlayLabels` does NOT create DOM elements directly — it configures label sections on existing `PriceLevelLine` instances created by `useOrderLines` and `useQuickOrder`
+- **All labels use `pointer-events: none`** — mouse events pass through to the LWC canvas so the crosshair stays visible. Interactions detected via coordinate-based hit testing (`line.getLabelEl().getBoundingClientRect()`) at the container level using `hitTargetsRef` (priority: 0=buttons, 1=entry-click, 2=row-drag)
 - Each label is a row of colored cells: `[P&L or label] [size] [✕]`
 - **Position label**: real-time P&L (green/red), contract size, ✕ to close position (market order). Drag-to-create: mousedown on position label starts a drag — dragging in the loss direction creates a stop order (full position size), dragging in the profit direction creates a limit TP order (1 contract per drag)
 - **Order labels**: TP orders show both P&L cell and size cell in green (`#00c805`); SL orders show both cells in red (`#ff0000`). When no position exists, label shows "SL"/"Buy Limit"/"Sell Limit" in grey (`#cac9cb`) with black text (size cell stays green/red). When a position exists, P&L is displayed with the order-type color (green for TP, red for SL). ✕ to cancel order
 - **Preview labels**: Entry shows "Limit Buy"/"Limit Sell" in grey (`#cac9cb`) with black text (clickable to execute), size cell colored by side (green buy / red sell). SL/TP show projected P&L relative to entry price. Each TP shows its **individual** contract size from the preset or ad-hoc level (not total orderSize). SL shows total size. When no preset is active, entry label includes **+SL** and **+TP** buttons to add ad-hoc bracket lines
-- P&L values update in real-time via direct Zustand subscription (bypasses React render cycle)
+- P&L values update in real-time via `line.updateSection(index, text, bg, color)` — direct Zustand subscription (bypasses React render cycle)
 - `updateOverlayRef` stores the position-update function, called by the sync effect
 
-**Overlay sync** (smooth label positioning during interaction):
+**Overlay sync** (smooth positioning for all `PriceLevelLine` instances):
+- `updatePositions()` calls `line.syncPosition()` on every live line, then runs P&L updater closures
 - `requestAnimationFrame` loop runs during any pointer interaction (pointerdown → rAF loop → pointerup stops)
 - Also listens to `visibleLogicalRangeChange` (horizontal scroll), `ResizeObserver`, and `wheel` events
 - Zero overhead when idle — rAF loop only active during pointer drag
 
-### `chart/hooks/types.ts` (113 lines)
+### `chart/hooks/types.ts` (112 lines)
 
-Shared type definitions: `ChartRefs` interface (28 refs), `PriceLine`, `PreviewLineRole`, `OrderLineMeta`, `HitTarget`, `QoPreviewLines`, `PosDragState`, `OrderDragState`.
+Shared type definitions: `ChartRefs` interface (28 refs), `PreviewLineRole`, `OrderLineMeta`, `HitTarget`, `QoPreviewLines`, `PosDragState`, `OrderDragState`. Uses `PriceLevelLine` type from `../PriceLevelLine` for line refs.
 
 **Label-initiated drag** (click label to edit price):
 - All labels are `pointer-events: none` — interaction detected by container-level `onOverlayHitTest` handler (in useChartDrawings) via coordinate hit testing

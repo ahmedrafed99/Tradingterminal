@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { LineStyle } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import { orderService, type Order, type PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
@@ -7,6 +6,7 @@ import { useStore } from '../../../store/useStore';
 import { TICKS_PER_POINT } from '../../../types/bracket';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { showToast, errorMessage } from '../../../utils/toast';
+import { PriceLevelLine } from '../PriceLevelLine';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs } from './types';
 
@@ -38,9 +38,11 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
   useEffect(() => {
     if (!isOrderChart) return;
     const series = refs.series.current;
-    if (!series) return;
+    const overlay = refs.overlay.current;
+    const chart = refs.chart.current;
+    if (!series || !overlay || !chart) return;
 
-    refs.previewLines.current.forEach((l) => series.removePriceLine(l));
+    refs.previewLines.current.forEach((l) => l.destroy());
     refs.previewLines.current = [];
     refs.previewRoles.current = [];
     refs.previewPrices.current = [];
@@ -57,9 +59,13 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
 
     // Entry line (always created — hidden when limit order already placed)
     const hideEntry = snap.previewHideEntry;
-    refs.previewLines.current.push(series.createPriceLine({
-      price: ep, color: hideEntry ? 'transparent' : '#787b86', lineWidth: 1,
-      lineStyle: LineStyle.Dashed, axisLabelVisible: !hideEntry, title: '',
+    refs.previewLines.current.push(new PriceLevelLine({
+      price: ep,
+      series, overlay, chartApi: chart,
+      lineColor: hideEntry ? 'transparent' : '#787b86',
+      lineStyle: 'dashed', lineWidth: 1,
+      axisLabelVisible: !hideEntry,
+      tickSize,
     }));
     refs.previewRoles.current.push({ kind: 'entry' });
     refs.previewPrices.current.push(ep);
@@ -69,9 +75,11 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       if (config.stopLoss.points > 0) {
         const slPts = config.stopLoss.points;
         const slPrice = ep ? (snap.previewSide === OrderSide.Buy ? ep - toPrice(slPts) : ep + toPrice(slPts)) : 0;
-        refs.previewLines.current.push(series.createPriceLine({
-          price: slPrice, color: '#ff444480', lineWidth: 1,
-          lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
+        refs.previewLines.current.push(new PriceLevelLine({
+          price: slPrice,
+          series, overlay, chartApi: chart,
+          lineColor: '#ff444480', lineStyle: 'dashed', lineWidth: 1,
+          axisLabelVisible: true, tickSize,
         }));
         refs.previewRoles.current.push({ kind: 'sl' });
         refs.previewPrices.current.push(slPrice);
@@ -81,9 +89,11 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       config.takeProfits.forEach((tp, i) => {
         const tpPts = tp.points;
         const tpPrice = ep ? (snap.previewSide === OrderSide.Buy ? ep + toPrice(tpPts) : ep - toPrice(tpPts)) : 0;
-        refs.previewLines.current.push(series.createPriceLine({
-          price: tpPrice, color: '#00c805', lineWidth: 1,
-          lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
+        refs.previewLines.current.push(new PriceLevelLine({
+          price: tpPrice,
+          series, overlay, chartApi: chart,
+          lineColor: '#00c805', lineStyle: 'dashed', lineWidth: 1,
+          axisLabelVisible: true, tickSize,
         }));
         refs.previewRoles.current.push({ kind: 'tp', index: i });
         refs.previewPrices.current.push(tpPrice);
@@ -91,13 +101,10 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     }
 
     return () => {
-      const s = refs.series.current;
-      if (s) {
-        refs.previewLines.current.forEach((l) => s.removePriceLine(l));
-        refs.previewLines.current = [];
-        refs.previewRoles.current = [];
-        refs.previewPrices.current = [];
-      }
+      refs.previewLines.current.forEach((l) => l.destroy());
+      refs.previewLines.current = [];
+      refs.previewRoles.current = [];
+      refs.previewPrices.current = [];
     };
   }, [isOrderChart, previewEnabled, previewSide, previewHideEntry, bracketPresets, activePresetId, contract, adHocSlPoints, adHocTpLevels]);
 
@@ -121,7 +128,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       let idx = 0;
 
       // Entry
-      refs.previewLines.current[idx]?.applyOptions({ price: entryPrice });
+      const entryLine = refs.previewLines.current[idx];
+      if (entryLine) entryLine.setPrice(entryPrice);
       prices.push(entryPrice);
       idx++;
 
@@ -130,7 +138,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         if (cfg.stopLoss.points > 0) {
           const slPts = cfg.stopLoss.points;
           const slPrice = snap.previewSide === OrderSide.Buy ? entryPrice - toPrice(slPts) : entryPrice + toPrice(slPts);
-          refs.previewLines.current[idx]?.applyOptions({ price: slPrice });
+          const slLine = refs.previewLines.current[idx];
+          if (slLine) slLine.setPrice(slPrice);
           prices.push(slPrice);
           idx++;
         }
@@ -139,7 +148,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         cfg.takeProfits.forEach((tp) => {
           const tpPts = tp.points;
           const tpPrice = snap.previewSide === OrderSide.Buy ? entryPrice + toPrice(tpPts) : entryPrice - toPrice(tpPts);
-          refs.previewLines.current[idx]?.applyOptions({ price: tpPrice });
+          const tpLine = refs.previewLines.current[idx];
+          if (tpLine) tpLine.setPrice(tpPrice);
           prices.push(tpPrice);
           idx++;
         });
@@ -192,7 +202,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       // Quick-order pending preview drag
       if (drag.role.kind === 'qo-sl') {
         const line = refs.qoPreviewLines.current.sl;
-        if (line) line.applyOptions({ price: snapped });
+        if (line) { line.setPrice(snapped); line.syncPosition(); }
         refs.qoPreviewPrices.current.sl = snapped;
         refs.updateOverlay.current();
         return;
@@ -200,14 +210,15 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       if (drag.role.kind === 'qo-tp') {
         const tpIdx = drag.role.index;
         const line = refs.qoPreviewLines.current.tps[tpIdx];
-        if (line) line.applyOptions({ price: snapped });
+        if (line) { line.setPrice(snapped); line.syncPosition(); }
         refs.qoPreviewPrices.current.tps[tpIdx] = snapped;
         refs.updateOverlay.current();
         return;
       }
 
       // Regular order panel preview drag
-      refs.previewLines.current[drag.lineIdx]?.applyOptions({ price: snapped });
+      const pvLine = refs.previewLines.current[drag.lineIdx];
+      if (pvLine) { pvLine.setPrice(snapped); pvLine.syncPosition(); }
       refs.previewPrices.current[drag.lineIdx] = snapped;
       refs.updateOverlay.current();
 
@@ -304,28 +315,30 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
   useEffect(() => {
     if (!isOrderChart) return;
     const series = refs.series.current;
-    if (!series) return;
+    const overlay = refs.overlay.current;
+    const chart = refs.chart.current;
+    if (!series || !overlay || !chart) return;
 
     // Tear down previous
-    refs.orderLines.current.forEach((l) => series.removePriceLine(l));
+    refs.orderLines.current.forEach((l) => l.destroy());
     refs.orderLines.current = [];
     refs.orderLineMeta.current = [];
     refs.orderLinePrices.current = [];
 
     if (!contract) return;
 
+    const tickSize = contract.tickSize;
+
     // Position entry line (not draggable)
     const pos = positions.find(
       (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract.id) && p.size > 0,
     );
     if (pos) {
-      refs.orderLines.current.push(series.createPriceLine({
+      refs.orderLines.current.push(new PriceLevelLine({
         price: pos.averagePrice,
-        color: '#cac8cb',
-        lineWidth: 1,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: '',
+        series, overlay, chartApi: chart,
+        lineColor: '#cac8cb', lineStyle: 'solid', lineWidth: 1,
+        axisLabelVisible: true, tickSize,
       }));
       refs.orderLineMeta.current.push({ kind: 'position' });
       refs.orderLinePrices.current.push(pos.averagePrice);
@@ -359,26 +372,21 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
 
       if (price == null) continue;
 
-      refs.orderLines.current.push(series.createPriceLine({
+      refs.orderLines.current.push(new PriceLevelLine({
         price,
-        color,
-        lineWidth: 1,
-        lineStyle: LineStyle.Solid,
-        axisLabelVisible: true,
-        title: '',
+        series, overlay, chartApi: chart,
+        lineColor: color, lineStyle: 'solid', lineWidth: 1,
+        axisLabelVisible: true, tickSize,
       }));
       refs.orderLineMeta.current.push({ kind: 'order', order });
       refs.orderLinePrices.current.push(price);
     }
 
     return () => {
-      const s = refs.series.current;
-      if (s) {
-        refs.orderLines.current.forEach((l) => s.removePriceLine(l));
-        refs.orderLines.current = [];
-        refs.orderLineMeta.current = [];
-        refs.orderLinePrices.current = [];
-      }
+      refs.orderLines.current.forEach((l) => l.destroy());
+      refs.orderLines.current = [];
+      refs.orderLineMeta.current = [];
+      refs.orderLinePrices.current = [];
     };
   }, [isOrderChart, openOrders, positions, contract, activeAccountId]);
 
@@ -412,12 +420,17 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       const pos = positions.find(
         (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract!.id) && p.size > 0,
       );
-      let lineColor: string | undefined;
-      if (pos) {
-        const isL = pos.type === PositionType.Long;
-        lineColor = (isL ? snapped >= pos.averagePrice : snapped <= pos.averagePrice) ? '#00c805' : '#ff0000';
+      const line = refs.orderLines.current[drag.idx];
+      if (line) {
+        let lineColor: string | undefined;
+        if (pos) {
+          const isL = pos.type === PositionType.Long;
+          lineColor = (isL ? snapped >= pos.averagePrice : snapped <= pos.averagePrice) ? '#00c805' : '#ff0000';
+        }
+        line.setPrice(snapped);
+        if (lineColor) line.setLineColor(lineColor);
+        line.syncPosition();
       }
-      refs.orderLines.current[drag.idx]?.applyOptions({ price: snapped, ...(lineColor ? { color: lineColor } : {}) });
       refs.orderLinePrices.current[drag.idx] = snapped;
       drag.draggedPrice = snapped;
       refs.updateOverlay.current();
@@ -457,7 +470,9 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
                            : 'Stop must be above current price for short positions');
             const line = refs.orderLines.current[dragIdx];
             if (line) {
-              line.applyOptions({ price: originalPrice, color: '#ff0000' });
+              line.setPrice(originalPrice);
+              line.setLineColor('#ff0000');
+              line.syncPosition();
               refs.orderLinePrices.current[dragIdx] = originalPrice;
               refs.updateOverlay.current();
             }
@@ -492,7 +507,9 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
             revertColor = (isL ? originalPrice >= pos.averagePrice : originalPrice <= pos.averagePrice)
               ? '#00c805' : '#ff0000';
           }
-          line.applyOptions({ price: originalPrice, color: revertColor });
+          line.setPrice(originalPrice);
+          line.setLineColor(revertColor);
+          line.syncPosition();
           refs.orderLinePrices.current[dragIdx] = originalPrice;
           refs.updateOverlay.current();
         }
@@ -512,7 +529,9 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
   useEffect(() => {
     if (!isOrderChart) return;
     const container = refs.container.current;
-    if (!container || !contract) return;
+    const overlay = refs.overlay.current;
+    const chart = refs.chart.current;
+    if (!container || !overlay || !chart || !contract) return;
 
     const tickSize = contract.tickSize;
 
@@ -548,12 +567,16 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       // Create or update temporary preview line
       const color = direction === 'sl' ? '#ff4444' : '#00c805';
       if (!refs.posDragLine.current) {
-        refs.posDragLine.current = series.createPriceLine({
-          price: snapped, color, lineWidth: 2,
-          lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
+        refs.posDragLine.current = new PriceLevelLine({
+          price: snapped,
+          series: series!, overlay: overlay!, chartApi: chart!,
+          lineColor: color, lineStyle: 'dashed', lineWidth: 2,
+          axisLabelVisible: true, tickSize,
         });
       } else {
-        refs.posDragLine.current.applyOptions({ price: snapped, color });
+        refs.posDragLine.current.setPrice(snapped);
+        refs.posDragLine.current.setLineColor(color);
+        refs.posDragLine.current.syncPosition();
       }
 
       // Compute projected P&L for the label
@@ -568,24 +591,21 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         ? `-$${Math.abs(pnl).toFixed(2)}`
         : `+$${Math.abs(pnl).toFixed(2)}`;
       const labelText = direction === 'sl' ? 'SL' : 'TP';
-      const labelBg = color;
-      const sizeBg = color;
       const textColor = color === '#00c805' ? '#000' : '#fff';
 
       // Create or update temporary overlay label
-      const overlay = refs.overlay.current;
       if (!refs.posDragLabel.current && overlay) {
         const row = document.createElement('div');
         row.style.cssText = 'position:absolute;left:50%;display:flex;height:20px;font-size:11px;font-weight:bold;font-family:-apple-system,BlinkMacSystemFont,Trebuchet MS,Roboto,Ubuntu,sans-serif;line-height:20px;transform:translate(-50%,-50%);white-space:nowrap;border-radius:3px;overflow:hidden;pointer-events:none;';
         // P&L cell
         const pnlCell = document.createElement('div');
-        pnlCell.style.cssText = `background:${labelBg};color:${textColor};padding:0 6px;`;
+        pnlCell.style.cssText = `background:${color};color:${textColor};padding:0 6px;`;
         pnlCell.textContent = pnlText;
         pnlCell.dataset.role = 'pnl';
         row.appendChild(pnlCell);
         // Size cell
         const sizeCell = document.createElement('div');
-        sizeCell.style.cssText = `background:${sizeBg};color:${textColor};padding:0 6px;`;
+        sizeCell.style.cssText = `background:${color};color:${textColor};padding:0 6px;`;
         sizeCell.textContent = String(orderSz);
         sizeCell.dataset.role = 'size';
         row.appendChild(sizeCell);
@@ -605,10 +625,10 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         const sizeCell = cells[1] as HTMLDivElement;
         const lblCell = cells[2] as HTMLDivElement;
         pnlCell.textContent = pnlText;
-        pnlCell.style.background = labelBg;
+        pnlCell.style.background = color;
         pnlCell.style.color = textColor;
         sizeCell.textContent = String(orderSz);
-        sizeCell.style.background = sizeBg;
+        sizeCell.style.background = color;
         sizeCell.style.color = textColor;
         lblCell.textContent = labelText;
         // Position at Y coordinate of the snapped price
@@ -634,8 +654,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
 
       // Remove temporary line + label
-      if (refs.posDragLine.current && refs.series.current) {
-        refs.series.current.removePriceLine(refs.posDragLine.current);
+      if (refs.posDragLine.current) {
+        refs.posDragLine.current.destroy();
         refs.posDragLine.current = null;
       }
       if (refs.posDragLabel.current) {
@@ -704,8 +724,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     return () => {
       window.removeEventListener('mousemove', onMouseMove, true);
       window.removeEventListener('mouseup', onMouseUp, true);
-      if (refs.posDragLine.current && refs.series.current) {
-        refs.series.current.removePriceLine(refs.posDragLine.current);
+      if (refs.posDragLine.current) {
+        refs.posDragLine.current.destroy();
         refs.posDragLine.current = null;
       }
       if (refs.posDragLabel.current) {

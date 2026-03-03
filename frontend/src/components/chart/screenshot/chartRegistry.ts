@@ -1,7 +1,8 @@
 import type { IChartApi } from 'lightweight-charts';
 import type { DrawingsPrimitive } from '../drawings/DrawingsPrimitive';
 import type { TradeZonePrimitive } from '../TradeZonePrimitive';
-import type { PriceLine } from '../hooks/types';
+import type { PriceLevelLine } from '../PriceLevelLine';
+import type { OrderLineMeta } from '../hooks/types';
 
 export interface ScreenshotOptions {
   showDrawings: boolean;
@@ -17,9 +18,11 @@ export interface ChartEntry {
   instrumentEl: HTMLElement | null;
   ohlcEl: HTMLElement | null;
   /** Mutable ref to live order/position price lines (SL, TP, entry) */
-  orderLinesRef: { current: PriceLine[] };
+  orderLinesRef: { current: PriceLevelLine[] };
+  /** Mutable ref to parallel metadata for each order line */
+  orderLineMetaRef: { current: OrderLineMeta[] };
   /** Mutable ref to preview bracket price lines */
-  previewLinesRef: { current: PriceLine[] };
+  previewLinesRef: { current: PriceLevelLine[] };
 }
 
 const entries = new Map<string, ChartEntry>();

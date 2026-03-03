@@ -12,6 +12,7 @@ import { CrosshairLabelPrimitive } from './CrosshairLabelPrimitive';
 import { registerChart, unregisterChart } from './screenshot/chartRegistry';
 import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { VolumeProfilePrimitive } from './VolumeProfilePrimitive';
+import type { PriceLevelLine } from './PriceLevelLine';
 import { useChartWidgets } from './hooks/useChartWidgets';
 import { useChartBars } from './hooks/useChartBars';
 import { useChartDrawings } from './hooks/useChartDrawings';
@@ -31,6 +32,8 @@ export interface CandlestickChartHandle {
   getSeriesApi: () => ISeriesApi<'Candlestick'> | null;
   getDataMap: () => Map<number, number>;
   isQoHovered: () => boolean;
+  /** Directly update the HTML crosshair price label (for dual-chart sync). */
+  setCrosshairPrice: (price: number | null) => void;
 }
 
 export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, CandlestickChartProps>(
@@ -65,13 +68,13 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const qoPreviewPricesRef = useRef<{ sl: number | null; tps: number[] }>({ sl: null, tps: [] });
 
   // Preview line refs
-  const previewLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
+  const previewLinesRef = useRef<PriceLevelLine[]>([]);
   const previewRolesRef = useRef<PreviewLineRole[]>([]);
   const previewPricesRef = useRef<number[]>([]);
   const previewDragStateRef = useRef<{ role: PreviewLineRole; lineIdx: number } | null>(null);
 
   // Order line refs
-  const orderLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
+  const orderLinesRef = useRef<PriceLevelLine[]>([]);
   const orderLineMetaRef = useRef<OrderLineMeta[]>([]);
   const orderLinePricesRef = useRef<number[]>([]);
   const orderDragStateRef = useRef<OrderDragState | null>(null);
@@ -83,7 +86,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   // Position drag-to-create SL/TP refs
   const posDragRef = useRef<PosDragState | null>(null);
-  const posDragLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(null);
+  const posDragLineRef = useRef<PriceLevelLine | null>(null);
   const posDragLabelRef = useRef<HTMLDivElement | null>(null);
 
   // Overlay label system
@@ -137,6 +140,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     getSeriesApi: () => seriesRef.current,
     getDataMap: () => dataMapRef.current,
     isQoHovered: () => qoHoveredRef.current,
+    setCrosshairPrice: (price: number | null) => crosshairLabelRef.current?.updateCrosshairPrice(price),
   }));
 
   // loading/error come from useChartBars below
@@ -183,9 +187,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     series.attachPrimitive(drawingsPrimitive);
     drawingsPrimitiveRef.current = drawingsPrimitive;
 
-    // Attach crosshair label primitive LAST — crosshair label always on top
-    const crosshairLabel = new CrosshairLabelPrimitive();
-    series.attachPrimitive(crosshairLabel);
+    // Create crosshair label as HTML in overlay — z-index:30 above PriceLevelLine axis labels
+    const crosshairLabel = new CrosshairLabelPrimitive(overlayRef.current!, series, chart);
     crosshairLabelRef.current = crosshairLabel;
 
     // Selection click — mark this chart as selected in dual-chart mode
@@ -203,11 +206,13 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       instrumentEl: instrumentLabelRef.current,
       ohlcEl: ohlcRef.current,
       orderLinesRef,
+      orderLineMetaRef,
       previewLinesRef,
     });
 
     return () => {
       unregisterChart(chartId);
+      crosshairLabel.destroy();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;

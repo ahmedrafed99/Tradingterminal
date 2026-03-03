@@ -83,6 +83,7 @@ interface CandlestickChartHandle {
   getSeriesApi: () => ISeriesApi<'Candlestick'> | null;
   getDataMap: () => Map<number, number>;  // UTCTimestamp → close price
   isQoHovered: () => boolean;             // true while quick-order (+) button is hovered
+  setCrosshairPrice: (price: number | null) => void;  // directly update HTML crosshair label
 }
 ```
 
@@ -115,9 +116,12 @@ Sync logic in a `useEffect`:
 2. When chart A fires at time T with pixel position `point.y`, verify chart B has data at T
 3. Convert `point.y` to chart B's price via `seriesB.coordinateToPrice(point.y)`
 4. Call `chartB.setCrosshairPosition(targetPrice, T, seriesB)` — horizontal line matches the mouse's vertical screen position
-5. If no data at T → `chartB.clearCrosshairPosition()`
-6. `!param.sourceEvent` guard prevents A→B→A feedback loop (programmatic `setCrosshairPosition` events are ignored)
-7. Cleanup: `unsubscribeCrosshairMove` on both
+5. Call `chartBRef.setCrosshairPrice(targetPrice)` — directly updates the HTML crosshair label on chart B (see below)
+6. If no data at T → `chartB.clearCrosshairPosition()` + `chartBRef.setCrosshairPrice(null)`
+7. `!param.sourceEvent` guard prevents A→B→A feedback loop (programmatic `setCrosshairPosition` events are ignored)
+8. Cleanup: `unsubscribeCrosshairMove` on both
+
+**Why `setCrosshairPrice` is needed**: The crosshair price label is an HTML element (not a canvas LWC primitive), so it only updates when `updateCrosshairPrice()` is called explicitly. LWC's `subscribeCrosshairMove` does not reliably fire for programmatic `setCrosshairPosition()` calls, so the label must be updated directly alongside the crosshair position.
 
 **Quick-order hover persistence**: When the mouse transitions to the quick-order (+) button overlay, LWC fires a crosshair-leave event on the source chart. Instead of immediately calling `clearCrosshairPosition()` on the synced chart, the handler delays by 16ms (~1 frame) and checks `isQoHovered()` on the source chart's imperative handle. If the quick-order button is hovered by then, the clear is skipped so the synced chart's crosshair persists alongside the source chart's.
 

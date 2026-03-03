@@ -35,7 +35,27 @@ Wrapper that:
 
 ---
 
-## Price Scale Primitives
+## Price Scale Labels
+
+### Rendering Layers
+
+The chart has two independent rendering layers for price scale labels:
+
+1. **Canvas layer** (LWC primitives) — CountdownPrimitive (current price), DrawingsPrimitive (drawing price labels). These render via `priceAxisPaneViews()` / `priceAxisViews()` on the LWC canvas.
+2. **HTML layer** (overlay div) — `PriceLevelLine` axis labels (order/position/preview prices) and `CrosshairLabelPrimitive` (crosshair price). These are `<div>` elements positioned absolutely in the chart overlay div that sits above the canvas.
+
+HTML elements always render above canvas content. Within the HTML layer, z-index controls stacking:
+
+| Element | z-index | Description |
+|---------|---------|-------------|
+| `PriceLevelLine._axisEl` | 20 | Order, position, preview price labels |
+| `CrosshairLabelPrimitive._el` | 30 | Crosshair price label (always on top) |
+
+### PriceLevelLine Axis Labels
+- Each `PriceLevelLine` instance (order, position, preview line) creates an HTML `<div>` positioned at `right:0` over the price scale area.
+- Styled to match LWC's native axis labels: bold 12px, same font family, colored background with auto-contrast text.
+- Positioned via `series.priceToCoordinate(price)` in the `syncPosition()` hot path.
+- `z-index:20` — visible above canvas primitives but below the crosshair label.
 
 ### Drawing Price Scale Labels
 - `DrawingsPrimitive` implements `priceAxisViews()` to show price labels on
@@ -46,15 +66,16 @@ Wrapper that:
   to a custom-rendered `priceAxisPaneViews()` label that paints on top of the
   current-price label (CountdownPrimitive). Achieved by attaching
   DrawingsPrimitive after CountdownPrimitive (painter's algorithm).
+- **Note**: Drawing labels are canvas-rendered and will appear behind PriceLevelLine HTML axis labels when they overlap. In practice this is rare (only when a drawing price coincides with an order/position price).
 
 ### Crosshair Price Label
-- `CrosshairLabelPrimitive` renders a custom price label on the price scale
-  that always stays on top of all other labels (current price, drawing labels).
-- Attached LAST to the series (after CountdownPrimitive and DrawingsPrimitive)
-  so its `priceAxisPaneViews()` canvas rendering paints over everything.
+- `CrosshairLabelPrimitive` is an HTML `<div>` in the chart overlay (not an LWC canvas primitive).
+- Created in the chart init effect with `new CrosshairLabelPrimitive(overlay, series, chart)`. Destroyed in the cleanup.
+- `z-index:30` ensures it always renders above PriceLevelLine axis labels (`z-index:20`).
 - Subscribes to `chart.subscribeCrosshairMove()` — converts Y coordinate to
-  price via `series.coordinateToPrice()` and feeds to the primitive.
-- Matches the native crosshair label style: `#2a2e39` background, `#d1d4dc` text.
+  price via `series.coordinateToPrice()` and calls `updateCrosshairPrice()`.
+- Matches the native crosshair label style: `#2a2e39` background, `#d1d4dc` text, bold 12px.
+- **Dual-chart sync**: `subscribeCrosshairMove` does not reliably fire for programmatic `setCrosshairPosition()` calls. The `CandlestickChartHandle` exposes `setCrosshairPrice(price)` which directly calls `updateCrosshairPrice()`. `ChartArea` calls this alongside `setCrosshairPosition` during crosshair sync.
 - **Overlay label transparency**: All overlay labels (order, position, preview)
   use `pointer-events: none` so mouse events pass through to the LWC canvas.
   The crosshair never disappears when hovering over any label element within
@@ -67,10 +88,11 @@ Wrapper that:
   (`!param.point`). A 16ms delay + `qoHoveredRef` guard prevents the
   crosshair label from clearing.
 
-### Primitive Attachment Order (z-order, bottom to top)
-1. CountdownPrimitive (current price + bar countdown)
-2. DrawingsPrimitive (drawing price labels, selected overrides current)
-3. CrosshairLabelPrimitive (crosshair always on top of everything)
+### Canvas Primitive Attachment Order (z-order, bottom to top)
+1. VolumeProfilePrimitive (volume profile bars)
+2. TradeZonePrimitive (entry/exit trade rectangles)
+3. CountdownPrimitive (current price + bar countdown)
+4. DrawingsPrimitive (drawing price labels, selected overrides current)
 
 ### Cursor Management
 - Custom white crosshair SVG cursor (stroke-width 2, `#ffffff`)

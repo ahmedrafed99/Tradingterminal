@@ -304,103 +304,15 @@ export function ChartToolbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  /** Paint overlay labels (positions, orders) onto the screenshot canvas */
-  function paintOverlayLabels(ctx: CanvasRenderingContext2D, overlayEl: HTMLElement, canvasWidth: number) {
-    const font = "bold 11px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
-    ctx.font = font;
-    const padH = 6;
-    const cellHeight = 20;
-
-    const rows = overlayEl.children;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i] as HTMLElement;
-      if (row.style.display === 'none') continue;
-
-      const top = parseFloat(row.style.top);
-      if (isNaN(top)) continue;
-
-      // Gather visible cells (skip interactive buttons like ✕, +SL, +TP)
-      const cells: { text: string; bg: string; color: string }[] = [];
-      for (let j = 0; j < row.children.length; j++) {
-        const cell = row.children[j] as HTMLElement;
-        const text = cell.textContent || '';
-        if (text === '\u2715' || text === '+SL' || text === '+TP') continue;
-        cells.push({
-          text,
-          bg: cell.style.background || cell.style.backgroundColor || '#787b86',
-          color: cell.style.color || '#000',
-        });
-      }
-      if (cells.length === 0) continue;
-
-      // Measure cell widths
-      let totalWidth = 0;
-      const cellWidths: number[] = [];
-      for (const cell of cells) {
-        const w = Math.ceil(ctx.measureText(cell.text).width) + padH * 2;
-        cellWidths.push(w);
-        totalWidth += w;
-      }
-
-      // Center horizontally in canvas
-      const startX = (canvasWidth - totalWidth) / 2;
-      const y = top;
-
-      // Draw each cell
-      let x = startX;
-      for (let j = 0; j < cells.length; j++) {
-        const cell = cells[j];
-        const w = cellWidths[j];
-
-        // Cell background
-        ctx.fillStyle = cell.bg;
-        ctx.fillRect(x, y - cellHeight / 2, w, cellHeight);
-
-        // Cell border-left separator
-        if (j > 0) {
-          ctx.fillStyle = '#000';
-          ctx.fillRect(x, y - cellHeight / 2, 1, cellHeight);
-        }
-
-        // Cell text
-        ctx.fillStyle = cell.color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(cell.text, x + w / 2, y);
-
-        x += w;
-      }
-    }
-    // Reset text alignment
-    ctx.textAlign = 'start';
-    ctx.textBaseline = 'alphabetic';
-  }
-
-  /** Take a screenshot of a single chart entry, toggling drawings/trades and painting overlays */
+  /** Take a screenshot of a single chart entry, painting PriceLevelLine instances onto the canvas */
   function screenshotEntry(entry: ChartEntry, options: ScreenshotOptions): HTMLCanvasElement {
     // Toggle drawings visibility
     if (entry.primitive && !options.showDrawings) entry.primitive.visible = false;
     // Toggle trade zones visibility
     if (entry.tradeZonePrimitive && !options.showTrades) entry.tradeZonePrimitive.visible = false;
 
-    // Hide order/position price lines (SL, TP, entry) by making them transparent
-    const linesToHide = !options.showPositions
-      ? [...entry.orderLinesRef.current, ...entry.previewLinesRef.current]
-      : [];
-    const savedLineOpts = linesToHide.map((line) => {
-      const opts = line.options();
-      return { color: opts.color, axisLabelVisible: opts.axisLabelVisible };
-    });
-    for (const line of linesToHide) {
-      line.applyOptions({ color: 'transparent', axisLabelVisible: false });
-    }
-
+    // Lines are HTML (not canvas), so takeScreenshot won't capture them — no need to hide
     const canvas = entry.chart.takeScreenshot(true);
-
-    // Restore order/position price lines
-    linesToHide.forEach((line, i) => {
-      line.applyOptions(savedLineOpts[i]);
-    });
 
     // Restore
     if (entry.primitive && !options.showDrawings) entry.primitive.visible = true;
@@ -440,14 +352,12 @@ export function ChartToolbar() {
 
       ctx.restore();
 
-      // Paint overlay labels (positions, orders) clipped to plot area
-      if (options.showPositions && entry.overlayEl) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, 0, plotWidth, canvas.height);
-        ctx.clip();
-        paintOverlayLabels(ctx, entry.overlayEl, plotWidth);
-        ctx.restore();
+      // Paint position entry + its associated orders (SL/TP), but not preview brackets
+      if (options.showPositions) {
+        const lines = entry.orderLinesRef.current;
+        for (const line of lines) {
+          line.paintToCanvas(ctx, plotWidth);
+        }
       }
     }
 

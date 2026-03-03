@@ -37,9 +37,12 @@ Each `ChartEntry` stores:
 | `chart` | `IChartApi` | Lightweight Charts instance (provides `takeScreenshot()`) |
 | `primitive` | `DrawingsPrimitive \| null` | Drawings layer; its `visible` flag is toggled to include/exclude drawings |
 | `tradeZonePrimitive` | `TradeZonePrimitive \| null` | Trade zone layer; its `visible` flag is toggled to include/exclude trade markers |
-| `overlayEl` | `HTMLElement \| null` | DOM ref to the chart overlay div containing position/order labels |
+| `overlayEl` | `HTMLElement \| null` | DOM ref to the chart overlay div |
 | `instrumentEl` | `HTMLElement \| null` | DOM ref to the instrument label overlay (text painted onto canvas) |
 | `ohlcEl` | `HTMLElement \| null` | DOM ref to the OHLC tooltip overlay (text painted onto canvas) |
+| `orderLinesRef` | `{ current: PriceLevelLine[] }` | Mutable ref to live order/position `PriceLevelLine` instances |
+| `orderLineMetaRef` | `{ current: OrderLineMeta[] }` | Parallel metadata array — `{ kind: 'position' }` or `{ kind: 'order' }` for each entry in `orderLinesRef` |
+| `previewLinesRef` | `{ current: PriceLevelLine[] }` | Mutable ref to preview bracket `PriceLevelLine` instances |
 
 A `ScreenshotOptions` type controls what each capture includes:
 
@@ -47,15 +50,15 @@ A `ScreenshotOptions` type controls what each capture includes:
 |---|---|
 | `showDrawings` | Drawing primitives (HLine, oval, arrow) |
 | `showTrades` | Trade zone rectangles and entry/exit labels |
-| `showPositions` | Position and order overlay labels (P&L, size, SL/TP) |
+| `showPositions` | Position entry line + associated SL/TP order lines. Preview bracket lines are never included. |
 
 ### Screenshot capture flow (`screenshotEntry`)
 
 1. **Toggle visibility** — if `showDrawings` is false, set `primitive.visible = false`; if `showTrades` is false, set `tradeZonePrimitive.visible = false`. Both primitives' `paneViews()` return an empty array when hidden.
-2. **Take screenshot** — call `chart.takeScreenshot(true)` which renders a fresh `HTMLCanvasElement` including all visible primitives.
+2. **Take screenshot** — call `chart.takeScreenshot(true)` which renders a fresh `HTMLCanvasElement` including all visible canvas primitives. Price lines (order, position, preview) are HTML elements, so they are NOT captured by `takeScreenshot`.
 3. **Restore visibility** — re-enable both primitives.
 4. **Paint text overlays** — read text content from the instrument and OHLC DOM refs and draw them onto the canvas with Canvas 2D API (these are HTML overlays that `takeScreenshot` doesn't capture).
-5. **Paint position labels** — if `showPositions` is true, `paintOverlayLabels()` reads children from the overlay div and paints each position/order row as colored cell rectangles (skipping interactive buttons like close, +SL, +TP).
+5. **Paint position lines** — if `showPositions` is true, iterate all lines in `orderLinesRef` (position entry + its SL/TP orders) and call `line.paintToCanvas(ctx, plotWidth)` on each. Preview bracket lines (`previewLinesRef`) are never painted — they are pre-submission ghosts, not real orders.
 6. **Dual-chart composite** — if in dual mode, repeat for the right chart and draw both canvases side-by-side onto a new composite canvas.
 7. **Time banner** — before copying to clipboard, `addTimeBanner()` composites a 30 px black header strip above the chart image showing the current date and NY time (e.g. "Mar 2, 2026  14:32:07 New York"). This banner only appears in the final copied PNG — the preview modal shows the raw chart.
 
@@ -97,8 +100,8 @@ frontend/src/components/chart/screenshot/
 
 ## Related modifications
 
-- **`CandlestickChart.tsx`** — calls `registerChart()` / `unregisterChart()` in its chart-creation effect, passes DOM refs for the instrument label, OHLC overlay, overlay div, and `tradeZonePrimitive`.
-- **`ChartToolbar.tsx`** — contains the camera icon, dropdown menu, `screenshotEntry()` helper, `paintOverlayLabels()` for position labels, and `captureChartCanvas()` compositing logic.
+- **`CandlestickChart.tsx`** — calls `registerChart()` / `unregisterChart()` in its chart-creation effect, passes DOM refs for the instrument label, OHLC overlay, overlay div, `tradeZonePrimitive`, and `PriceLevelLine` refs (`orderLinesRef`, `orderLineMetaRef`, `previewLinesRef`).
+- **`ChartToolbar.tsx`** — contains the camera icon, dropdown menu, `screenshotEntry()` helper (calls `line.paintToCanvas()` for each `PriceLevelLine`), and `captureChartCanvas()` compositing logic.
 - **`TradeZonePrimitive.ts`** — added a `visible` flag checked by `paneViews()` to exclude trade zones from screenshots.
 - **`DrawingsPrimitive.ts`** — added a `visible` flag checked by `paneViews()` to exclude drawings from screenshots.
 - **`index.css`** — `animate-backdrop-in` and `animate-modal-in` keyframe animations used by the preview modal.

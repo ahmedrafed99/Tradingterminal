@@ -9,12 +9,11 @@ import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs, PreviewLineRole } from './types';
 
 /**
- * Handles overlay HTML labels positioned over price lines:
- * - Position label (P&L, size, close-X)
- * - Open order labels (projected P&L, size, cancel-X)
- * - Preview labels (entry, SL, TP with +SL/+TP buttons)
- * - Quick-order pending preview labels
- * - Overlay sync (scroll/zoom/resize repositioning)
+ * Configures labels on PriceLevelLine instances, registers hit targets,
+ * and runs the sync loop (scroll/zoom/resize/tick repositioning).
+ *
+ * Labels are added via `line.setLabel(sections)` on PriceLevelLine instances
+ * that were created by useOrderLines / useQuickOrder.
  */
 export function useOverlayLabels(
   refs: ChartRefs,
@@ -40,7 +39,7 @@ export function useOverlayLabels(
   const adHocTpLevels = useStore((s) => s.adHocTpLevels);
   const qoPendingPreview = useStore((s) => s.qoPendingPreview);
 
-  // -- Overlay label system (HTML labels positioned over price lines) --
+  // -- Label configuration + hit-target registration --
   useEffect(() => {
     if (!isOrderChart) return;
     const overlay = refs.overlay.current;
@@ -48,61 +47,18 @@ export function useOverlayLabels(
     if (!overlay || !series) return;
 
     // Clear previous labels + hit targets
-    overlay.innerHTML = '';
+    for (const line of refs.previewLines.current) line.setLabel(null);
+    for (const line of refs.orderLines.current) line.setLabel(null);
+    const qoPrev = refs.qoPreviewLines.current;
+    if (qoPrev.sl) qoPrev.sl.setLabel(null);
+    for (const tp of qoPrev.tps) if (tp) tp.setLabel(null);
     refs.hitTargets.current = [];
 
     const tickSize = contract?.tickSize || 0.25;
     const tickValue = contract?.tickValue || 0.50;
 
-    type OverlayEl = {
-      root: HTMLDivElement;
-      priceGetter: () => number;
-      pnlCell: HTMLDivElement | null;
-      pnlCompute: (() => { text: string; bg: string; color?: string } | null) | null;
-    };
-
-    const overlayEls: OverlayEl[] = [];
-
-    // Helper to build a row with sections.
-    // All elements are pointer-events:none — interaction is handled via
-    // coordinate-based hit testing at the container level (hitTargetsRef).
-    function buildRow(
-      sections: { text: string; bg: string; color: string; pointerEvents?: boolean; onClick?: () => void }[],
-    ): { root: HTMLDivElement; firstCell: HTMLDivElement; cells: HTMLDivElement[] } {
-      const row = document.createElement('div');
-      row.style.cssText = 'position:absolute;left:50%;display:flex;height:20px;font-size:11px;font-weight:bold;font-family:-apple-system,BlinkMacSystemFont,Trebuchet MS,Roboto,Ubuntu,sans-serif;line-height:20px;transform:translate(-50%,-50%);white-space:nowrap;border-radius:3px;overflow:hidden;';
-      let firstCell!: HTMLDivElement;
-      const cells: HTMLDivElement[] = [];
-      for (let si = 0; si < sections.length; si++) {
-        const sec = sections[si];
-        const cell = document.createElement('div');
-        cell.style.cssText = `background:${sec.bg};color:${sec.color};padding:0 6px;${si > 0 ? 'border-left:1px solid #000;' : ''}`;
-        cell.textContent = sec.text;
-        if (si === 0) firstCell = cell;
-        cells.push(cell);
-        row.appendChild(cell);
-      }
-      overlay!.appendChild(row);
-      return { root: row, firstCell, cells };
-    }
-
-    // Register button cells (close-X, +SL, +TP) as priority-0 hit targets
-    function registerCellHitTargets(
-      sections: { pointerEvents?: boolean; onClick?: () => void }[],
-      cells: HTMLDivElement[],
-    ) {
-      for (let si = 0; si < sections.length; si++) {
-        const sec = sections[si];
-        if (sec.pointerEvents && sec.onClick) {
-          const handler = sec.onClick;
-          refs.hitTargets.current.push({
-            el: cells[si],
-            priority: 0,
-            handler: () => handler(),
-          });
-        }
-      }
-    }
+    // P&L updater closures — called every frame in updatePositions()
+    const pnlUpdaters: (() => void)[] = [];
 
     // Text color helper: always black
     function textFor(_bg: string): string {
@@ -136,12 +92,24 @@ export function useOverlayLabels(
           initBg = '#787b86';
         }
 
-        const posSections = [
-          { text: initText, bg: initBg, color: textFor(initBg) },
-          { text: String(pos.size), bg: sideBg, color: textFor(sideBg) },
-          {
-            text: '\u2715', bg: '#e0e0e0', color: '#000', pointerEvents: true,
-            onClick: () => {
+        // Find the position PriceLevelLine
+        const posIdx = refs.orderLineMeta.current.findIndex((m) => m.kind === 'position');
+        const posLine = posIdx >= 0 ? refs.orderLines.current[posIdx] : null;
+        if (posLine) {
+          posLine.setLabel([
+            { text: initText, bg: initBg, color: textFor(initBg) },
+            { text: String(pos.size), bg: sideBg, color: textFor(sideBg) },
+            { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+          ]);
+
+          const cells = posLine.getCells();
+          const labelEl = posLine.getLabelEl();
+
+          // Register close-X button (priority 0)
+          refs.hitTargets.current.push({
+            el: cells[2],
+            priority: 0,
+            handler: () => {
               const acct = useStore.getState().activeAccountId;
               if (!acct || !contract) return;
               orderService.placeOrder({
@@ -151,51 +119,46 @@ export function useOverlayLabels(
                 showToast('error', 'Failed to close position', errorMessage(err));
               });
             },
-          },
-        ];
-        const { root, firstCell, cells } = buildRow(posSections);
+          });
 
-        // Register close-X button + row drag via hit-target system (no pointer-events on DOM)
-        registerCellHitTargets(posSections, cells);
-        refs.hitTargets.current.push({
-          el: root,
-          priority: 2,
-          handler: () => {
-            refs.posDrag.current = {
-              isLong,
-              posSize: pos.size,
-              avgPrice: pos.averagePrice,
-              direction: null,
-              snappedPrice: pos.averagePrice,
-            };
-            refs.activeDragRow.current = root;
-            root.style.cursor = 'grabbing';
-            if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-            // Disable LWC scroll/scale so the chart doesn't pan during drag
-            if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-          },
-        });
+          // Register row drag (priority 2)
+          if (labelEl) {
+            refs.hitTargets.current.push({
+              el: labelEl,
+              priority: 2,
+              handler: () => {
+                refs.posDrag.current = {
+                  isLong,
+                  posSize: pos.size,
+                  avgPrice: pos.averagePrice,
+                  direction: null,
+                  snappedPrice: pos.averagePrice,
+                };
+                refs.activeDragRow.current = labelEl;
+                labelEl.style.cursor = 'grabbing';
+                if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+                if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+              },
+            });
+          }
 
-        overlayEls.push({
-          root,
-          priceGetter: () => pos.averagePrice,
-          pnlCell: firstCell,
-
-          pnlCompute: () => {
+          // P&L updater
+          pnlUpdaters.push(() => {
             const curPrice = useStore.getState().lastPrice;
-            if (curPrice == null) return refs.lastPnlCache.current.text ? refs.lastPnlCache.current : null;
+            if (curPrice == null) {
+              if (refs.lastPnlCache.current.text) {
+                posLine.updateSection(0, refs.lastPnlCache.current.text, refs.lastPnlCache.current.bg);
+              }
+              return;
+            }
             const diff = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
             const pnl = (diff / tickSize) * tickValue * pos.size;
             const bg = pnl >= 0 ? '#00c805' : '#ff0000';
-            const result = {
-              text: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`,
-              bg,
-              color: textFor(bg),
-            };
-            refs.lastPnlCache.current = result;
-            return result;
-          },
-        });
+            const text = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+            refs.lastPnlCache.current = { text, bg };
+            posLine.updateSection(0, text, bg, textFor(bg));
+          });
+        }
       }
     }
 
@@ -247,7 +210,7 @@ export function useOverlayLabels(
       // Compute projected P&L
       let initPnlText: string;
       let initPnlBg: string;
-      let pnlCompute: (() => { text: string; bg: string }) | null = null;
+      let orderPnlCompute: (() => { text: string; bg: string; color?: string }) | null = null;
 
       if (pos) {
         const isLong = pos.type === PositionType.Long;
@@ -256,7 +219,7 @@ export function useOverlayLabels(
         initPnlText = `${projPnl >= 0 ? '+' : ''}$${projPnl.toFixed(2)}`;
         initPnlBg = profitColor(price);
 
-        pnlCompute = () => {
+        orderPnlCompute = () => {
           const curPrice = getOrderRefPrice();
           const d = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
           const pnl = (d / tickSize) * tickValue * oSize;
@@ -273,55 +236,75 @@ export function useOverlayLabels(
         initPnlBg = (oType === OrderType.Stop || oType === OrderType.TrailingStop) ? '#ff0000' : '#cac9cb';
       }
 
-      const orderSections = [
+      // Find the matching PriceLevelLine for this order
+      let orderLineIdx = -1;
+      for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
+        const m = refs.orderLineMeta.current[k];
+        if (m.kind === 'order' && m.order.id === orderId) {
+          orderLineIdx = k;
+          break;
+        }
+      }
+      const orderLine = orderLineIdx >= 0 ? refs.orderLines.current[orderLineIdx] : null;
+      if (!orderLine) continue;
+
+      orderLine.setLabel([
         { text: initPnlText, bg: initPnlBg, color: initPnlBg === '#cac9cb' ? '#000' : textFor(initPnlBg) },
         { text: String(oSize), bg: sizeBg, color: textFor(sizeBg) },
-        {
-          text: '\u2715', bg: '#e0e0e0', color: '#000', pointerEvents: true,
-          onClick: () => {
-            const acct = useStore.getState().activeAccountId;
-            if (!acct) return;
-            orderService.cancelOrder(acct, orderId).catch((err) => {
-              showToast('error', 'Failed to cancel order', errorMessage(err));
-            });
-          },
-        },
-      ];
-      const { root, firstCell, cells } = buildRow(orderSections);
+        { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+      ]);
 
+      const cells = orderLine.getCells();
+      const labelEl = orderLine.getLabelEl();
 
-      // Register cancel-X button + row drag via hit-target system
-      registerCellHitTargets(orderSections, cells);
-      const dragOrder = order;
+      // Register cancel-X button (priority 0)
       refs.hitTargets.current.push({
-        el: root,
-        priority: 1, // higher than position row-drag (2) so order drag wins when overlapping (e.g. SL at BE)
+        el: cells[2],
+        priority: 0,
         handler: () => {
-          let idx = -1;
-          for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
-            const m = refs.orderLineMeta.current[k];
-            if (m.kind === 'order' && m.order.id === dragOrder.id) { idx = k; break; }
-          }
-          if (idx === -1) return;
-          refs.orderDragState.current = {
-            meta: { kind: 'order', order: dragOrder },
-            idx,
-            originalPrice: refs.orderLinePrices.current[idx],
-            draggedPrice: refs.orderLinePrices.current[idx],
-          };
-          refs.activeDragRow.current = root;
-          root.style.cursor = 'grabbing';
-          if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-          if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+          const acct = useStore.getState().activeAccountId;
+          if (!acct) return;
+          orderService.cancelOrder(acct, orderId).catch((err) => {
+            showToast('error', 'Failed to cancel order', errorMessage(err));
+          });
         },
       });
 
-      overlayEls.push({
-        root,
-        priceGetter: getOrderRefPrice,
-        pnlCell: pnlCompute ? firstCell : null,
-        pnlCompute,
-      });
+      // Register row drag (priority 1 — wins over position row-drag when overlapping)
+      const dragOrder = order;
+      if (labelEl) {
+        refs.hitTargets.current.push({
+          el: labelEl,
+          priority: 1,
+          handler: () => {
+            let idx = -1;
+            for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
+              const m = refs.orderLineMeta.current[k];
+              if (m.kind === 'order' && m.order.id === dragOrder.id) { idx = k; break; }
+            }
+            if (idx === -1) return;
+            refs.orderDragState.current = {
+              meta: { kind: 'order', order: dragOrder },
+              idx,
+              originalPrice: refs.orderLinePrices.current[idx],
+              draggedPrice: refs.orderLinePrices.current[idx],
+            };
+            refs.activeDragRow.current = labelEl;
+            labelEl.style.cursor = 'grabbing';
+            if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+            if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+          },
+        });
+      }
+
+      // P&L updater
+      if (orderPnlCompute) {
+        const compute = orderPnlCompute;
+        pnlUpdaters.push(() => {
+          const result = compute();
+          orderLine.updateSection(0, result.text, result.bg, result.color);
+        });
+      }
     }
 
     // --- Preview labels ---
@@ -339,11 +322,14 @@ export function useOverlayLabels(
       const price = refs.previewPrices.current[i];
       if (price == null) continue;
 
+      const pvLine = refs.previewLines.current[i];
+      if (!pvLine) continue;
+
       let onCancel: (() => void) | undefined;
       let onExecute: (() => void) | undefined;
       let pnlText: string;
       let pnlBg: string;
-      let pvPnlCompute: (() => { text: string; bg: string }) | null = null;
+      let pvPnlCompute: (() => { text: string; bg: string; color?: string }) | null = null;
       let displaySize: number;
 
       if (role.kind === 'entry') {
@@ -464,13 +450,13 @@ export function useOverlayLabels(
       const sizeBg = isEntry ? entrySideBg : role.kind === 'sl' ? '#ff0000' : '#00c805';
 
       // Build sections array — entry label gets +SL/+TP buttons when no preset
-      const sections: { text: string; bg: string; color: string; pointerEvents?: boolean; onClick?: () => void }[] = [
-        {
-          text: pnlText, bg: pnlBg, color: isEntry ? '#000' : textFor(pnlBg),
-          ...(onExecute ? { pointerEvents: true } : {}),
-        },
+      const sections: { text: string; bg: string; color: string }[] = [
+        { text: pnlText, bg: pnlBg, color: isEntry ? '#000' : textFor(pnlBg) },
         { text: String(displaySize), bg: sizeBg, color: textFor(sizeBg) },
       ];
+
+      // Track which cell indices are buttons (for hit-target registration)
+      const buttonCells: { index: number; handler: () => void }[] = [];
 
       // +SL / +TP buttons on entry label when no preset is active
       if (isEntry && !hasPreset) {
@@ -479,15 +465,16 @@ export function useOverlayLabels(
         const remainingContracts = previewTotalSize - allocatedTpSize;
 
         if (curAdHocSl == null) {
-          sections.push({
-            text: '+SL', bg: '#ff444480', color: '#000', pointerEvents: true,
-            onClick: () => useStore.getState().setAdHocSlPoints(10),
-          });
+          const slBtnIdx = sections.length;
+          sections.push({ text: '+SL', bg: '#ff444480', color: '#000' });
+          buttonCells.push({ index: slBtnIdx, handler: () => useStore.getState().setAdHocSlPoints(10) });
         }
         if (remainingContracts > 0) {
-          sections.push({
-            text: '+TP', bg: '#00c80580', color: '#000', pointerEvents: true,
-            onClick: () => {
+          const tpBtnIdx = sections.length;
+          sections.push({ text: '+TP', bg: '#00c80580', color: '#000' });
+          buttonCells.push({
+            index: tpBtnIdx,
+            handler: () => {
               const st = useStore.getState();
               const n = st.adHocTpLevels.length;
               st.addAdHocTp(20 * (n + 1), 1);
@@ -496,30 +483,39 @@ export function useOverlayLabels(
         }
       }
 
-      sections.push({
-        text: '\u2715', bg: '#e0e0e0', color: '#000', pointerEvents: true,
-        onClick: onCancel,
-      });
+      // Close-X button
+      const cancelBtnIdx = sections.length;
+      sections.push({ text: '\u2715', bg: '#e0e0e0', color: '#000' });
+      if (onCancel) {
+        buttonCells.push({ index: cancelBtnIdx, handler: onCancel });
+      }
 
-      const { root, firstCell, cells } = buildRow(sections);
+      pvLine.setLabel(sections);
+      const cells = pvLine.getCells();
+      const labelEl = pvLine.getLabelEl();
 
-      // Register button cells (+SL, +TP, close-X) via hit-target system
-      registerCellHitTargets(sections, cells);
+      // Register button hit targets (priority 0)
+      for (const btn of buttonCells) {
+        const handler = btn.handler;
+        refs.hitTargets.current.push({
+          el: cells[btn.index],
+          priority: 0,
+          handler: () => handler(),
+        });
+      }
 
-      const dragRole = role;
-      const dragLineIdx = i;
-
-      // Entry label firstCell: click-vs-drag detection (priority 1)
+      // Entry label firstCell click + execute (priority 1)
       if (onExecute) {
         const exec = onExecute;
         refs.hitTargets.current.push({
-          el: firstCell,
+          el: cells[0],
           priority: 1,
           handler: (e: MouseEvent) => {
+            if (!labelEl) return;
             refs.entryClick.current = { downX: e.clientX, downY: e.clientY, exec };
-            refs.previewDragState.current = { role: dragRole, lineIdx: dragLineIdx };
-            refs.activeDragRow.current = root;
-            root.style.cursor = 'grabbing';
+            refs.previewDragState.current = { role, lineIdx: previewIdx };
+            refs.activeDragRow.current = labelEl;
+            labelEl.style.cursor = 'grabbing';
             if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
             if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
           },
@@ -527,25 +523,31 @@ export function useOverlayLabels(
       }
 
       // Row drag (priority 2)
-      refs.hitTargets.current.push({
-        el: root,
-        priority: 2,
-        handler: () => {
-          refs.entryClick.current = null;
-          refs.previewDragState.current = { role: dragRole, lineIdx: dragLineIdx };
-          refs.activeDragRow.current = root;
-          root.style.cursor = 'grabbing';
-          if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-          if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-        },
-      });
+      if (labelEl) {
+        const dragRole = role;
+        const dragLineIdx = previewIdx;
+        refs.hitTargets.current.push({
+          el: labelEl,
+          priority: 2,
+          handler: () => {
+            refs.entryClick.current = null;
+            refs.previewDragState.current = { role: dragRole, lineIdx: dragLineIdx };
+            refs.activeDragRow.current = labelEl;
+            labelEl.style.cursor = 'grabbing';
+            if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+            if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+          },
+        });
+      }
 
-      overlayEls.push({
-        root,
-        priceGetter: () => refs.previewPrices.current[previewIdx] ?? price,
-        pnlCell: pvPnlCompute ? firstCell : null,
-        pnlCompute: pvPnlCompute,
-      });
+      // P&L updater
+      if (pvPnlCompute) {
+        const compute = pvPnlCompute;
+        pnlUpdaters.push(() => {
+          const result = compute();
+          if (result) pvLine.updateSection(0, result.text, result.bg, result.color);
+        });
+      }
     }
 
     // --- Quick order pending preview labels (+ button brackets awaiting fill) ---
@@ -558,75 +560,83 @@ export function useOverlayLabels(
 
       // SL label — cancel removes SL from armed config + preview
       if (qo.slPrice != null) {
-        const slDiff = qo.side === OrderSide.Buy ? qoEntryPrice - qo.slPrice : qo.slPrice - qoEntryPrice;
-        const slPnl = (slDiff / tickSize) * tickValue * qo.orderSize;
-        const slPnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
-        const cancelSl = () => {
-          // Remove the SL price line from chart
-          const slLine = refs.qoPreviewLines.current.sl;
-          if (slLine && refs.series.current) {
-            refs.series.current.removePriceLine(slLine);
-            refs.qoPreviewLines.current.sl = null;
+        const slLine = refs.qoPreviewLines.current.sl;
+        if (slLine) {
+          const slDiff = qo.side === OrderSide.Buy ? qoEntryPrice - qo.slPrice : qo.slPrice - qoEntryPrice;
+          const slPnl = (slDiff / tickSize) * tickValue * qo.orderSize;
+          const slPnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
+          const cancelSl = () => {
+            // Destroy the SL PriceLevelLine
+            const sl = refs.qoPreviewLines.current.sl;
+            if (sl) {
+              sl.destroy();
+              refs.qoPreviewLines.current.sl = null;
+            }
+            bracketEngine.updateArmedConfig((cfg) => ({
+              ...cfg,
+              stopLoss: { ...cfg.stopLoss, points: 0 },
+            }));
+            const cur = useStore.getState().qoPendingPreview;
+            if (cur) useStore.getState().setQoPendingPreview({ ...cur, slPrice: null });
+          };
+
+          slLine.setLabel([
+            { text: slPnlText, bg: '#ff0000', color: '#000' },
+            { text: String(qo.orderSize), bg: '#ff0000', color: '#000' },
+            { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+          ]);
+
+          const slCells = slLine.getCells();
+          const slLabelEl = slLine.getLabelEl();
+
+          // Cancel-X (priority 0)
+          refs.hitTargets.current.push({
+            el: slCells[2], priority: 0,
+            handler: () => cancelSl(),
+          });
+
+          // Row drag (priority 2)
+          if (slLabelEl) {
+            refs.hitTargets.current.push({
+              el: slLabelEl,
+              priority: 2,
+              handler: () => {
+                refs.previewDragState.current = { role: { kind: 'qo-sl' }, lineIdx: -1 };
+                refs.activeDragRow.current = slLabelEl;
+                slLabelEl.style.cursor = 'grabbing';
+                if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+                if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+              },
+            });
           }
-          bracketEngine.updateArmedConfig((cfg) => ({
-            ...cfg,
-            stopLoss: { ...cfg.stopLoss, points: 0 },
-          }));
-          const cur = useStore.getState().qoPendingPreview;
-          if (cur) useStore.getState().setQoPendingPreview({ ...cur, slPrice: null });
-        };
-        const qoSlSections = [
-          { text: slPnlText, bg: '#ff0000', color: '#000' },
-          { text: String(qo.orderSize), bg: '#ff0000', color: '#000' },
-          { text: '\u2715', bg: '#e0e0e0', color: '#000', pointerEvents: true, onClick: cancelSl },
-        ];
-        const { root, firstCell, cells } = buildRow(qoSlSections);
-  
 
-        // Register cancel-X + row drag via hit-target system
-        registerCellHitTargets(qoSlSections, cells);
-        refs.hitTargets.current.push({
-          el: root,
-          priority: 2,
-          handler: () => {
-            refs.previewDragState.current = { role: { kind: 'qo-sl' }, lineIdx: -1 };
-            refs.activeDragRow.current = root;
-            root.style.cursor = 'grabbing';
-            if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-            if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-          },
-        });
-
-        const qoSlPnlCompute = () => {
-          const sp = refs.qoPreviewPrices.current.sl;
-          if (sp == null) return null;
-          const diff = qo.side === OrderSide.Buy ? qoEntryPrice - sp : sp - qoEntryPrice;
-          const pnl = (diff / tickSize) * tickValue * qo.orderSize;
-          return { text: `-$${Math.abs(pnl).toFixed(2)}`, bg: '#ff0000' };
-        };
-
-        overlayEls.push({
-          root,
-          priceGetter: () => refs.qoPreviewPrices.current.sl!,
-          pnlCell: firstCell,
-
-          pnlCompute: qoSlPnlCompute,
-        });
+          // P&L updater
+          pnlUpdaters.push(() => {
+            const sp = refs.qoPreviewPrices.current.sl;
+            if (sp == null) return;
+            const diff = qo.side === OrderSide.Buy ? qoEntryPrice - sp : sp - qoEntryPrice;
+            const pnl = (diff / tickSize) * tickValue * qo.orderSize;
+            slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, '#ff0000');
+          });
+        }
       }
 
       // TP labels — each cancel removes that specific TP
       for (let ti = 0; ti < qo.tpPrices.length; ti++) {
         const tpPrice = qo.tpPrices[ti];
         const tpSize = qo.tpSizes[ti] ?? qo.orderSize;
+        const tpLine = refs.qoPreviewLines.current.tps[ti];
+        if (!tpLine) continue;
+
         const tpDiff = qo.side === OrderSide.Buy ? tpPrice - qoEntryPrice : qoEntryPrice - tpPrice;
         const tpPnl = (tpDiff / tickSize) * tickValue * tpSize;
         const tpPnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
         const tpIdx = ti;
         const cancelTp = () => {
-          // Remove the TP price line from chart
-          const tpLine = refs.qoPreviewLines.current.tps[tpIdx];
-          if (tpLine && refs.series.current) {
-            refs.series.current.removePriceLine(tpLine);
+          // Destroy the TP PriceLevelLine
+          const tp = refs.qoPreviewLines.current.tps[tpIdx];
+          if (tp) {
+            tp.destroy();
             refs.qoPreviewLines.current.tps[tpIdx] = null;
           }
           bracketEngine.updateArmedConfig((cfg) => ({
@@ -635,7 +645,6 @@ export function useOverlayLabels(
           }));
           const cur = useStore.getState().qoPendingPreview;
           if (cur) {
-            // Remove from both arrays and compact the ref tps array
             const newTpPrices = cur.tpPrices.filter((_, i) => i !== tpIdx);
             const newTpSizes = cur.tpSizes.filter((_, i) => i !== tpIdx);
             refs.qoPreviewLines.current.tps = refs.qoPreviewLines.current.tps.filter((_, i) => i !== tpIdx);
@@ -646,74 +655,74 @@ export function useOverlayLabels(
             });
           }
         };
-        const qoTpSections = [
+
+        tpLine.setLabel([
           { text: tpPnlText, bg: '#00c805', color: '#000' },
           { text: String(tpSize), bg: '#00c805', color: '#000' },
-          { text: '\u2715', bg: '#e0e0e0', color: '#000', pointerEvents: true, onClick: cancelTp },
-        ];
-        const { root, firstCell, cells } = buildRow(qoTpSections);
-  
+          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+        ]);
 
-        // Register cancel-X + row drag via hit-target system
-        registerCellHitTargets(qoTpSections, cells);
-        const qoTpIdx = ti;
+        const tpCells = tpLine.getCells();
+        const tpLabelEl = tpLine.getLabelEl();
+
+        // Cancel-X (priority 0)
         refs.hitTargets.current.push({
-          el: root,
-          priority: 2,
-          handler: () => {
-            refs.previewDragState.current = { role: { kind: 'qo-tp', index: qoTpIdx }, lineIdx: -1 };
-            refs.activeDragRow.current = root;
-            root.style.cursor = 'grabbing';
-            if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-            if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-          },
+          el: tpCells[2], priority: 0,
+          handler: () => cancelTp(),
         });
 
+        // Row drag (priority 2)
+        const qoTpIdx = ti;
+        if (tpLabelEl) {
+          refs.hitTargets.current.push({
+            el: tpLabelEl,
+            priority: 2,
+            handler: () => {
+              refs.previewDragState.current = { role: { kind: 'qo-tp', index: qoTpIdx }, lineIdx: -1 };
+              refs.activeDragRow.current = tpLabelEl;
+              tpLabelEl.style.cursor = 'grabbing';
+              if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+              if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+            },
+          });
+        }
+
+        // P&L updater
         const capturedTpIdx = ti;
         const capturedTpSize = tpSize;
-        const qoTpPnlCompute = () => {
+        pnlUpdaters.push(() => {
           const tp = refs.qoPreviewPrices.current.tps[capturedTpIdx];
-          if (tp == null) return null;
+          if (tp == null) return;
           const diff = qo.side === OrderSide.Buy ? tp - qoEntryPrice : qoEntryPrice - tp;
           const pnl = (diff / tickSize) * tickValue * capturedTpSize;
-          return { text: `+$${Math.abs(pnl).toFixed(2)}`, bg: '#00c805', color: '#000' };
-        };
-
-        overlayEls.push({
-          root,
-          priceGetter: () => refs.qoPreviewPrices.current.tps[capturedTpIdx] ?? tpPrice,
-          pnlCell: firstCell,
-
-          pnlCompute: qoTpPnlCompute,
+          tpLine.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, '#00c805');
         });
       }
     }
 
-    // Position + P&L update function (called on scroll, zoom, resize, drag, price tick)
+    // --- Sync function (repositions all lines + updates P&L) ---
     function updatePositions() {
-      const s = refs.series.current;
-      for (const el of overlayEls) {
-        // Update Y position (needs series)
-        if (s) {
-          const p = el.priceGetter();
-          const y = s.priceToCoordinate(p);
-          if (y === null) {
-            el.root.style.display = 'none';
-          } else {
-            el.root.style.display = 'flex';
-            el.root.style.top = `${y}px`;
-          }
-        }
-        // Always update P&L text + color (regardless of series availability)
-        if (el.pnlCell && el.pnlCompute) {
-          const result = el.pnlCompute();
-          if (result) {
-            el.pnlCell.textContent = result.text;
-            el.pnlCell.style.background = result.bg;
-            if (result.color) el.pnlCell.style.color = result.color;
-          }
+      // Sync all PriceLevelLine positions
+      for (const line of refs.previewLines.current) line.syncPosition();
+      for (const line of refs.orderLines.current) line.syncPosition();
+      const qoLines = refs.qoPreviewLines.current;
+      if (qoLines.sl) qoLines.sl.syncPosition();
+      for (const tp of qoLines.tps) if (tp) tp.syncPosition();
+      if (refs.posDragLine.current) refs.posDragLine.current.syncPosition();
+
+      // Reposition raw posDragLabel if active
+      if (refs.posDragLabel.current && refs.posDrag.current && refs.series.current) {
+        const y = refs.series.current.priceToCoordinate(refs.posDrag.current.snappedPrice);
+        if (y !== null) {
+          refs.posDragLabel.current.style.top = `${y}px`;
+          refs.posDragLabel.current.style.display = 'flex';
+        } else {
+          refs.posDragLabel.current.style.display = 'none';
         }
       }
+
+      // Update P&L text on labels
+      for (const updater of pnlUpdaters) updater();
     }
 
     updatePositions();
@@ -730,7 +739,12 @@ export function useOverlayLabels(
 
     return () => {
       unsub();
-      overlay.innerHTML = '';
+      // Remove labels from all lines (don't destroy — that's the owning hook's job)
+      for (const line of refs.previewLines.current) line.setLabel(null);
+      for (const line of refs.orderLines.current) line.setLabel(null);
+      const qoClean = refs.qoPreviewLines.current;
+      if (qoClean.sl) qoClean.sl.setLabel(null);
+      for (const tp of qoClean.tps) if (tp) tp.setLabel(null);
       refs.hitTargets.current = [];
       refs.updateOverlay.current = () => {};
     };

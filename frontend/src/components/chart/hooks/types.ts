@@ -6,9 +6,7 @@ import type { CountdownPrimitive } from '../CountdownPrimitive';
 import type { CrosshairLabelPrimitive } from '../CrosshairLabelPrimitive';
 import type { TradeZonePrimitive } from '../TradeZonePrimitive';
 import type { VolumeProfilePrimitive } from '../VolumeProfilePrimitive';
-
-// ── Price-line shorthand ──
-export type PriceLine = ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>;
+import type { PriceLevelLine } from '../PriceLevelLine';
 
 // ── Preview line role (entry, SL, TP, or quick-order variants) ──
 export type PreviewLineRole =
@@ -30,8 +28,8 @@ export type HitTarget = {
 
 // ── Quick-order preview line refs shape ──
 export type QoPreviewLines = {
-  sl: PriceLine | null;
-  tps: (PriceLine | null)[];
+  sl: PriceLevelLine | null;
+  tps: (PriceLevelLine | null)[];
 };
 
 // ── Position drag state ──
@@ -88,13 +86,13 @@ export interface ChartRefs {
   activeDragRow: React.MutableRefObject<HTMLDivElement | null>;
 
   // Preview lines
-  previewLines: React.MutableRefObject<PriceLine[]>;
+  previewLines: React.MutableRefObject<PriceLevelLine[]>;
   previewRoles: React.MutableRefObject<PreviewLineRole[]>;
   previewPrices: React.MutableRefObject<number[]>;
   previewDragState: React.MutableRefObject<{ role: PreviewLineRole; lineIdx: number } | null>;
 
   // Order lines
-  orderLines: React.MutableRefObject<PriceLine[]>;
+  orderLines: React.MutableRefObject<PriceLevelLine[]>;
   orderLineMeta: React.MutableRefObject<OrderLineMeta[]>;
   orderLinePrices: React.MutableRefObject<number[]>;
   orderDragState: React.MutableRefObject<OrderDragState | null>;
@@ -105,7 +103,7 @@ export interface ChartRefs {
 
   // Position drag-to-create SL/TP
   posDrag: React.MutableRefObject<PosDragState | null>;
-  posDragLine: React.MutableRefObject<PriceLine | null>;
+  posDragLine: React.MutableRefObject<PriceLevelLine | null>;
   posDragLabel: React.MutableRefObject<HTMLDivElement | null>;
 
   // Scroll button

@@ -1,15 +1,14 @@
 import { useEffect } from 'react';
-import { LineStyle } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { TICKS_PER_POINT } from '../../../types/bracket';
-import type { BracketConfig } from '../../../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
 import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { showToast, errorMessage } from '../../../utils/toast';
+import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 
 export function useQuickOrder(
@@ -21,8 +20,9 @@ export function useQuickOrder(
   useEffect(() => {
     const chart = refs.chart.current;
     const series = refs.series.current;
+    const overlay = refs.overlay.current;
     const el = refs.quickOrder.current;
-    if (!chart || !series || !el || !isOrderChart || !contract) {
+    if (!chart || !series || !overlay || !el || !isOrderChart || !contract) {
       if (el) el.style.display = 'none';
       return;
     }
@@ -38,9 +38,8 @@ export function useQuickOrder(
     let isBuy = true;
     let isHovered = false;
     let hideTimer: number | null = null;
-    let qoPreviewLines: ReturnType<typeof series.createPriceLine>[] = [];
+    let qoPreviewLines: PriceLevelLine[] = [];
     let pendingFillUnsub: (() => void) | null = null;
-    let qoHoverLabels: HTMLDivElement[] = [];
     let qoComputedPrices: {
       entryPrice: number; slPrice: number | null;
       tpPrices: number[]; tpSizes: number[];
@@ -48,14 +47,9 @@ export function useQuickOrder(
     } | null = null;
 
     function removePreviewLines() {
-      qoPreviewLines.forEach((l) => series!.removePriceLine(l));
+      qoPreviewLines.forEach((l) => l.destroy());
       qoPreviewLines = [];
       refs.qoPreviewLines.current = { sl: null, tps: [] };
-    }
-
-    function removeHoverLabels() {
-      qoHoverLabels.forEach((r) => r.remove());
-      qoHoverLabels = [];
     }
 
     function createPreviewLines() {
@@ -67,39 +61,56 @@ export function useQuickOrder(
       if (!activePreset) return;
       const bc = activePreset.config;
       const tickSize = contract!.tickSize;
+      const tickValue = contract!.tickValue || 0.50;
       const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
       const ep = snappedPrice;
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
-      // Entry reference line
-      qoPreviewLines.push(series!.createPriceLine({
-        price: ep, color: '#787b86', lineWidth: 1,
-        lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
-      }));
+      // Entry reference line (no label)
+      const entryLine = new PriceLevelLine({
+        price: ep, series, overlay, chartApi: chart,
+        lineColor: '#787b86', lineStyle: 'dashed', lineWidth: 1,
+        axisLabelVisible: true, tickSize,
+      });
+      qoPreviewLines.push(entryLine);
 
-      // SL line
+      // SL line (with P&L label)
       let computedSlPrice: number | null = null;
       refs.qoPreviewLines.current = { sl: null, tps: [] };
       if (bc.stopLoss.points > 0) {
         computedSlPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
-        const slLine = series!.createPriceLine({
-          price: computedSlPrice, color: '#ff444480', lineWidth: 1,
-          lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
+        const slDiff = side === OrderSide.Buy ? ep - computedSlPrice : computedSlPrice - ep;
+        const slPnl = (slDiff / tickSize) * tickValue * st.orderSize;
+        const slLine = new PriceLevelLine({
+          price: computedSlPrice, series, overlay, chartApi: chart,
+          lineColor: '#ff444480', lineStyle: 'dashed', lineWidth: 1,
+          axisLabelVisible: true, tickSize,
+          label: [
+            { text: `-$${Math.abs(slPnl).toFixed(2)}`, bg: '#ff0000', color: '#000' },
+            { text: String(st.orderSize), bg: '#ff0000', color: '#000' },
+          ],
         });
         qoPreviewLines.push(slLine);
         refs.qoPreviewLines.current.sl = slLine;
       }
 
-      // TP lines
+      // TP lines (with P&L labels)
       const computedTpPrices: number[] = [];
       const computedTpSizes: number[] = [];
       bc.takeProfits.forEach((tp) => {
         const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
         computedTpPrices.push(tpPrice);
         computedTpSizes.push(tp.size);
-        const tpLine = series!.createPriceLine({
-          price: tpPrice, color: '#00c805', lineWidth: 1,
-          lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
+        const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
+        const tpPnl = (tpDiff / tickSize) * tickValue * tp.size;
+        const tpLine = new PriceLevelLine({
+          price: tpPrice, series, overlay, chartApi: chart,
+          lineColor: '#00c805', lineStyle: 'dashed', lineWidth: 1,
+          axisLabelVisible: true, tickSize,
+          label: [
+            { text: `+$${Math.abs(tpPnl).toFixed(2)}`, bg: '#00c805', color: '#000' },
+            { text: String(tp.size), bg: '#00c805', color: '#000' },
+          ],
         });
         qoPreviewLines.push(tpLine);
         refs.qoPreviewLines.current.tps.push(tpLine);
@@ -110,50 +121,6 @@ export function useQuickOrder(
         tpPrices: computedTpPrices, tpSizes: computedTpSizes,
         side, orderSize: st.orderSize,
       };
-    }
-
-    function createHoverLabels() {
-      removeHoverLabels();
-      if (!qoComputedPrices) return;
-      const overlay = refs.overlay.current;
-      if (!overlay) return;
-
-      const qo = qoComputedPrices;
-      const tk = contract!.tickSize;
-      const tv = contract!.tickValue || 0.50;
-
-      function makeRow(pnlText: string, pnlBg: string, sizeText: string, sizeBg: string, price: number) {
-        const row = document.createElement('div');
-        row.style.cssText = 'position:absolute;left:50%;display:flex;height:20px;font-size:11px;font-weight:bold;font-family:-apple-system,BlinkMacSystemFont,Trebuchet MS,Roboto,Ubuntu,sans-serif;line-height:20px;transform:translate(-50%,-50%);white-space:nowrap;border-radius:3px;overflow:hidden;';
-        const c1 = document.createElement('div');
-        c1.style.cssText = `background:${pnlBg};color:#000;padding:0 6px;`;
-        c1.textContent = pnlText;
-        row.appendChild(c1);
-        const c2 = document.createElement('div');
-        c2.style.cssText = `background:${sizeBg};color:#000;padding:0 6px;border-left:1px solid #000;`;
-        c2.textContent = sizeText;
-        row.appendChild(c2);
-        const y = series!.priceToCoordinate(price);
-        if (y !== null) row.style.top = `${y}px`;
-        overlay!.appendChild(row);
-        qoHoverLabels.push(row);
-      }
-
-      // SL label
-      if (qo.slPrice != null) {
-        const slDiff = qo.side === OrderSide.Buy ? qo.entryPrice - qo.slPrice : qo.slPrice - qo.entryPrice;
-        const slPnl = (slDiff / tk) * tv * qo.orderSize;
-        makeRow(`-$${Math.abs(slPnl).toFixed(2)}`, '#ff0000', String(qo.orderSize), '#ff0000', qo.slPrice);
-      }
-
-      // TP labels
-      for (let i = 0; i < qo.tpPrices.length; i++) {
-        const tpPrice = qo.tpPrices[i];
-        const tpSize = qo.tpSizes[i] ?? qo.orderSize;
-        const tpDiff = qo.side === OrderSide.Buy ? tpPrice - qo.entryPrice : qo.entryPrice - tpPrice;
-        const tpPnl = (tpDiff / tk) * tv * tpSize;
-        makeRow(`+$${Math.abs(tpPnl).toFixed(2)}`, '#00c805', String(tpSize), '#00c805', tpPrice);
-      }
     }
 
     function refreshLabel() {
@@ -210,7 +177,6 @@ export function useQuickOrder(
       }
       if (!pendingFillUnsub) {
         createPreviewLines();
-        createHoverLabels();
       }
     };
 
@@ -223,7 +189,6 @@ export function useQuickOrder(
       chart.clearCrosshairPosition();
       if (!pendingFillUnsub) {
         removePreviewLines();
-        removeHoverLabels();
       }
       hideTimer = window.setTimeout(() => {
         if (!isHovered) el.style.display = 'none';
@@ -274,7 +239,8 @@ export function useQuickOrder(
         }
       }
 
-      removeHoverLabels();
+      // Remove hover labels (labels on preview lines)
+      for (const line of qoPreviewLines) line.setLabel(null);
       if (!bracketsArmed) removePreviewLines();
 
       // Set placeholder immediately so onLeave won't remove preview lines
@@ -315,7 +281,6 @@ export function useQuickOrder(
         }
         useStore.getState().setQoPendingPreview(null);
         removePreviewLines();
-        removeHoverLabels();
       });
     };
 
@@ -332,7 +297,6 @@ export function useQuickOrder(
         useStore.getState().setQoPendingPreview(null);
       }
       removePreviewLines();
-      removeHoverLabels();
       chart.unsubscribeCrosshairMove(onMove);
       wrap.removeEventListener('mouseenter', onEnter);
       wrap.removeEventListener('mouseleave', onLeave);

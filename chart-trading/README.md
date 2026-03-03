@@ -128,16 +128,14 @@ Similarly, `mouseleave` uses a 100ms delay before hiding, allowing re-entry with
 
 When a bracket preset is active (`activePresetId` in the store), the button integrates with the bracket system:
 
-**On hover** — `createPreviewLines()` draws temporary dashed price lines + `createHoverLabels()` adds HTML overlay labels:
-- Entry reference line (`#787b86` gray dashed)
-- SL line (`#ff444480` red dashed) + overlay label with projected P&L (red)
-- TP lines (`#00c805` green dashed) + overlay labels with projected P&L (green)
+**On hover** — `createPreviewLines()` creates `PriceLevelLine` instances with labels baked in:
+- Entry reference line (`#787b86` gray dashed, no label)
+- SL line (`#ff444480` red dashed) + label sections with projected P&L (red) and size
+- TP lines (`#00c805` green dashed) + label sections with projected P&L (green) and size
 
-Price offsets computed via `points * tickSize * TICKS_PER_POINT`, same formula as the main preview system.
+Price offsets computed via `points * tickSize * TICKS_PER_POINT`, same formula as the main preview system. Labels are passed as `LabelSection[]` to the `PriceLevelLine` constructor — no separate `buildRow()` or `createHoverLabels()` step.
 
-Overlay labels use the same `buildRow()` helper and styling as the main preview/order overlay labels: monospace 11px bold, positioned at `left:50%` with `transform: translate(-50%,-50%)`, Y from `series.priceToCoordinate(price)`.
-
-**On leave** — `removePreviewLines()` + `removeHoverLabels()` tears down all temporary lines and labels.
+**On leave** — `removePreviewLines()` calls `destroy()` on all `PriceLevelLine` instances, tearing down lines and labels together.
 
 **On click** — if a preset is active with SL/TP points >= 1:
 1. Arms the bracket engine
@@ -191,37 +189,38 @@ orderService.placeOrder({
 
 ## Live Order & Position Lines
 
-Always visible (regardless of preview toggle):
+Always visible (regardless of preview toggle). Each line is a `PriceLevelLine` instance — a unified imperative class that owns the horizontal line, axis label, and optional label pill as HTML elements in the chart overlay div.
 
 - **Position entry**: solid grey `#cac8cb` at `averagePrice`
 - **Order colors are profit/loss-based** when a position exists: green `#00c805` if the order price is in profit territory relative to position entry, red `#ff0000` if in loss territory. This means an SL moved above entry (long) turns green, and a TP is always green.
 - **Without a position**: stop orders default to red, limit orders use side-based coloring (sell=red, buy=green)
-- **Line color updates during drag**: as an order is dragged across the entry price, the line color flips between green and red in real-time
+- **Line color updates during drag**: as an order is dragged across the entry price, `line.setLineColor()` flips between green and red in real-time
 - Each line tracks its `Order` object via `orderLineMetaRef` for drag identification
 
 ### OrderLineLayer
 
 - Reads open orders from Zustand store (kept fresh by SignalR)
-- For each open order, renders a Lightweight Charts `ISeriesApi` price line:
-  - Label: `#{orderId}  {size}ct  @{price}`
-  - Colour: green for buy-side, red for sell-side; dashed for TP/SL
-  - Right-click or X icon button -> calls `orderService.cancelOrder()`
-  - Drag (mousedown + mousemove + mouseup on the line) -> calls
+- For each open order, creates a `PriceLevelLine`:
+  - Horizontal line + axis label showing the price
+  - Label pill added later by `useOverlayLabels` via `line.setLabel(sections)`
+  - Colour: green for buy-side, red for sell-side
+  - X icon button -> calls `orderService.cancelOrder()`
+  - Drag (mousedown + mousemove + mouseup on the label) -> calls
     `orderService.modifyOrder()` with the new price on mouseup
 - **Label styling**: all text is black (`#000`), cells separated by `1px solid #000` border
-- Order lines are removed from the chart series when the corresponding order
+- Order lines are destroyed (`line.destroy()`) when the corresponding order
   is no longer in the open-orders list (detected via SignalR)
 
 ---
 
 ## Preview Overlay
 
-Rendered when `previewEnabled = true` (set from OrderPanel checkbox):
+Rendered when `previewEnabled = true` (set from OrderPanel checkbox). Each preview line is a `PriceLevelLine` instance:
 - Entry line always shown when preview is on (even with no preset)
 - SL/TP lines shown when a bracket preset is active **or** ad-hoc SL/TP have been added
 - Dashed price lines for Entry (grey `#787b86`), SL (semi-transparent red `#ff444480`), each TP (solid green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`
-- Two-effect pattern: structural effect creates/destroys lines on config change; price-update effect calls `applyOptions()` in-place to avoid flicker
+- Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
 - Initial prices read imperatively via `useStore.getState()` to avoid flash-at-bottom on first toggle
 
 Shows ghost price lines (semi-transparent) for:
@@ -234,7 +233,7 @@ Shows ghost price lines (semi-transparent) for:
 
 ## Overlay Label System
 
-HTML labels positioned over price lines. Imperative DOM (`document.createElement`) — avoids React render cycles for smooth 60fps updates.
+Labels are managed by `PriceLevelLine.setLabel(sections)` — each line owns its own label pill as an HTML `<div>` in the overlay. `useOverlayLabels` configures the label sections (P&L, size, buttons) and registers hit targets, but does not create DOM elements directly.
 
 Each label is a row of colored cells: `[P&L or label] [size] [X]`
 
@@ -270,15 +269,17 @@ A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit t
 - When no preset is active, entry label includes **+SL** and **+TP** buttons to add ad-hoc bracket lines
 
 ### Real-time P&L updates
-- P&L values update in real-time via direct Zustand subscription (bypasses React render cycle)
+- P&L values update in real-time via `line.updateSection(index, text, bg, color)` — no DOM rebuild, direct text/color mutation
+- Zustand subscription (bypasses React render cycle) feeds fresh P&L to updater closures
 - `updateOverlayRef` stores the position-update function, called by the sync effect
 
 ---
 
 ## Overlay Sync
 
-Smooth label positioning during interaction:
+Smooth positioning for all `PriceLevelLine` instances during interaction:
 
+- `updatePositions()` calls `line.syncPosition()` on every live line (preview, order, QO-preview, posDragLine), then runs P&L updater closures
 - `requestAnimationFrame` loop runs during any pointer interaction (pointerdown -> rAF loop -> pointerup stops)
 - Also listens to `visibleLogicalRangeChange` (horizontal scroll), `ResizeObserver`, and `wheel` events
 - Zero overhead when idle — rAF loop only active during pointer drag
@@ -469,7 +470,11 @@ interface OrderPanelState {
 
 | File | Role |
 |------|------|
-| `frontend/src/components/chart/CandlestickChart.tsx` | All chart-trading interactions: order/position/preview line effects, overlay label system, rAF sync, label-initiated drag, position drag-to-create, + button effect |
+| `frontend/src/components/chart/PriceLevelLine.ts` | Unified imperative class — owns horizontal line, label pill, and axis label as HTML elements. Used by all price lines (orders, positions, previews, QO hover). |
+| `frontend/src/components/chart/CandlestickChart.tsx` | Orchestrator: declares refs, init effect, delegates to 6 hooks. Exposes `setCrosshairPrice()` for dual-chart sync. |
+| `frontend/src/components/chart/hooks/useOrderLines.ts` | Creates `PriceLevelLine` instances for preview/order/position lines, handles drag interactions |
+| `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
+| `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: creates PriceLevelLine instances with baked-in labels for hover preview |
 | `frontend/src/components/order-panel/OrderPanel.tsx` | SignalR event wiring, limit order cancel cleanup, position close auto-cancel |
 | `frontend/src/components/order-panel/BuySellButtons.tsx` | Bracket arming, draft/ad-hoc merge, order placement |
 | `frontend/src/services/orderService.ts` | placeOrder, cancelOrder, modifyOrder, searchOpenOrders |
