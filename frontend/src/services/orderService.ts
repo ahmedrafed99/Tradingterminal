@@ -1,15 +1,16 @@
 import api from './api';
 import { retryAsync } from '../utils/retry';
+import { OrderType, OrderSide, OrderStatus } from '../types/enums';
 
 export interface Order {
   id: number;
   contractId: string;
-  type: number;
-  side: number;
+  type: OrderType;
+  side: OrderSide;
   size: number;
   limitPrice?: number;
   stopPrice?: number;
-  status?: number;
+  status?: OrderStatus;
 }
 
 export interface Bracket {
@@ -20,8 +21,8 @@ export interface Bracket {
 export interface PlaceOrderParams {
   accountId: number;
   contractId: string;
-  type: 1 | 2 | 4 | 5;      // Limit | Market | Stop | TrailingStop
-  side: 0 | 1;               // Buy | Sell
+  type: OrderType;
+  side: OrderSide;
   size: number;
   limitPrice?: number;
   stopPrice?: number;

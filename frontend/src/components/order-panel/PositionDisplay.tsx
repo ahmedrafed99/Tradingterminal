@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
+import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { showToast, errorMessage } from '../../utils/toast';
 
 function formatPrice(price: number): string {
@@ -24,7 +25,7 @@ export function PositionDisplay() {
     );
   }
 
-  const isLong = pos.type === 1;
+  const isLong = pos.type === PositionType.Long;
   const tickSize = orderContract.tickSize || 0.25;
   const tickValue = orderContract.tickValue || 0.50;
   const sign = isLong ? '+' : '-';
@@ -69,7 +70,7 @@ export function PositionDisplay() {
         <ClosePositionButton
           accountId={activeAccountId}
           contractId={orderContract.id}
-          side={isLong ? 1 : 0}
+          side={isLong ? OrderSide.Sell : OrderSide.Buy}
           size={pos.size}
         />
       </div>
@@ -109,7 +110,7 @@ function MoveToBEButton({
       const existingSL = openOrders.find(
         (o) =>
           String(o.contractId) === String(contractId) &&
-          (o.type === 4 || o.type === 5),
+          (o.type === OrderType.Stop || o.type === OrderType.TrailingStop),
       );
 
       if (existingSL) {
@@ -123,8 +124,8 @@ function MoveToBEButton({
         await orderService.placeOrder({
           accountId,
           contractId,
-          type: 4,
-          side: positionSide === 'long' ? 1 : 0, // sell stop for long, buy stop for short
+          type: OrderType.Stop,
+          side: positionSide === 'long' ? OrderSide.Sell : OrderSide.Buy,
           size,
           stopPrice: entryPrice,
         });
@@ -156,7 +157,7 @@ function ClosePositionButton({
 }: {
   accountId: number | null;
   contractId: string;
-  side: 0 | 1;
+  side: OrderSide;
   size: number;
 }) {
   const [busy, setBusy] = useState(false);
@@ -168,7 +169,7 @@ function ClosePositionButton({
       await orderService.placeOrder({
         accountId,
         contractId,
-        type: 2,
+        type: OrderType.Market,
         side,
         size,
       });

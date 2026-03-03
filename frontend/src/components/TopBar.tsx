@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
+import { PositionType } from '../types/enums';
 import { tradeService } from '../services/tradeService';
 import type { Trade } from '../services/tradeService';
 import { getCmeSessionStart } from '../utils/cmeSession';
@@ -198,7 +199,7 @@ export function TopBar() {
     const tickValue = orderContract.tickValue || 0.50;
     for (const pos of positions) {
       if (pos.accountId === activeAccountId && pos.size !== 0 && String(pos.contractId) === String(orderContract.id)) {
-        const isLong = pos.type === 1;
+        const isLong = pos.type === PositionType.Long;
         const diff = isLong ? lastPrice - pos.averagePrice : pos.averagePrice - lastPrice;
         pnl += (diff / tickSize) * tickValue * pos.size;
       }

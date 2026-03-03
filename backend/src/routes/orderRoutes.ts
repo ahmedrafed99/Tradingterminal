@@ -3,6 +3,7 @@ import axios from 'axios';
 import { z } from 'zod';
 import { getBaseUrl, authHeaders, isConnected } from '../auth';
 import { validateBody, validateQuery } from '../validate';
+import { OrderType, OrderSide } from '../types/enums';
 
 const router = Router();
 
@@ -14,8 +15,8 @@ const BracketSchema = z.object({
 const PlaceOrderSchema = z.object({
   accountId: z.number().int().positive(),
   contractId: z.string().min(1),
-  type: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(5)]),
-  side: z.union([z.literal(0), z.literal(1)]),
+  type: z.nativeEnum(OrderType),
+  side: z.nativeEnum(OrderSide),
   size: z.number().int().positive(),
   limitPrice: z.number().optional(),
   stopPrice: z.number().optional(),

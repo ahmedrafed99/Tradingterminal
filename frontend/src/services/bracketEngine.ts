@@ -2,6 +2,7 @@ import { orderService } from './orderService';
 import type { RealtimeOrder } from './realtimeService';
 import type { BracketConfig, ConditionAction } from '../types/bracket';
 import { TICKS_PER_POINT } from '../types/bracket';
+import { OrderType, OrderSide, OrderStatus } from '../types/enums';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 
@@ -14,7 +15,7 @@ const DEV = import.meta.env.DEV;
 interface PendingEntryConfig {
   accountId: number;
   contractId: string;
-  entrySide: 0 | 1;
+  entrySide: OrderSide;
   entrySize: number;
   config: BracketConfig;
   tickSize: number;
@@ -29,7 +30,7 @@ interface NormalizedTP {
 interface ActiveSession {
   accountId: number;
   contractId: string;
-  entrySide: 0 | 1;
+  entrySide: OrderSide;
   entryPrice: number;
   entrySize: number;
   config: BracketConfig;
@@ -85,7 +86,7 @@ class BracketEngine {
 
     // Check if we already buffered a fill for this order
     const fill = this.bufferedFills.find(
-      (o) => o.id === orderId && o.status === 2,
+      (o) => o.id === orderId && o.status === OrderStatus.Filled,
     );
     if (fill) {
       if (DEV) console.log('[BracketEngine] Found buffered fill, processing now');
@@ -172,7 +173,7 @@ class BracketEngine {
 
     // --- Armed but orderId not yet confirmed: buffer fills ---
     if (this.armedConfig && this.confirmedOrderId === null) {
-      if (order.status === 2) {
+      if (order.status === OrderStatus.Filled) {
         this.bufferedFills.push(order);
         if (DEV) console.log('[BracketEngine] Buffered fill event, orderId:', order.id);
       }
@@ -181,7 +182,7 @@ class BracketEngine {
 
     // --- Armed with confirmed orderId: check for entry fill ---
     if (this.armedConfig && this.confirmedOrderId !== null) {
-      if (order.id === this.confirmedOrderId && order.status === 2) {
+      if (order.id === this.confirmedOrderId && order.status === OrderStatus.Filled) {
         if (DEV) console.log('[BracketEngine] Entry filled! price:', order.filledPrice);
         const cfg = this.armedConfig;
         this.armedConfig = null;
@@ -195,7 +196,7 @@ class BracketEngine {
     // --- Active session ---
     if (!this.session) return;
     if (order.contractId !== this.session.contractId) return;
-    if (order.status !== 2) return;
+    if (order.status !== OrderStatus.Filled) return;
 
     // Check if SL was filled → cancel all remaining TPs
     if (this.session.slOrderId !== null && order.id === this.session.slOrderId) {
@@ -353,17 +354,17 @@ class BracketEngine {
       pendingActions: [],
     };
 
-    const oppositeSide: 0 | 1 = entrySide === 0 ? 1 : 0;
+    const oppositeSide = entrySide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
 
     // Place SL as a separate stop order (with retry)
     if (config.stopLoss.points >= 1) {
       const slOffset = pointsToPrice(config.stopLoss.points, tickSize);
       const stopPrice =
-        entrySide === 0
+        entrySide === OrderSide.Buy
           ? entryPrice - slOffset // long: SL below entry
           : entryPrice + slOffset; // short: SL above entry
 
-      const slType = config.stopLoss.type === 'Stop' ? 4 : 5;
+      const slType = config.stopLoss.type === 'Stop' ? OrderType.Stop : OrderType.TrailingStop;
 
       if (DEV) console.log(`[BracketEngine] Placing SL: side=${oppositeSide} stopPrice=${stopPrice} type=${slType}`);
 
@@ -372,7 +373,7 @@ class BracketEngine {
           () => orderService.placeOrder({
             accountId,
             contractId,
-            type: slType as 1 | 2 | 4 | 5,
+            type: slType,
             side: oppositeSide,
             size: entrySize,
             stopPrice,
@@ -414,7 +415,7 @@ class BracketEngine {
       const tp = normalizedTPs[i];
       const tpOffset = pointsToPrice(tp.points, tickSize);
       const limitPrice =
-        entrySide === 0
+        entrySide === OrderSide.Buy
           ? entryPrice + tpOffset
           : entryPrice - tpOffset;
 
@@ -425,7 +426,7 @@ class BracketEngine {
           () => orderService.placeOrder({
             accountId,
             contractId,
-            type: 1,
+            type: OrderType.Limit,
             side: oppositeSide,
             size: tp.size,
             limitPrice,
@@ -519,7 +520,7 @@ class BracketEngine {
         case 'moveSLToPrice': {
           const offset = pointsToPrice(action.points, tickSize);
           const newStop =
-            entrySide === 0 ? entryPrice + offset : entryPrice - offset;
+            entrySide === OrderSide.Buy ? entryPrice + offset : entryPrice - offset;
           await orderService.modifyOrder({
             accountId,
             orderId: slOrderId!,
@@ -533,7 +534,7 @@ class BracketEngine {
           if (!targetTp) break;
           const tpOffset = pointsToPrice(targetTp.points, tickSize);
           const newStop =
-            entrySide === 0 ? entryPrice + tpOffset : entryPrice - tpOffset;
+            entrySide === OrderSide.Buy ? entryPrice + tpOffset : entryPrice - tpOffset;
           await orderService.modifyOrder({
             accountId,
             orderId: slOrderId!,
@@ -552,7 +553,7 @@ class BracketEngine {
         case 'customOffset': {
           const customOffset = pointsToPrice(action.points, tickSize);
           const newStop =
-            entrySide === 0 ? entryPrice + customOffset : entryPrice - customOffset;
+            entrySide === OrderSide.Buy ? entryPrice + customOffset : entryPrice - customOffset;
           await orderService.modifyOrder({
             accountId,
             orderId: slOrderId!,

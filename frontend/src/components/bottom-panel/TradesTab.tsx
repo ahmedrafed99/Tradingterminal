@@ -3,6 +3,7 @@ import { realtimeService } from '../../services/realtimeService';
 import type { Trade } from '../../services/tradeService';
 import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
+import { OrderSide } from '../../types/enums';
 import { getCmeSessionStart } from '../../utils/cmeSession';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 
@@ -100,7 +101,7 @@ export function TradesTab() {
     const getValue = (t: Trade): number | string => {
       switch (sortCol) {
         case 'time': return t.creationTimestamp ?? '';
-        case 'side': return t.side !== 0 ? 'Long' : 'Short';
+        case 'side': return t.side !== OrderSide.Buy ? 'Long' : 'Short';
         case 'symbol': return shortSymbol(t.contractId);
         case 'qty': return t.size;
         case 'entry': return em.get(t.id)?.price ?? 0;
@@ -167,7 +168,7 @@ export function TradesTab() {
       {sorted.map((trade, i) => {
         const entry = entryMap.get(trade.id);
         // Closing side is the exit direction; entry is opposite
-        const isLong = trade.side !== 0; // closed with sell → was long
+        const isLong = trade.side !== OrderSide.Buy; // closed with sell → was long
         const net = trade.profitAndLoss! - trade.fees;
         const isVisible = visibleTradeIds.includes(trade.id);
         const stripe = i % 2 === 1 ? 'bg-[#0d1117]/40' : '';

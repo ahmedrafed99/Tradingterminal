@@ -7,6 +7,7 @@ import type { RealtimePosition } from '../services/realtimeService';
 import type { Trade } from '../services/tradeService';
 import type { BracketPreset } from '../types/bracket';
 import type { Drawing, DrawingTool, HLineTemplate } from '../types/drawing';
+import { OrderSide } from '../types/enums';
 
 // ---------------------------------------------------------------------------
 // Auth slice
@@ -98,7 +99,7 @@ interface OrderPanelState {
   limitPrice: number | null;
   orderSize: number;
   previewEnabled: boolean;
-  previewSide: 0 | 1;
+  previewSide: OrderSide;
   previewHideEntry: boolean;
   bracketPresets: BracketPreset[];
   activePresetId: string | null;
@@ -108,7 +109,7 @@ interface OrderPanelState {
   setLimitPrice: (p: number | null) => void;
   setOrderSize: (n: number) => void;
   togglePreview: () => void;
-  setPreviewSide: (side: 0 | 1) => void;
+  setPreviewSide: (side: OrderSide) => void;
   setActivePresetId: (id: string | null) => void;
   suspendPreset: () => void;
   restorePreset: () => void;
@@ -134,7 +135,7 @@ interface OrderPanelState {
     entryPrice: number;
     slPrice: number | null;
     tpPrices: number[];
-    side: 0 | 1;
+    side: OrderSide;
     orderSize: number;
     tpSizes: number[];
   } | null;
@@ -355,7 +356,7 @@ export const useStore = create<Store>()(
       limitPrice: null,
       orderSize: 1,
       previewEnabled: false,
-      previewSide: 0,
+      previewSide: OrderSide.Buy,
       previewHideEntry: false,
       bracketPresets: [],
       activePresetId: null,

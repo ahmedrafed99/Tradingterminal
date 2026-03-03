@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
+import { OrderType, OrderSide } from '../../types/enums';
 import { showToast } from '../../utils/toast';
 import type { PlaceOrderParams } from '../../services/orderService';
 import type { BracketConfig } from '../../types/bracket';
@@ -37,16 +38,16 @@ export function BuySellButtons() {
     orderContract != null &&
     (orderType === 'market' || (orderType === 'limit' && limitPrice != null));
 
-  async function handlePlace(side: 0 | 1) {
+  async function handlePlace(side: OrderSide) {
     if (!canPlace || !activeAccountId || !orderContract) return;
-    const label = side === 0 ? 'buy' : 'sell';
+    const label = side === OrderSide.Buy ? 'buy' : 'sell';
     setPlacing(label);
     setError(null);
 
     const params: PlaceOrderParams = {
       accountId: activeAccountId,
       contractId: orderContract.id,
-      type: orderType === 'market' ? 2 : 1,
+      type: orderType === 'market' ? OrderType.Market : OrderType.Limit,
       side,
       size: orderSize,
     };
@@ -126,7 +127,7 @@ export function BuySellButtons() {
     <div className="space-y-1.5">
       <div className="flex gap-1.5">
         <button
-          onClick={() => handlePlace(0)}
+          onClick={() => handlePlace(OrderSide.Buy)}
           disabled={!canPlace || placing !== null}
           className="flex-1 py-2.5 rounded font-bold text-[11px] text-[#d1d4dc] transition-colors
                      bg-[#1b6b4a] hover:bg-[#22835b] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -134,7 +135,7 @@ export function BuySellButtons() {
           {placing === 'buy' ? '...' : `Buy +${orderSize} ${typeLabel}`}
         </button>
         <button
-          onClick={() => handlePlace(1)}
+          onClick={() => handlePlace(OrderSide.Sell)}
           disabled={!canPlace || placing !== null}
           className="flex-1 py-2.5 rounded font-bold text-[11px] text-[#d1d4dc] transition-colors
                      bg-[#8b2232] hover:bg-[#a62a3d] disabled:opacity-50 disabled:cursor-not-allowed"

@@ -315,13 +315,20 @@ Click label to edit price:
 2. App stores `startY` and `startPrice`
 3. Mousemove: compute `newPrice = chart.coordinateToPrice(currentY)`
 4. A ghost line follows the cursor; original line stays
-5. Mouseup: call `PATCH /orders/modify` -> proxy -> `/api/Order/modify`
-6. On success the order line snaps to the confirmed price via the SignalR update
-7. **On failure**: line reverts to `originalPrice` with correct profit/loss color, error toast shown
+5. **Mouseup — client-side validation (stop orders only)**:
+   - Stop-sell (protects long) → new price must be **below** current price
+   - Stop-buy (protects short) → new price must be **above** current price
+   - Current price = `lastPrice` from store, falls back to `lastBar.close` from chart
+   - If invalid: line reverts instantly, warning toast shown, **no API call**
+6. Mouseup (valid): call `PATCH /orders/modify` -> proxy -> `/api/Order/modify`
+7. On success the order line snaps to the confirmed price via the SignalR update
+8. **On failure**: line reverts to `originalPrice` with correct profit/loss color, error toast shown
 
 Lightweight Charts v4 does not have built-in draggable price lines;
 drag behaviour is implemented with DOM event listeners + `priceToCoordinate`
 / `coordinateToPrice` helpers.
+
+**Stale closure note**: The drag `mouseup` handler reads `lastPrice` and `positions` fresh from `useStore.getState()` (not from the effect closure), because the effect only re-mounts on `[isOrderChart, contract]` changes — position/price state captured in the closure would be stale.
 
 ---
 

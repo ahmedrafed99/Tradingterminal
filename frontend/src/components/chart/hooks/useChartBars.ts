@@ -5,6 +5,7 @@ import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { marketDataService } from '../../../services/marketDataService';
 import { realtimeService, type GatewayQuote, type DepthEntry } from '../../../services/realtimeService';
+import { DepthType } from '../../../types/enums';
 import {
   barToCandle,
   sortBarsAscending,
@@ -213,12 +214,12 @@ export function useChartBars(
       if (depthContractId !== contractId || !vp) return;
 
       for (const entry of entries) {
-        if (entry.type === 6) {
+        if (entry.type === DepthType.Reset) {
           // Reset marker — clear and prepare for snapshot
           vp.clear();
           continue;
         }
-        if (entry.type === 5) {
+        if (entry.type === DepthType.VolumeAtPrice) {
           // Volume at Price — snapshot or incremental update
           vp.updateLevel(entry.price, entry.volume);
         }

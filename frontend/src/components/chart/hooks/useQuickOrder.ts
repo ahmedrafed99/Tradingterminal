@@ -5,6 +5,7 @@ import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { TICKS_PER_POINT } from '../../../types/bracket';
 import type { BracketConfig } from '../../../types/bracket';
+import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
 import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
@@ -68,7 +69,7 @@ export function useQuickOrder(
       const tickSize = contract!.tickSize;
       const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
       const ep = snappedPrice;
-      const side = isBuy ? 0 : 1;
+      const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
       // Entry reference line
       qoPreviewLines.push(series!.createPriceLine({
@@ -80,7 +81,7 @@ export function useQuickOrder(
       let computedSlPrice: number | null = null;
       refs.qoPreviewLines.current = { sl: null, tps: [] };
       if (bc.stopLoss.points > 0) {
-        computedSlPrice = side === 0 ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
+        computedSlPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
         const slLine = series!.createPriceLine({
           price: computedSlPrice, color: '#ff444480', lineWidth: 1,
           lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
@@ -93,7 +94,7 @@ export function useQuickOrder(
       const computedTpPrices: number[] = [];
       const computedTpSizes: number[] = [];
       bc.takeProfits.forEach((tp) => {
-        const tpPrice = side === 0 ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
+        const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
         computedTpPrices.push(tpPrice);
         computedTpSizes.push(tp.size);
         const tpLine = series!.createPriceLine({
@@ -107,7 +108,7 @@ export function useQuickOrder(
       qoComputedPrices = {
         entryPrice: ep, slPrice: computedSlPrice,
         tpPrices: computedTpPrices, tpSizes: computedTpSizes,
-        side: side as 0 | 1, orderSize: st.orderSize,
+        side, orderSize: st.orderSize,
       };
     }
 
@@ -140,7 +141,7 @@ export function useQuickOrder(
 
       // SL label
       if (qo.slPrice != null) {
-        const slDiff = qo.side === 0 ? qo.entryPrice - qo.slPrice : qo.slPrice - qo.entryPrice;
+        const slDiff = qo.side === OrderSide.Buy ? qo.entryPrice - qo.slPrice : qo.slPrice - qo.entryPrice;
         const slPnl = (slDiff / tk) * tv * qo.orderSize;
         makeRow(`-$${Math.abs(slPnl).toFixed(2)}`, '#ff0000', String(qo.orderSize), '#ff0000', qo.slPrice);
       }
@@ -149,7 +150,7 @@ export function useQuickOrder(
       for (let i = 0; i < qo.tpPrices.length; i++) {
         const tpPrice = qo.tpPrices[i];
         const tpSize = qo.tpSizes[i] ?? qo.orderSize;
-        const tpDiff = qo.side === 0 ? tpPrice - qo.entryPrice : qo.entryPrice - tpPrice;
+        const tpDiff = qo.side === OrderSide.Buy ? tpPrice - qo.entryPrice : qo.entryPrice - tpPrice;
         const tpPnl = (tpDiff / tk) * tv * tpSize;
         makeRow(`+$${Math.abs(tpPnl).toFixed(2)}`, '#00c805', String(tpSize), '#00c805', tpPrice);
       }
@@ -236,7 +237,7 @@ export function useQuickOrder(
       const st = useStore.getState();
       if (!st.activeAccountId) return;
 
-      const side: 0 | 1 = isBuy ? 0 : 1;
+      const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
       const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
       let bracketsArmed = false;
 
@@ -261,10 +262,10 @@ export function useQuickOrder(
           st.setQoPendingPreview({
             entryPrice: ep,
             slPrice: bc.stopLoss.points > 0
-              ? (side === 0 ? ep - toP(bc.stopLoss.points) : ep + toP(bc.stopLoss.points))
+              ? (side === OrderSide.Buy ? ep - toP(bc.stopLoss.points) : ep + toP(bc.stopLoss.points))
               : null,
             tpPrices: bc.takeProfits.map((tp) =>
-              side === 0 ? ep + toP(tp.points) : ep - toP(tp.points),
+              side === OrderSide.Buy ? ep + toP(tp.points) : ep - toP(tp.points),
             ),
             side,
             orderSize: st.orderSize,
@@ -283,7 +284,7 @@ export function useQuickOrder(
       orderService.placeOrder({
         accountId: st.activeAccountId,
         contractId: contract!.id,
-        type: 1,
+        type: OrderType.Limit,
         side,
         size: st.orderSize,
         limitPrice: snappedPrice,
@@ -293,7 +294,7 @@ export function useQuickOrder(
           // Keep preview lines until entry fills/cancels, then remove
           pendingFillUnsub = useStore.subscribe((state) => {
             const o = state.openOrders.find((ord) => ord.id === orderId);
-            if (!o || o.status === 2 || o.status === 3) {
+            if (!o || o.status === OrderStatus.Filled || o.status === OrderStatus.Cancelled) {
               // Unsubscribe FIRST to prevent recursive re-entry from setQoPendingPreview
               pendingFillUnsub?.();
               pendingFillUnsub = null;

@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr';
 import { HttpTransportType } from '@microsoft/signalr';
+import { OrderType, OrderSide, OrderStatus, PositionType, DepthType } from '../types/enums';
 
 export interface GatewayQuote {
   symbol: string;
@@ -22,9 +23,9 @@ export interface RealtimeOrder {
   accountId: number;
   contractId: string;
   symbolId?: string;
-  status: number;       // 6=pending, 2=filled
-  type: number;         // 1=Limit, 2=Market
-  side: number;         // 0=Buy, 1=Sell
+  status: OrderStatus;
+  type: OrderType;
+  side: OrderSide;
   size: number;
   fillVolume?: number;
   filledPrice?: number;
@@ -36,7 +37,7 @@ export interface RealtimePosition {
   id: number;
   accountId: number;
   contractId: string;
-  type: number;          // 1=Long, 2=Short
+  type: PositionType;
   size: number;          // 0 when closed
   averagePrice: number;
 }
@@ -56,7 +57,7 @@ export interface RealtimeTrade {
   contractId: string;
   price: number;
   fees: number;
-  side: number;
+  side: OrderSide;
   size: number;
   voided: boolean;
   orderId: number;
@@ -66,7 +67,7 @@ export interface DepthEntry {
   price: number;
   volume: number;
   currentVolume: number;
-  type: number;  // 3=Best Ask, 4=Best Bid, 5=Volume at Price, 6=Reset/Init, 7=Session Low, 8=Session High
+  type: DepthType;
   timestamp: string;
 }
 

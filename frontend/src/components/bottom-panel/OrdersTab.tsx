@@ -1,8 +1,14 @@
 import { useState } from 'react';
 import { orderService } from '../../services/orderService';
 import { useStore } from '../../store/useStore';
+import { OrderType, OrderSide } from '../../types/enums';
 
-const TYPE_LABELS: Record<number, string> = { 1: 'Limit', 2: 'Market', 4: 'Stop', 5: 'Trail' };
+const TYPE_LABELS: Record<number, string> = {
+  [OrderType.Limit]: 'Limit',
+  [OrderType.Market]: 'Market',
+  [OrderType.Stop]: 'Stop',
+  [OrderType.TrailingStop]: 'Trail',
+};
 
 function shortSymbol(contractId: string): string {
   // "CON.F.US.MNQ.H26" → "MNQH6" (symbol + month + last digit of year)
@@ -54,8 +60,8 @@ export function OrdersTab() {
       </thead>
       <tbody>
         {openOrders.map((order) => {
-          const isBuy = order.side === 0;
-          const price = order.type === 4 || order.type === 5
+          const isBuy = order.side === OrderSide.Buy;
+          const price = order.type === OrderType.Stop || order.type === OrderType.TrailingStop
             ? order.stopPrice
             : order.limitPrice;
           return (

@@ -5,6 +5,7 @@ import { realtimeService } from '../../services/realtimeService';
 import { orderService } from '../../services/orderService';
 import { marketDataService } from '../../services/marketDataService';
 import { bracketEngine } from '../../services/bracketEngine';
+import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
 import { showToast, errorMessage } from '../../utils/toast';
 import type { GatewayQuote, RealtimeOrder, RealtimePosition } from '../../services/realtimeService';
 import { InstrumentSelector } from '../InstrumentSelector';
@@ -52,11 +53,11 @@ export function OrderPanel() {
       });
 
       // status 2=filled or cancelled-type statuses → remove from open orders
-      if (order.status === 2 || order.status === 3 || order.status === 4 || order.status === 5) {
+      if (order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled || order.status === OrderStatus.Rejected || order.status === OrderStatus.Expired) {
         removeOrder(order.id);
 
         // If a pending limit entry was cancelled, clean up preview & ad-hoc brackets
-        if (order.status !== 2) {
+        if (order.status !== OrderStatus.Filled) {
           const st = useStore.getState();
           if (st.previewHideEntry && st.orderContract
               && String(order.contractId) === String(st.orderContract.id)) {
@@ -114,12 +115,12 @@ export function OrderPanel() {
         // sync SL size to match if bracket engine isn't managing
         if (!bracketEngine.hasActiveSession() && activeAccountId) {
           const contractId = String(pos.contractId);
-          const posType = pos.type; // 1=long, 2=short
-          const slSide: 0 | 1 = posType === 1 ? 1 : 0; // SL side = opposite of position
+          const posType = pos.type;
+          const slSide = posType === PositionType.Long ? OrderSide.Sell : OrderSide.Buy;
           const st = useStore.getState();
           const slOrder = st.openOrders.find(
             (o) => String(o.contractId) === contractId
-              && (o.type === 4 || o.type === 5)
+              && (o.type === OrderType.Stop || o.type === OrderType.TrailingStop)
               && o.side === slSide
               && o.size !== pos.size,
           );
@@ -239,23 +240,23 @@ function PreviewToggle() {
       {previewEnabled && (
         <div className="flex rounded overflow-hidden" style={{ height: 20 }}>
           <button
-            onClick={() => setPreviewSide(0)}
+            onClick={() => setPreviewSide(OrderSide.Buy)}
             className="text-[10px] font-medium transition-colors"
             style={{
               padding: '0 6px',
-              background: previewSide === 0 ? '#26a69a' : '#111',
-              color: previewSide === 0 ? '#fff' : '#787b86',
+              background: previewSide === OrderSide.Buy ? '#26a69a' : '#111',
+              color: previewSide === OrderSide.Buy ? '#fff' : '#787b86',
             }}
           >
             Long
           </button>
           <button
-            onClick={() => setPreviewSide(1)}
+            onClick={() => setPreviewSide(OrderSide.Sell)}
             className="text-[10px] font-medium transition-colors"
             style={{
               padding: '0 6px',
-              background: previewSide === 1 ? '#ef5350' : '#111',
-              color: previewSide === 1 ? '#fff' : '#787b86',
+              background: previewSide === OrderSide.Sell ? '#ef5350' : '#111',
+              color: previewSide === OrderSide.Sell ? '#fff' : '#787b86',
             }}
           >
             Short

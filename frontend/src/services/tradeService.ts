@@ -1,4 +1,5 @@
 import api from './api';
+import { OrderSide } from '../types/enums';
 
 export interface Trade {
   id: number;
@@ -7,7 +8,7 @@ export interface Trade {
   price: number;
   profitAndLoss: number | null;
   fees: number;
-  side: number;
+  side: OrderSide;
   size: number;
   voided: boolean;
   orderId: number;

@@ -56,6 +56,8 @@ export interface BracketPreset {
 // ---------------------------------------------------------------------------
 // Constants & helpers
 // ---------------------------------------------------------------------------
+import { OrderType } from './enums';
+
 export const DEFAULT_BRACKET_CONFIG: BracketConfig = {
   stopLoss: { points: 0, type: 'Stop' },
   takeProfits: [],
@@ -64,8 +66,9 @@ export const DEFAULT_BRACKET_CONFIG: BracketConfig = {
 
 export const MAX_TP_LEVELS = 8;
 
+// TODO Phase 4: derive from instrument metadata instead of a global constant
 export const TICKS_PER_POINT = 4;
 
-export function slTypeToApiType(type: StopLossType): 4 | 5 {
-  return type === 'Stop' ? 4 : 5;
+export function slTypeToApiType(type: StopLossType): OrderType.Stop | OrderType.TrailingStop {
+  return type === 'Stop' ? OrderType.Stop : OrderType.TrailingStop;
 }

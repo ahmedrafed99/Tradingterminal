@@ -26,10 +26,10 @@ This project has a strict set of design tokens. **Do not invent new color values
 ### Rules
 
 1. **Transitions everywhere** — Every interactive state change (hover, focus, active, open/close) must be animated. Use `transition-colors` (Tailwind) or `transition: background 0.15s, color 0.15s` (inline). Dropdowns and popovers should fade/slide in, never pop instantly.
-2. **Borders are always `#2a2e39`** — No `#222`, no `#333`, no `rgba` border hacks. One border color.
+2. **Borders are always `#2a2e39`** — No `#222`, no `#333`, no `rgba` border hacks. One border color. Opacity modifiers (e.g. `border-[#2a2e39]/60`) are allowed for subtlety.
 3. **Disabled state is always `disabled:opacity-50`** — Not 30, not 40. One value.
 4. **Modal backdrop is `bg-black/60`** — Consistent dimming across all modals.
-5. **Modal panel background is `bg-[#1e222d]`** — Not `bg-black`. Panels float above the page.
+5. **Modal panel background** — Use `bg-black` or `bg-[#1e222d]` depending on context. `bg-black` for full-bleed modals (e.g. screenshot preview), `bg-[#1e222d]` for floating panels/dialogs.
 6. **Input/control background is `bg-[#111]`** — Not `#0a0a0a`, not `#000`.
 7. **Hover backgrounds** — Use `hover:bg-[#1e222d]` for list rows/dropdowns, `hover:bg-[#363a45]` for toolbar icon buttons. Never use JS `onMouseEnter`/`onMouseLeave` for hover styling — use Tailwind `hover:` classes.
 8. **Section labels** — `text-[10px] uppercase tracking-wider text-[#787b86]` for all panel section headers.

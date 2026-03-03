@@ -10,6 +10,7 @@ import type {
 } from 'lightweight-charts';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { Trade } from '../../services/tradeService';
+import { OrderSide } from '../../types/enums';
 import { floorToCandlePeriod } from './barUtils';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -59,11 +60,11 @@ export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
     for (const exit of closes) {
       const exitTime = new Date(exit.creationTimestamp).getTime();
       // Entry has opposite side: if exit is buy (side 0), entry is sell (side !== 0) and vice versa
-      const entryIsBuy = exit.side !== 0;
+      const entryIsBuy = exit.side !== OrderSide.Buy;
 
       const entry = opens.find(
         (t) =>
-          (entryIsBuy ? t.side === 0 : t.side !== 0) &&
+          (entryIsBuy ? t.side === OrderSide.Buy : t.side !== OrderSide.Buy) &&
           !claimed.has(t.id) &&
           new Date(t.creationTimestamp).getTime() <= exitTime,
       );
@@ -217,7 +218,7 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
 
     // Long (entry side=0 buy): entry below candle, exit above
     // Short (entry side!=0 sell): entry above candle, exit below
-    const isLong = zone.entryTrade.side === 0;
+    const isLong = zone.entryTrade.side === OrderSide.Buy;
 
     const entryAnchorPrice = isLong
       ? (entryBar?.low ?? zone.entryTrade.price)

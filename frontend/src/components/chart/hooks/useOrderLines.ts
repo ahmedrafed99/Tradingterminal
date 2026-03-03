@@ -5,6 +5,7 @@ import { orderService, type Order, type PlaceOrderParams } from '../../../servic
 import { bracketEngine } from '../../../services/bracketEngine';
 import { useStore } from '../../../store/useStore';
 import { TICKS_PER_POINT } from '../../../types/bracket';
+import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs } from './types';
@@ -67,7 +68,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       // SL line
       if (config.stopLoss.points > 0) {
         const slPts = config.stopLoss.points;
-        const slPrice = ep ? (snap.previewSide === 0 ? ep - toPrice(slPts) : ep + toPrice(slPts)) : 0;
+        const slPrice = ep ? (snap.previewSide === OrderSide.Buy ? ep - toPrice(slPts) : ep + toPrice(slPts)) : 0;
         refs.previewLines.current.push(series.createPriceLine({
           price: slPrice, color: '#ff444480', lineWidth: 1,
           lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
@@ -79,7 +80,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       // TP lines
       config.takeProfits.forEach((tp, i) => {
         const tpPts = tp.points;
-        const tpPrice = ep ? (snap.previewSide === 0 ? ep + toPrice(tpPts) : ep - toPrice(tpPts)) : 0;
+        const tpPrice = ep ? (snap.previewSide === OrderSide.Buy ? ep + toPrice(tpPts) : ep - toPrice(tpPts)) : 0;
         refs.previewLines.current.push(series.createPriceLine({
           price: tpPrice, color: '#00c805', lineWidth: 1,
           lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: '',
@@ -128,7 +129,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         // SL
         if (cfg.stopLoss.points > 0) {
           const slPts = cfg.stopLoss.points;
-          const slPrice = snap.previewSide === 0 ? entryPrice - toPrice(slPts) : entryPrice + toPrice(slPts);
+          const slPrice = snap.previewSide === OrderSide.Buy ? entryPrice - toPrice(slPts) : entryPrice + toPrice(slPts);
           refs.previewLines.current[idx]?.applyOptions({ price: slPrice });
           prices.push(slPrice);
           idx++;
@@ -137,7 +138,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         // TPs
         cfg.takeProfits.forEach((tp) => {
           const tpPts = tp.points;
-          const tpPrice = snap.previewSide === 0 ? entryPrice + toPrice(tpPts) : entryPrice - toPrice(tpPts);
+          const tpPrice = snap.previewSide === OrderSide.Buy ? entryPrice + toPrice(tpPts) : entryPrice - toPrice(tpPts);
           refs.previewLines.current[idx]?.applyOptions({ price: tpPrice });
           prices.push(tpPrice);
           idx++;
@@ -331,16 +332,16 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     }
 
     // Open order lines (draggable)
-    const isLong = pos ? pos.type === 1 : undefined;
+    const isLong = pos ? pos.type === PositionType.Long : undefined;
     for (const order of openOrders) {
       if (order.contractId !== contract.id) continue;
 
       let price: number | undefined;
       let color: string;
 
-      if (order.type === 4 || order.type === 5) {
+      if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
         price = order.stopPrice;
-      } else if (order.type === 1) {
+      } else if (order.type === OrderType.Limit) {
         price = order.limitPrice;
       } else {
         continue;
@@ -350,10 +351,10 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       if (pos && price != null) {
         const inProfit = isLong ? price >= pos.averagePrice : price <= pos.averagePrice;
         color = inProfit ? '#00c805' : '#ff0000';
-      } else if (order.type === 4 || order.type === 5) {
+      } else if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
         color = '#ff0000';
       } else {
-        color = order.side === 1 ? '#ff0000' : '#00c805';
+        color = order.side === OrderSide.Sell ? '#ff0000' : '#00c805';
       }
 
       if (price == null) continue;
@@ -413,7 +414,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       );
       let lineColor: string | undefined;
       if (pos) {
-        const isL = pos.type === 1;
+        const isL = pos.type === PositionType.Long;
         lineColor = (isL ? snapped >= pos.averagePrice : snapped <= pos.averagePrice) ? '#00c805' : '#ff0000';
       }
       refs.orderLines.current[drag.idx]?.applyOptions({ price: snapped, ...(lineColor ? { color: lineColor } : {}) });
@@ -443,14 +444,36 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       const accountId = useStore.getState().activeAccountId;
       if (!accountId) return;
 
+      // Front-end validation: SL must stay on the correct side of current price
+      // Derive direction from order side (stop-sell → protecting long, stop-buy → protecting short)
+      if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
+        const currentPrice = useStore.getState().lastPrice ?? refs.lastBar.current?.close ?? null;
+        if (currentPrice != null) {
+          const protectsLong = order.side === OrderSide.Sell;
+          const invalid = protectsLong ? newPrice >= currentPrice : newPrice <= currentPrice;
+          if (invalid) {
+            showToast('warning', 'Invalid stop loss price',
+              protectsLong ? 'Stop must be below current price for long positions'
+                           : 'Stop must be above current price for short positions');
+            const line = refs.orderLines.current[dragIdx];
+            if (line) {
+              line.applyOptions({ price: originalPrice, color: '#ff0000' });
+              refs.orderLinePrices.current[dragIdx] = originalPrice;
+              refs.updateOverlay.current();
+            }
+            return;
+          }
+        }
+      }
+
       const params: { accountId: number; orderId: number; stopPrice?: number; limitPrice?: number } = {
         accountId,
         orderId: order.id,
       };
 
-      if (order.type === 4 || order.type === 5) {
+      if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
         params.stopPrice = newPrice;
-      } else if (order.type === 1) {
+      } else if (order.type === OrderType.Limit) {
         params.limitPrice = newPrice;
       }
 
@@ -465,7 +488,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
           );
           let revertColor = '#ff0000';
           if (pos) {
-            const isL = pos.type === 1;
+            const isL = pos.type === PositionType.Long;
             revertColor = (isL ? originalPrice >= pos.averagePrice : originalPrice <= pos.averagePrice)
               ? '#00c805' : '#ff0000';
           }
@@ -625,13 +648,13 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       const st = useStore.getState();
       if (!st.activeAccountId || !contract) return;
 
-      const oppositeSide: 0 | 1 = drag.isLong ? 1 : 0;
+      const oppositeSide = drag.isLong ? OrderSide.Sell : OrderSide.Buy;
 
       if (drag.direction === 'sl') {
         // Validate: no existing stop order for this contract + side
         const existingSL = st.openOrders.some(
           (o) => String(o.contractId) === String(contract!.id)
-            && (o.type === 4 || o.type === 5)
+            && (o.type === OrderType.Stop || o.type === OrderType.TrailingStop)
             && o.side === oppositeSide,
         );
         if (existingSL) {
@@ -641,7 +664,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         orderService.placeOrder({
           accountId: st.activeAccountId,
           contractId: contract!.id,
-          type: 4,
+          type: OrderType.Stop,
           side: oppositeSide,
           size: drag.posSize,
           stopPrice: drag.snappedPrice,
@@ -653,7 +676,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         const existingTpSize = st.openOrders
           .filter(
             (o) => String(o.contractId) === String(contract!.id)
-              && o.type === 1
+              && o.type === OrderType.Limit
               && o.side === oppositeSide,
           )
           .reduce((sum, o) => sum + o.size, 0);
@@ -665,7 +688,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         orderService.placeOrder({
           accountId: st.activeAccountId,
           contractId: contract!.id,
-          type: 1,
+          type: OrderType.Limit,
           side: oppositeSide,
           size: Math.min(1, remaining),
           limitPrice: drag.snappedPrice,

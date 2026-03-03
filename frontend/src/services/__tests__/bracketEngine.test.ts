@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { RealtimeOrder } from '../realtimeService';
 import type { BracketConfig } from '../../types/bracket';
+import { OrderType, OrderSide, OrderStatus } from '../../types/enums';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -50,9 +51,9 @@ function mockOrder(overrides: Partial<RealtimeOrder> = {}): RealtimeOrder {
     id: 1,
     accountId: 100,
     contractId: 'CON-NQ',
-    status: 0,
-    type: 1,
-    side: 0,
+    status: 0 as OrderStatus,
+    type: OrderType.Limit,
+    side: OrderSide.Buy,
     size: 1,
     filledPrice: 0,
     limitPrice: 0,
@@ -72,7 +73,7 @@ const baseBracketConfig: BracketConfig = {
 function armAndConfirm(
   config: BracketConfig = baseBracketConfig,
   entrySize = 1,
-  entrySide: 0 | 1 = 0,
+  entrySide: OrderSide = OrderSide.Buy,
 ) {
   bracketEngine.armForEntry({
     accountId: 100,
@@ -119,29 +120,29 @@ describe('entry fill detection', () => {
     armAndConfirm();
     bracketEngine.confirmEntryOrderId(42);
 
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     // SL + TP = 2 placeOrder calls
     expect(placeOrder).toHaveBeenCalledTimes(2);
 
     // SL call
-    const slCall = placeOrder.mock.calls.find((c: unknown[]) => (c[0] as { type: number }).type === 4);
+    const slCall = placeOrder.mock.calls.find((c: unknown[]) => (c[0] as { type: number }).type === OrderType.Stop);
     expect(slCall).toBeDefined();
     expect((slCall![0] as { stopPrice: number }).stopPrice).toBe(20000 - 10 * 0.25 * 4); // 19990
-    expect((slCall![0] as { side: number }).side).toBe(1); // opposite of long
+    expect((slCall![0] as { side: number }).side).toBe(OrderSide.Sell); // opposite of long
     expect((slCall![0] as { size: number }).size).toBe(1);
 
     // TP call
-    const tpCall = placeOrder.mock.calls.find((c: unknown[]) => (c[0] as { type: number }).type === 1);
+    const tpCall = placeOrder.mock.calls.find((c: unknown[]) => (c[0] as { type: number }).type === OrderType.Limit);
     expect(tpCall).toBeDefined();
     expect((tpCall![0] as { limitPrice: number }).limitPrice).toBe(20000 + 20 * 0.25 * 4); // 20020
-    expect((tpCall![0] as { side: number }).side).toBe(1);
+    expect((tpCall![0] as { side: number }).side).toBe(OrderSide.Sell);
   });
 
   it('should process buffered fill on confirm', async () => {
     armAndConfirm();
     // Fill arrives BEFORE confirm
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
     expect(placeOrder).not.toHaveBeenCalled(); // Buffered, not processed yet
 
     bracketEngine.confirmEntryOrderId(42);
@@ -153,14 +154,14 @@ describe('entry fill detection', () => {
   });
 
   it('should place SL above entry for short entries', async () => {
-    armAndConfirm(baseBracketConfig, 1, 1); // entrySide = 1 (sell/short)
+    armAndConfirm(baseBracketConfig, 1, OrderSide.Sell); // entrySide = Sell (short)
     bracketEngine.confirmEntryOrderId(42);
 
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
-    const slCall = placeOrder.mock.calls.find((c: unknown[]) => (c[0] as { type: number }).type === 4);
+    const slCall = placeOrder.mock.calls.find((c: unknown[]) => (c[0] as { type: number }).type === OrderType.Stop);
     expect((slCall![0] as { stopPrice: number }).stopPrice).toBe(20000 + 10 * 0.25 * 4); // 20010
-    expect((slCall![0] as { side: number }).side).toBe(0); // Buy side (opposite of short)
+    expect((slCall![0] as { side: number }).side).toBe(OrderSide.Buy); // Buy side (opposite of short)
   });
 });
 
@@ -171,7 +172,7 @@ describe('SL placement failure', () => {
     armAndConfirm();
     bracketEngine.confirmEntryOrderId(42);
 
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     // onExhausted should have been called via retryAsync mock
     expect(toast).toHaveBeenCalledWith(
@@ -200,11 +201,11 @@ describe('TP size normalization', () => {
     armAndConfirm(config, 3); // entry size 3, but TP sizes sum to 6
     bracketEngine.confirmEntryOrderId(42);
 
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     // 1 SL + 3 TPs = 4 calls
     const tpCalls = placeOrder.mock.calls.filter(
-      (c: unknown[]) => (c[0] as { type: number }).type === 1,
+      (c: unknown[]) => (c[0] as { type: number }).type === OrderType.Limit,
     );
     const totalTpSize = tpCalls.reduce(
       (sum: number, c: unknown[]) => sum + (c[0] as { size: number }).size,
@@ -233,7 +234,7 @@ describe('TP size normalization', () => {
     armAndConfirm(config, 3);
     bracketEngine.confirmEntryOrderId(42);
 
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     // Should NOT show normalization warning
     const normCalls = toast.mock.calls.filter(
@@ -249,7 +250,7 @@ describe('SL fill cancels TPs', () => {
     bracketEngine.confirmEntryOrderId(42);
 
     // Entry fills
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     const slOrderId = placeOrder.mock.results[0].value.then
       ? (await placeOrder.mock.results[0].value).orderId
@@ -262,7 +263,7 @@ describe('SL fill cancels TPs', () => {
     await bracketEngine.onOrderEvent(mockOrder({
       id: slOrderId,
       contractId: 'CON-NQ',
-      status: 2,
+      status: OrderStatus.Filled,
       filledPrice: 19990,
     }));
 
@@ -286,7 +287,7 @@ describe('TP fill reduces SL size', () => {
     bracketEngine.confirmEntryOrderId(42);
 
     // Entry fills
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     // Get the TP1 orderId (3rd placeOrder call: SL=1st, TP1=2nd, TP2=3rd)
     const tp1OrderId = (await placeOrder.mock.results[1].value).orderId;
@@ -295,7 +296,7 @@ describe('TP fill reduces SL size', () => {
     await bracketEngine.onOrderEvent(mockOrder({
       id: tp1OrderId,
       contractId: 'CON-NQ',
-      status: 2,
+      status: OrderStatus.Filled,
     }));
 
     // SL should be modified to remaining size: 3 - 1 = 2
@@ -309,7 +310,7 @@ describe('clearSession cancels orders', () => {
   it('should cancel SL and unfilled TPs on clearSession', async () => {
     armAndConfirm();
     bracketEngine.confirmEntryOrderId(42);
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     bracketEngine.clearSession();
 
@@ -325,7 +326,7 @@ describe('clearSession cancels orders', () => {
 
     armAndConfirm();
     bracketEngine.confirmEntryOrderId(42);
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     bracketEngine.clearSession();
     await new Promise((r) => setTimeout(r, 50));
@@ -356,7 +357,7 @@ describe('conditions', () => {
 
     armAndConfirm(config, 1);
     bracketEngine.confirmEntryOrderId(42);
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     const slOrderId = (await placeOrder.mock.results[0].value).orderId;
     const tpOrderId = (await placeOrder.mock.results[1].value).orderId;
@@ -365,7 +366,7 @@ describe('conditions', () => {
     await bracketEngine.onOrderEvent(mockOrder({
       id: tpOrderId,
       contractId: 'CON-NQ',
-      status: 2,
+      status: OrderStatus.Filled,
     }));
 
     // SL should be modified to entry price (breakeven = 20000)
@@ -399,7 +400,7 @@ describe('conditions', () => {
 
     // Need SL placement to succeed (but we mocked modifyOrder to fail)
     // So let placeOrder succeed, then modifyOrder will fail on condition
-    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: 2, filledPrice: 20000 }));
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
 
     const tpOrderId = (await placeOrder.mock.results[1].value).orderId;
 
@@ -407,7 +408,7 @@ describe('conditions', () => {
     await bracketEngine.onOrderEvent(mockOrder({
       id: tpOrderId,
       contractId: 'CON-NQ',
-      status: 2,
+      status: OrderStatus.Filled,
     }));
 
     expect(toast).toHaveBeenCalledWith(
