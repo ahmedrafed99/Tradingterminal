@@ -15,7 +15,7 @@ function formatAction(action: ConditionAction, tps: TakeProfitLevel[]): string {
 export function BracketSummary() {
   const {
     bracketPresets, activePresetId, setActivePresetId, setEditingPresetId,
-    draftSlPoints, draftTpPoints,
+    deletePreset, draftSlPoints, draftTpPoints,
   } = useStore();
 
   const activePreset = bracketPresets.find((p) => p.id === activePresetId) ?? null;
@@ -82,29 +82,46 @@ export function BracketSummary() {
             {bracketPresets.map((p) => (
               <div
                 key={p.id}
-                className={`group flex items-center rounded-md transition-colors ${
+                className={`group relative flex items-center rounded-md transition-colors ${
                   p.id === activePresetId ? 'bg-[#1e222d]' : 'hover:bg-[#1e222d]'
                 }`}
               >
                 <button
                   onClick={() => { setActivePresetId(p.id); setOpen(false); }}
-                  className={`flex-1 text-center text-xs font-medium truncate ${
+                  className={`w-full text-center text-xs font-medium truncate ${
                     p.id === activePresetId ? 'text-[#f0a830]' : 'text-[#d1d4dc]'
                   }`}
                   style={{ padding: '8px 10px' }}
                 >
                   {p.name}
                 </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setEditingPresetId(p.id); setOpen(false); }}
-                  title="Edit preset"
-                  className="opacity-0 group-hover:opacity-100 shrink-0 px-1.5 py-1 text-[#787b86] hover:text-white transition-all"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                    <path d="m15 5 4 4" />
-                  </svg>
-                </button>
+                <div className="absolute right-0 flex items-center opacity-0 group-hover:opacity-100 transition-all" style={{ gap: 6, marginRight: 8 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingPresetId(p.id); setOpen(false); }}
+                    title="Edit preset"
+                    className="p-1.5 rounded text-[#787b86] hover:text-white hover:bg-[#363a45] transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                      <path d="m15 5 4 4" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (p.id === activePresetId) setActivePresetId(null);
+                      deletePreset(p.id);
+                    }}
+                    title="Delete preset"
+                    className="p-1.5 rounded text-[#787b86] hover:text-[#f23645] hover:bg-[#363a45] transition-colors"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M5 6l1 14h12l1-14" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             ))}
           </div>

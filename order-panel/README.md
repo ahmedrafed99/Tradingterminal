@@ -68,7 +68,8 @@ and the preview toggle that overlays ghost lines on the chart.
 - Preset dropdown (no chevron arrow) + read-only config summary (SL, TPs, conditions)
 - Dropdown styled like timeframe selector: `bg-black border-[#2a2e39] rounded-lg`, items `rounded-md`, selected item `text-[#f0a830] bg-[#1e222d]`, hover `bg-[#1e222d]`
 - SL values: `text-[#a62a3d]` (draft: `text-[#c4475a]`), TP values: `text-[#22835b]` (draft: `text-[#3aa876]`), conditions: `text-[#4a80b0]`
-- Plus icon opens new preset, edit icon (visible on hover) opens `BracketSettingsModal`
+- Plus icon opens new preset; hover reveals edit (pencil) and delete (trash) icons per preset
+- Delete button: `hover:text-[#f23645]`, auto-deselects if deleting the active preset
 
 ### `PreviewCheckbox`
 - Toggles `previewEnabled` in Zustand
