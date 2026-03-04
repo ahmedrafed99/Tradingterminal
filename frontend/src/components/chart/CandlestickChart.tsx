@@ -328,11 +328,24 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
         onClick={() => {
           const chart = chartRef.current;
           if (!chart) return;
-          const range = chart.timeScale().getVisibleLogicalRange();
-          if (range) {
-            const barsVisible = range.to - range.from;
-            chart.timeScale().scrollToPosition(Math.round(barsVisible * 0.25), true);
-          }
+          const ts = chart.timeScale();
+          const range = ts.getVisibleLogicalRange();
+          if (!range) return;
+          const barsVisible = range.to - range.from;
+          const startOffset = ts.scrollPosition();
+          const targetOffset = Math.round(barsVisible * 0.25);
+          const duration = 600; // ms
+          const startTime = performance.now();
+          const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+          const animate = (now: number) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = easeOutCubic(progress);
+            const current = startOffset + (targetOffset - startOffset) * eased;
+            ts.scrollToPosition(current, false);
+            if (progress < 1) requestAnimationFrame(animate);
+          };
+          requestAnimationFrame(animate);
         }}
         style={{
           position: 'absolute',

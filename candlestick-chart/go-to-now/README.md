@@ -57,9 +57,10 @@ Subscribes to `chart.timeScale().subscribeVisibleLogicalRangeChange()`. On each 
 
 On click:
 1. Reads the current visible logical range to determine how many bars are on screen
-2. Calculates `rightOffset = visibleBars * 0.25` (25% empty space on the right)
-3. Calls `chart.timeScale().scrollToPosition(rightOffset, true)` — the `true` flag enables Lightweight Charts' built-in smooth scroll animation
-4. Result: the latest candle lands at approximately 75% of the chart width
+2. Calculates `targetOffset = visibleBars * 0.25` (25% empty space on the right)
+3. Runs a custom `requestAnimationFrame` loop (600ms duration) that interpolates from the current scroll position to the target using an **easeOutCubic** easing curve — starts fast, decelerates smoothly to a stop (similar to TradingView's scroll feel)
+4. Each frame calls `chart.timeScale().scrollToPosition(current, false)` with animation disabled, since the easing is handled manually
+5. Result: the latest candle lands at approximately 75% of the chart width
 
 ### Show/Hide Animation
 
