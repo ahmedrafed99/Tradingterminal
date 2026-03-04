@@ -53,7 +53,10 @@ frontend/
 │   │   ├── orderService.ts     ← place / cancel / modify / searchOpen
 │   │   ├── tradeService.ts     ← searchTrades (session fills)
 │   │   ├── realtimeService.ts  ← thin facade delegating to active RealtimeAdapter (re-exports types)
+│   │   ├── persistenceService.ts ← file-based settings load/save (GET/PUT /settings)
 │   │   └── bracketEngine.ts    ← client-side bracket order management (SL + multi-TP + conditions + retry + toasts)
+│   ├── hooks/
+│   │   └── useSettingsSync.ts  ← file-based persistence: hydrate on mount + debounced save on change
 │   ├── store/
 │   │   └── useStore.ts         ← Zustand combined store (11 slices, includes toast)
 │   └── components/
@@ -258,6 +261,17 @@ The `RealtimeAdapter` interface (`adapters/types.ts`) defines the contract for r
 | Market | `/hubs/market` | `wss://rtc.topstepx.com/hubs/market` | `GatewayQuote(contractId, data)`, `GatewayDepth(contractId, entries[])` |
 | User | `/hubs/user` | `wss://rtc.topstepx.com/hubs/user` | `GatewayUserOrder`, `GatewayUserPosition`, `GatewayUserAccount`, `GatewayUserTrade` |
 
+### `persistenceService.ts`
+
+File-based settings persistence — backs up store state to the Express backend's local filesystem.
+
+```ts
+persistenceService.loadSettings()   // GET  /settings → { bracketPresets, drawings, contract, ... }
+persistenceService.saveSettings(data) // PUT  /settings — writes full persisted state to disk
+```
+
+Used by the `useSettingsSync` hook (see below). Survives browser cache clears, origin changes, and port differences. See `settings-persistence/README.md` for the full sync lifecycle.
+
 ### `bracketEngine.ts`
 
 Client-side singleton that manages SL + multi-TP bracket orders after entry fill. Uses `retryAsync` for SL/TP placement and `showToast` for error notifications. `clearSession()` returns `Set<number>` of order IDs being cancelled. See [bracket-engine/](../bracket-engine/) for full documentation.
@@ -266,10 +280,10 @@ Client-side singleton that manages SL + multi-TP bracket orders after entry fill
 
 ## Zustand Store (`src/store/useStore.ts`)
 
-Combined store with `persist` middleware (key: `chart-store`).
+Combined store with `persist` middleware (key: `chart-store`). Dual-layer persistence: Zustand writes to `localStorage` (fast), `useSettingsSync` hook writes to `backend/data/user-settings.json` (resilient). On startup, file-based settings take priority. See `settings-persistence/README.md`.
 
-**Persisted fields**: `baseUrl`, `activeAccountId`, `timeframe`, `pinnedTimeframes`, `pinnedInstruments`, `orderSize`, `bracketPresets`, `activePresetId`, `drawings`, `drawingToolbarOpen`, `hlineTemplates`, `dualChart`, `secondTimeframe`, `splitRatio`, `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab`, `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor`
-**Not persisted** (live state): `connected`, `accounts`, `contract`, `openOrders`, `positions`, `lastPrice`, `suspendedPresetId`, `settingsOpen`, `editingPresetId`, `draftSlPoints`, `draftTpPoints`, `adHocSlPoints`, `adHocTpLevels`, `activeTool`, `selectedDrawingId`, `secondContract`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`, `toasts`
+**Persisted fields** (to localStorage + backend JSON file): `baseUrl`, `activeAccountId`, `timeframe`, `pinnedTimeframes`, `pinnedInstruments`, `orderSize`, `bracketPresets`, `activePresetId`, `drawings`, `drawingToolbarOpen`, `hlineTemplates`, `dualChart`, `secondTimeframe`, `splitRatio`, `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab`, `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor`, `contract`, `secondContract`
+**Not persisted** (live state): `connected`, `accounts`, `openOrders`, `positions`, `lastPrice`, `suspendedPresetId`, `settingsOpen`, `editingPresetId`, `draftSlPoints`, `draftTpPoints`, `adHocSlPoints`, `adHocTpLevels`, `activeTool`, `selectedDrawingId`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`, `toasts`
 
 ### Slices
 
@@ -336,8 +350,9 @@ User-facing unit is **points** (1 point = `ticksPerPoint` ticks, e.g. 4 for MNQ)
 ### `App.tsx`
 
 Root shell. On mount:
-1. Calls `authService.getStatus()` to restore connection state after page refresh
-2. Auto-loads the NQ contract (searches for "NQ", selects first active contract)
+1. `useSettingsSync()` — loads settings from backend file, sets up debounced save on store changes
+2. Calls `authService.getStatus()` to restore connection state after page refresh
+3. Auto-loads the NQ contract (searches for "NQ", selects first active contract) — skipped if `contract` was restored from persistence
 
 Layout: `OrderPanel` (left sidebar, 240px) + main content area (chart + bottom panel).
 

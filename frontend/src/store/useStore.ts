@@ -643,6 +643,8 @@ export const useStore = create<Store>()(
         bottomPanelOpen: s.bottomPanelOpen,
         bottomPanelRatio: s.bottomPanelRatio,
         bottomPanelTab: s.bottomPanelTab,
+        contract: s.contract,
+        secondContract: s.secondContract,
       }),
     },
   ),

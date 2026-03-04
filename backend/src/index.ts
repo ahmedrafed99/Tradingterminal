@@ -8,6 +8,7 @@ import accountRoutes from './routes/accountRoutes';
 import marketDataRoutes from './routes/marketDataRoutes';
 import orderRoutes from './routes/orderRoutes';
 import tradeRoutes from './routes/tradeRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 
 const PORT = 3001;
 const app = express();
@@ -26,6 +27,7 @@ app.use('/accounts', accountRoutes);
 app.use('/market', marketDataRoutes);
 app.use('/orders', orderRoutes);
 app.use('/trades', tradeRoutes);
+app.use('/settings', settingsRoutes);
 
 // Health check — useful for smoke testing
 app.get('/health', (_req, res) => {

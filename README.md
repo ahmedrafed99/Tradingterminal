@@ -28,6 +28,7 @@ chart/
 │   └── bracket-settings/ — Preset UI: SL, multi-TP, conditions
 ├── bracket-engine/       — Runtime SL/TP placement after fill, condition evaluation
 ├── bottom-panel/         — Orders + Trades tabs, trade zone visualization
+├── settings-persistence/ — File-based settings backup (survives cache clears)
 └── frontend/             — Full index: all components, services, store slices, types
 ```
 
@@ -51,6 +52,7 @@ chart/
 | Crosshair price label + primitive z-order   | `candlestick-chart/` → Price Scale Primitives |
 | Orders and Trades tabs                      | `bottom-panel/` |
 | Trade zone visualization (FIFO matching)    | `bottom-panel/` (chart primitive in `frontend/`) |
+| Settings persistence / file backup          | `settings-persistence/` |
 | All Zustand store slices                    | `frontend/` → Zustand Store |
 | All service API signatures                  | `frontend/` → Service Layer |
 | Realtime adapter interface + hub events      | `frontend/` → realtimeService.ts / adapters/ |
@@ -143,7 +145,7 @@ chart/
 |-------|---------|
 | Frontend | React 18 + TypeScript + Vite |
 | Chart | Lightweight Charts v5 (TradingView OSS) |
-| State | Zustand (persisted to localStorage) |
+| State | Zustand (persisted to localStorage + backend JSON file) |
 | Styling | Tailwind CSS |
 | Typography | System font stack: `-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif` |
 | Backend proxy | Node.js + Express |

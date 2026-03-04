@@ -20,6 +20,7 @@ export default defineConfig({
       '/market':  { target: BACKEND, changeOrigin: true },
       '/orders':  { target: BACKEND, changeOrigin: true },
       '/trades':  { target: BACKEND, changeOrigin: true },
+      '/settings':{ target: BACKEND, changeOrigin: true },
       '/health':  { target: BACKEND, changeOrigin: true },
       '/hubs':    { target: BACKEND, changeOrigin: true, ws: true },
     },

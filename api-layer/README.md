@@ -14,7 +14,8 @@ frontend/src/services/
 ├── accountService.ts       ← list accounts
 ├── marketDataService.ts    ← bars history + contract search
 ├── orderService.ts         ← place / cancel / modify / list
-└── realtimeService.ts      ← SignalR hub manager
+├── realtimeService.ts      ← SignalR hub manager
+└── persistenceService.ts   ← load / save settings to backend file
 
 backend/src/
 ├── index.ts                ← Express app, mounts routes + adapter realtime handlers
@@ -31,12 +32,15 @@ backend/src/
 │       ├── orders.ts       ← place / cancel / modify / searchOpen
 │       ├── trades.ts       ← /api/Trade/search
 │       └── realtime.ts     ← SignalR negotiate proxy + WS upgrade handler
-└── routes/
-    ├── authRoutes.ts       ← creates adapter on connect, clears on disconnect
-    ├── accountRoutes.ts
-    ├── marketDataRoutes.ts
-    ├── orderRoutes.ts
-    └── tradeRoutes.ts
+├── routes/
+│   ├── authRoutes.ts       ← creates adapter on connect, clears on disconnect
+│   ├── accountRoutes.ts
+│   ├── marketDataRoutes.ts
+│   ├── orderRoutes.ts
+│   ├── tradeRoutes.ts
+│   └── settingsRoutes.ts   ← file-based settings persistence (GET/PUT)
+└── data/
+    └── user-settings.json  ← persisted settings (gitignored, auto-created)
 ```
 
 Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` (currently hardcoded to ProjectX).
@@ -202,6 +206,15 @@ All routes call the active `ExchangeAdapter` via `getAdapter()` from the adapter
 | Method | Path | Adapter call |
 |--------|------|-------------|
 | GET | /trades/search?accountId=&startTimestamp= | `adapter.trades.search(params)` |
+
+### Settings (File-Based Persistence)
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| GET | /settings | — | Read persisted settings from `backend/data/user-settings.json` (returns `{}` if file doesn't exist) |
+| PUT | /settings | full settings object | Write settings to disk (no auth guard — local-only) |
+
+No adapter call — these endpoints read/write directly to the local filesystem. See `settings-persistence/README.md` for full details.
 
 ### WebSocket / SignalR
 

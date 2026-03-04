@@ -9,6 +9,7 @@ import { OrderPanel } from './components/order-panel';
 import { authService } from './services/authService';
 import { marketDataService } from './services/marketDataService';
 import { useStore } from './store/useStore';
+import { useSettingsSync } from './hooks/useSettingsSync';
 
 function VerticalSeparator({
   containerRef,
@@ -59,6 +60,9 @@ export default function App() {
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
   const splitContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync settings to/from backend file storage
+  useSettingsSync();
 
   // On mount, check if the backend is already connected (e.g. after page refresh)
   useEffect(() => {

@@ -18,6 +18,9 @@ npm-debug.log*
 .vscode/
 .idea/
 
+# User settings (file-based persistence)
+backend/data/
+
 # OS
 .DS_Store
 Thumbs.db
