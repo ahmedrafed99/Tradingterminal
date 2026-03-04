@@ -136,6 +136,11 @@ interface ChartState {
 
 ## Implementation Notes
 
+- **Initial view**: On load, the chart shows the last ~100 bars (zoomed in
+  near current price) with 10 bars of right padding, instead of fitting all
+  historical data. After the visible range is set, `autoScale` is disabled on
+  the right price scale so users can drag vertically immediately without first
+  stretching the price axis.
 - Maximum bars per request: 20,000 (API limit); paginate if needed for longer
   history
 - **Whitespace padding**: After loading historical bars, 100 future

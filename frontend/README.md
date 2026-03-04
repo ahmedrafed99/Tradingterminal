@@ -405,6 +405,7 @@ Trade zone primitive sync, OHLC tooltip on crosshair hover, crosshair price labe
 ### `chart/hooks/useChartBars.ts` (270 lines)
 
 - **Historical bars**: loads on mount and when `contract` or `timeframe` changes
+- **Initial visible range**: shows last ~100 bars zoomed in (not `fitContent`), then disables `autoScale` so vertical dragging works immediately
 - **Real-time updates**: subscribes to `GatewayQuote` via SignalR, updates/creates candles
 - Guards against race conditions with stale quotes
 - **Volume profile**: depth subscription, color sync, hover tracking

@@ -78,7 +78,19 @@ export function useChartBars(
           refs.dataMap.current.set(c.time as number, c.close);
         }
 
-        refs.chart.current?.timeScale().fitContent();
+        // Show the last ~100 bars zoomed in, with some right padding
+        const totalBars = candles.length;
+        const visibleBars = Math.min(100, totalBars);
+        refs.chart.current?.timeScale().setVisibleLogicalRange({
+          from: totalBars - visibleBars,
+          to: totalBars + 10,
+        });
+
+        // Disable auto-scale so user can drag vertically immediately
+        // (must happen after data load so the chart knows the initial price range)
+        setTimeout(() => {
+          refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
+        }, 0);
 
         // Configure series price format to snap crosshair label to tick size
         if (contract) {
