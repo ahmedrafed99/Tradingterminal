@@ -67,7 +67,8 @@ HTML elements always render above canvas content. Within the HTML layer, z-index
   to a custom-rendered `priceAxisPaneViews()` label that paints on top of other
   canvas content. Achieved by attaching DrawingsPrimitive after
   CountdownPrimitive (painter's algorithm).
-- **Note**: Drawing labels are canvas-rendered and will appear behind all HTML axis labels (PriceLevelLine, CountdownPrimitive, CrosshairLabelPrimitive) when they overlap. In practice this is rare (only when a drawing price coincides with an order/position price).
+- **Countdown avoidance**: `setCountdownPrice(price)` is fed from `useChartBars` on every quote tick. In `priceAxisViews()`, drawing labels within 25px of the countdown's Y coordinate are pushed away — above if the drawing was above, below if at or below. This creates a natural stacking effect: as the current price approaches an hline, its label rides above the countdown label, then flips below once the current price crosses above.
+- **Note**: Drawing labels are canvas-rendered and will appear behind all HTML axis labels (PriceLevelLine, CountdownPrimitive, CrosshairLabelPrimitive) when they overlap. The countdown avoidance logic above prevents this for hline labels.
 
 ### Crosshair Price Label
 - `CrosshairLabelPrimitive` is an HTML `<div>` in the chart overlay (not an LWC canvas primitive).
@@ -76,7 +77,7 @@ HTML elements always render above canvas content. Within the HTML layer, z-index
 - Subscribes to `chart.subscribeCrosshairMove()` — converts Y coordinate to
   price via `series.coordinateToPrice()` and calls `updateCrosshairPrice()`.
 - Matches the native crosshair label style: `#2a2e39` background, `#d1d4dc` text, bold 12px.
-- **Suppressed during hline drag**: `suppress(true)` hides the label and blocks `updateCrosshairPrice()` calls. This prevents a 1-frame lag flicker where the instant HTML label visibly leads the canvas-rendered drawing label. Restored on mouseup via `suppress(false)`.
+- **Suppressed during hline drag**: `suppress(true)` hides the label and blocks `updateCrosshairPrice()` calls. The native LWC crosshair label (`horzLine.labelVisible`) is also disabled during drag. The HTML overlay updates instantly while the canvas drawing label lags one frame — suppressing both crosshair labels eliminates the flicker and prevents the native label from peeking through when de-overlap pushes the drawing label away from another drawing. Both restored on mouseup.
 - **Dual-chart sync**: `subscribeCrosshairMove` does not reliably fire for programmatic `setCrosshairPosition()` calls. The `CandlestickChartHandle` exposes `setCrosshairPrice(price)` which directly calls `updateCrosshairPrice()`. `ChartArea` calls this alongside `setCrosshairPosition` during crosshair sync. The handle also exposes `setPeerSync(fn)` so `ChartArea` can inject a direct peer-sync callback; `useQuickOrder` calls `refs.peerSync.current?.()` during drag to bypass the async callback chain.
 - **Overlay label transparency**: All overlay labels (order, position, preview)
   use `pointer-events: none` so mouse events pass through to the LWC canvas.

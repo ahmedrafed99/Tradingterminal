@@ -226,8 +226,11 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           startPrice: 0,
           origStartTime: drawing.startTime ?? 0,
         };
-        // Hide crosshair price label during hline drag to avoid 1-frame lag flicker
+        // Hide both the HTML overlay and native LWC crosshair price labels during
+        // hline drag — the HTML one causes 1-frame lag flicker, and the native one
+        // peeks through when de-overlap pushes the drawing label away.
         refs.crosshairLabel.current?.suppress(true);
+        chart.applyOptions({ crosshair: { horzLine: { labelVisible: false } } });
       } else if (drawing.type === 'oval') {
         const startTime = chart.timeScale().coordinateToTime(x);
         const startPrice = series.coordinateToPrice(y);
@@ -468,11 +471,11 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
             useStore.getState().updateDrawing(d.id, { metrics });
           }
         }
-        // Restore crosshair price label after hline drag
+        // Restore crosshair price labels after hline drag
         refs.crosshairLabel.current?.suppress(false);
         drawingDrag = null;
         container.style.cursor = CROSSHAIR_CURSOR;
-        chart.applyOptions({ handleScroll: true, handleScale: true });
+        chart.applyOptions({ handleScroll: true, handleScale: true, crosshair: { horzLine: { labelVisible: true } } });
         return;
       }
 

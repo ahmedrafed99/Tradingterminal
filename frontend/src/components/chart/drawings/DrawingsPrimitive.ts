@@ -406,6 +406,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
   /** Cached de-overlapped Y for the selected hline (set in priceAxisViews) */
   private _selectedHLineAxisY: number | null = null;
+  /** Current price from the countdown label — drawing labels avoid this zone */
+  private _countdownPrice: number | null = null;
 
   /** When false, paneViews() returns empty — used to exclude drawings from screenshots */
   visible = true;
@@ -428,6 +430,11 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._selectedId = selectedId;
     this._rebuildViews();
     this._requestUpdate?.();
+  }
+
+  /** Feed current price so drawing labels can avoid the countdown label zone */
+  setCountdownPrice(price: number | null): void {
+    this._countdownPrice = price;
   }
 
   /** Update decimal places for price formatting (call when contract changes) */
@@ -529,6 +536,22 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       });
       const selected = d.id === this._selectedId;
       items.push({ poolIdx: i, y, text, color: d.color, selected });
+    }
+
+    // Push drawing labels away from the countdown (current price) label zone
+    if (this._countdownPrice !== null) {
+      const cy = this._series.priceToCoordinate(this._countdownPrice);
+      if (cy !== null) {
+        const COUNTDOWN_ZONE = 25; // half-heights of countdown (~16) + drawing label (~9)
+        for (const item of items) {
+          const dist = item.y - (cy as number);
+          if (Math.abs(dist) < COUNTDOWN_ZONE) {
+            item.y = dist >= 0
+              ? (cy as number) + COUNTDOWN_ZONE   // drawing below → push further down
+              : (cy as number) - COUNTDOWN_ZONE;  // drawing above → push further up
+          }
+        }
+      }
     }
 
     // Sort by Y coordinate and de-overlap: stack labels that are too close

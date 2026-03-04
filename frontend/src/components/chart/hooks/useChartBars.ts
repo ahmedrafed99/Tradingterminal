@@ -116,6 +116,7 @@ export function useChartBars(
           refs.crosshairLabel.current?.setTickSize(contract?.tickSize ?? 0);
           if (refs.lastBar.current) {
             cd.updatePrice(refs.lastBar.current.close, false);
+            refs.drawingsPrimitive.current?.setCountdownPrice(refs.lastBar.current.close);
           }
         }
       } catch (err) {
@@ -197,8 +198,9 @@ export function useChartBars(
         refs.dataMap.current.set(newBar.time as number, newBar.close);
       }
 
-      // Feed live price into countdown primitive
+      // Feed live price into countdown primitive + drawing label avoidance
       refs.countdown.current?.updatePrice(price, true);
+      refs.drawingsPrimitive.current?.setCountdownPrice(price);
     }
 
     realtimeService.onQuote(handleQuote);
