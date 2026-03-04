@@ -8,6 +8,7 @@ import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { pointsToPrice, calcPnl } from '../../../utils/instrument';
+import { fitTpsToOrderSize } from './resolvePreviewConfig';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
@@ -97,10 +98,11 @@ export function useQuickOrder(
         refs.qoPreviewLines.current.sl = slLine;
       }
 
-      // TP lines (with P&L labels)
+      // TP lines (with P&L labels) — trim to fit within orderSize
+      const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
       const computedTpPrices: number[] = [];
       const computedTpSizes: number[] = [];
-      bc.takeProfits.forEach((tp) => {
+      fittedTps.forEach((tp) => {
         const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
         computedTpPrices.push(tpPrice);
         computedTpSizes.push(tp.size);
@@ -149,7 +151,8 @@ export function useQuickOrder(
           qoPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, '#ff0000');
           lineIdx++;
         }
-        bc.takeProfits.forEach((tp) => {
+        const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
+        fittedTps.forEach((tp) => {
           if (!qoPreviewLines[lineIdx]) return;
           const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
           qoPreviewLines[lineIdx].setPrice(tpPrice);
@@ -276,20 +279,21 @@ export function useQuickOrder(
             bracketsArmed = true;
           }
 
-          // Publish pending preview for overlay labels
+          // Publish pending preview for overlay labels — trim TPs to fit orderSize
           const toP = (points: number) => pointsToPrice(points, contract!);
           const ep = snappedPrice;
+          const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
           st.setQoPendingPreview({
             entryPrice: ep,
             slPrice: bc.stopLoss.points > 0
               ? (side === OrderSide.Buy ? ep - toP(bc.stopLoss.points) : ep + toP(bc.stopLoss.points))
               : null,
-            tpPrices: bc.takeProfits.map((tp) =>
+            tpPrices: fittedTps.map((tp) =>
               side === OrderSide.Buy ? ep + toP(tp.points) : ep - toP(tp.points),
             ),
             side,
             orderSize: st.orderSize,
-            tpSizes: bc.takeProfits.map((tp) => tp.size),
+            tpSizes: fittedTps.map((tp) => tp.size),
           });
         }
       }

@@ -106,7 +106,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       refs.previewRoles.current = [];
       refs.previewPrices.current = [];
     };
-  }, [isOrderChart, previewEnabled, previewSide, previewHideEntry, bracketPresets, activePresetId, contract, adHocSlPoints, adHocTpLevels]);
+  }, [isOrderChart, previewEnabled, previewSide, previewHideEntry, bracketPresets, activePresetId, contract, adHocSlPoints, adHocTpLevels, orderSize]);
 
   // Update line prices in-place (no teardown → no flicker)
   // Uses direct Zustand subscription for lastPrice to avoid re-rendering on every tick

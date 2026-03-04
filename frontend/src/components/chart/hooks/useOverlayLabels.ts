@@ -6,7 +6,7 @@ import { bracketEngine } from '../../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
-import { resolvePreviewConfig } from './resolvePreviewConfig';
+import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
 import type { ChartRefs, PreviewLineRole } from './types';
 
 /**
@@ -506,8 +506,8 @@ export function useOverlayLabels(
     const hasPreset = snap2.bracketPresets.some((p) => p.id === snap2.activePresetId);
     const previewPreset = snap2.bracketPresets.find((p) => p.id === snap2.activePresetId);
     const previewTpSizes = hasPreset
-      ? (previewPreset?.config.takeProfits.map((tp) => tp.size) ?? [])
-      : snap2.adHocTpLevels.map((tp) => tp.size);
+      ? fitTpsToOrderSize(previewPreset?.config.takeProfits ?? [], snap2.orderSize).map((tp) => tp.size)
+      : fitTpsToOrderSize(snap2.adHocTpLevels, snap2.orderSize).map((tp) => tp.size);
 
     for (let i = 0; i < refs.previewRoles.current.length; i++) {
       const role = refs.previewRoles.current[i];
@@ -623,9 +623,10 @@ export function useOverlayLabels(
           const tp = refs.previewPrices.current[previewIdx] ?? price;
           const s2 = useStore.getState();
           const presetCfg = s2.bracketPresets.find((p) => p.id === s2.activePresetId);
-          const sz = presetCfg
-            ? (presetCfg.config.takeProfits[tpIdx]?.size ?? s2.orderSize)
-            : (s2.adHocTpLevels[tpIdx]?.size ?? 1);
+          const fittedTps = presetCfg
+            ? fitTpsToOrderSize(presetCfg.config.takeProfits, s2.orderSize)
+            : fitTpsToOrderSize(s2.adHocTpLevels, s2.orderSize);
+          const sz = fittedTps[tpIdx]?.size ?? s2.orderSize;
           const diff = s2.previewSide === OrderSide.Buy ? tp - ep : ep - tp;
           const pnl = calcPnl(diff, contract!, sz);
           return {

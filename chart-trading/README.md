@@ -136,7 +136,7 @@ When a bracket preset is active (`activePresetId` in the store), the button inte
 **On hover** — `createPreviewLines()` creates `PriceLevelLine` instances with labels baked in:
 - Entry reference line (`#787b86` gray dashed, no label)
 - SL line (`#ff0000` red dashed) + label sections with projected P&L (red) and size
-- TP lines (`#00c805` green dashed) + label sections with projected P&L (green) and size
+- TP lines (`#00c805` green dashed) + label sections with projected P&L (green) and size — trimmed via `fitTpsToOrderSize()` so only TPs that fit within `orderSize` are shown
 
 Price offsets computed via `pointsToPrice(points, contract)` from `utils/instrument.ts`, same formula as the main preview system. Labels are passed as `LabelSection[]` to the `PriceLevelLine` constructor — no separate `buildRow()` or `createHoverLabels()` step.
 
@@ -242,7 +242,7 @@ Rendered when `previewEnabled = true` (set from OrderPanel checkbox). Each previ
 - Entry line always shown when preview is on (even with no preset)
 - SL/TP lines shown when a bracket preset is active **or** ad-hoc SL/TP have been added
 - Dashed price lines for Entry (grey `#787b86`), SL (red `#ff0000`), each TP (green `#00c805`)
-- `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`
+- `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`, trimming TPs to fit within `orderSize` via `fitTpsToOrderSize()` (first TPs get priority; extras that exceed the order quantity are dropped)
 - Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
 - Initial prices read imperatively via `useStore.getState()` to avoid flash-at-bottom on first toggle
 
@@ -329,7 +329,7 @@ Size hover:  [│ +$50.00 ][ − 2 + ][ × ]
 ### Preview labels
 - Entry shows "Limit Buy"/"Limit Sell" in grey (`#cac9cb`) with black text (clickable to execute), size cell colored by side (green buy / red sell)
 - SL/TP show projected P&L relative to entry price
-- Each TP shows its **individual** contract size from the preset or ad-hoc level (not total orderSize). SL shows total size
+- Each TP shows its **individual** contract size from the preset or ad-hoc level (not total orderSize). SL shows total size. TPs are trimmed to fit within `orderSize` — if a preset has 2 TPs (1 ct each) but order size is 1, only the first TP is previewed
 - When no preset is active, entry label includes **+SL** and **+TP** buttons to add ad-hoc bracket lines
 
 ### Real-time P&L updates
@@ -545,6 +545,7 @@ interface OrderPanelState {
 | `frontend/src/components/chart/hooks/useOrderLines.ts` | Creates `PriceLevelLine` instances for preview/order/position lines, handles drag interactions |
 | `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
 | `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: creates PriceLevelLine instances with baked-in labels for hover preview |
+| `frontend/src/components/chart/hooks/resolvePreviewConfig.ts` | `resolvePreviewConfig()` — unified BracketConfig resolver; `fitTpsToOrderSize()` — trims TPs to fit within orderSize |
 | `frontend/src/components/order-panel/OrderPanel.tsx` | SignalR event wiring, limit order cancel cleanup, position close auto-cancel |
 | `frontend/src/components/order-panel/BuySellButtons.tsx` | Bracket arming, draft/ad-hoc merge, order placement |
 | `frontend/src/services/orderService.ts` | placeOrder, cancelOrder, modifyOrder, searchOpenOrders |
