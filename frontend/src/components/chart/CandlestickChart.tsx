@@ -34,6 +34,8 @@ export interface CandlestickChartHandle {
   isQoHovered: () => boolean;
   /** Directly update the HTML crosshair price label (for dual-chart sync). */
   setCrosshairPrice: (price: number | null) => void;
+  /** Set a callback that syncs crosshair to the peer chart (for dual-chart QO drag). */
+  setPeerSync: (fn: ((price: number, time: unknown) => void) | null) => void;
 }
 
 export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, CandlestickChartProps>(
@@ -100,6 +102,9 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   // Scroll button
   const scrollBtnShownRef = useRef(false);
 
+  // Peer-chart crosshair sync (populated by ChartArea in dual-chart mode)
+  const peerSyncRef = useRef<((price: number, time: unknown) => void) | null>(null);
+
   // --- ChartRefs bag (passed to all hooks) ---
   const refs: ChartRefs = {
     container: containerRef,
@@ -141,6 +146,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     hoveredTpOrderId: hoveredTpOrderIdRef,
     tpRedistInFlight: tpRedistInFlightRef,
     scrollBtnShown: scrollBtnShownRef,
+    peerSync: peerSyncRef,
   };
 
   useImperativeHandle(ref, () => ({
@@ -149,6 +155,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     getDataMap: () => dataMapRef.current,
     isQoHovered: () => qoHoveredRef.current,
     setCrosshairPrice: (price: number | null) => crosshairLabelRef.current?.updateCrosshairPrice(price),
+    setPeerSync: (fn: ((price: number, time: unknown) => void) | null) => { peerSyncRef.current = fn; },
   }));
 
   // loading/error come from useChartBars below

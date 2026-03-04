@@ -399,6 +399,11 @@ export function useQuickOrder(
           chart.setCrosshairPosition(snappedPrice, timeToUse as Parameters<typeof chart.setCrosshairPosition>[1], series);
         }
 
+        // Directly update local crosshair label + peer chart (bypasses async
+        // crosshair callback chain to eliminate 1–2 frame lag during drag).
+        refs.crosshairLabel.current?.updateCrosshairPrice(snappedPrice);
+        if (timeToUse != null) refs.peerSync.current?.(snappedPrice, timeToUse);
+
         // Update preview line positions and P&L
         updatePreviewPrices(snappedPrice);
       };

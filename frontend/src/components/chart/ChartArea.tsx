@@ -71,14 +71,20 @@ export function ChartArea() {
 
       let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
       let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
+      // Flags to prevent infinite sync loops (A→B→A) while still allowing
+      // programmatic crosshair moves (e.g. QO drag) to sync to the peer chart.
+      let syncingToRight = false;
+      let syncingToLeft = false;
 
       const onLeftMove = (param: MouseEventParams) => {
-        if (!param.sourceEvent) return;
+        if (syncingToLeft) return;
         if (!param.time || !param.point) {
           if (rightClearTimer) clearTimeout(rightClearTimer);
           rightClearTimer = setTimeout(() => {
             if (!leftRef.current?.isQoHovered()) {
+              syncingToRight = true;
               rightChart.clearCrosshairPosition();
+              syncingToRight = false;
               rightRef.current?.setCrosshairPrice(null);
             }
           }, 16);
@@ -87,21 +93,27 @@ export function ChartArea() {
         if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
         const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
+          syncingToRight = true;
           rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
+          syncingToRight = false;
           rightRef.current?.setCrosshairPrice(sourcePrice);
         } else {
+          syncingToRight = true;
           rightChart.clearCrosshairPosition();
+          syncingToRight = false;
           rightRef.current?.setCrosshairPrice(null);
         }
       };
 
       const onRightMove = (param: MouseEventParams) => {
-        if (!param.sourceEvent) return;
+        if (syncingToRight) return;
         if (!param.time || !param.point) {
           if (leftClearTimer) clearTimeout(leftClearTimer);
           leftClearTimer = setTimeout(() => {
             if (!rightRef.current?.isQoHovered()) {
+              syncingToLeft = true;
               leftChart.clearCrosshairPosition();
+              syncingToLeft = false;
               leftRef.current?.setCrosshairPrice(null);
             }
           }, 16);
@@ -110,10 +122,14 @@ export function ChartArea() {
         if (leftClearTimer) { clearTimeout(leftClearTimer); leftClearTimer = null; }
         const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
+          syncingToLeft = true;
           leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
+          syncingToLeft = false;
           leftRef.current?.setCrosshairPrice(sourcePrice);
         } else {
+          syncingToLeft = true;
           leftChart.clearCrosshairPosition();
+          syncingToLeft = false;
           leftRef.current?.setCrosshairPrice(null);
         }
       };
@@ -121,11 +137,28 @@ export function ChartArea() {
       leftChart.subscribeCrosshairMove(onLeftMove);
       rightChart.subscribeCrosshairMove(onRightMove);
 
+      // Expose direct peer-sync callbacks so QO drag can bypass the async
+      // crosshair callback chain (eliminates 1–2 frame lag).
+      leftRef.current?.setPeerSync((price, time) => {
+        syncingToRight = true;
+        rightChart.setCrosshairPosition(price, time as Parameters<typeof rightChart.setCrosshairPosition>[1], rightSeries);
+        syncingToRight = false;
+        rightRef.current?.setCrosshairPrice(price);
+      });
+      rightRef.current?.setPeerSync((price, time) => {
+        syncingToLeft = true;
+        leftChart.setCrosshairPosition(price, time as Parameters<typeof leftChart.setCrosshairPosition>[1], leftSeries);
+        syncingToLeft = false;
+        leftRef.current?.setCrosshairPrice(price);
+      });
+
       unsub = () => {
         if (rightClearTimer) clearTimeout(rightClearTimer);
         if (leftClearTimer) clearTimeout(leftClearTimer);
         leftChart.unsubscribeCrosshairMove(onLeftMove);
         rightChart.unsubscribeCrosshairMove(onRightMove);
+        leftRef.current?.setPeerSync(null);
+        rightRef.current?.setPeerSync(null);
       };
     }
 

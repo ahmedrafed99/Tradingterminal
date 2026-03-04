@@ -118,12 +118,14 @@ Sync logic in a `useEffect`:
 4. Call `chartB.setCrosshairPosition(targetPrice, T, seriesB)` — horizontal line matches the mouse's vertical screen position
 5. Call `chartBRef.setCrosshairPrice(targetPrice)` — directly updates the HTML crosshair label on chart B (see below)
 6. If no data at T → `chartB.clearCrosshairPosition()` + `chartBRef.setCrosshairPrice(null)`
-7. `!param.sourceEvent` guard prevents A→B→A feedback loop (programmatic `setCrosshairPosition` events are ignored)
+7. `syncingToRight`/`syncingToLeft` flags prevent A→B→A feedback loop — set before each `setCrosshairPosition`/`clearCrosshairPosition` call, checked at the top of the peer's handler
 8. Cleanup: `unsubscribeCrosshairMove` on both
 
 **Why `setCrosshairPrice` is needed**: The crosshair price label is an HTML element (not a canvas LWC primitive), so it only updates when `updateCrosshairPrice()` is called explicitly. LWC's `subscribeCrosshairMove` does not reliably fire for programmatic `setCrosshairPosition()` calls, so the label must be updated directly alongside the crosshair position.
 
 **Quick-order hover persistence**: When the mouse transitions to the quick-order (+) button overlay, LWC fires a crosshair-leave event on the source chart. Instead of immediately calling `clearCrosshairPosition()` on the synced chart, the handler delays by 16ms (~1 frame) and checks `isQoHovered()` on the source chart's imperative handle. If the quick-order button is hovered by then, the clear is skipped so the synced chart's crosshair persists alongside the source chart's.
+
+**Quick-order drag sync**: During QO drag, `useQuickOrder` bypasses the async crosshair callback chain entirely. It directly updates the local crosshair label via `refs.crosshairLabel.current?.updateCrosshairPrice()` and syncs to the peer chart via `refs.peerSync.current?.()`. The `peerSync` callback is populated by `ChartArea` inside the sync effect closure (so it has access to the syncing flags) and cleared on cleanup. This eliminates the 1–2 frame lag that would occur if updates went through `setCrosshairPosition` → async callback → sync handler.
 
 **Note**: The vertical crosshair line (time axis) snaps to candle positions on the synced chart — this is inherent to the `setCrosshairPosition` API and standard for synced charts. The horizontal line (price axis) matches the mouse's vertical position via `coordinateToPrice`.
 

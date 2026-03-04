@@ -75,7 +75,7 @@ HTML elements always render above canvas content. Within the HTML layer, z-index
 - Subscribes to `chart.subscribeCrosshairMove()` — converts Y coordinate to
   price via `series.coordinateToPrice()` and calls `updateCrosshairPrice()`.
 - Matches the native crosshair label style: `#2a2e39` background, `#d1d4dc` text, bold 12px.
-- **Dual-chart sync**: `subscribeCrosshairMove` does not reliably fire for programmatic `setCrosshairPosition()` calls. The `CandlestickChartHandle` exposes `setCrosshairPrice(price)` which directly calls `updateCrosshairPrice()`. `ChartArea` calls this alongside `setCrosshairPosition` during crosshair sync.
+- **Dual-chart sync**: `subscribeCrosshairMove` does not reliably fire for programmatic `setCrosshairPosition()` calls. The `CandlestickChartHandle` exposes `setCrosshairPrice(price)` which directly calls `updateCrosshairPrice()`. `ChartArea` calls this alongside `setCrosshairPosition` during crosshair sync. The handle also exposes `setPeerSync(fn)` so `ChartArea` can inject a direct peer-sync callback; `useQuickOrder` calls `refs.peerSync.current?.()` during drag to bypass the async callback chain.
 - **Overlay label transparency**: All overlay labels (order, position, preview)
   use `pointer-events: none` so mouse events pass through to the LWC canvas.
   The crosshair never disappears when hovering over any label element within
