@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
-import { TICKS_PER_POINT } from '../../../types/bracket';
+import { TICKS_PER_POINT, buildNativeBracketParams } from '../../../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
 import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
@@ -249,19 +249,28 @@ export function useQuickOrder(
       const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
       let bracketsArmed = false;
 
+      // Use gateway-native brackets for <= 1 TP (atomic placement).
+      // Fall back to client-side bracket engine for 2+ TPs.
+      let nativeBrackets: ReturnType<typeof buildNativeBracketParams> = null;
+
       if (activePreset) {
         const bc = activePreset.config;
         const bracketsActive = bc.stopLoss.points >= 1 || bc.takeProfits.length >= 1;
         if (bracketsActive) {
-          bracketEngine.armForEntry({
-            accountId: st.activeAccountId,
-            contractId: contract!.id,
-            entrySide: side,
-            entrySize: st.orderSize,
-            config: bc,
-            tickSize: contract!.tickSize || 0.25,
-          });
-          bracketsArmed = true;
+          nativeBrackets = buildNativeBracketParams(bc, side);
+
+          if (!nativeBrackets) {
+            // 2+ TPs — arm bracket engine
+            bracketEngine.armForEntry({
+              accountId: st.activeAccountId,
+              contractId: contract!.id,
+              entrySide: side,
+              entrySize: st.orderSize,
+              config: bc,
+              tickSize: contract!.tickSize || 0.25,
+            });
+            bracketsArmed = true;
+          }
 
           // Publish pending preview for overlay labels
           const tickSize = contract!.tickSize;
@@ -284,11 +293,11 @@ export function useQuickOrder(
 
       // Remove hover labels (labels on preview lines)
       for (const line of qoPreviewLines) line.setLabel(null);
-      if (!bracketsArmed) removePreviewLines();
+      if (!bracketsArmed && !nativeBrackets) removePreviewLines();
 
       // Set placeholder immediately so onLeave won't remove preview lines
       // before the async .then() replaces it with the real subscription
-      if (bracketsArmed) pendingFillUnsub = () => {};
+      if (bracketsArmed || nativeBrackets) pendingFillUnsub = () => {};
 
       orderService.placeOrder({
         accountId: st.activeAccountId,
@@ -297,9 +306,12 @@ export function useQuickOrder(
         side,
         size: st.orderSize,
         limitPrice: snappedPrice,
+        ...nativeBrackets,
       }).then(({ orderId }) => {
         if (bracketsArmed) {
           bracketEngine.confirmEntryOrderId(orderId);
+        }
+        if (bracketsArmed || nativeBrackets) {
           // Keep preview lines until entry fills/cancels, then remove
           pendingFillUnsub = useStore.subscribe((state) => {
             const o = state.openOrders.find((ord) => ord.id === orderId);

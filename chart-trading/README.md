@@ -140,30 +140,35 @@ Price offsets computed via `points * tickSize * TICKS_PER_POINT`, same formula a
 
 **On leave** — `removePreviewLines()` calls `destroy()` on all `PriceLevelLine` instances, tearing down lines and labels together.
 
-**On click** — if a preset is active with SL/TP points >= 1:
-1. Arms the bracket engine
-2. Sets `qoPendingPreview` in the store with computed prices/sizes
-3. Removes hover labels (permanent ones take over via overlay label effect)
-4. Places the limit order
-5. Subscribes to store for fill/cancel detection
+**On click** — if a preset is active with SL/TP points >= 1, uses a **dual-path strategy**:
+
+**<= 1 TP (gateway-native brackets)**:
+1. `buildNativeBracketParams(bc, side)` returns `{ stopLossBracket?, takeProfitBracket? }`
+2. Bracket params are spread into the `placeOrder` call — gateway places SL/TP atomically
+3. No bracket engine involvement (gateway handles OCO auto-cancel)
+
+**2+ TPs (client-side engine)**:
+1. Arms the bracket engine (buffers early fills)
+2. Places the limit order
+3. Confirms orderId with engine
+4. Engine listens for fill and places SL + TPs as separate orders
+
+Both paths:
+- Set `qoPendingPreview` in the store with computed prices/sizes
+- Remove hover labels (permanent ones take over via overlay label effect)
+- Subscribe to store for fill/cancel detection to clean up preview lines
 
 ```ts
-bracketEngine.armForEntry({
-  accountId, contractId, entrySide: side,
-  entrySize: st.orderSize, config: bc, tickSize,
-});
+// Dual-path decision
+const nativeBrackets = buildNativeBracketParams(bc, side);
+if (!nativeBrackets) {
+  bracketEngine.armForEntry({ ... }); // 2+ TPs only
+}
 
-st.setQoPendingPreview({
-  entryPrice, slPrice, tpPrices, side, orderSize, tpSizes,
-});
-
-const { orderId } = await orderService.placeOrder({ ... });
-bracketEngine.confirmEntryOrderId(orderId);
+orderService.placeOrder({ ...baseParams, ...nativeBrackets });
 ```
 
-The bracket engine then listens for the entry fill event and places SL + TP orders automatically.
-
-**On error** — full cleanup: disarms bracket engine (`clearSession()`), clears `qoPendingPreview`, removes preview lines and hover labels, shows error toast.
+**On error** — full cleanup: disarms bracket engine if armed (`clearSession()`), clears `qoPendingPreview`, removes preview lines and hover labels, shows error toast.
 
 **No preset selected** — places a naked limit order with no SL/TP.
 

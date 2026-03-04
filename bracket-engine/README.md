@@ -6,9 +6,20 @@ Client-side singleton service that manages SL + multi-TP bracket orders after en
 
 ---
 
-## Why client-side?
+## Native vs Client-Side Brackets
 
-TopstepX rejects native bracket params on the `placeOrder` API unless "Auto OCO Brackets" is enabled on the account. To work around this, **all brackets (SL + TPs) are placed as separate orders** after detecting the entry fill via SignalR.
+The ProjectX gateway supports atomic bracket placement (SL + 1 TP attached to the entry order) when "Auto OCO Brackets" is enabled. The app uses a **dual-path strategy**:
+
+| TPs | Path | Latency gap | Managed by |
+|-----|------|-------------|------------|
+| 0-1 | **Gateway-native brackets** | Zero — atomic with entry | Gateway (OCO auto-cancel) |
+| 2+  | **Client-side bracket engine** | Brief — orders placed after fill | `bracketEngine.ts` |
+
+`buildNativeBracketParams()` in `types/bracket.ts` decides which path: returns bracket params for <= 1 TP, returns `null` for 2+ TPs (triggering the engine).
+
+### Why client-side for 2+ TPs?
+
+The gateway only supports **one** TP per bracket. For multi-TP setups, **all brackets (SL + TPs) are placed as separate orders** after detecting the entry fill via SignalR.
 
 ---
 
@@ -18,9 +29,9 @@ TopstepX rejects native bracket params on the `placeOrder` API unless "Auto OCO 
 
 ---
 
-## Two-Step Arming Pattern
+## Two-Step Arming Pattern (2+ TP path only)
 
-The engine must be armed **before** the HTTP order call to avoid missing fills that arrive while the HTTP request is in flight.
+The engine must be armed **before** the HTTP order call to avoid missing fills that arrive while the HTTP request is in flight. This pattern is **only used for the 2+ TP path** — the 0-1 TP path uses gateway-native brackets and skips the engine entirely.
 
 ```
 1. armForEntry(config)          ← called BEFORE placeOrder HTTP call
@@ -31,6 +42,10 @@ The engine must be armed **before** the HTTP order call to avoid missing fills t
 ```
 
 If a fill event arrives between steps 1 and 2, it is buffered and replayed once the order ID is confirmed.
+
+### Disarm on failure
+
+If `placeOrder` throws, callers must disarm the engine via `clearSession()` to prevent it from reacting to fills from unrelated orders. Both `BuySellButtons.tsx` and `useQuickOrder.ts` handle this in their catch blocks.
 
 ---
 
@@ -188,8 +203,8 @@ Managed by the Zustand store (not the engine itself):
 
 | Consumer | Usage |
 |----------|-------|
-| `BuySellButtons.tsx` | Arms engine before order, confirms after |
-| `CandlestickChart.tsx` (+ button) | Arms engine for quick limit orders, updates armed config on drag |
+| `BuySellButtons.tsx` | Uses native brackets for <= 1 TP; arms engine for 2+ TPs, confirms after, disarms on failure |
+| `useQuickOrder.ts` (+ button) | Same dual-path: native brackets or engine arming. Disarms on failure. Updates armed config on drag |
 | `OrderPanel.tsx` | Forwards every SignalR order event via `onOrderEvent()`, calls `clearSession()` on position close |
 | `PositionDisplay.tsx` | Calls `moveSLToBreakeven()` from the SL-to-BE button |
 

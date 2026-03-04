@@ -123,6 +123,10 @@ onPosition(handler): void    offPosition(handler): void
 onAccount(handler):  void    offAccount(handler):  void
 onTrade(handler):    void    offTrade(handler):    void
 
+// Reconnect callback (fires after user hub reconnects and resubscribes)
+onUserReconnect(handler: () => void): void
+offUserReconnect(handler: () => void): void
+
 // Utility
 ping(): Promise<number>   // WebSocket round-trip latency in ms
 ```
@@ -138,6 +142,7 @@ TradeHandler    = (trade: RealtimeTrade, action: number) => void
 ```
 
 Automatically resubscribes all active subscriptions on reconnect.
+Fires `userReconnectHandlers` after user hub reconnect (used by `OrderPanel` to re-fetch open orders).
 Null entries in `GatewayDepth` arrays are filtered before dispatching to handlers.
 
 ---
@@ -199,7 +204,9 @@ All REST endpoints use:
 
 - All proxy routes return `{ success: boolean, errorCode: number, errorMessage: string | null }`
   matching the ProjectX response envelope
-- The frontend checks `success === false` and surfaces `errorMessage` in a toast
+- The frontend `orderService` validates the `success` field via `assertSuccess()` — throws with `errorMessage` when `success === false` (gateway may return HTTP 200 with a failure payload)
+- All four order methods (`placeOrder`, `cancelOrder`, `modifyOrder`, `searchOpenOrders`) check `success`
 - 401 responses → trigger disconnect flow + prompt user to reconnect
 - SignalR reconnects automatically with exponential backoff (built into
   `@microsoft/signalr` `withAutomaticReconnect()`)
+- On user hub reconnect, `OrderPanel` re-fetches open orders to recover from missed events

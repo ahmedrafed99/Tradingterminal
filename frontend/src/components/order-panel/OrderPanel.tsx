@@ -44,6 +44,19 @@ export function OrderPanel() {
     realtimeService.subscribeUserEvents(activeAccountId);
   }, [activeAccountId]);
 
+  // Re-fetch open orders on user hub reconnect (events may have been missed)
+  useEffect(() => {
+    const handler = () => {
+      const acctId = useStore.getState().activeAccountId;
+      if (acctId == null) return;
+      orderService.searchOpenOrders(acctId).then((orders) => {
+        useStore.getState().setOpenOrders(orders);
+      }).catch(() => {});
+    };
+    realtimeService.onUserReconnect(handler);
+    return () => realtimeService.offUserReconnect(handler);
+  }, []);
+
   // Handle realtime order events
   useEffect(() => {
     const handler = (order: RealtimeOrder, _action: number) => {

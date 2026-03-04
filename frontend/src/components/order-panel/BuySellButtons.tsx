@@ -7,6 +7,7 @@ import { OrderType, OrderSide } from '../../types/enums';
 import { showToast } from '../../utils/toast';
 import type { PlaceOrderParams } from '../../services/orderService';
 import type { BracketConfig } from '../../types/bracket';
+import { buildNativeBracketParams } from '../../types/bracket';
 
 export function BuySellButtons() {
   const {
@@ -85,8 +86,14 @@ export function BuySellButtons() {
     const bracketsActive = mergedConfig != null
       && (mergedConfig.stopLoss.points >= 1 || mergedConfig.takeProfits.length >= 1);
 
-    // Arm bracket engine BEFORE placing so it can buffer fill events
-    if (bracketsActive && mergedConfig) {
+    // Use gateway-native brackets for <= 1 TP (atomic placement, zero latency gap).
+    // Fall back to client-side bracket engine for 2+ TPs.
+    const nativeBrackets = bracketsActive && mergedConfig ? buildNativeBracketParams(mergedConfig, side) : null;
+
+    if (nativeBrackets) {
+      Object.assign(params, nativeBrackets);
+    } else if (bracketsActive && mergedConfig) {
+      // 2+ TPs — arm bracket engine BEFORE placing so it can buffer fill events
       bracketEngine.armForEntry({
         accountId: activeAccountId,
         contractId: orderContract.id,
@@ -100,8 +107,8 @@ export function BuySellButtons() {
     try {
       const { orderId } = await orderService.placeOrder(params);
 
-      // Confirm orderId — engine checks buffered fills
-      if (bracketsActive) {
+      // Confirm orderId — engine checks buffered fills (only for 2+ TP path)
+      if (bracketsActive && !nativeBrackets) {
         bracketEngine.confirmEntryOrderId(orderId);
       }
       clearDraftOverrides();
@@ -118,6 +125,10 @@ export function BuySellButtons() {
       const msg = err instanceof Error ? err.message : 'Order failed';
       setError(msg);
       showToast('error', 'Order placement failed', msg);
+      // Disarm bracket engine if it was armed for this order (2+ TP path)
+      if (bracketsActive && !nativeBrackets) {
+        bracketEngine.clearSession();
+      }
     } finally {
       setPlacing(null);
     }

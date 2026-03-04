@@ -106,6 +106,7 @@ class RealtimeService {
   private subscribedDepth: Set<string> = new Set();
   private subscribedOrderAccounts: Set<number> = new Set();
   private connectingPromise: Promise<void> | null = null;
+  private userReconnectHandlers: (() => void)[] = [];
 
   async connect() {
     if (this.isConnected()) return;
@@ -187,6 +188,7 @@ class RealtimeService {
       for (const accountId of this.subscribedOrderAccounts) {
         this.flushUserSubscriptions(accountId);
       }
+      this.userReconnectHandlers.forEach((h) => h());
     });
 
     await this.marketHub.start();
@@ -280,6 +282,9 @@ class RealtimeService {
 
   onTrade(handler: TradeHandler)       { this.tradeHandlers.push(handler); }
   offTrade(handler: TradeHandler)      { this.tradeHandlers    = this.tradeHandlers.filter((h) => h !== handler); }
+
+  onUserReconnect(handler: () => void)  { this.userReconnectHandlers.push(handler); }
+  offUserReconnect(handler: () => void) { this.userReconnectHandlers = this.userReconnectHandlers.filter((h) => h !== handler); }
 
   /** Measure WebSocket round-trip latency in ms. Returns -1 if not connected. */
   async ping(): Promise<number> {

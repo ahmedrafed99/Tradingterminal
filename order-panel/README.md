@@ -126,18 +126,25 @@ User clicks BUY
   └─► build payload:
         { accountId, contractId, type: 2 (market) or 1 (limit),
           side: 0 (Bid), size, limitPrice? }
-  └─► Arm bracket engine BEFORE HTTP call (buffers early fills)
+  └─► buildNativeBracketParams(config, side)
+        ├─► <= 1 TP: returns { stopLossBracket?, takeProfitBracket? }
+        │     └─► merged into payload (atomic gateway placement)
+        └─► 2+ TPs: returns null
+              └─► Arm bracket engine BEFORE HTTP call (buffers early fills)
   └─► POST /proxy/orders/place
-  └─► response: { orderId }
-  └─► Confirm orderId with bracket engine (checks buffered fills)
+  └─► response: { orderId }  (assertSuccess checks gateway success field)
+  └─► If 2+ TP path: confirm orderId with bracket engine
   └─► SignalR GotOrder event → updates open orders in store
-  └─► On entry fill → bracket engine places SL + TPs as separate orders
-  └─► On failure → error toast shown
+  └─► On failure → error toast shown, bracket engine disarmed if armed
 ```
 
-**Note**: No API brackets — TopstepX rejects them unless "Auto OCO Brackets" is enabled. All brackets (SL + TPs) are placed as separate orders after entry fill via `BracketEngine`.
+**Native brackets** (0-1 TP): SL and TP are attached atomically to the entry order via gateway-native bracket params. Requires "Auto OCO Brackets" enabled on the account. Gateway handles OCO (SL fill cancels TP, and vice versa).
+
+**Client-side brackets** (2+ TPs): SL + TPs placed as separate orders after entry fill via `BracketEngine`.
 
 **Position close cleanup**: `bracketEngine.clearSession()` returns the set of order IDs it's already cancelling. The subsequent `searchOpenOrders` cleanup pass skips those IDs to avoid double-cancel warning toasts.
+
+**Reconnect resync**: On user hub reconnect, `OrderPanel` re-fetches open orders via `searchOpenOrders()` and replaces the store. This recovers from events missed during the disconnect window.
 
 ---
 
