@@ -256,7 +256,11 @@ Shows ghost price lines (semi-transparent) for:
 
 Labels are managed by `PriceLevelLine.setLabel(sections)` — each line owns its own label pill as an HTML `<div>` in the overlay. `useOverlayLabels` configures the label sections (P&L, size, buttons) and registers hit targets, but does not create DOM elements directly.
 
-Each label is a row of colored cells: `[P&L or label] [size] [X]`
+Each label is a row of colored cells: `[│ P&L or label] [size] [X]`
+
+### Drag-handle grip
+
+The first cell (P&L) contains a 1px-wide vertical grip bar (14px tall, `#000`) on its left side, acting as a visual drag affordance. The bar lives inside cell 0 as a flex child (`<div>` bar + `<span>` text), sharing the cell's background color so it updates automatically with P&L color changes. The grip is not rendered in screenshots (`paintToCanvas` reads `cell.textContent` which returns only the span text).
 
 ### Label horizontal offset (anti-overlap)
 
@@ -278,7 +282,7 @@ Each interactive element (button cell, draggable row) is registered in `hitTarge
 | 1 | Order row drag | Drag — starts order drag state (higher priority than position to win when overlapping, e.g. SL at breakeven) |
 | 2 | Position / preview row drag | Drag — starts position or preview drag state |
 
-A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit targets, checks `getBoundingClientRect()` vs mouse coordinates, skips hidden elements (`el.offsetParent === null`), and fires the first match. The `onHandleHover` mousemove handler also checks hit targets to show `cursor: pointer` when hovering over interactive areas.
+A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit targets, checks `getBoundingClientRect()` vs mouse coordinates, skips hidden elements (`el.offsetParent === null`), and fires the first match. The `onHandleHover` mousemove handler checks hit targets to show `cursor: grab` for row-drag targets (priority ≥ 2) and `cursor: pointer` for button targets (priority 0/1).
 
 ### Position label
 - Real-time P&L (green/red), contract size, X to close position (market order)
@@ -295,8 +299,8 @@ A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit t
 For **multi-contract positions** (`pos.size > 1`), TP order labels show hover-reveal `−` / `+` buttons inside the size cell to redistribute contracts across TPs without cancelling/recreating orders.
 
 ```
-Normal:      [ +$50.00 ][ 2 ][ × ]
-Size hover:  [ +$50.00 ][ − 2 + ][ × ]
+Normal:      [│ +$50.00 ][ 2 ][ × ]
+Size hover:  [│ +$50.00 ][ − 2 + ][ × ]
 ```
 
 **Implementation**: The 3-cell label structure `[P&L, size, ×]` is unchanged. After `setLabel()`, the size cell (`cells[1]`) is customized with three sub-elements (`minusEl`, `countEl`, `plusEl`). The `−` and `+` are hidden by default (`display:none`) and revealed on hover via a coordinate-based `mousemove` listener. Hover state persists across label rebuilds via `hoveredTpOrderId` ref.
@@ -345,7 +349,7 @@ Click label to edit price:
 - All labels are `pointer-events: none` — interaction is detected by the container-level `onOverlayHitTest` handler via coordinate hit testing
 - `onOverlayHitTest` fires the registered drag handler, which sets shared drag state refs (`previewDragStateRef` or `orderDragStateRef`)
 - `mousemove` / `mouseup` listeners on `window` handle the drag (works even when mouse leaves the label)
-- Cursor switches to `grabbing` during drag, resets to `pointer` on release
+- Cursor shows `grab` when hovering over a draggable label, switches to `grabbing` during drag, resets to crosshair on release
 - Close-X buttons are registered as priority-0 hit targets, so they fire before row drag (priority 2)
 - **Crosshair stays visible during drag**: drag mousemove handlers do NOT call `stopPropagation()`, allowing LWC to see mouse events. Instead, `chartRef.applyOptions({ handleScroll: false, handleScale: false })` is set on drag start to prevent chart panning, and re-enabled on mouseup.
 
@@ -472,7 +476,7 @@ Ephemeral SL/TP state for orders without a bracket preset:
 - `adHocTpLevels: { points: number; size: number }[]` — each TP with distance + contract count
 
 ### Pre-fill mode (preview on, no preset selected)
-- Entry label shows `[Limit Buy] [1] [+SL] [+TP] [X]`
+- Entry label shows `[│ Limit Buy] [1] [+SL] [+TP] [X]`
 - **+SL**: creates SL line at default 10pt distance. Hidden once SL exists.
 - **+TP**: creates TP line (1 contract, staggered distance 20/40/60pt). Hidden when all contracts allocated.
 - SL/TP lines are draggable to reposition. X on each removes it.

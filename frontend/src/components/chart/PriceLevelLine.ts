@@ -178,7 +178,14 @@ export class PriceLevelLine {
     if (this._dead) return;
     const cell = this._cells[index];
     if (!cell) return;
-    if (text != null) cell.textContent = text;
+    if (text != null) {
+      // Cell 0 has a grip bar + span inside — update the span, not the whole cell
+      if (index === 0 && cell.lastChild && cell.lastChild !== cell.firstChild) {
+        cell.lastChild.textContent = text;
+      } else {
+        cell.textContent = text;
+      }
+    }
     if (bg != null) cell.style.background = bg;
     if (color != null) cell.style.color = color;
   }
@@ -329,14 +336,26 @@ export class PriceLevelLine {
       `position:absolute;left:${this._labelLeft * 100}%;display:flex;height:20px;font-size:12px;font-weight:bold;` +
       `font-family:${FONT};line-height:20px;transform:translate(-50%,-50%);` +
       `white-space:nowrap;border-radius:3px;overflow:hidden;`;
+
     this._cells = [];
     for (let i = 0; i < sections.length; i++) {
       const s = sections[i];
       const cell = document.createElement('div');
-      cell.style.cssText =
-        `background:${s.bg};color:${s.color};padding:0 6px;` +
-        (i > 0 ? 'border-left:1px solid #000;' : '');
-      cell.textContent = s.text;
+      if (i === 0) {
+        // First cell includes drag-handle grip bar
+        cell.style.cssText =
+          `display:flex;align-items:center;gap:0;background:${s.bg};color:${s.color};padding:0 6px 0 4px;` ;
+        const bar = document.createElement('div');
+        bar.style.cssText = 'width:1px;height:14px;background:#000;flex-shrink:0;margin-right:4px;';
+        cell.appendChild(bar);
+        const text = document.createElement('span');
+        text.textContent = s.text;
+        cell.appendChild(text);
+      } else {
+        cell.style.cssText =
+          `background:${s.bg};color:${s.color};padding:0 6px;border-left:1px solid #000;`;
+        cell.textContent = s.text;
+      }
       this._cells.push(cell);
       row.appendChild(cell);
     }

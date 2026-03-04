@@ -753,16 +753,17 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         }
       }
 
-      // Check if hovering over an overlay label hit target → pointer
+      // Check if hovering over an overlay label hit target
       const mx = e.clientX;
       const my = e.clientY;
-      for (const target of refs.hitTargets.current) {
+      const sortedTargets = refs.hitTargets.current.slice().sort((a, b) => a.priority - b.priority);
+      for (const target of sortedTargets) {
         const el = target.el;
         if (el.offsetParent === null) continue;
         const tRect = el.getBoundingClientRect();
         if (tRect.width === 0 || tRect.height === 0) continue;
         if (mx >= tRect.left && mx <= tRect.right && my >= tRect.top && my <= tRect.bottom) {
-          container.style.cursor = 'pointer';
+          container.style.cursor = target.priority >= 2 ? 'grab' : 'pointer';
           return;
         }
       }
