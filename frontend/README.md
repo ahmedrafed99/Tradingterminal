@@ -15,7 +15,7 @@ Runs on **http://localhost:5173** and proxies all API calls to the Express backe
 | Tailwind CSS | v4 (`@tailwindcss/vite`) | Utility styling |
 | Zustand | latest | Global state (with `persist`) |
 | Axios | latest | HTTP client |
-| `@microsoft/signalr` | latest | SignalR WebSocket client |
+| `@microsoft/signalr` | latest | SignalR WebSocket client (isolated in ProjectX adapter) |
 | Lightweight Charts | v5 | Candlestick chart rendering |
 | Vitest | latest | Unit testing (`npm test`) |
 
@@ -38,6 +38,12 @@ frontend/
 │   │   ├── cmeSession.ts       ← getCmeSessionStart() — CME session boundary (6 pm NY)
 │   │   ├── toast.ts            ← showToast() + errorMessage() — toast helpers for non-React code
 │   │   └── retry.ts            ← retryAsync() — exponential backoff with jitter
+│   ├── adapters/
+│   │   ├── types.ts            ← RealtimeAdapter interface + canonical data types (Quote, DepthEntry, etc.)
+│   │   ├── registry.ts         ← getRealtimeAdapter / setRealtimeAdapter / clearRealtimeAdapter
+│   │   └── projectx/
+│   │       ├── index.ts        ← createProjectXRealtimeAdapter() factory
+│   │       └── realtimeAdapter.ts ← ProjectXRealtimeAdapter (SignalR dual-hub implementation)
 │   ├── services/
 │   │   ├── api.ts              ← axios instance + error interceptor
 │   │   ├── authService.ts      ← connect / disconnect / status
@@ -45,7 +51,7 @@ frontend/
 │   │   ├── marketDataService.ts← retrieveBars, searchContracts, listAvailable
 │   │   ├── orderService.ts     ← place / cancel / modify / searchOpen
 │   │   ├── tradeService.ts     ← searchTrades (session fills)
-│   │   ├── realtimeService.ts  ← SignalR hub manager (market + user)
+│   │   ├── realtimeService.ts  ← thin facade delegating to active RealtimeAdapter (re-exports types)
 │   │   └── bracketEngine.ts    ← client-side bracket order management (SL + multi-TP + conditions + retry + toasts)
 │   ├── store/
 │   │   └── useStore.ts         ← Zustand combined store (11 slices, includes toast)
@@ -210,24 +216,19 @@ interface Trade {
 }
 ```
 
-### `realtimeService.ts`
+### `realtimeService.ts` (facade)
 
-Singleton class managing two SignalR hubs **proxied through the backend** (JWT injected server-side, never exposed to browser):
-
-| Hub | Frontend URL | Proxied To | Events |
-|-----|-------------|------------|--------|
-| Market | `/hubs/market` | `wss://rtc.topstepx.com/hubs/market` | `GatewayQuote(contractId, data)`, `GatewayDepth(contractId, entries[])` |
-| User | `/hubs/user` | `wss://rtc.topstepx.com/hubs/user` | `GatewayUserOrder`, `GatewayUserPosition`, `GatewayUserAccount`, `GatewayUserTrade` |
+Thin delegating facade — proxies all calls to the active `RealtimeAdapter` from the adapter registry. Initializes with `ProjectXRealtimeAdapter` by default. Re-exports all canonical types (`Quote`, `DepthEntry`, `RealtimeOrder`, `RealtimePosition`, `RealtimeAccount`, `RealtimeTrade`) and a `GatewayQuote` backward-compat alias.
 
 ```ts
-realtimeService.connect()                         // start both hubs (no token needed — proxy injects it)
-realtimeService.subscribeQuotes(contractId)       // invoke SubscribeContractQuotes
-realtimeService.unsubscribeQuotes(contractId)     // invoke UnsubscribeContractQuotes
-realtimeService.subscribeDepth(contractId)        // invoke SubscribeContractMarketDepth
-realtimeService.unsubscribeDepth(contractId)      // invoke UnsubscribeContractMarketDepth
-realtimeService.subscribeUserEvents(accountId)    // invoke SubscribeAccounts + Orders + Positions + Trades
+realtimeService.connect()                         // delegates to adapter.connect()
+realtimeService.subscribeQuotes(contractId)
+realtimeService.unsubscribeQuotes(contractId)
+realtimeService.subscribeDepth(contractId)
+realtimeService.unsubscribeDepth(contractId)
+realtimeService.subscribeUserEvents(accountId)
 
-realtimeService.onQuote(handler)     // (contractId, GatewayQuote) => void
+realtimeService.onQuote(handler)     // (contractId, Quote) => void
 realtimeService.onDepth(handler)     // (contractId, DepthEntry[]) => void
 realtimeService.onOrder(handler)
 realtimeService.onPosition(handler)
@@ -245,7 +246,16 @@ realtimeService.ping()               // WebSocket round-trip latency in ms
 realtimeService.disconnect()
 ```
 
-Uses `skipNegotiation: true` + `transport: WebSockets`. Vite proxies `/hubs` to Express (port 3001), which appends `?access_token=<JWT>` server-side during WebSocket upgrade. Auto-reconnects and resubscribes on reconnect.
+### Realtime Adapter (`adapters/`)
+
+The `RealtimeAdapter` interface (`adapters/types.ts`) defines the contract for realtime data providers. The adapter registry (`adapters/registry.ts`) holds the active adapter singleton.
+
+**ProjectX adapter** (`adapters/projectx/realtimeAdapter.ts`): manages two SignalR hubs proxied through the backend (JWT injected server-side). Uses `skipNegotiation: true` + `transport: WebSockets`. Auto-reconnects and resubscribes on reconnect. SignalR-specific helpers (`UserHubItem<T>`, `normalizeUserHubArgs`) are file-private.
+
+| Hub | Frontend URL | Proxied To | Events |
+|-----|-------------|------------|--------|
+| Market | `/hubs/market` | `wss://rtc.topstepx.com/hubs/market` | `GatewayQuote(contractId, data)`, `GatewayDepth(contractId, entries[])` |
+| User | `/hubs/user` | `wss://rtc.topstepx.com/hubs/user` | `GatewayUserOrder`, `GatewayUserPosition`, `GatewayUserAccount`, `GatewayUserTrade` |
 
 ### `bracketEngine.ts`
 

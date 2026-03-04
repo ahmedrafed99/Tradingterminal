@@ -49,34 +49,25 @@ Extract ProjectX-specific logic behind interfaces so the Express routes become e
 
 ---
 
-## Phase 3 — Realtime Adapter (Frontend)
+## Phase 3 — Realtime Adapter (Frontend) ✅
 
 Abstract `realtimeService.ts` so the transport (SignalR vs plain WebSocket) and event shapes are behind an interface.
 
-### What changes
+### What was done
 
-| Current | Abstracted |
-|---|---|
-| SignalR `HubConnectionBuilder` hardcoded | `RealtimeAdapter.connect()` interface |
-| Event names: `GatewayQuote`, `GatewayUserOrder`, etc. | Adapter normalizes into internal types |
-| Subscription methods: `SubscribeContractQuotes`, `SubscribeOrders`, etc. | `adapter.subscribeQuotes(id)`, `adapter.subscribeOrders(accountId)` |
-| `UserHubItem<T>` with `{action, data}` wrapper | Adapter unwraps before dispatching |
-
-### Approach
-
-- Define `RealtimeAdapter` interface with `connect`, `disconnect`, `subscribe*`, `unsubscribe*`, `on*`, `off*`.
-- Current `RealtimeService` class becomes `ProjectXRealtimeAdapter` implementing the interface.
-- The public `realtimeService` singleton delegates to whichever adapter is active.
-- Internal event types (`RealtimeOrder`, `RealtimePosition`, etc.) become the canonical shapes — each adapter normalizes into them.
+- Created `frontend/src/adapters/types.ts` with `RealtimeAdapter` interface and canonical data types (`Quote`, `DepthEntry`, `RealtimeOrder`, `RealtimePosition`, `RealtimeAccount`, `RealtimeTrade`) plus handler type aliases.
+- Created `frontend/src/adapters/registry.ts` — singleton holder (`getRealtimeAdapter`/`setRealtimeAdapter`/`clearRealtimeAdapter`).
+- Moved all SignalR logic into `frontend/src/adapters/projectx/realtimeAdapter.ts` as `ProjectXRealtimeAdapter implements RealtimeAdapter`. SignalR-specific helpers (`UserHubItem<T>`, `normalizeUserHubArgs`) are file-private.
+- Created `frontend/src/adapters/projectx/index.ts` — `createProjectXRealtimeAdapter()` factory.
+- Rewrote `frontend/src/services/realtimeService.ts` as a thin delegating facade that proxies all calls to the active adapter and re-exports types for backward compatibility (`GatewayQuote` is a type alias for `Quote`).
+- Zero consumer file changes — all 7 files importing from `realtimeService` work unchanged.
+- `@microsoft/signalr` is now only imported in the ProjectX adapter file.
+- `tsc --noEmit` compiles clean for both frontend and backend.
 
 ### Why this is the hardest piece
 
 - SignalR has built-in reconnection, hub multiplexing, and negotiate flow. Plain WebSocket needs all of that manually.
 - The backend SignalR proxy (`index.ts` lines 43-127) is also exchange-specific — it would need a parallel path for crypto WS proxying (or direct browser-to-exchange connections).
-
-### Validation
-
-SignalR still works exactly as before through the adapter wrapper. No new transport yet.
 
 ---
 

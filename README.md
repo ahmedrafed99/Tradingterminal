@@ -53,7 +53,7 @@ chart/
 | Trade zone visualization (FIFO matching)    | `bottom-panel/` (chart primitive in `frontend/`) |
 | All Zustand store slices                    | `frontend/` → Zustand Store |
 | All service API signatures                  | `frontend/` → Service Layer |
-| SignalR hub events and subscription API     | `frontend/` → realtimeService.ts |
+| Realtime adapter interface + hub events      | `frontend/` → realtimeService.ts / adapters/ |
 | Ad-hoc brackets (+SL/+TP, no preset)       | `chart-trading/` → Ad-Hoc Brackets |
 | Position drag-to-create SL/TP              | `chart-trading/` → Position Drag-to-Create |
 
@@ -102,7 +102,7 @@ chart/
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
 │  │  │  API Service Layer                                    │   │   │
 │  │  │  authService · marketDataService · orderService      │   │   │
-│  │  │  accountService · realtimeService (SignalR)          │   │   │
+│  │  │  accountService · realtimeService (adapter facade)   │   │   │
 │  │  │  bracketEngine (client-side SL/TP management)        │   │   │
 │  │  └──────────────┬───────────────────────────────────────┘   │   │
 │  └─────────────────┼───────────────────────────────────────────┘   │
@@ -147,7 +147,7 @@ chart/
 | Styling | Tailwind CSS |
 | Typography | System font stack: `-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif` |
 | Backend proxy | Node.js + Express |
-| Real-time | @microsoft/signalr |
+| Real-time | @microsoft/signalr (isolated in ProjectX adapter) |
 
 ---
 
