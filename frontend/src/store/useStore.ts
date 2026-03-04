@@ -365,7 +365,7 @@ export const useStore = create<Store>()(
       lastPrice: null,
       setOrderType: (orderType) => set({ orderType }),
       setLimitPrice: (limitPrice) => set({ limitPrice }),
-      setOrderSize: (orderSize) => set({ orderSize: Math.max(1, orderSize) }),
+      setOrderSize: (orderSize) => set({ orderSize: Math.max(1, orderSize) }), // TODO Phase 6: use contract.quantityStep for min/step
       togglePreview: () =>
         set((s) => ({
           previewEnabled: !s.previewEnabled,

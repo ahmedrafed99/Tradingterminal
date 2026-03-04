@@ -62,10 +62,11 @@ When the entry order fills (detected via SignalR `GatewayUserOrder` with status=
 ### Price conversion
 
 ```
-priceOffset = points * tickSize * TICKS_PER_POINT
+priceOffset = pointsToPrice(points, contract)
+            = points * contract.tickSize * contract.ticksPerPoint
 ```
 
-`TICKS_PER_POINT = 4` (defined in `types/bracket.ts`). User-facing unit is **points** (1 point = 4 ticks).
+`ticksPerPoint` is derived from the `Contract` (e.g. 4 for MNQ, 100 for BTC). Helpers live in `utils/instrument.ts`: `pointsToPrice()`, `priceToPoints()`, `pointsToTicks()`, `calcPnl()`.
 
 - **SL price**: `entryPrice - offset` for long, `entryPrice + offset` for short
 - **TP price**: `entryPrice + offset` for long, `entryPrice - offset` for short
@@ -169,7 +170,7 @@ armForEntry(config: {
   entrySide: 0 | 1;
   entrySize: number;
   config: BracketConfig;
-  tickSize: number;
+  contract: Contract;       // instrument metadata (tickSize, tickValue, ticksPerPoint)
 }): void
 
 confirmEntryOrderId(orderId: number): void

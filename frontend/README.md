@@ -32,9 +32,10 @@ frontend/
 │   ├── App.tsx                 ← root shell, auth check, auto-load NQ, split layout with draggable separator
 │   ├── index.css               ← Tailwind import + dark base styles + TradingView watermark hide
 │   ├── types/
-│   │   ├── bracket.ts          ← BracketConfig, BracketPreset, Condition types, TICKS_PER_POINT
+│   │   ├── bracket.ts          ← BracketConfig, BracketPreset, Condition types, buildNativeBracketParams
 │   │   └── drawing.ts          ← Drawing (HLine|Oval|ArrowPath), DrawingTool, DrawingText, HLineTemplate types + constants
 │   ├── utils/
+│   │   ├── instrument.ts       ← calcPnl, pointsToPrice, priceToPoints, pointsToTicks, getTicksPerPoint
 │   │   ├── cmeSession.ts       ← getCmeSessionStart() — CME session boundary (6 pm NY)
 │   │   ├── toast.ts            ← showToast() + errorMessage() — toast helpers for non-React code
 │   │   └── retry.ts            ← retryAsync() — exponential backoff with jitter
@@ -324,9 +325,9 @@ BracketConfig      { stopLoss: StopLossConfig; takeProfits: TakeProfitLevel[]; c
 BracketPreset      { id: string; name: string; config: BracketConfig }
 ```
 
-Constants: `TICKS_PER_POINT = 4`, `MAX_TP_LEVELS = 8`
+Constants: `MAX_TP_LEVELS = 8`
 
-User-facing unit is **points** (1 point = 4 ticks). All UI inputs/displays use points. The engine converts: `priceOffset = points * tickSize * TICKS_PER_POINT`.
+User-facing unit is **points** (1 point = `ticksPerPoint` ticks, e.g. 4 for MNQ). All UI inputs/displays use points. Conversion helpers in `utils/instrument.ts`: `pointsToPrice(points, contract)`, `priceToPoints(priceOffset, contract)`, `pointsToTicks(points, contract)`, `calcPnl(priceDiff, contract, size)`.
 
 ---
 
@@ -661,6 +662,20 @@ Auto-cleared on: preview toggle off, preset selection, position fill (real brack
 ---
 
 ## Utilities (`src/utils/`)
+
+### `instrument.ts`
+
+Centralized instrument helpers — all P&L and price conversion formulas go through here.
+
+```ts
+getTicksPerPoint(contract)              // contract.ticksPerPoint ?? Math.round(1 / tickSize)
+pointsToPrice(points, contract)         // points * tickSize * ticksPerPoint
+priceToPoints(priceOffset, contract)    // inverse of pointsToPrice
+pointsToTicks(points, contract)         // points * ticksPerPoint (for gateway bracket API)
+calcPnl(priceDiff, contract, size)      // (priceDiff / tickSize) * tickValue * size
+```
+
+The P&L formula is universal: for futures `tickValue ≠ tickSize` (e.g. MNQ: 0.25 tick, $0.50 value), for crypto `tickValue == tickSize` so P&L simplifies to `priceDiff * size`.
 
 ### `toast.ts`
 

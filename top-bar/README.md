@@ -54,8 +54,10 @@ Balance: $50,123.45   UP&L: +12.50 $
 
 ```ts
 const diff = isLong ? lastPrice - pos.averagePrice : pos.averagePrice - lastPrice;
-unrealizedPnl += (diff / tickSize) * tickValue * pos.size;
+unrealizedPnl += calcPnl(diff, orderContract, pos.size);
 ```
+
+`calcPnl()` from `utils/instrument.ts` — universal formula `(priceDiff / tickSize) * tickValue * size`, works for both futures and crypto.
 
 **UP&L display** — color-coded:
 - Positive: `text-[#26a69a]` (green), prefixed with `+`
@@ -161,4 +163,4 @@ updateAccount: (partial) =>
 - `accounts` array is NOT persisted — re-fetched on every connection
 - Unrealized P&L is computed inline during render (no extra state/effect) since `lastPrice` changes trigger re-renders via Zustand selector
 - `contractId` comparison uses `String()` coercion — SignalR sends strings, API may return numbers
-- The P&L formula matches `PositionDisplay` in the order panel: `(priceDiff / tickSize) * tickValue * size`
+- The P&L formula matches `PositionDisplay` in the order panel — both use `calcPnl()` from `utils/instrument.ts`

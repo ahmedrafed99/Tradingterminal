@@ -74,8 +74,8 @@ retrieveBars(params: {
   includePartialBar?: boolean
 }): Promise<Bar[]>
 
-searchContracts(query: string): Promise<Contract[]>
-listAvailableContracts(): Promise<Contract[]>
+searchContracts(query: string): Promise<Contract[]>       // normalized with computed fields
+listAvailableContracts(): Promise<Contract[]>              // normalized with computed fields
 ```
 
 Bars are cached in memory per `(contractId, unit, unitNumber)`.

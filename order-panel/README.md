@@ -126,7 +126,7 @@ User clicks BUY
   └─► build payload:
         { accountId, contractId, type: 2 (market) or 1 (limit),
           side: 0 (Bid), size, limitPrice? }
-  └─► buildNativeBracketParams(config, side)
+  └─► buildNativeBracketParams(config, side, contract)
         ├─► <= 1 TP: returns { stopLossBracket?, takeProfitBracket? }
         │     └─► merged into payload (atomic gateway placement)
         └─► 2+ TPs: returns null

@@ -57,6 +57,8 @@ export interface BracketPreset {
 // Constants & helpers
 // ---------------------------------------------------------------------------
 import { OrderType, OrderSide } from './enums';
+import type { Contract } from '../services/marketDataService';
+import { pointsToTicks } from '../utils/instrument';
 
 export const DEFAULT_BRACKET_CONFIG: BracketConfig = {
   stopLoss: { points: 0, type: 'Stop' },
@@ -65,9 +67,6 @@ export const DEFAULT_BRACKET_CONFIG: BracketConfig = {
 };
 
 export const MAX_TP_LEVELS = 8;
-
-// TODO Phase 4: derive from instrument metadata instead of a global constant
-export const TICKS_PER_POINT = 4;
 
 export function slTypeToApiType(type: StopLossType): OrderType.Stop | OrderType.TrailingStop {
   return type === 'Stop' ? OrderType.Stop : OrderType.TrailingStop;
@@ -84,6 +83,7 @@ export function slTypeToApiType(type: StopLossType): OrderType.Stop | OrderType.
 export function buildNativeBracketParams(
   config: BracketConfig,
   side: OrderSide,
+  contract: Contract,
 ): { stopLossBracket?: { ticks: number; type: number }; takeProfitBracket?: { ticks: number; type: number } } | null {
   if (config.takeProfits.length > 1) return null;
 
@@ -92,14 +92,14 @@ export function buildNativeBracketParams(
 
   if (config.stopLoss.points >= 1) {
     result.stopLossBracket = {
-      ticks: config.stopLoss.points * TICKS_PER_POINT * (isBuy ? -1 : 1),
+      ticks: pointsToTicks(config.stopLoss.points, contract) * (isBuy ? -1 : 1),
       type: slTypeToApiType(config.stopLoss.type),
     };
   }
 
   if (config.takeProfits.length === 1 && config.takeProfits[0].points >= 1) {
     result.takeProfitBracket = {
-      ticks: config.takeProfits[0].points * TICKS_PER_POINT * (isBuy ? 1 : -1),
+      ticks: pointsToTicks(config.takeProfits[0].points, contract) * (isBuy ? 1 : -1),
       type: OrderType.Limit,
     };
   }

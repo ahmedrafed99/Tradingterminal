@@ -4,6 +4,7 @@ import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { showToast, errorMessage } from '../../utils/toast';
+import { calcPnl } from '../../utils/instrument';
 
 function formatPrice(price: number): string {
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,15 +27,13 @@ export function PositionDisplay() {
   }
 
   const isLong = pos.type === PositionType.Long;
-  const tickSize = orderContract.tickSize || 0.25;
-  const tickValue = orderContract.tickValue || 0.50;
   const sign = isLong ? '+' : '-';
 
   if (lastPrice != null) {
     const priceDiff = isLong
       ? lastPrice - pos.averagePrice
       : pos.averagePrice - lastPrice;
-    pnlRef.current = (priceDiff / tickSize) * tickValue * pos.size;
+    pnlRef.current = calcPnl(priceDiff, orderContract, pos.size);
   }
   const pnl = pnlRef.current;
 

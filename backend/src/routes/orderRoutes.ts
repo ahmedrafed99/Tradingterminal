@@ -16,7 +16,7 @@ const PlaceOrderSchema = z.object({
   contractId: z.string().min(1),
   type: z.nativeEnum(OrderType),
   side: z.nativeEnum(OrderSide),
-  size: z.number().int().positive(),
+  size: z.number().int().positive(), // TODO Phase 6: allow fractional quantities for crypto (remove .int())
   limitPrice: z.number().optional(),
   stopPrice: z.number().optional(),
   stopLossBracket: BracketSchema.optional(),

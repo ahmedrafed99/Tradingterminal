@@ -4,6 +4,7 @@ import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
 import { PositionType } from '../types/enums';
+import { calcPnl } from '../utils/instrument';
 import { tradeService } from '../services/tradeService';
 import type { Trade } from '../services/tradeService';
 import { getCmeSessionStart } from '../utils/cmeSession';
@@ -195,13 +196,11 @@ export function TopBar() {
   const upnlRef = useRef(0);
   if (activeAccountId != null && orderContract && lastPrice != null) {
     let pnl = 0;
-    const tickSize = orderContract.tickSize || 0.25;
-    const tickValue = orderContract.tickValue || 0.50;
     for (const pos of positions) {
       if (pos.accountId === activeAccountId && pos.size !== 0 && String(pos.contractId) === String(orderContract.id)) {
         const isLong = pos.type === PositionType.Long;
         const diff = isLong ? lastPrice - pos.averagePrice : pos.averagePrice - lastPrice;
-        pnl += (diff / tickSize) * tickValue * pos.size;
+        pnl += calcPnl(diff, orderContract, pos.size);
       }
     }
     upnlRef.current = pnl;

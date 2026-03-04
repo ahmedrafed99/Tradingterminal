@@ -88,7 +88,7 @@ export function BuySellButtons() {
 
     // Use gateway-native brackets for <= 1 TP (atomic placement, zero latency gap).
     // Fall back to client-side bracket engine for 2+ TPs.
-    const nativeBrackets = bracketsActive && mergedConfig ? buildNativeBracketParams(mergedConfig, side) : null;
+    const nativeBrackets = bracketsActive && mergedConfig ? buildNativeBracketParams(mergedConfig, side, orderContract) : null;
 
     if (nativeBrackets) {
       Object.assign(params, nativeBrackets);
@@ -100,7 +100,7 @@ export function BuySellButtons() {
         entrySide: side,
         entrySize: orderSize,
         config: mergedConfig,
-        tickSize: orderContract.tickSize || 0.25,
+        contract: orderContract,
       });
     }
 

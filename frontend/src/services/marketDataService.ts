@@ -16,6 +16,21 @@ export interface Contract {
   tickSize: number;
   tickValue: number;
   activeContract: boolean;
+  // Phase 4: instrument generalization (computed during normalization)
+  ticksPerPoint?: number;       // Math.round(1 / tickSize) for futures, 1 for crypto
+  quantityStep?: number;        // 1 for futures, 0.001 etc. for crypto
+  pricePrecision?: number;      // decimal places for prices (derived from tickSize)
+  quantityPrecision?: number;   // decimal places for quantities (0 for futures)
+}
+
+function normalizeContract(raw: Contract): Contract {
+  return {
+    ...raw,
+    ticksPerPoint: raw.ticksPerPoint ?? Math.round(1 / raw.tickSize),
+    quantityStep: raw.quantityStep ?? 1,
+    pricePrecision: raw.pricePrecision ?? (raw.tickSize.toString().split('.')[1]?.length ?? 0),
+    quantityPrecision: raw.quantityPrecision ?? 0,
+  };
 }
 
 export type BarUnit = 1 | 2 | 3 | 4 | 5 | 6; // Second|Minute|Hour|Day|Week|Month
@@ -56,13 +71,13 @@ export const marketDataService = {
     const res = await api.get<{ contracts: Contract[]; success: boolean }>(
       `/market/contracts/search?q=${encodeURIComponent(query)}&live=${live}`,
     );
-    return res.data.contracts ?? [];
+    return (res.data.contracts ?? []).map(normalizeContract);
   },
 
   async listAvailableContracts(): Promise<Contract[]> {
     const res = await api.get<{ contracts: Contract[]; success: boolean }>(
       '/market/contracts/available',
     );
-    return res.data.contracts ?? [];
+    return (res.data.contracts ?? []).map(normalizeContract);
   },
 };

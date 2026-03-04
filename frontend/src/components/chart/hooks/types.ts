@@ -77,6 +77,7 @@ export interface ChartRefs {
 
   // Shared flags
   qoHovered: React.MutableRefObject<boolean>;
+  labelHovered: React.MutableRefObject<boolean>;
   lastPnlCache: React.MutableRefObject<{ text: string; bg: string }>;
 
   // Hit-target registry (shared between drawings + overlay labels)

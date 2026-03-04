@@ -60,6 +60,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   // Shared flag: true while the quick-order (+) button is hovered so the
   // crosshair label primitive doesn't clear itself during the transition.
   const qoHoveredRef = useRef(false);
+  const labelHoveredRef = useRef(false);
 
   // --- Refs declared here for all hooks (stable across renders) ---
 
@@ -118,6 +119,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     instrumentLabel: instrumentLabelRef,
     quickOrder: quickOrderRef,
     qoHovered: qoHoveredRef,
+    labelHovered: labelHoveredRef,
     lastPnlCache,
     hitTargets: hitTargetsRef,
     entryClick: entryClickRef,

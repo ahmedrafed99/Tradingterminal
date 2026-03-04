@@ -85,6 +85,7 @@ The button only renders on the chart whose contract matches the order panel's co
 ```ts
 const onMove = (param) => {
   if (isDragging || awaitingClick) return;  // frozen during drag/await
+  if (refs.labelHovered.current) { el.style.display = 'none'; return; } // suppress while over a label
   if (!param.point) { /* hide with delay */ return; }
 
   const rawPrice = series.coordinateToPrice(param.point.y);
@@ -101,6 +102,7 @@ const onMove = (param) => {
 };
 ```
 
+- **Label suppression**: when the cursor is over any overlay label (`refs.labelHovered.current`), the + button is hidden entirely (`display: 'none'`). This prevents the z-30 button from intercepting clicks on label buttons (cancel-X, +SL, +TP, TP size ±) — critical in dual-chart layouts where small charts push labels close to the price scale.
 - **Price snapping**: rounds to the nearest tick size for valid order placement
 - **Direction**: compares snapped price to market price (`lastPrice` from real-time, falls back to `lastBarRef.current.close` from historical data). **Side is locked once hovered** — `isBuy` only recalculates when `!isHovered`, preventing the label from flipping between "Buy Limit" and "Sell Limit" if the market price crosses while the user is hovering.
 - **Position**: `top` tracks the crosshair Y, `right` aligns with the price scale edge
@@ -136,7 +138,7 @@ When a bracket preset is active (`activePresetId` in the store), the button inte
 - SL line (`#ff0000` red dashed) + label sections with projected P&L (red) and size
 - TP lines (`#00c805` green dashed) + label sections with projected P&L (green) and size
 
-Price offsets computed via `points * tickSize * TICKS_PER_POINT`, same formula as the main preview system. Labels are passed as `LabelSection[]` to the `PriceLevelLine` constructor — no separate `buildRow()` or `createHoverLabels()` step.
+Price offsets computed via `pointsToPrice(points, contract)` from `utils/instrument.ts`, same formula as the main preview system. Labels are passed as `LabelSection[]` to the `PriceLevelLine` constructor — no separate `buildRow()` or `createHoverLabels()` step.
 
 **On leave** — `removePreviewLines()` calls `destroy()` on all `PriceLevelLine` instances, tearing down lines and labels together.
 
@@ -160,9 +162,9 @@ Both paths:
 
 ```ts
 // Dual-path decision
-const nativeBrackets = buildNativeBracketParams(bc, side);
+const nativeBrackets = buildNativeBracketParams(bc, side, contract);
 if (!nativeBrackets) {
-  bracketEngine.armForEntry({ ... }); // 2+ TPs only
+  bracketEngine.armForEntry({ ..., contract }); // 2+ TPs only
 }
 
 orderService.placeOrder({ ...baseParams, ...nativeBrackets });
@@ -283,6 +285,12 @@ Each interactive element (button cell, draggable row) is registered in `hitTarge
 | 2 | Position / preview row drag | Drag — starts position or preview drag state |
 
 A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit targets, checks `getBoundingClientRect()` vs mouse coordinates, skips hidden elements (`el.offsetParent === null`), and fires the first match. The `onHandleHover` mousemove handler checks hit targets to show `cursor: grab` for row-drag targets (priority ≥ 2) and `cursor: pointer` for button targets (priority 0/1).
+
+### Plus button suppression on label hover
+
+The quick-order + button (z-30, `pointer-events: auto`) sits above the overlay labels (z-20, `pointer-events: none`). On small charts (e.g. dual layout), labels near the price scale overlap the + button, causing it to steal clicks from cancel-X / drag targets.
+
+Fix: `onHandleHover` in `useChartDrawings` sets a shared `refs.labelHovered` flag whenever the cursor is over any hit target. When true, the + button element is hidden (`display: 'none'`) and `useQuickOrder`'s crosshair move handler skips re-showing it. The flag resets to false as soon as the cursor moves off the label, restoring normal + button behavior.
 
 ### Position label
 - Real-time P&L (green/red), contract size, X to close position (market order)

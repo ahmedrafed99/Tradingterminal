@@ -3,8 +3,8 @@ import type { Contract } from '../../../services/marketDataService';
 import { orderService, type Order, type PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { useStore } from '../../../store/useStore';
-import { TICKS_PER_POINT } from '../../../types/bracket';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
+import { pointsToPrice, priceToPoints, calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { PriceLevelLine } from '../PriceLevelLine';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
@@ -51,7 +51,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
 
     const config = resolvePreviewConfig();
     const tickSize = contract.tickSize;
-    const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
+    const toPrice = (points: number) => pointsToPrice(points, contract);
 
     const snap = useStore.getState();
     const entry = snap.orderType === 'limit' ? snap.limitPrice : snap.lastPrice;
@@ -115,8 +115,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     if (!previewEnabled || !contract) return;
     if (refs.previewLines.current.length === 0) return;
 
-    const tickSize = contract.tickSize;
-    const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
+    const toPrice = (points: number) => pointsToPrice(points, contract);
 
     function doUpdate() {
       const snap = useStore.getState();
@@ -223,7 +222,6 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       refs.updateOverlay.current();
 
       const st = useStore.getState();
-      const tickSize = contract!.tickSize;
 
       if (drag.role.kind === 'entry') {
         st.setOrderType('limit');
@@ -231,7 +229,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       } else {
         const entryPrice = st.orderType === 'limit' ? st.limitPrice : st.lastPrice;
         if (entryPrice) {
-          const pts = Math.abs(entryPrice - snapped) / (tickSize * TICKS_PER_POINT);
+          const pts = priceToPoints(Math.abs(entryPrice - snapped), contract!);
           const rounded = Math.max(1, Math.round(pts));
           const hasPreset = st.bracketPresets.some((p) => p.id === st.activePresetId);
           if (drag.role.kind === 'sl') {
@@ -262,12 +260,11 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
           const st = useStore.getState();
           const cur = st.qoPendingPreview;
           if (cur) {
-            const tickSize = contract!.tickSize;
             if (drag.role.kind === 'qo-sl' && refs.qoPreviewPrices.current.sl != null) {
               const newSlPrice = refs.qoPreviewPrices.current.sl;
               st.setQoPendingPreview({ ...cur, slPrice: newSlPrice });
               const slDiff = Math.abs(cur.entryPrice - newSlPrice);
-              const slPoints = Math.round(slDiff / (tickSize * TICKS_PER_POINT));
+              const slPoints = Math.round(priceToPoints(slDiff, contract!));
               bracketEngine.updateArmedConfig((cfg) => ({
                 ...cfg,
                 stopLoss: { ...cfg.stopLoss, points: Math.max(1, slPoints) },
@@ -280,7 +277,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
                 newTpPrices[tpIdx] = newTpPrice;
                 st.setQoPendingPreview({ ...cur, tpPrices: newTpPrices });
                 const tpDiff = Math.abs(newTpPrice - cur.entryPrice);
-                const tpPoints = Math.round(tpDiff / (tickSize * TICKS_PER_POINT));
+                const tpPoints = Math.round(priceToPoints(tpDiff, contract!));
                 bracketEngine.updateArmedConfig((cfg) => ({
                   ...cfg,
                   takeProfits: cfg.takeProfits.map((tp, i) =>
@@ -460,8 +457,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         // Path 2: Preview with hidden entry (Buy/Sell button flow)
         if (st.previewHideEntry) {
           refs.previewPrices.current[0] = snapped;
-          const tickSize = contract!.tickSize;
-          const toP = (points: number) => points * tickSize * TICKS_PER_POINT;
+          const toP = (points: number) => pointsToPrice(points, contract!);
           const cfg = resolvePreviewConfig();
           const pvSide = st.previewSide;
           let idx = 1; // skip entry line (index 0)
@@ -662,13 +658,11 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       }
 
       // Compute projected P&L for the label
-      const tv = contract!.tickValue || 0.50;
-      const ts = contract!.tickSize;
       const diff = drag.isLong
         ? (direction === 'tp' ? snapped - drag.avgPrice : drag.avgPrice - snapped)
         : (direction === 'tp' ? drag.avgPrice - snapped : snapped - drag.avgPrice);
       const orderSz = direction === 'sl' ? drag.posSize : 1;
-      const pnl = (diff / ts) * tv * orderSz;
+      const pnl = calcPnl(diff, contract!, orderSz);
       const pnlText = direction === 'sl'
         ? `-$${Math.abs(pnl).toFixed(2)}`
         : `+$${Math.abs(pnl).toFixed(2)}`;

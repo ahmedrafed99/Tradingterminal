@@ -1,9 +1,10 @@
 import { orderService } from './orderService';
 import type { RealtimeOrder } from './realtimeService';
+import type { Contract } from './marketDataService';
 import { useStore } from '../store/useStore';
 import type { BracketConfig, ConditionAction } from '../types/bracket';
-import { TICKS_PER_POINT } from '../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
+import { pointsToPrice } from '../utils/instrument';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 
@@ -13,13 +14,13 @@ const DEV = import.meta.env.DEV;
 // Types
 // ---------------------------------------------------------------------------
 
-interface PendingEntryConfig {
+export interface PendingEntryConfig {
   accountId: number;
   contractId: string;
   entrySide: OrderSide;
   entrySize: number;
   config: BracketConfig;
-  tickSize: number;
+  contract: Contract;
 }
 
 interface NormalizedTP {
@@ -35,7 +36,7 @@ interface ActiveSession {
   entryPrice: number;
   entrySize: number;
   config: BracketConfig;
-  tickSize: number;
+  contract: Contract;
   /** Normalized TP sizes that were actually used for placement */
   normalizedTPs: NormalizedTP[];
 
@@ -43,11 +44,6 @@ interface ActiveSession {
   tpOrderIds: Map<number, number>; // tpIndex → orderId
   filledTPs: Set<number>;
   pendingActions: ConditionAction[];
-}
-
-/** Convert points to price offset: points * tickSize * TICKS_PER_POINT */
-function pointsToPrice(points: number, tickSize: number): number {
-  return points * tickSize * TICKS_PER_POINT;
 }
 
 // ---------------------------------------------------------------------------
@@ -338,7 +334,7 @@ class BracketEngine {
   // ── Internal ──────────────────────────────────────────────────────────
 
   private async onEntryFilled(cfg: PendingEntryConfig, entryPrice: number) {
-    const { config, accountId, contractId, entrySide, entrySize, tickSize } = cfg;
+    const { config, accountId, contractId, entrySide, entrySize, contract } = cfg;
 
     // Normalize TP sizes upfront
     const rawTps = [...config.takeProfits].sort((a, b) => a.points - b.points);
@@ -359,7 +355,7 @@ class BracketEngine {
       entryPrice,
       entrySize,
       config,
-      tickSize,
+      contract,
       normalizedTPs,
       slOrderId: null,
       tpOrderIds: new Map(),
@@ -371,7 +367,7 @@ class BracketEngine {
 
     // Place SL as a separate stop order (with retry)
     if (config.stopLoss.points >= 1) {
-      const slOffset = pointsToPrice(config.stopLoss.points, tickSize);
+      const slOffset = pointsToPrice(config.stopLoss.points, contract);
       const stopPrice =
         entrySide === OrderSide.Buy
           ? entryPrice - slOffset // long: SL below entry
@@ -426,7 +422,7 @@ class BracketEngine {
     // Place all TPs as separate limit orders (normalized sizes)
     for (let i = 0; i < normalizedTPs.length; i++) {
       const tp = normalizedTPs[i];
-      const tpOffset = pointsToPrice(tp.points, tickSize);
+      const tpOffset = pointsToPrice(tp.points, contract);
       const limitPrice =
         entrySide === OrderSide.Buy
           ? entryPrice + tpOffset
@@ -521,7 +517,7 @@ class BracketEngine {
 
   private async executeAction(action: ConditionAction) {
     if (!this.session) return;
-    const { accountId, entryPrice, entrySide, tickSize, slOrderId, config } = this.session;
+    const { accountId, entryPrice, entrySide, contract, slOrderId, config } = this.session;
 
     if (slOrderId === null && action.kind !== 'cancelRemainingTPs') {
       this.session.pendingActions.push(action);
@@ -548,7 +544,7 @@ class BracketEngine {
         }
 
         case 'moveSLToPrice': {
-          const offset = pointsToPrice(action.points, tickSize);
+          const offset = pointsToPrice(action.points, contract);
           const newStop =
             entrySide === OrderSide.Buy ? entryPrice + offset : entryPrice - offset;
           await orderService.modifyOrder({
@@ -562,7 +558,7 @@ class BracketEngine {
         case 'moveSLToTP': {
           const targetTp = config.takeProfits[action.tpIndex];
           if (!targetTp) break;
-          const tpOffset = pointsToPrice(targetTp.points, tickSize);
+          const tpOffset = pointsToPrice(targetTp.points, contract);
           const newStop =
             entrySide === OrderSide.Buy ? entryPrice + tpOffset : entryPrice - tpOffset;
           await orderService.modifyOrder({
@@ -581,7 +577,7 @@ class BracketEngine {
         }
 
         case 'customOffset': {
-          const customOffset = pointsToPrice(action.points, tickSize);
+          const customOffset = pointsToPrice(action.points, contract);
           const newStop =
             entrySide === OrderSide.Buy ? entryPrice + customOffset : entryPrice - customOffset;
           await orderService.modifyOrder({

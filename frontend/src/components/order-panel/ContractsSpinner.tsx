@@ -20,7 +20,7 @@ export function ContractsSpinner() {
           min={1}
           value={orderSize}
           onChange={(e) => {
-            const v = parseInt(e.target.value, 10);
+            const v = parseInt(e.target.value, 10); // TODO Phase 6: use parseFloat + quantityStep for crypto
             if (!isNaN(v)) setOrderSize(v);
           }}
           className="flex-1 bg-[#111] border border-[#2a2e39] rounded px-2 py-1 text-xs text-white text-center

@@ -4,6 +4,7 @@ import { useStore } from '../../../store/useStore';
 import { orderService, type PlaceOrderParams, type Order } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
+import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs, PreviewLineRole } from './types';
@@ -54,9 +55,6 @@ export function useOverlayLabels(
     for (const tp of qoPrev.tps) if (tp) tp.setLabel(null);
     refs.hitTargets.current = [];
 
-    const tickSize = contract?.tickSize || 0.25;
-    const tickValue = contract?.tickValue || 0.50;
-
     // P&L updater closures — called every frame in updatePositions()
     const pnlUpdaters: (() => void)[] = [];
 
@@ -80,7 +78,7 @@ export function useOverlayLabels(
         let initBg: string;
         if (lp != null) {
           const diff = isLong ? lp - pos.averagePrice : pos.averagePrice - lp;
-          const initPnl = (diff / tickSize) * tickValue * pos.size;
+          const initPnl = calcPnl(diff, contract, pos.size);
           initText = `${initPnl >= 0 ? '+' : ''}$${initPnl.toFixed(2)}`;
           initBg = initPnl >= 0 ? '#00c805' : '#ff0000';
           refs.lastPnlCache.current = { text: initText, bg: initBg };
@@ -153,7 +151,7 @@ export function useOverlayLabels(
               return;
             }
             const diff = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
-            const pnl = (diff / tickSize) * tickValue * pos.size;
+            const pnl = calcPnl(diff, contract, pos.size);
             const bg = pnl >= 0 ? '#00c805' : '#ff0000';
             const text = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
             refs.lastPnlCache.current = { text, bg };
@@ -295,14 +293,14 @@ export function useOverlayLabels(
       if (pos) {
         const isLong = pos.type === PositionType.Long;
         const diff = isLong ? price - pos.averagePrice : pos.averagePrice - price;
-        const projPnl = (diff / tickSize) * tickValue * oSize;
+        const projPnl = calcPnl(diff, contract!, oSize);
         initPnlText = `${projPnl >= 0 ? '+' : ''}$${projPnl.toFixed(2)}`;
         initPnlBg = profitColor(price);
 
         orderPnlCompute = () => {
           const curPrice = getOrderRefPrice();
           const d = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
-          const pnl = (d / tickSize) * tickValue * oSize;
+          const pnl = calcPnl(d, contract!, oSize);
           const bg = profitColor(curPrice);
           return {
             text: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`,
@@ -561,7 +559,7 @@ export function useOverlayLabels(
               entrySide: side,
               entrySize: st.orderSize,
               config: mergedConfig,
-              tickSize: contract.tickSize || 0.25,
+              contract: contract,
             });
           }
 
@@ -586,7 +584,7 @@ export function useOverlayLabels(
         displaySize = previewTotalSize;
         const entryPrice = refs.previewPrices.current[0] ?? 0;
         const slDiff = pvSide === OrderSide.Buy ? entryPrice - price : price - entryPrice;
-        const slPnl = (slDiff / tickSize) * tickValue * displaySize;
+        const slPnl = calcPnl(slDiff, contract!, displaySize);
         pnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
         pnlBg = '#ff0000';
         onCancel = hasPreset
@@ -600,7 +598,7 @@ export function useOverlayLabels(
           const s1 = useStore.getState();
           const sz = s1.orderSize;
           const diff = s1.previewSide === OrderSide.Buy ? ep - sp : sp - ep;
-          const pnl = (diff / tickSize) * tickValue * sz;
+          const pnl = calcPnl(diff, contract!, sz);
           return {
             text: `-$${Math.abs(pnl).toFixed(2)}`,
             bg: '#ff0000',
@@ -611,7 +609,7 @@ export function useOverlayLabels(
         displaySize = previewTpSizes[role.index] ?? previewTotalSize;
         const entryPrice = refs.previewPrices.current[0] ?? 0;
         const tpDiff = pvSide === OrderSide.Buy ? price - entryPrice : entryPrice - price;
-        const tpPnl = (tpDiff / tickSize) * tickValue * displaySize;
+        const tpPnl = calcPnl(tpDiff, contract!, displaySize);
         pnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
         pnlBg = '#00c805';
         onCancel = hasPreset
@@ -629,7 +627,7 @@ export function useOverlayLabels(
             ? (presetCfg.config.takeProfits[tpIdx]?.size ?? s2.orderSize)
             : (s2.adHocTpLevels[tpIdx]?.size ?? 1);
           const diff = s2.previewSide === OrderSide.Buy ? tp - ep : ep - tp;
-          const pnl = (diff / tickSize) * tickValue * sz;
+          const pnl = calcPnl(diff, contract!, sz);
           return {
             text: `+$${Math.abs(pnl).toFixed(2)}`,
             bg: '#00c805',
@@ -758,7 +756,7 @@ export function useOverlayLabels(
         const slLine = refs.qoPreviewLines.current.sl;
         if (slLine) {
           const slDiff = qo.side === OrderSide.Buy ? qoEntryPrice - qo.slPrice : qo.slPrice - qoEntryPrice;
-          const slPnl = (slDiff / tickSize) * tickValue * qo.orderSize;
+          const slPnl = calcPnl(slDiff, contract!, qo.orderSize);
           const slPnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
           const cancelSl = () => {
             // Destroy the SL PriceLevelLine
@@ -811,7 +809,7 @@ export function useOverlayLabels(
             if (sp == null) return;
             const ep = refs.qoPreviewPrices.current.entry;
             const diff = qo.side === OrderSide.Buy ? ep - sp : sp - ep;
-            const pnl = (diff / tickSize) * tickValue * qo.orderSize;
+            const pnl = calcPnl(diff, contract!, qo.orderSize);
             slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, '#ff0000');
           });
         }
@@ -825,7 +823,7 @@ export function useOverlayLabels(
         if (!tpLine) continue;
 
         const tpDiff = qo.side === OrderSide.Buy ? tpPrice - qoEntryPrice : qoEntryPrice - tpPrice;
-        const tpPnl = (tpDiff / tickSize) * tickValue * tpSize;
+        const tpPnl = calcPnl(tpDiff, contract!, tpSize);
         const tpPnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
         const tpIdx = ti;
         const cancelTp = () => {
@@ -891,7 +889,7 @@ export function useOverlayLabels(
           if (tp == null) return;
           const ep = refs.qoPreviewPrices.current.entry;
           const diff = qo.side === OrderSide.Buy ? tp - ep : ep - tp;
-          const pnl = (diff / tickSize) * tickValue * capturedTpSize;
+          const pnl = calcPnl(diff, contract!, capturedTpSize);
           tpLine.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, '#00c805');
         });
       }

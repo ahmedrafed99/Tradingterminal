@@ -757,6 +757,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       const mx = e.clientX;
       const my = e.clientY;
       const sortedTargets = refs.hitTargets.current.slice().sort((a, b) => a.priority - b.priority);
+      let overLabel = false;
       for (const target of sortedTargets) {
         const el = target.el;
         if (el.offsetParent === null) continue;
@@ -764,9 +765,18 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         if (tRect.width === 0 || tRect.height === 0) continue;
         if (mx >= tRect.left && mx <= tRect.right && my >= tRect.top && my <= tRect.bottom) {
           container.style.cursor = target.priority >= 2 ? 'grab' : 'pointer';
-          return;
+          overLabel = true;
+          break;
         }
       }
+
+      // Hide the quick-order (+) button while hovering a label so it can't
+      // steal clicks from the cancel / drag targets underneath.
+      refs.labelHovered.current = overLabel;
+      const qoEl = refs.quickOrder.current;
+      if (qoEl) qoEl.style.display = overLabel ? 'none' : '';
+
+      if (overLabel) return;
 
       // Default: crosshair
       container.style.cursor = CROSSHAIR_CURSOR;

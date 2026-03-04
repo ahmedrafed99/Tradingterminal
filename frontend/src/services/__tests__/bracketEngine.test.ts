@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { RealtimeOrder } from '../realtimeService';
 import type { BracketConfig } from '../../types/bracket';
+import type { Contract } from '../marketDataService';
 import { OrderType, OrderSide, OrderStatus } from '../../types/enums';
 
 // ---------------------------------------------------------------------------
@@ -62,6 +63,19 @@ function mockOrder(overrides: Partial<RealtimeOrder> = {}): RealtimeOrder {
   };
 }
 
+const mockContract: Contract = {
+  id: 'CON-NQ',
+  name: 'NQ',
+  description: 'Micro Nasdaq',
+  tickSize: 0.25,
+  tickValue: 0.50,
+  activeContract: true,
+  ticksPerPoint: 4,
+  quantityStep: 1,
+  pricePrecision: 2,
+  quantityPrecision: 0,
+};
+
 const baseBracketConfig: BracketConfig = {
   stopLoss: { points: 10, type: 'Stop' },
   takeProfits: [
@@ -81,7 +95,7 @@ function armAndConfirm(
     entrySide,
     entrySize,
     config,
-    tickSize: 0.25,
+    contract: mockContract,
   });
 }
 

@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
-import { TICKS_PER_POINT, buildNativeBracketParams } from '../../../types/bracket';
+import { buildNativeBracketParams } from '../../../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
 import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
+import { pointsToPrice, calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
@@ -64,8 +65,7 @@ export function useQuickOrder(
       if (!activePreset) return;
       const bc = activePreset.config;
       const tickSize = contract!.tickSize;
-      const tickValue = contract!.tickValue || 0.50;
-      const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
+      const toPrice = (points: number) => pointsToPrice(points, contract!);
       const ep = snappedPrice;
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
@@ -83,7 +83,7 @@ export function useQuickOrder(
       if (bc.stopLoss.points > 0) {
         computedSlPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
         const slDiff = side === OrderSide.Buy ? ep - computedSlPrice : computedSlPrice - ep;
-        const slPnl = (slDiff / tickSize) * tickValue * st.orderSize;
+        const slPnl = calcPnl(slDiff, contract!, st.orderSize);
         const slLine = new PriceLevelLine({
           price: computedSlPrice, series, overlay, chartApi: chart,
           lineColor: '#ff0000', lineStyle: 'dashed', lineWidth: 1,
@@ -105,7 +105,7 @@ export function useQuickOrder(
         computedTpPrices.push(tpPrice);
         computedTpSizes.push(tp.size);
         const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
-        const tpPnl = (tpDiff / tickSize) * tickValue * tp.size;
+        const tpPnl = calcPnl(tpDiff, contract!, tp.size);
         const tpLine = new PriceLevelLine({
           price: tpPrice, series, overlay, chartApi: chart,
           lineColor: '#00c805', lineStyle: 'dashed', lineWidth: 1,
@@ -131,9 +131,7 @@ export function useQuickOrder(
       const st = useStore.getState();
       const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
       const bc = activePreset?.config;
-      const tickSize = contract!.tickSize;
-      const tickValue = contract!.tickValue || 0.50;
-      const toPrice = (points: number) => points * tickSize * TICKS_PER_POINT;
+      const toPrice = (points: number) => pointsToPrice(points, contract!);
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
       // Entry line (index 0)
@@ -147,7 +145,7 @@ export function useQuickOrder(
           qoPreviewLines[lineIdx].setPrice(slPrice);
           qoPreviewLines[lineIdx].syncPosition();
           const slDiff = side === OrderSide.Buy ? ep - slPrice : slPrice - ep;
-          const slPnl = (slDiff / tickSize) * tickValue * st.orderSize;
+          const slPnl = calcPnl(slDiff, contract!, st.orderSize);
           qoPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, '#ff0000');
           lineIdx++;
         }
@@ -157,7 +155,7 @@ export function useQuickOrder(
           qoPreviewLines[lineIdx].setPrice(tpPrice);
           qoPreviewLines[lineIdx].syncPosition();
           const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
-          const tpPnl = (tpDiff / tickSize) * tickValue * tp.size;
+          const tpPnl = calcPnl(tpDiff, contract!, tp.size);
           qoPreviewLines[lineIdx].updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, '#00c805');
           lineIdx++;
         });
@@ -174,6 +172,12 @@ export function useQuickOrder(
     const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
       if (isDragging || awaitingClick) return;
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+
+      // Suppress the + button while the cursor is over an overlay label
+      if (refs.labelHovered.current) {
+        el.style.display = 'none';
+        return;
+      }
 
       if (!param.point) {
         hideTimer = window.setTimeout(() => {
@@ -257,7 +261,7 @@ export function useQuickOrder(
         const bc = activePreset.config;
         const bracketsActive = bc.stopLoss.points >= 1 || bc.takeProfits.length >= 1;
         if (bracketsActive) {
-          nativeBrackets = buildNativeBracketParams(bc, side);
+          nativeBrackets = buildNativeBracketParams(bc, side, contract!);
 
           if (!nativeBrackets) {
             // 2+ TPs — arm bracket engine
@@ -267,14 +271,13 @@ export function useQuickOrder(
               entrySide: side,
               entrySize: st.orderSize,
               config: bc,
-              tickSize: contract!.tickSize || 0.25,
+              contract: contract!,
             });
             bracketsArmed = true;
           }
 
           // Publish pending preview for overlay labels
-          const tickSize = contract!.tickSize;
-          const toP = (points: number) => points * tickSize * TICKS_PER_POINT;
+          const toP = (points: number) => pointsToPrice(points, contract!);
           const ep = snappedPrice;
           st.setQoPendingPreview({
             entryPrice: ep,

@@ -71,30 +71,26 @@ Abstract `realtimeService.ts` so the transport (SignalR vs plain WebSocket) and 
 
 ---
 
-## Phase 4 — Instrument Model Generalization
+## Phase 4 — Instrument Model Generalization ✅
 
 Make the `Contract` type flexible enough for both futures and crypto instruments.
 
-### What changes
+### What was done
 
-| Futures (current) | Crypto (needed) |
-|---|---|
-| `id: "CON.F.US.MNQ.H25"` (has expiry) | `symbol: "BTCUSDT"` (no expiry) |
-| `tickSize: 0.25` / `tickValue: 0.50` | `pricePrecision: 2` / `quantityPrecision: 3` |
-| Whole-number contract sizes | Fractional sizes (`0.001 BTC`) |
-| P&L = `(delta / tickSize) * tickValue * size` | P&L = `delta * size` (quote currency) |
+- Extended `Contract` in `marketDataService.ts` with optional computed fields: `ticksPerPoint`, `quantityStep`, `pricePrecision`, `quantityPrecision`. Populated by `normalizeContract()` on search/list responses (defaults match MNQ futures).
+- Created `frontend/src/utils/instrument.ts` with centralized helpers: `getTicksPerPoint()`, `pointsToPrice()`, `priceToPoints()`, `pointsToTicks()`, `calcPnl()`.
+- Removed the hardcoded `TICKS_PER_POINT = 4` constant from `types/bracket.ts`. All conversions now use instrument-derived `contract.ticksPerPoint`.
+- Replaced ~30 inline P&L formulas (`(diff / tickSize) * tickValue * size`) with `calcPnl()` across 5 files: `useOverlayLabels.ts` (12 sites), `useQuickOrder.ts` (4), `useOrderLines.ts` (1), `TopBar.tsx` (1), `PositionDisplay.tsx` (1).
+- Changed `bracketEngine.ts` from `tickSize: number` to `contract: Contract` — uses imported `pointsToPrice()` instead of a local copy.
+- Updated `buildNativeBracketParams()` to accept `contract` as third arg — uses `pointsToTicks()` instead of `points * TICKS_PER_POINT`.
+- Updated all callers: `BuySellButtons.tsx`, `useQuickOrder.ts`, `useOverlayLabels.ts`.
+- Added TODO Phase 6 comments for fractional quantity support in `orderRoutes.ts`, `ContractsSpinner.tsx`, `useStore.ts`.
+- Updated bracket engine tests (`bracketEngine.test.ts`) to pass `contract: mockContract` instead of `tickSize: 0.25`.
+- `tsc --noEmit` clean for both frontend and backend. All previously passing tests still pass.
 
-### Approach
+### Key design note
 
-- Extend `Contract` (or create a `Instrument` union type) to carry either tick-based or decimal-precision metadata.
-- P&L helpers read from the instrument to decide calculation method.
-- Remove `TICKS_PER_POINT` global — derive from instrument's `tickSize` or use decimal precision.
-- Bracket engine's point-to-price conversion becomes instrument-aware.
-- `orderSize` validation allows fractional values when the instrument supports it.
-
-### Validation
-
-All existing futures instruments still display and calculate correctly. The extended fields are simply unused until a crypto adapter provides them.
+The P&L formula `(priceDiff / tickSize) * tickValue * size` is universal — for crypto, the gateway returns `tickValue == tickSize`, so it naturally simplifies to `priceDiff * size`. No branching needed.
 
 ---
 
