@@ -1,5 +1,6 @@
 import { orderService } from './orderService';
 import type { RealtimeOrder } from './realtimeService';
+import { useStore } from '../store/useStore';
 import type { BracketConfig, ConditionAction } from '../types/bracket';
 import { TICKS_PER_POINT } from '../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
@@ -135,6 +136,18 @@ class BracketEngine {
 
   hasActiveSession(): boolean {
     return this.session !== null || this.armedConfig !== null;
+  }
+
+  /** Update a TP's tracked size after external modification (e.g. +/- overlay buttons) */
+  updateTPSize(orderId: number, newSize: number): void {
+    if (!this.session) return;
+    for (const [tpIdx, oid] of this.session.tpOrderIds) {
+      if (oid === orderId) {
+        const tp = this.session.normalizedTPs[tpIdx];
+        if (tp) tp.size = newSize;
+        break;
+      }
+    }
   }
 
   /** Move the SL to breakeven (entry price). Returns true if successful. */
@@ -448,10 +461,19 @@ class BracketEngine {
     }
   }
 
+  /** Check if an order still exists in the store (not yet cancelled by the gateway). */
+  private isOrderStillOpen(orderId: number): boolean {
+    return useStore.getState().openOrders.some((o) => o.id === orderId);
+  }
+
   private async cancelSessionTPs(session: ActiveSession) {
     const { accountId, tpOrderIds, filledTPs } = session;
     for (const [tpIdx, orderId] of tpOrderIds) {
       if (!filledTPs.has(tpIdx)) {
+        if (!this.isOrderStillOpen(orderId)) {
+          if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
+          continue;
+        }
         try {
           if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
           await orderService.cancelOrder(accountId, orderId);
@@ -467,18 +489,26 @@ class BracketEngine {
 
     // Cancel SL
     if (slOrderId !== null) {
-      try {
-        if (DEV) console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
-        await orderService.cancelOrder(accountId, slOrderId);
-      } catch (err) {
-        showToast('warning', 'Failed to cancel Stop Loss order',
-          'Check open orders manually. ' + errorMessage(err));
+      if (!this.isOrderStillOpen(slOrderId)) {
+        if (DEV) console.log(`[BracketEngine] SL (orderId: ${slOrderId}) already gone, skipping cancel`);
+      } else {
+        try {
+          if (DEV) console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
+          await orderService.cancelOrder(accountId, slOrderId);
+        } catch (err) {
+          showToast('warning', 'Failed to cancel Stop Loss order',
+            'Check open orders manually. ' + errorMessage(err));
+        }
       }
     }
 
     // Cancel remaining TPs
     for (const [tpIdx, orderId] of tpOrderIds) {
       if (!filledTPs.has(tpIdx)) {
+        if (!this.isOrderStillOpen(orderId)) {
+          if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
+          continue;
+        }
         try {
           if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
           await orderService.cancelOrder(accountId, orderId);

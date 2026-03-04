@@ -102,6 +102,10 @@ When TP sizes (whole contracts) sum to more than the entry size, the engine norm
 
 If sizes already sum to the entry size (or less), no normalization occurs. Normalized sizes are stored on the session (`normalizedTPs`) and used by `getFilledTPSize()` for accurate SL size reduction.
 
+### External TP size updates (`updateTPSize`)
+
+When TP sizes are modified externally via the chart overlay +/- buttons, `updateTPSize(orderId, newSize)` updates the corresponding entry in `normalizedTPs` to keep `getFilledTPSize()` accurate. Without this sync, subsequent TP fills would compute the wrong remaining position size for SL adjustment. No-op if no active session (handles ad-hoc TPs placed outside the engine).
+
 ---
 
 ## Error Handling & Retry
@@ -148,8 +152,9 @@ When position size changes, the SL order size must be synced to match. Two paths
 
 ### Internal helpers
 
-- `cancelSessionOrders(session)` — cancels SL + all unfilled TPs (used by `clearSession`)
-- `cancelSessionTPs(session)` — cancels only unfilled TPs (used when SL fills, or on `cancelRemainingTPs` condition action)
+- `cancelSessionOrders(session)` — cancels SL + all unfilled TPs (used by `clearSession`). Checks `isOrderStillOpen()` before each cancel to skip orders already removed by the gateway (prevents spurious retry delays and "Failed to cancel" toasts).
+- `cancelSessionTPs(session)` — cancels only unfilled TPs (used when SL fills, or on `cancelRemainingTPs` condition action). Same `isOrderStillOpen()` guard.
+- `isOrderStillOpen(orderId)` — checks if the order still exists in the Zustand store's `openOrders`. When a position closes, the gateway may auto-cancel bracket orders before the engine's sequential cancel loop reaches them.
 - `getFilledTPSize()` — sums sizes of filled TPs to calculate remaining position
 
 ---
@@ -177,6 +182,9 @@ moveSLToBreakeven(): Promise<boolean>
 
 // Config updates (called by CandlestickChart for + button drag)
 updateArmedConfig(updates: Partial<ArmedConfig>): void
+
+// TP size sync (called by useOverlayLabels after +/- resize)
+updateTPSize(orderId: number, newSize: number): void
 
 // Session queries
 hasActiveSession(): boolean
@@ -207,6 +215,7 @@ Managed by the Zustand store (not the engine itself):
 | `useQuickOrder.ts` (+ button) | Same dual-path: native brackets or engine arming. Disarms on failure. Updates armed config on drag |
 | `OrderPanel.tsx` | Forwards every SignalR order event via `onOrderEvent()`, calls `clearSession()` on position close |
 | `PositionDisplay.tsx` | Calls `moveSLToBreakeven()` from the SL-to-BE button |
+| `useOverlayLabels.ts` | Calls `updateTPSize()` after +/- TP size redistribution to keep `normalizedTPs` in sync |
 
 ---
 

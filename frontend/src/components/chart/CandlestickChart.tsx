@@ -92,6 +92,10 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   // Overlay label system
   const updateOverlayRef = useRef<() => void>(() => {});
 
+  // TP size +/- redistribution
+  const hoveredTpOrderIdRef = useRef<number | null>(null);
+  const tpRedistInFlightRef = useRef(false);
+
   // Scroll button
   const scrollBtnShownRef = useRef(false);
 
@@ -132,6 +136,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     posDrag: posDragRef,
     posDragLine: posDragLineRef,
     posDragLabel: posDragLabelRef,
+    hoveredTpOrderId: hoveredTpOrderIdRef,
+    tpRedistInFlight: tpRedistInFlightRef,
     scrollBtnShown: scrollBtnShownRef,
   };
 

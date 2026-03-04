@@ -290,6 +290,30 @@ A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit t
 - When no position exists, label shows "SL"/"Buy Limit"/"Sell Limit" in grey (`#cac9cb`) with black text
 - X to cancel order
 
+### TP size +/- buttons (live TP orders only)
+
+For **multi-contract positions** (`pos.size > 1`), TP order labels show hover-reveal `−` / `+` buttons inside the size cell to redistribute contracts across TPs without cancelling/recreating orders.
+
+```
+Normal:      [ +$50.00 ][ 2 ][ × ]
+Size hover:  [ +$50.00 ][ − 2 + ][ × ]
+```
+
+**Implementation**: The 3-cell label structure `[P&L, size, ×]` is unchanged. After `setLabel()`, the size cell (`cells[1]`) is customized with three sub-elements (`minusEl`, `countEl`, `plusEl`). The `−` and `+` are hidden by default (`display:none`) and revealed on hover via a coordinate-based `mousemove` listener. Hover state persists across label rebuilds via `hoveredTpOrderId` ref.
+
+**Rules**:
+- `+` takes 1 contract from the furthest-from-entry TP (only if that TP has > 1 contract), or from the unallocated pool
+- `−` sends 1 contract to the furthest-from-entry TP, or to the unallocated pool if no other TPs exist
+- `−` is disabled (`opacity: 0.5`) when size is 1 — user must use `×` to cancel
+- `+` is disabled when no contracts are available (no unallocated + no other TPs with spare)
+- A TP can never be reduced below 1 contract
+- SL is untouched — always keeps full position size
+- Skipped entirely for 1-contract positions (both buttons would always be disabled)
+
+**Redistribution handler**: Calls `orderService.modifyOrder()` for the clicked TP, then for the counterpart TP if needed. On counterpart failure, rolls back the first modify. Guarded by `tpRedistInFlight` ref to prevent concurrent modifications. After each successful modify, calls `bracketEngine.updateTPSize()` to keep `normalizedTPs` in sync.
+
+**Hit targets**: `−` and `+` sub-elements are registered as priority-0 hit targets (same as cancel-X), only when not disabled. Screenshot support: `data-screenshot-text` attribute on the size cell ensures `paintToCanvas` renders just the count number without `−`/`+` symbols.
+
 ### Preview labels
 - Entry shows "Limit Buy"/"Limit Sell" in grey (`#cac9cb`) with black text (clickable to execute), size cell colored by side (green buy / red sell)
 - SL/TP show projected P&L relative to entry price

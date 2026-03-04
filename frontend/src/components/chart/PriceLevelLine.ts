@@ -258,7 +258,7 @@ export class PriceLevelLine {
       let totalW = 0;
 
       for (const cell of this._cells) {
-        const t = cell.textContent || '';
+        const t = (cell as HTMLElement).dataset?.screenshotText || cell.textContent || '';
         if (t === '\u2715' || t === '+SL' || t === '+TP') continue;
         const w = Math.ceil(ctx.measureText(t).width) + padH * 2;
         widths.push(w);

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
-import { orderService, type PlaceOrderParams } from '../../../services/orderService';
+import { orderService, type PlaceOrderParams, type Order } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { showToast, errorMessage } from '../../../utils/toast';
@@ -163,6 +163,85 @@ export function useOverlayLabels(
       }
     }
 
+    // TP size +/- button sub-element refs (keyed by orderId)
+    const tpSizeButtons = new Map<number, {
+      minusEl: HTMLDivElement; plusEl: HTMLDivElement;
+      countEl: HTMLDivElement; sizeCell: HTMLDivElement;
+    }>();
+
+    // Redistribution handler for TP size +/- buttons
+    async function handleRedistribute(
+      clickedOrderId: number,
+      clickedSize: number,
+      delta: 1 | -1,
+      allTps: Order[],
+      isLong: boolean,
+    ) {
+      if (refs.tpRedistInFlight.current) return;
+      refs.tpRedistInFlight.current = true;
+
+      const acct = useStore.getState().activeAccountId;
+      if (!acct) { refs.tpRedistInFlight.current = false; return; }
+
+      const newClickedSize = clickedSize + delta;
+
+      // Sort other TPs by distance from entry (furthest first)
+      const otherTps = allTps
+        .filter(o => o.id !== clickedOrderId)
+        .sort((a, b) => {
+          const aP = a.limitPrice ?? 0;
+          const bP = b.limitPrice ?? 0;
+          return isLong ? bP - aP : aP - bP;
+        });
+
+      let targetOrderId: number | null = null;
+      let targetNewSize: number | null = null;
+
+      if (delta === 1) {
+        // Take 1 from furthest with spare (size > 1), or from unallocated
+        const donor = otherTps.find(o => o.size > 1);
+        if (donor) {
+          targetOrderId = donor.id;
+          targetNewSize = donor.size - 1;
+        }
+      } else {
+        // Give 1 to furthest, or to unallocated if no other TPs
+        const recipient = otherTps[0];
+        if (recipient) {
+          targetOrderId = recipient.id;
+          targetNewSize = recipient.size + 1;
+        }
+      }
+
+      // Step 1: modify clicked TP
+      try {
+        await orderService.modifyOrder({ accountId: acct, orderId: clickedOrderId, size: newClickedSize });
+        bracketEngine.updateTPSize(clickedOrderId, newClickedSize);
+      } catch (err) {
+        showToast('error', 'Failed to modify TP size', errorMessage(err));
+        refs.tpRedistInFlight.current = false;
+        return;
+      }
+
+      // Step 2: modify counterpart (if needed)
+      if (targetOrderId != null && targetNewSize != null) {
+        try {
+          await orderService.modifyOrder({ accountId: acct, orderId: targetOrderId, size: targetNewSize });
+          bracketEngine.updateTPSize(targetOrderId, targetNewSize);
+        } catch (err) {
+          showToast('warning', 'Partial TP resize failed, reverting', errorMessage(err));
+          try {
+            await orderService.modifyOrder({ accountId: acct, orderId: clickedOrderId, size: clickedSize });
+            bracketEngine.updateTPSize(clickedOrderId, clickedSize);
+          } catch {
+            showToast('error', 'TP sizes may be inconsistent', 'Check open orders and adjust manually.');
+          }
+        }
+      }
+
+      refs.tpRedistInFlight.current = false;
+    }
+
     // --- Open order labels (SL/TP show projected P&L) ---
     const pos = contract ? positions.find(
       (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract.id) && p.size > 0,
@@ -265,6 +344,73 @@ export function useOverlayLabels(
       const cells = orderLine.getCells();
       const labelEl = orderLine.getLabelEl();
 
+      // --- TP size +/- buttons (only for live TPs with a multi-contract position) ---
+      const isLiveTP = pos
+        && pos.size > 1
+        && oType === OrderType.Limit
+        && oSide === (pos.type === PositionType.Long ? OrderSide.Sell : OrderSide.Buy);
+
+      if (isLiveTP) {
+        const oppSide = pos.type === PositionType.Long ? OrderSide.Sell : OrderSide.Buy;
+        const allTps = openOrders.filter(o =>
+          String(o.contractId) === String(contract!.id)
+          && o.type === OrderType.Limit
+          && o.side === oppSide,
+        );
+        const totalTpSize = allTps.reduce((sum, o) => sum + o.size, 0);
+        const unallocated = pos.size - totalTpSize;
+        const minusDisabled = oSize <= 1;
+        const othersHaveSpare = allTps.some(o => o.id !== orderId && o.size > 1);
+        const plusDisabled = !othersHaveSpare && unallocated <= 0;
+        const isLong = pos.type === PositionType.Long;
+
+        // Customize size cell with −/+ sub-elements
+        const sizeCell = cells[1];
+        sizeCell.style.display = 'flex';
+        sizeCell.style.alignItems = 'center';
+        sizeCell.style.padding = '0';
+        sizeCell.textContent = '';
+        sizeCell.dataset.screenshotText = String(oSize);
+
+        const minusEl = document.createElement('div');
+        minusEl.textContent = '\u2212';
+        minusEl.style.cssText = `display:none;padding:0 3px;cursor:${minusDisabled ? 'default' : 'pointer'};opacity:${minusDisabled ? '0.5' : '1'};transition:opacity 0.15s;`;
+
+        const countEl = document.createElement('div');
+        countEl.textContent = String(oSize);
+        countEl.style.cssText = 'padding:0 4px;';
+
+        const plusEl = document.createElement('div');
+        plusEl.textContent = '+';
+        plusEl.style.cssText = `display:none;padding:0 3px;cursor:${plusDisabled ? 'default' : 'pointer'};opacity:${plusDisabled ? '0.5' : '1'};transition:opacity 0.15s;`;
+
+        sizeCell.appendChild(minusEl);
+        sizeCell.appendChild(countEl);
+        sizeCell.appendChild(plusEl);
+
+        tpSizeButtons.set(orderId, { minusEl, plusEl, countEl, sizeCell });
+
+        // Persist hover across label rebuilds
+        if (refs.hoveredTpOrderId.current === orderId) {
+          minusEl.style.display = '';
+          plusEl.style.display = '';
+        }
+
+        // Register hit targets for enabled +/- buttons (priority 0)
+        if (!minusDisabled) {
+          refs.hitTargets.current.push({
+            el: minusEl, priority: 0,
+            handler: () => handleRedistribute(orderId, oSize, -1, allTps, isLong),
+          });
+        }
+        if (!plusDisabled) {
+          refs.hitTargets.current.push({
+            el: plusEl, priority: 0,
+            handler: () => handleRedistribute(orderId, oSize, 1, allTps, isLong),
+          });
+        }
+      }
+
       // Register cancel-X button (priority 0)
       refs.hitTargets.current.push({
         el: cells[2],
@@ -313,6 +459,46 @@ export function useOverlayLabels(
           orderLine.updateSection(0, result.text, result.bg, result.color);
         });
       }
+    }
+
+    // --- TP size +/- hover detection ---
+    const hoverContainer = refs.container.current;
+    const onTpSizeHover = (e: MouseEvent) => {
+      const mx = e.clientX;
+      const my = e.clientY;
+      let foundId: number | null = null;
+
+      for (const [oid, btns] of tpSizeButtons) {
+        const rect = btns.sizeCell.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) continue;
+        if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
+          foundId = oid;
+          break;
+        }
+      }
+
+      if (foundId !== refs.hoveredTpOrderId.current) {
+        // Hide previous
+        if (refs.hoveredTpOrderId.current != null) {
+          const prev = tpSizeButtons.get(refs.hoveredTpOrderId.current);
+          if (prev) {
+            prev.minusEl.style.display = 'none';
+            prev.plusEl.style.display = 'none';
+          }
+        }
+        // Show new
+        if (foundId != null) {
+          const cur = tpSizeButtons.get(foundId);
+          if (cur) {
+            cur.minusEl.style.display = '';
+            cur.plusEl.style.display = '';
+          }
+        }
+        refs.hoveredTpOrderId.current = foundId;
+      }
+    };
+    if (hoverContainer) {
+      hoverContainer.addEventListener('mousemove', onTpSizeHover);
     }
 
     // --- Preview labels ---
@@ -750,6 +936,7 @@ export function useOverlayLabels(
 
     return () => {
       unsub();
+      if (hoverContainer) hoverContainer.removeEventListener('mousemove', onTpSizeHover);
       // Remove labels from all lines (don't destroy — that's the owning hook's job)
       for (const line of refs.previewLines.current) line.setLabel(null);
       for (const line of refs.orderLines.current) line.setLabel(null);
