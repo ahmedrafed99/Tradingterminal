@@ -58,6 +58,11 @@ export function useChartBars(
 
         if (cancelled) return;
 
+        // Re-enable autoScale before loading new data so the price axis
+        // resets to the new instrument's range (it may still be locked to
+        // the previous instrument's scale from the last load).
+        refs.chart.current?.priceScale('right').applyOptions({ autoScale: true });
+
         const sorted = sortBarsAscending(bars);
         refs.bars.current = sorted;
         const candles = sorted.map(barToCandle);
