@@ -473,7 +473,7 @@ Shared type definitions: `ChartRefs` interface (28 refs), `PreviewLineRole`, `Or
 Canvas-rendered `ISeriesPrimitive<Time>` that visualizes trade entry/exit pairs as semi-transparent rectangles on the chart. Attached to the candlestick series with `zOrder: 'top'` so zones render above candles.
 
 **Trade matching** (`buildEntryMap` + `matchTrades`):
-- `buildEntryMap(sessionTrades)` — processes ALL session trades using FIFO matching per contract. Groups trades by `contractId`, separates opening (P&L null) from closing (P&L non-null) half-turns, sorts chronologically, then matches each closing trade to the oldest unclaimed opening trade with opposite side. Returns `Map<exitTradeId, entryTrade>`. This function is shared between the chart primitive and the Trades tab table.
+- `buildEntryMap(sessionTrades)` — processes ALL session trades using FIFO matching per contract. Groups trades by `contractId`, separates opening (P&L null) from closing (P&L non-null) half-turns, sorts chronologically, then matches each closing trade to the oldest opening trade with opposite side that still has remaining size. Uses size-aware claiming: a single entry trade with size N can match multiple partial exits as long as their total size does not exceed N. Returns `Map<exitTradeId, entryTrade>`. This function is shared between the chart primitive and the Trades tab table.
 - `matchTrades(sessionTrades, visibleTradeIds, contractId)` — filters `buildEntryMap` results to only trades the user has toggled visible, producing `TradeZone[]`.
 
 **TradeZone**: `{ entryTrade: Trade; exitTrade: Trade; profitable: boolean }`
@@ -510,13 +510,15 @@ Table of open orders for the active account. Columns: Time, Side (Buy/Sell), Sym
 
 Table of session trades (closing fills only — filtered to `profitAndLoss != null && !voided`). Fetches trades on mount and account change via `tradeService.searchTrades()` using `getCmeSessionStart()` as the start boundary. Re-fetches on SignalR trade events (debounced 500ms).
 
-Columns (9-column grid): Time, Side (Long/Short), Symbol, Qty, Entry, Exit, P&L, Fees, Net.
+Columns (10-column grid): Time, Side (Long/Short), Symbol, Qty, Entry, Exit, Duration, P&L, Fees, Net.
 
+- **Partial-exit grouping**: Closing trades sharing the same matched entry (via `buildEntryMap()`) are grouped into a single collapsible row. Single-exit trades render as normal rows. Multi-exit groups show a parent row with aggregated totals and an "N exits ▸" toggle that expands to show individual exit sub-rows (indented, dimmer styling).
+- **Duration column**: Time elapsed from entry to exit. Parent row shows total duration (entry → last exit); sub-rows show individual duration (entry → that exit). Formatted as `Xs`, `Xm Ys`, or `Xh Ym Zs`.
 - **Sortable columns**: Click any column header to sort. Default: Time descending (most recent first). Click same column to toggle asc/desc. Active column shows ▲/▼ indicator.
 - Uses `buildEntryMap()` from `TradeZonePrimitive.ts` to resolve entry prices for each closing trade
 - Side shows "Long"/"Short" based on trade direction (closed with sell = was long)
 - Net = P&L - Fees, colored green/red
-- Clicking a row calls `toggleTradeVisibility(tradeId)` which toggles the trade's entry/exit zone on the chart
+- Clicking a single-exit row calls `toggleTradeVisibility(tradeId)`. Clicking a multi-exit parent row calls `toggleTradeVisibilityBulk(tradeIds)` to toggle all exits at once. Clicking a sub-row toggles just that exit.
 - Selected rows highlighted with `bg-[#2962ff]/15` and a left accent border (`border-l-2 border-l-[#2962ff]`)
 
 ### `chart/DrawingToolbar.tsx`

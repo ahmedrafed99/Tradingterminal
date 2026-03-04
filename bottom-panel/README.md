@@ -28,7 +28,7 @@ State lives in the `BottomPanelState` slice of `useStore`:
 | `sessionTrades` | `Trade[]` | `[]` | No |
 | `visibleTradeIds` | `number[]` | `[]` | No |
 
-Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setSessionTrades`, `toggleTradeVisibility`, `clearVisibleTradeIds`.
+Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setSessionTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
 
 ## Orders Tab
 
@@ -41,11 +41,16 @@ Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setS
 
 - Fetches trades on mount via `tradeService.searchTrades(accountId, getCmeSessionStart())`.
 - Re-fetches on SignalR trade events (debounced 500ms).
-- Columns: Time, Side, Symbol, Qty, Entry, Exit, P&L, Fees, Net.
+- Columns: Time, Side, Symbol, Qty, Entry, Exit, Duration, P&L, Fees, Net.
 - All columns are center-aligned. Data grid is constrained to 70% width while row backgrounds (stripes, hover, selection) extend full width.
 - **Sortable columns**: Click any column header to sort by that column (descending by default). Click the same column again to toggle between ascending and descending. Active sort column is highlighted in white with a ▲/▼ indicator. Default sort: Time descending (most recent first).
-- **Click-to-show-on-chart**: Clicking a closing trade row (one with P&L) toggles `toggleTradeVisibility(tradeId)`. Selected rows get a blue tint (`bg-[#2962ff]/15`) and a left accent border (`border-l-2 border-l-[#2962ff]`). Visible trade IDs are consumed by `CandlestickChart.tsx` to render trade zone overlays on the chart via `TradeZonePrimitive`.
-- Entry prices resolved via `buildEntryMap()` from `TradeZonePrimitive.ts` (FIFO matching).
+- **Partial-exit grouping**: Closing trades that share the same entry (via `buildEntryMap()` FIFO matching) are grouped into a single parent row. Single-exit trades render as normal rows with no grouping UI. Multi-exit groups show:
+  - **Parent row**: entry time, total qty, entry price, `N exits ▸/▾` toggle, total duration (entry → last exit), summed P&L / Fees / Net.
+  - **Sub-rows** (when expanded): indented, dimmer text, showing each exit's time, qty, exit price, individual duration (entry → that exit), individual P&L / Fees / Net. Side, Symbol, and Entry columns are left blank (inherited from parent).
+  - Expand/collapse is local UI state (`useState<Set<number>>`), toggled by clicking the "N exits" cell.
+- **Duration column**: Shows elapsed time from entry to exit, formatted as `Xs`, `Xm Ys`, or `Xh Ym Zs`.
+- **Click-to-show-on-chart**: Clicking a single-exit row toggles `toggleTradeVisibility(tradeId)`. Clicking a multi-exit parent row toggles all exit IDs at once via `toggleTradeVisibilityBulk(tradeIds)`. Clicking an individual sub-row toggles just that exit. Selected rows get a blue tint (`bg-[#2962ff]/15`) and a left accent border (`border-l-2 border-l-[#2962ff]`). Visible trade IDs are consumed by `CandlestickChart.tsx` to render trade zone overlays on the chart via `TradeZonePrimitive`.
+- Entry prices resolved via `buildEntryMap()` from `TradeZonePrimitive.ts` (FIFO matching with size-aware claiming — a single entry trade can match multiple partial exits).
 - Opening half-turns (`profitAndLoss === null`) and voided trades are filtered out.
 - Trades displayed in reverse chronological order (most recent first) by default.
 

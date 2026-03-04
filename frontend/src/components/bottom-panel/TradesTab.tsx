@@ -7,8 +7,22 @@ import { OrderSide } from '../../types/enums';
 import { getCmeSessionStart } from '../../utils/cmeSession';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 
-type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'net';
+type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'net' | 'duration';
 type SortDir = 'asc' | 'desc';
+
+interface TradeGroup {
+  entryId: number;
+  entry: Trade;
+  exits: Trade[]; // sorted chronologically
+  // aggregated values
+  totalQty: number;
+  totalPnl: number;
+  totalFees: number;
+  totalNet: number;
+  earliestTime: string;
+  latestTime: string;
+  isLong: boolean;
+}
 
 function shortSymbol(contractId: string): string {
   const parts = contractId.split('.');
@@ -31,6 +45,21 @@ function formatTime(iso: string): string {
   });
 }
 
+function durationMs(entryIso: string, exitIso: string): number {
+  return new Date(exitIso).getTime() - new Date(entryIso).getTime();
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 0) return '\u2014';
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+
 export function TradesTab() {
   const connected = useStore((s) => s.connected);
   const activeAccountId = useStore((s) => s.activeAccountId);
@@ -38,6 +67,7 @@ export function TradesTab() {
   const setSessionTrades = useStore((s) => s.setSessionTrades);
   const visibleTradeIds = useStore((s) => s.visibleTradeIds);
   const toggleTradeVisibility = useStore((s) => s.toggleTradeVisibility);
+  const toggleTradeVisibilityBulk = useStore((s) => s.toggleTradeVisibilityBulk);
 
   // Fetch trades on mount / account change
   useEffect(() => {
@@ -76,6 +106,7 @@ export function TradesTab() {
 
   const [sortCol, setSortCol] = useState<SortColumn>('time');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
 
   const toggleSort = useCallback((col: SortColumn) => {
     if (col === sortCol) {
@@ -86,29 +117,100 @@ export function TradesTab() {
     }
   }, [sortCol, sortDir]);
 
-  // Build entry map and filter to closing trades, most recent first
+  const toggleExpand = useCallback((entryId: number) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(entryId)) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+  }, []);
+
+  // Build entry map and filter to closing trades
   const entryMap = useMemo(() => buildEntryMap(sessionTrades), [sessionTrades]);
   const closingTrades = useMemo(
     () => [...sessionTrades].filter((t) => t.profitAndLoss != null && !t.voided).reverse(),
     [sessionTrades],
   );
 
-  const sorted = useMemo(() => {
-    const arr = [...closingTrades];
-    const dir = sortDir === 'asc' ? 1 : -1;
-    const em = entryMap;
+  // Group closing trades by their matched entry
+  const groups = useMemo(() => {
+    const byEntry = new Map<number, Trade[]>();
+    const unmatched: Trade[] = [];
 
-    const getValue = (t: Trade): number | string => {
+    for (const t of closingTrades) {
+      const entry = entryMap.get(t.id);
+      if (!entry) {
+        unmatched.push(t);
+        continue;
+      }
+      const key = entry.id;
+      if (!byEntry.has(key)) byEntry.set(key, []);
+      byEntry.get(key)!.push(t);
+    }
+
+    const result: TradeGroup[] = [];
+
+    for (const [entryId, exits] of byEntry) {
+      // Sort exits chronologically within group
+      exits.sort(
+        (a, b) =>
+          new Date(a.creationTimestamp).getTime() -
+          new Date(b.creationTimestamp).getTime(),
+      );
+      const entry = entryMap.get(exits[0].id)!;
+      const totalPnl = exits.reduce((s, t) => s + t.profitAndLoss!, 0);
+      const totalFees = exits.reduce((s, t) => s + t.fees, 0);
+      result.push({
+        entryId,
+        entry,
+        exits,
+        totalQty: exits.reduce((s, t) => s + t.size, 0),
+        totalPnl,
+        totalFees,
+        totalNet: totalPnl - totalFees,
+        earliestTime: exits[0].creationTimestamp,
+        latestTime: exits[exits.length - 1].creationTimestamp,
+        isLong: exits[0].side !== OrderSide.Buy,
+      });
+    }
+
+    // Unmatched trades become single-exit groups
+    for (const t of unmatched) {
+      result.push({
+        entryId: -t.id, // negative to avoid collision with real entry IDs
+        entry: null as unknown as Trade,
+        exits: [t],
+        totalQty: t.size,
+        totalPnl: t.profitAndLoss!,
+        totalFees: t.fees,
+        totalNet: t.profitAndLoss! - t.fees,
+        earliestTime: t.creationTimestamp,
+        latestTime: t.creationTimestamp,
+        isLong: t.side !== OrderSide.Buy,
+      });
+    }
+
+    return result;
+  }, [closingTrades, entryMap]);
+
+  // Sort groups
+  const sortedGroups = useMemo(() => {
+    const arr = [...groups];
+    const dir = sortDir === 'asc' ? 1 : -1;
+
+    const getValue = (g: TradeGroup): number | string => {
       switch (sortCol) {
-        case 'time': return t.creationTimestamp ?? '';
-        case 'side': return t.side !== OrderSide.Buy ? 'Long' : 'Short';
-        case 'symbol': return shortSymbol(t.contractId);
-        case 'qty': return t.size;
-        case 'entry': return em.get(t.id)?.price ?? 0;
-        case 'exit': return t.price;
-        case 'pnl': return t.profitAndLoss ?? 0;
-        case 'fees': return t.fees;
-        case 'net': return t.profitAndLoss! - t.fees;
+        case 'time': return g.earliestTime ?? '';
+        case 'side': return g.isLong ? 'Long' : 'Short';
+        case 'symbol': return shortSymbol(g.exits[0].contractId);
+        case 'qty': return g.totalQty;
+        case 'entry': return g.entry?.price ?? 0;
+        case 'exit': return g.exits.length === 1 ? g.exits[0].price : g.exits.length;
+        case 'duration': return g.entry ? durationMs(g.entry.creationTimestamp, g.latestTime) : 0;
+        case 'pnl': return g.totalPnl;
+        case 'fees': return g.totalFees;
+        case 'net': return g.totalNet;
       }
     };
 
@@ -119,9 +221,9 @@ export function TradesTab() {
       return ((va as number) - (vb as number)) * dir;
     });
     return arr;
-  }, [closingTrades, sortCol, sortDir, entryMap]);
+  }, [groups, sortCol, sortDir]);
 
-  if (sorted.length === 0) {
+  if (closingTrades.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-[#434651] text-xs">
         No trades this session
@@ -129,7 +231,9 @@ export function TradesTab() {
     );
   }
 
-  const cols = 'grid-cols-[1.2fr_0.7fr_1fr_0.5fr_1.2fr_1.2fr_1fr_0.7fr_1fr]';
+  const cols = 'grid-cols-[1.2fr_0.7fr_1fr_0.5fr_1.2fr_1.2fr_0.9fr_1fr_0.7fr_1fr]';
+
+  let rowIdx = 0;
 
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
@@ -143,6 +247,7 @@ export function TradesTab() {
             ['Qty', 'qty'],
             ['Entry', 'entry'],
             ['Exit', 'exit'],
+            ['Duration', 'duration'],
             ['P&L', 'pnl'],
             ['Fees', 'fees'],
             ['Net', 'net'],
@@ -165,52 +270,159 @@ export function TradesTab() {
       </div>
 
       {/* Rows */}
-      {sorted.map((trade, i) => {
-        const entry = entryMap.get(trade.id);
-        // Closing side is the exit direction; entry is opposite
-        const isLong = trade.side !== OrderSide.Buy; // closed with sell → was long
-        const net = trade.profitAndLoss! - trade.fees;
-        const isVisible = visibleTradeIds.includes(trade.id);
-        const stripe = i % 2 === 1 ? 'bg-[#0d1117]/40' : '';
-        const selected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+      {sortedGroups.map((group) => {
+        const isMulti = group.exits.length > 1;
+        const isExpanded = expandedGroups.has(group.entryId);
+        const exitIds = group.exits.map((t) => t.id);
+        const allVisible = exitIds.every((id) => visibleTradeIds.includes(id));
+        const anyVisible = exitIds.some((id) => visibleTradeIds.includes(id));
 
-        return (
-          <div
-            key={trade.id}
-            className={`${stripe} ${selected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
-            onClick={() => toggleTradeVisibility(trade.id)}
-          >
-            <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
-              <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
-                {trade.creationTimestamp ? formatTime(trade.creationTimestamp) : '\u2014'}
-              </div>
-              <div className="px-3 text-center whitespace-nowrap">
-                <span className={isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
-                  {isLong ? 'Long' : 'Short'}
-                </span>
-              </div>
-              <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
-                {shortSymbol(trade.contractId)}
-              </div>
-              <div className="px-3 text-center text-[#d1d4dc]">{trade.size}</div>
-              <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
-                {entry ? entry.price.toFixed(2) : '\u2014'}
-              </div>
-              <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">{trade.price.toFixed(2)}</div>
-              <div className="px-3 text-center whitespace-nowrap">
-                <span className={trade.profitAndLoss! > 0 ? 'text-[#26a69a]' : trade.profitAndLoss! < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}>
-                  {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
-                </span>
-              </div>
-              <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
-                {trade.fees.toFixed(2)}
-              </div>
-              <div className="px-3 text-center whitespace-nowrap">
-                <span className={`font-medium ${net > 0 ? 'text-[#26a69a]' : net < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}`}>
-                  {net > 0 ? '+' : ''}{net.toFixed(2)}
-                </span>
+        // For single-exit groups, render exactly like before
+        if (!isMulti) {
+          const trade = group.exits[0];
+          const net = trade.profitAndLoss! - trade.fees;
+          const isVisible = visibleTradeIds.includes(trade.id);
+          const stripe = rowIdx++ % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+          const selected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+
+          return (
+            <div
+              key={trade.id}
+              className={`${stripe} ${selected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
+              onClick={() => toggleTradeVisibility(trade.id)}
+            >
+              <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
+                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                  {trade.creationTimestamp ? formatTime(trade.creationTimestamp) : '\u2014'}
+                </div>
+                <div className="px-3 text-center whitespace-nowrap">
+                  <span className={group.isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
+                    {group.isLong ? 'Long' : 'Short'}
+                  </span>
+                </div>
+                <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
+                  {shortSymbol(trade.contractId)}
+                </div>
+                <div className="px-3 text-center text-[#d1d4dc]">{trade.size}</div>
+                <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+                  {group.entry ? group.entry.price.toFixed(2) : '\u2014'}
+                </div>
+                <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">{trade.price.toFixed(2)}</div>
+                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                  {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
+                </div>
+                <div className="px-3 text-center whitespace-nowrap">
+                  <span className={trade.profitAndLoss! > 0 ? 'text-[#26a69a]' : trade.profitAndLoss! < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}>
+                    {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
+                  </span>
+                </div>
+                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                  {trade.fees.toFixed(2)}
+                </div>
+                <div className="px-3 text-center whitespace-nowrap">
+                  <span className={`font-medium ${net > 0 ? 'text-[#26a69a]' : net < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}`}>
+                    {net > 0 ? '+' : ''}{net.toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
+          );
+        }
+
+        // Multi-exit group
+        const parentStripe = rowIdx++ % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+        const parentSelected = anyVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+
+        return (
+          <div key={`group-${group.entryId}`}>
+            {/* Parent row */}
+            <div
+              className={`${parentStripe} ${parentSelected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
+              onClick={() => toggleTradeVisibilityBulk(exitIds)}
+            >
+              <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
+                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                  {group.entry ? formatTime(group.entry.creationTimestamp) : formatTime(group.earliestTime)}
+                </div>
+                <div className="px-3 text-center whitespace-nowrap">
+                  <span className={group.isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
+                    {group.isLong ? 'Long' : 'Short'}
+                  </span>
+                </div>
+                <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
+                  {shortSymbol(group.exits[0].contractId)}
+                </div>
+                <div className="px-3 text-center text-[#d1d4dc]">{group.totalQty}</div>
+                <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+                  {group.entry ? group.entry.price.toFixed(2) : '\u2014'}
+                </div>
+                <div
+                  className="px-3 text-center text-[#787b86] whitespace-nowrap cursor-pointer select-none hover:text-[#d1d4dc] transition-colors"
+                  onClick={(e) => { e.stopPropagation(); toggleExpand(group.entryId); }}
+                >
+                  {group.exits.length} exits {isExpanded ? '\u25BE' : '\u25B8'}
+                </div>
+                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                  {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, group.latestTime)) : '\u2014'}
+                </div>
+                <div className="px-3 text-center whitespace-nowrap">
+                  <span className={group.totalPnl > 0 ? 'text-[#26a69a]' : group.totalPnl < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}>
+                    {group.totalPnl > 0 ? '+' : ''}{group.totalPnl.toFixed(2)}
+                  </span>
+                </div>
+                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                  {group.totalFees.toFixed(2)}
+                </div>
+                <div className="px-3 text-center whitespace-nowrap">
+                  <span className={`font-medium ${group.totalNet > 0 ? 'text-[#26a69a]' : group.totalNet < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}`}>
+                    {group.totalNet > 0 ? '+' : ''}{group.totalNet.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-rows (expanded) */}
+            {isExpanded && group.exits.map((trade) => {
+              const net = trade.profitAndLoss! - trade.fees;
+              const isVisible = visibleTradeIds.includes(trade.id);
+              const subStripe = rowIdx++ % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+              const subSelected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+
+              return (
+                <div
+                  key={trade.id}
+                  className={`${subStripe} ${subSelected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
+                  onClick={(e) => { e.stopPropagation(); toggleTradeVisibility(trade.id); }}
+                >
+                  <div className={`grid ${cols} items-center h-7`} style={{ width: '70%', paddingLeft: 'calc(1rem + 20px)' }}>
+                    <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
+                      {formatTime(trade.creationTimestamp)}
+                    </div>
+                    <div className="px-3 text-center" />
+                    <div className="px-3 text-center" />
+                    <div className="px-3 text-center text-[#787b86]">{trade.size}</div>
+                    <div className="px-3 text-center" />
+                    <div className="px-3 text-center text-[#787b86] whitespace-nowrap">{trade.price.toFixed(2)}</div>
+                    <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
+                      {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
+                    </div>
+                    <div className="px-3 text-center whitespace-nowrap">
+                      <span className={trade.profitAndLoss! > 0 ? 'text-[#26a69a]/70' : trade.profitAndLoss! < 0 ? 'text-[#ef5350]/70' : 'text-[#787b86]'}>
+                        {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
+                      {trade.fees.toFixed(2)}
+                    </div>
+                    <div className="px-3 text-center whitespace-nowrap">
+                      <span className={`${net > 0 ? 'text-[#26a69a]/70' : net < 0 ? 'text-[#ef5350]/70' : 'text-[#787b86]'}`}>
+                        {net > 0 ? '+' : ''}{net.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         );
       })}

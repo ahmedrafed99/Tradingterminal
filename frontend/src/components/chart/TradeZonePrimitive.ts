@@ -55,7 +55,9 @@ export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
         new Date(b.creationTimestamp).getTime(),
     );
 
-    const claimed = new Set<number>();
+    // Track remaining unclaimed size per entry trade (supports partial exits)
+    const remaining = new Map<number, number>();
+    for (const o of opens) remaining.set(o.id, o.size);
 
     for (const exit of closes) {
       const exitTime = new Date(exit.creationTimestamp).getTime();
@@ -65,12 +67,12 @@ export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
       const entry = opens.find(
         (t) =>
           (entryIsBuy ? t.side === OrderSide.Buy : t.side !== OrderSide.Buy) &&
-          !claimed.has(t.id) &&
+          (remaining.get(t.id) ?? 0) > 0 &&
           new Date(t.creationTimestamp).getTime() <= exitTime,
       );
 
       if (entry) {
-        claimed.add(entry.id);
+        remaining.set(entry.id, (remaining.get(entry.id) ?? 0) - exit.size);
         map.set(exit.id, entry);
       }
     }

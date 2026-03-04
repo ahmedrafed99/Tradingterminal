@@ -215,6 +215,7 @@ interface BottomPanelState {
   setBottomPanelTab: (tab: 'orders' | 'trades') => void;
   setSessionTrades: (trades: Trade[]) => void;
   toggleTradeVisibility: (tradeId: number) => void;
+  toggleTradeVisibilityBulk: (tradeIds: number[]) => void;
   clearVisibleTradeIds: () => void;
 }
 
@@ -474,6 +475,15 @@ export const useStore = create<Store>()(
             ? s.visibleTradeIds.filter((id) => id !== tradeId)
             : [...s.visibleTradeIds, tradeId],
         })),
+      toggleTradeVisibilityBulk: (tradeIds) =>
+        set((s) => {
+          const allVisible = tradeIds.every((id) => s.visibleTradeIds.includes(id));
+          return {
+            visibleTradeIds: allVisible
+              ? s.visibleTradeIds.filter((id) => !tradeIds.includes(id))
+              : [...s.visibleTradeIds, ...tradeIds.filter((id) => !s.visibleTradeIds.includes(id))],
+          };
+        }),
       clearVisibleTradeIds: () => set({ visibleTradeIds: [] }),
 
       // UI
