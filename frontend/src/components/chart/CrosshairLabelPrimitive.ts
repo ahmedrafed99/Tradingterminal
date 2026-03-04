@@ -15,6 +15,7 @@ export class CrosshairLabelPrimitive {
   private _el: HTMLDivElement;
   private _decimals = 2;
   private _tickSize = 0;
+  private _suppressed = false;
 
   constructor(overlay: HTMLDivElement, series: ISeriesApi<'Candlestick'>, chart: IChartApi) {
     this._overlay = overlay;
@@ -42,7 +43,14 @@ export class CrosshairLabelPrimitive {
     this._tickSize = tickSize;
   }
 
+  /** Hide the label while a drawing is being dragged (avoids 1-frame lag flicker) */
+  suppress(suppressed: boolean): void {
+    this._suppressed = suppressed;
+    if (suppressed) this._el.style.display = 'none';
+  }
+
   updateCrosshairPrice(price: number | null): void {
+    if (this._suppressed) return;
     if (price === null) {
       this._el.style.display = 'none';
       return;

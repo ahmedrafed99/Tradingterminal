@@ -294,6 +294,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - `mousedown` on drawing body → records original position, disables chart scroll
 - 3px movement threshold distinguishes click from drag
 - **hline**: `coordinateToPrice(mouseY)` → `updateDrawing(id, { price })`
+- **hline crosshair label suppression**: during hline drag, `CrosshairLabelPrimitive.suppress(true)` hides the crosshair price label. The crosshair label (HTML overlay) updates instantly while the drawing label (canvas) renders one frame later via the LWC paint cycle — showing both causes a visible 1-frame lag flicker. Suppressing the crosshair label leaves only the drawing's label visible, eliminating the lag. Restored on mouseup.
 - **oval**: compute time/price delta from start → shift both p1 and p2 by same offset
 - `mouseup` clears drag state, re-enables chart scroll
 - `drawingDragOccurred` flag suppresses the `subscribeClick` that follows mouseup

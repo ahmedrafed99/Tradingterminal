@@ -226,6 +226,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           startPrice: 0,
           origStartTime: drawing.startTime ?? 0,
         };
+        // Hide crosshair price label during hline drag to avoid 1-frame lag flicker
+        refs.crosshairLabel.current?.suppress(true);
       } else if (drawing.type === 'oval') {
         const startTime = chart.timeScale().coordinateToTime(x);
         const startPrice = series.coordinateToPrice(y);
@@ -466,6 +468,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
             useStore.getState().updateDrawing(d.id, { metrics });
           }
         }
+        // Restore crosshair price label after hline drag
+        refs.crosshairLabel.current?.suppress(false);
         drawingDrag = null;
         container.style.cursor = CROSSHAIR_CURSOR;
         chart.applyOptions({ handleScroll: true, handleScale: true });
