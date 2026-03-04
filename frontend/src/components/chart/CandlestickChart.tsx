@@ -185,6 +185,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     // DrawingsPrimitive's priceAxisPaneViews renders on top of it
     const countdown = new CountdownPrimitive();
     series.attachPrimitive(countdown);
+    countdown.setOverlay(overlayRef.current!, chart);
     countdownRef.current = countdown;
 
     // Attach volume profile primitive — renders behind everything else

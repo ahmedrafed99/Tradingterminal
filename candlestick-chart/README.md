@@ -41,21 +41,22 @@ Wrapper that:
 
 The chart has two independent rendering layers for price scale labels:
 
-1. **Canvas layer** (LWC primitives) — CountdownPrimitive (current price), DrawingsPrimitive (drawing price labels). These render via `priceAxisPaneViews()` / `priceAxisViews()` on the LWC canvas.
-2. **HTML layer** (overlay div) — `PriceLevelLine` axis labels (order/position/preview prices) and `CrosshairLabelPrimitive` (crosshair price). These are `<div>` elements positioned absolutely in the chart overlay div that sits above the canvas.
+1. **Canvas layer** (LWC primitives) — DrawingsPrimitive (drawing price labels). These render via `priceAxisPaneViews()` / `priceAxisViews()` on the LWC canvas.
+2. **HTML layer** (overlay div) — `CountdownPrimitive` (current price + countdown), `PriceLevelLine` axis labels (order/position/preview prices), and `CrosshairLabelPrimitive` (crosshair price). These are `<div>` elements positioned absolutely in the chart overlay div that sits above the canvas.
 
 HTML elements always render above canvas content. Within the HTML layer, z-index controls stacking:
 
 | Element | z-index | Description |
 |---------|---------|-------------|
 | `PriceLevelLine._axisEl` | 20 | Order, position, preview price labels |
+| `CountdownPrimitive._htmlEl` | 25 | Current price + countdown (overlays order labels when price moves) |
 | `CrosshairLabelPrimitive._el` | 30 | Crosshair price label (always on top) |
 
 ### PriceLevelLine Axis Labels
 - Each `PriceLevelLine` instance (order, position, preview line) creates an HTML `<div>` positioned at `right:0` over the price scale area.
 - Styled to match LWC's native axis labels: bold 12px, same font family, colored background with auto-contrast text.
 - Positioned via `series.priceToCoordinate(price)` in the `syncPosition()` hot path.
-- `z-index:20` — visible above canvas primitives but below the crosshair label.
+- `z-index:20` — visible above canvas primitives but below the price and crosshair labels.
 
 ### Drawing Price Scale Labels
 - `DrawingsPrimitive` implements `priceAxisViews()` to show price labels on
@@ -63,15 +64,15 @@ HTML elements always render above canvas content. Within the HTML layer, z-index
   text = auto-contrast black/white)
 - `setDecimals()` is called when the contract changes to match tick precision
 - **Selected drawing priority**: When a drawing is selected, its label switches
-  to a custom-rendered `priceAxisPaneViews()` label that paints on top of the
-  current-price label (CountdownPrimitive). Achieved by attaching
-  DrawingsPrimitive after CountdownPrimitive (painter's algorithm).
-- **Note**: Drawing labels are canvas-rendered and will appear behind PriceLevelLine HTML axis labels when they overlap. In practice this is rare (only when a drawing price coincides with an order/position price).
+  to a custom-rendered `priceAxisPaneViews()` label that paints on top of other
+  canvas content. Achieved by attaching DrawingsPrimitive after
+  CountdownPrimitive (painter's algorithm).
+- **Note**: Drawing labels are canvas-rendered and will appear behind all HTML axis labels (PriceLevelLine, CountdownPrimitive, CrosshairLabelPrimitive) when they overlap. In practice this is rare (only when a drawing price coincides with an order/position price).
 
 ### Crosshair Price Label
 - `CrosshairLabelPrimitive` is an HTML `<div>` in the chart overlay (not an LWC canvas primitive).
 - Created in the chart init effect with `new CrosshairLabelPrimitive(overlay, series, chart)`. Destroyed in the cleanup.
-- `z-index:30` ensures it always renders above PriceLevelLine axis labels (`z-index:20`).
+- `z-index:30` ensures it always renders above all other axis labels.
 - Subscribes to `chart.subscribeCrosshairMove()` — converts Y coordinate to
   price via `series.coordinateToPrice()` and calls `updateCrosshairPrice()`.
 - Matches the native crosshair label style: `#2a2e39` background, `#d1d4dc` text, bold 12px.

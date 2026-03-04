@@ -41,7 +41,7 @@ Price scale (right axis)
 
 | File | Role |
 |------|------|
-| `frontend/src/components/chart/CountdownPrimitive.ts` | New — `ISeriesPrimitive` with custom price axis pane renderer |
+| `frontend/src/components/chart/CountdownPrimitive.ts` | `ISeriesPrimitive` with HTML overlay label (z-index:25) |
 | `frontend/src/components/chart/chartTheme.ts` | Added `lastValueVisible: false` to candlestick series options |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Attaches primitive, feeds price/config from bars + quotes |
 
@@ -51,20 +51,25 @@ Price scale (right axis)
 
 ### Architecture
 
-The countdown replaces Lightweight Charts' built-in last-value label with a custom `ISeriesPrimitive` that implements `priceAxisPaneViews()` for full canvas rendering control on the price axis.
+The countdown replaces Lightweight Charts' built-in last-value label with a custom `ISeriesPrimitive` that renders as an HTML overlay element (z-index:25). This ensures the moving price label stacks above static order/position axis labels (z-index:20) when they overlap, while still appearing below the crosshair label (z-index:30).
 
 ```
 CountdownPrimitive (ISeriesPrimitive)
-  ├── priceAxisPaneViews()  → CountdownPaneView → CountdownRenderer
-  │     Draws white rect + price text + countdown text on price axis canvas
+  ├── setOverlay(overlay, chart) → creates HTML <div> in overlay (z-index:25)
+  │     Contains price text <div> (bold) + countdown text <div>
+  ├── priceAxisPaneViews()  → returns empty, but triggers _syncHtml() on each LWC render
+  │     Positions the HTML element via series.priceToCoordinate(price)
   ├── priceAxisViews()      → PriceLabelAxisView (invisible)
   │     Hints LWC about label position for overlap avoidance
-  └── 1-second setInterval  → recalculates countdown, calls requestUpdate()
+  └── 1-second setInterval  → recalculates countdown, calls _syncHtml() + requestUpdate()
 ```
 
 ### CountdownPrimitive public API
 
 ```ts
+// Provide overlay div + chart API for HTML rendering (called once at chart init)
+setOverlay(overlay: HTMLDivElement, chart: IChartApi): void
+
 // Called after loading historical bars (no countdown yet)
 updatePrice(price: number, live: false): void
 
@@ -91,13 +96,18 @@ const remaining = Math.max(0, Math.ceil(nextCandle - nowSec));
 
 Uses the same epoch-based candle flooring as `floorToCandlePeriod()` in `barUtils.ts`. Hidden for daily and higher timeframes where candle boundaries are session-based rather than epoch-based.
 
-### Renderer
+### Rendering
 
-Uses `useMediaCoordinateSpace` (CSS pixels) to match LWC's native price axis label rendering exactly. The Y coordinate comes from `series.priceToCoordinate(price)` which is valid in both the main pane and price axis pane coordinate systems.
+The label is an HTML `<div>` positioned absolutely at `right:0` in the chart overlay, matching the price scale width. Position is synced via `_syncHtml()` which is called:
+- On every LWC render cycle (scroll/zoom/resize) via `priceAxisPaneViews()`
+- On every price update via `updatePrice()`
+- On every timer tick (1-second interval)
+
+The Y coordinate comes from `series.priceToCoordinate(price)`. The element uses `transform: translateY(-50%)` for vertical centering.
 
 ### Wiring in CandlestickChart.tsx
 
-1. **Chart init**: creates `CountdownPrimitive`, attaches to candlestick series via `series.attachPrimitive()`
+1. **Chart init**: creates `CountdownPrimitive`, attaches to candlestick series via `series.attachPrimitive()`, then calls `countdown.setOverlay(overlay, chart)` to enable HTML rendering
 2. **Bars loaded**: calls `setDecimals()`, `setPeriod()`, `updatePrice(lastBar.close, false)`
 3. **Quote received**: calls `updatePrice(price, true)` — starts the countdown
 4. **Quote cleanup**: calls `setLive(false)` — hides countdown on unmount/reconnect
