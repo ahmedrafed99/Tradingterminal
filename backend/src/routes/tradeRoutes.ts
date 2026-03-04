@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import axios from 'axios';
 import { z } from 'zod';
-import { getBaseUrl, authHeaders, isConnected } from '../auth';
 import { validateQuery } from '../validate';
+import { getAdapter, isConnected } from '../adapters/registry';
 
 const router = Router();
 
@@ -24,12 +23,12 @@ router.get('/search', validateQuery(TradeSearchQuery), async (req, res) => {
   const endTimestamp = req.query['endTimestamp'] as string | undefined;
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Trade/search`,
-      { accountId, startTimestamp, endTimestamp: endTimestamp || undefined },
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().trades.search({
+      accountId,
+      startTimestamp,
+      endTimestamp: endTimestamp || undefined,
+    });
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });

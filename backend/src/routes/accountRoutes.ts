@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import axios from 'axios';
-import { getBaseUrl, authHeaders, isConnected } from '../auth';
+import { getAdapter, isConnected } from '../adapters/registry';
 
 const router = Router();
 
@@ -13,12 +12,8 @@ router.get('/', async (_req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Account/search`,
-      { onlyActiveAccounts: true },
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().accounts.list();
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });

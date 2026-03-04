@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import * as auth from '../auth';
 import { validateBody } from '../validate';
+import { getAdapter, setAdapter, clearAdapter, isConnected } from '../adapters/registry';
+import { createProjectXAdapter } from '../adapters/projectx';
 
 const router = Router();
 
@@ -26,7 +27,9 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
   const baseUrl = body['baseUrl'];
 
   try {
-    await auth.connect(username, apiKey, baseUrl);
+    const adapter = createProjectXAdapter();
+    await adapter.auth.connect({ username, apiKey, baseUrl });
+    setAdapter(adapter);
     res.json({ success: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -36,16 +39,20 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
 
 // POST /auth/disconnect
 router.post('/disconnect', (_req, res) => {
-  auth.disconnect();
+  if (isConnected()) {
+    getAdapter().auth.disconnect();
+    clearAdapter();
+  }
   res.json({ success: true });
 });
 
 // GET /auth/status
 router.get('/status', (_req, res) => {
-  res.json({
-    connected: auth.isConnected(),
-    baseUrl: auth.getBaseUrl(),
-  });
+  if (!isConnected()) {
+    res.json({ connected: false });
+    return;
+  }
+  res.json(getAdapter().auth.getStatus());
 });
 
 export default router;

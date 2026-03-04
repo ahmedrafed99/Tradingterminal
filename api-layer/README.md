@@ -17,15 +17,29 @@ frontend/src/services/
 └── realtimeService.ts      ← SignalR hub manager
 
 backend/src/
-├── proxy.ts                ← Express app with all proxy routes
-├── auth.ts                 ← token store + loginKey call
-├── routes/
-│   ├── authRoutes.ts
-│   ├── accountRoutes.ts
-│   ├── marketDataRoutes.ts
-│   └── orderRoutes.ts
-└── signalrProxy.ts         ← WebSocket upgrade proxy to ProjectX
+├── index.ts                ← Express app, mounts routes + adapter realtime handlers
+├── validate.ts             ← Zod validation middleware
+├── types/enums.ts          ← OrderType, OrderSide enums
+├── adapters/
+│   ├── types.ts            ← ExchangeAdapter interface (auth, accounts, orders, etc.)
+│   ├── registry.ts         ← Singleton: getAdapter / setAdapter / isConnected
+│   └── projectx/           ← ProjectX implementation of ExchangeAdapter
+│       ├── index.ts        ← createProjectXAdapter() factory
+│       ├── auth.ts         ← JWT token store + /api/Auth/loginKey
+│       ├── accounts.ts     ← /api/Account/search
+│       ├── marketData.ts   ← bars + contract search/available/byId
+│       ├── orders.ts       ← place / cancel / modify / searchOpen
+│       ├── trades.ts       ← /api/Trade/search
+│       └── realtime.ts     ← SignalR negotiate proxy + WS upgrade handler
+└── routes/
+    ├── authRoutes.ts       ← creates adapter on connect, clears on disconnect
+    ├── accountRoutes.ts
+    ├── marketDataRoutes.ts
+    ├── orderRoutes.ts
+    └── tradeRoutes.ts
 ```
+
+Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` (currently hardcoded to ProjectX).
 
 ---
 
@@ -149,50 +163,60 @@ Null entries in `GatewayDepth` arrays are filtered before dispatching to handler
 
 ## Backend Proxy Routes (Express)
 
+All routes call the active `ExchangeAdapter` via `getAdapter()` from the adapter registry. The routes handle Zod validation, auth guards, and error responses — the adapter handles the actual gateway communication.
+
 ### Auth
 
-| Method | Path | Body | Forwards to |
+| Method | Path | Body | Adapter call |
 |--------|------|------|-------------|
-| POST | /auth/connect | { username, apiKey, env } | POST /api/Auth/loginKey |
-| POST | /auth/disconnect | — | (clears token) |
-| GET | /auth/status | — | (local) |
+| POST | /auth/connect | { username, apiKey, baseUrl? } | `createProjectXAdapter()` → `adapter.auth.connect()` → `setAdapter()` |
+| POST | /auth/disconnect | — | `adapter.auth.disconnect()` → `clearAdapter()` |
+| GET | /auth/status | — | `adapter.auth.getStatus()` |
 
 ### Accounts
 
-| Method | Path | Forwards to |
+| Method | Path | Adapter call |
 |--------|------|-------------|
-| GET | /accounts | POST /api/Account/search |
+| GET | /accounts | `adapter.accounts.list()` |
 
 ### Market Data
 
-| Method | Path | Body | Forwards to |
+| Method | Path | Body | Adapter call |
 |--------|------|------|-------------|
-| POST | /market/bars | retrieveBars params | POST /api/History/retrieveBars |
-| GET | /market/contracts/search?q= | — | POST /api/Contract/search |
-| GET | /market/contracts/available | — | POST /api/Contract/available |
+| POST | /market/bars | retrieveBars params | `adapter.marketData.retrieveBars(params)` |
+| GET | /market/contracts/search?q= | — | `adapter.marketData.searchContracts(q, live)` |
+| GET | /market/contracts/available | — | `adapter.marketData.availableContracts(live)` |
+| GET | /market/contracts/:id | — | `adapter.marketData.searchContractById(id, live)` |
 
 ### Orders
 
-| Method | Path | Body | Forwards to |
+| Method | Path | Body | Adapter call |
 |--------|------|------|-------------|
-| POST | /orders/place | order params | POST /api/Order/place |
-| POST | /orders/cancel | { accountId, orderId } | POST /api/Order/cancel |
-| PATCH | /orders/modify | modify params | POST /api/Order/modify |
-| GET | /orders/open?accountId= | — | POST /api/Order/searchOpen |
+| POST | /orders/place | order params | `adapter.orders.place(params)` |
+| POST | /orders/cancel | { accountId, orderId } | `adapter.orders.cancel(params)` |
+| PATCH | /orders/modify | modify params | `adapter.orders.modify(params)` |
+| GET | /orders/open?accountId= | — | `adapter.orders.searchOpen(accountId)` |
 
-### WebSocket
+### Trades
 
-The proxy upgrades `/ws` to the ProjectX SignalR WebSocket endpoint and injects
-the `Authorization: Bearer <token>` header server-side.
+| Method | Path | Adapter call |
+|--------|------|-------------|
+| GET | /trades/search?accountId=&startTimestamp= | `adapter.trades.search(params)` |
 
----
+### WebSocket / SignalR
 
-## ProjectX Base URLs
+The adapter provides two realtime handlers mounted by `index.ts`:
+- **HTTP negotiate**: `app.use('/hubs', adapter.realtime.negotiateMiddleware)` — proxies SignalR negotiate calls
+- **WS upgrade**: `server.on('upgrade', adapter.realtime.handleUpgrade)` — proxies WebSocket connections, injecting JWT as query param
+
+### ProjectX Base URLs
 
 | Environment | REST Base URL |
 |-------------|---------------|
-| Demo | `https://gateway-api-demo.s2f.projectx.com` |
-| Live | TBD (check ProjectX docs for production URL) |
+| Default | `https://api.topstepx.com` |
+| Custom | Pass `baseUrl` in the connect payload |
+
+SignalR RTC URL is derived automatically: `api.topstepx.com` → `rtc.topstepx.com`.
 
 All REST endpoints use:
 - `Content-Type: application/json`

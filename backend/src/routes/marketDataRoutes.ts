@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import axios from 'axios';
 import { z } from 'zod';
-import { getBaseUrl, authHeaders, isConnected } from '../auth';
 import { validateBody } from '../validate';
+import { getAdapter, isConnected } from '../adapters/registry';
 
 const router = Router();
 
@@ -25,16 +24,9 @@ router.post('/bars', validateBody(RetrieveBarsSchema), async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/History/retrieveBars`,
-      req.body,
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().marketData.retrieveBars(req.body);
+    res.json(data);
   } catch (err: unknown) {
-    if (axios.isAxiosError(err) && err.response) {
-      console.error(`[bars] upstream ${err.response.status}`, err.response.data);
-    }
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
   }
@@ -49,12 +41,11 @@ router.get('/contracts/search', async (req, res) => {
 
   try {
     const live = req.query['live'] === 'true';
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Contract/search`,
-      { searchText: (req.query['q'] as string) ?? '', live },
-      { headers: authHeaders() },
+    const data = await getAdapter().marketData.searchContracts(
+      (req.query['q'] as string) ?? '',
+      live,
     );
-    res.json(response.data);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
@@ -70,12 +61,8 @@ router.get('/contracts/available', async (req, res) => {
 
   try {
     const live = req.query['live'] === 'true';
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Contract/available`,
-      { live },
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().marketData.availableContracts(live);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
@@ -91,12 +78,8 @@ router.get('/contracts/:id', async (req, res) => {
 
   try {
     const live = req.query['live'] === 'true';
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Contract/searchById`,
-      { contractId: req.params.id, live },
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().marketData.searchContractById(req.params.id, live);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });

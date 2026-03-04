@@ -1,0 +1,168 @@
+# Multi-Exchange Refactor Plan
+
+Goal: abstract the codebase away from ProjectX/TopstepX so a second exchange (crypto spot/perp) can be added later. **ProjectX remains the only implementation** until the abstraction is validated.
+
+---
+
+## Phase 1 — Internal Enums & Types ✅
+
+Replace all raw numeric literals with named enums/constants. No behavior change, just readability and a future translation boundary.
+
+### What changes
+
+| Raw value | Meaning | Used in |
+|---|---|---|
+| `type: 1 \| 2 \| 4 \| 5` | Limit / Market / Stop / TrailingStop | orderService, orderRoutes, bracketEngine, order panel, chart-trading |
+| `side: 0 \| 1` | Buy / Sell | orderService, orderRoutes, bracketEngine, order panel, overlay labels |
+| `status: 6, 2, ...` | Pending / Filled / ... | bracketEngine, realtimeService, order event handlers |
+| `type: 1 \| 2` (position) | Long / Short | realtimeService, position display, overlay labels |
+| `type: 3-8` (depth) | BestAsk / BestBid / VolumeAtPrice / Reset / ... | volume profile, depth handlers |
+| `TICKS_PER_POINT = 4` | Futures-specific tick constant | bracket.ts, bracket settings UI |
+
+### Approach
+
+- Create a shared `enums.ts` (or `types/exchange.ts`) with `OrderType`, `OrderSide`, `OrderStatus`, `PositionType`, `DepthType` enums.
+- Replace every raw literal with the enum value.
+- ProjectX adapter (later) will map these enums to/from the gateway's numeric values.
+- Make `TICKS_PER_POINT` instrument-driven (read from contract metadata) instead of a global constant.
+
+### Validation
+
+App behavior is identical. TypeScript compiler catches any missed spots.
+
+---
+
+## Phase 2 — Backend Exchange Adapter ✅
+
+Extract ProjectX-specific logic behind interfaces so the Express routes become exchange-agnostic.
+
+### What was done
+
+- Created `backend/src/adapters/types.ts` with `ExchangeAdapter` interface composed of `ExchangeAuth`, `ExchangeAccounts`, `ExchangeMarketData`, `ExchangeOrders`, `ExchangeTrades`, `ExchangeRealtime`.
+- Created `backend/src/adapters/registry.ts` — singleton holder (`getAdapter`/`setAdapter`/`clearAdapter`/`isConnected`).
+- Moved all ProjectX logic into `backend/src/adapters/projectx/` (auth, accounts, marketData, orders, trades, realtime).
+- All routes now call `getAdapter().domain.method()` instead of axios directly.
+- `authRoutes.ts` creates the adapter on connect via `createProjectXAdapter()` and registers it.
+- SignalR negotiate proxy + WS upgrade handler extracted from `index.ts` into the adapter.
+- Deleted `backend/src/auth.ts` — logic lives in `adapters/projectx/auth.ts`.
+- `tsc --noEmit` compiles clean. No route URLs, request shapes, or response shapes changed.
+
+---
+
+## Phase 3 — Realtime Adapter (Frontend)
+
+Abstract `realtimeService.ts` so the transport (SignalR vs plain WebSocket) and event shapes are behind an interface.
+
+### What changes
+
+| Current | Abstracted |
+|---|---|
+| SignalR `HubConnectionBuilder` hardcoded | `RealtimeAdapter.connect()` interface |
+| Event names: `GatewayQuote`, `GatewayUserOrder`, etc. | Adapter normalizes into internal types |
+| Subscription methods: `SubscribeContractQuotes`, `SubscribeOrders`, etc. | `adapter.subscribeQuotes(id)`, `adapter.subscribeOrders(accountId)` |
+| `UserHubItem<T>` with `{action, data}` wrapper | Adapter unwraps before dispatching |
+
+### Approach
+
+- Define `RealtimeAdapter` interface with `connect`, `disconnect`, `subscribe*`, `unsubscribe*`, `on*`, `off*`.
+- Current `RealtimeService` class becomes `ProjectXRealtimeAdapter` implementing the interface.
+- The public `realtimeService` singleton delegates to whichever adapter is active.
+- Internal event types (`RealtimeOrder`, `RealtimePosition`, etc.) become the canonical shapes — each adapter normalizes into them.
+
+### Why this is the hardest piece
+
+- SignalR has built-in reconnection, hub multiplexing, and negotiate flow. Plain WebSocket needs all of that manually.
+- The backend SignalR proxy (`index.ts` lines 43-127) is also exchange-specific — it would need a parallel path for crypto WS proxying (or direct browser-to-exchange connections).
+
+### Validation
+
+SignalR still works exactly as before through the adapter wrapper. No new transport yet.
+
+---
+
+## Phase 4 — Instrument Model Generalization
+
+Make the `Contract` type flexible enough for both futures and crypto instruments.
+
+### What changes
+
+| Futures (current) | Crypto (needed) |
+|---|---|
+| `id: "CON.F.US.MNQ.H25"` (has expiry) | `symbol: "BTCUSDT"` (no expiry) |
+| `tickSize: 0.25` / `tickValue: 0.50` | `pricePrecision: 2` / `quantityPrecision: 3` |
+| Whole-number contract sizes | Fractional sizes (`0.001 BTC`) |
+| P&L = `(delta / tickSize) * tickValue * size` | P&L = `delta * size` (quote currency) |
+
+### Approach
+
+- Extend `Contract` (or create a `Instrument` union type) to carry either tick-based or decimal-precision metadata.
+- P&L helpers read from the instrument to decide calculation method.
+- Remove `TICKS_PER_POINT` global — derive from instrument's `tickSize` or use decimal precision.
+- Bracket engine's point-to-price conversion becomes instrument-aware.
+- `orderSize` validation allows fractional values when the instrument supports it.
+
+### Validation
+
+All existing futures instruments still display and calculate correctly. The extended fields are simply unused until a crypto adapter provides them.
+
+---
+
+## Phase 5 — UI Flexibility
+
+Update UI components to handle exchange differences gracefully.
+
+### What changes
+
+- **Order panel**: support fractional sizes (step size from instrument metadata), show exchange-specific order types.
+- **Settings modal**: exchange selector + exchange-specific credential fields (username+apiKey for ProjectX, apiKey+secret for crypto).
+- **Pinned instruments**: default set becomes exchange-aware (not hardcoded `['NQ', 'MNQ']`).
+- **Instrument selector**: search/display adapts to exchange naming (futures contracts with expiry vs perpetual pairs).
+- **P&L display**: quote currency label (USD for futures, USDT/USDC for crypto).
+- **Position display**: additional fields for perps (liquidation price, leverage, margin type) — hidden for futures.
+
+### Validation
+
+ProjectX UI unchanged. New fields/options only appear when a crypto exchange is active.
+
+---
+
+## Phase 6 — Add Crypto Exchange
+
+With the abstraction validated against ProjectX, implement the second adapter.
+
+### New code
+
+- `backend/src/adapters/crypto/` — auth (HMAC signing), REST client, WS client.
+- `frontend/src/adapters/crypto/` — `CryptoRealtimeAdapter` (plain WebSocket, normalizes into internal types).
+- Exchange-specific instrument search, order placement, position tracking.
+
+### Crypto-specific concerns
+
+- **Spot vs Perp**: spot has no positions (just balances), perp has positions with funding/liquidation.
+- **Rate limits**: crypto APIs have strict rate limits per IP/key — need throttling.
+- **Signing**: every request needs HMAC-SHA256 signature with timestamp and recv_window.
+- **WebSocket keepalive**: most crypto exchanges require periodic pings or the connection drops.
+- **Order acknowledgment**: crypto exchanges return order ID synchronously but fill events come async — similar to current flow, should map cleanly.
+
+---
+
+## What Stays Untouched
+
+These layers are already exchange-agnostic:
+
+- Chart rendering (lightweight-charts)
+- Drawing tools
+- Screenshot system
+- Dual chart layout
+- Toast system
+- Design system / styling
+- Volume profile rendering (just needs data in the right shape)
+
+---
+
+## Open Questions
+
+- Do we support multiple exchanges connected simultaneously, or one at a time?
+- For crypto spot (no positions), do we show a "balances" tab instead of positions?
+- Should bracket engine support crypto-native SL/TP (some exchanges support it natively)?
+- WebSocket: proxy through backend (like SignalR today) or connect directly from browser?

@@ -11,7 +11,7 @@ A localhost web app for trading on a candlestick chart using the
 
 ```
 chart/
-├── api-layer/            — REST + SignalR services, backend proxy
+├── api-layer/            — REST + SignalR services, backend exchange adapter
 ├── api-settings/         — Settings modal, API credentials
 ├── top-bar/              — Account selector, balance, UP&L, RP&L, latency
 ├── candlestick-chart/    — Chart core: bars, toolbar, crosshair, primitive z-order
@@ -113,8 +113,8 @@ chart/
 │  • JWT held in memory — never exposed to browser                    │
 │  • CORS locked to localhost:5173                                     │
 │  • Zod validation on all routes                                      │
-│  • Forwards REST calls to ProjectX Gateway                          │
-│  • Proxies SignalR WS upgrade (injects JWT server-side)             │
+│  • Exchange adapter pattern: routes call getAdapter().domain.method()│
+│  • ProjectX adapter: REST calls + SignalR WS proxy (JWT injected)   │
 └────────────────────┬────────────────────────────────────────────────┘
                      │ HTTPS / WSS
 ┌────────────────────▼────────────────────────────────────────────────┐

@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import axios from 'axios';
 import { z } from 'zod';
-import { getBaseUrl, authHeaders, isConnected } from '../auth';
 import { validateBody, validateQuery } from '../validate';
+import { getAdapter, isConnected } from '../adapters/registry';
 import { OrderType, OrderSide } from '../types/enums';
 
 const router = Router();
@@ -50,12 +49,8 @@ router.post('/place', validateBody(PlaceOrderSchema), async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Order/place`,
-      req.body,
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().orders.place(req.body);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
@@ -70,12 +65,8 @@ router.post('/cancel', validateBody(CancelOrderSchema), async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Order/cancel`,
-      req.body,
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().orders.cancel(req.body);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
@@ -90,12 +81,8 @@ router.patch('/modify', validateBody(ModifyOrderSchema), async (req, res) => {
   }
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Order/modify`,
-      req.body,
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().orders.modify(req.body);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
@@ -112,12 +99,8 @@ router.get('/open', validateQuery(OpenOrdersQuery), async (req, res) => {
   const accountId = Number(req.query['accountId']);
 
   try {
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Order/searchOpen`,
-      { accountId },
-      { headers: authHeaders() },
-    );
-    res.json(response.data);
+    const data = await getAdapter().orders.searchOpen(accountId);
+    res.json(data);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(502).json({ success: false, errorMessage: msg });
