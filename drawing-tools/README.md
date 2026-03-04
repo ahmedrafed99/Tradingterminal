@@ -210,6 +210,7 @@ Key methods:
 - `setRulerDragPreview(x1, y1, x2, y2, metrics, decimals)` / `clearRulerDragPreview()` — ruler rectangle + label preview
 - `getHandleAt(x, y)` — hit-test resize handles on selected oval/ruler
 - `hitTest(x, y)` — returns `PrimitiveHoveredItem` with `externalId` for click-to-select
+- `priceAxisViews()` — returns price axis labels for all HLines with **de-overlap stacking**: labels are sorted by Y coordinate and pushed apart (18px gap) so close HLines stack vertically instead of overlapping
 
 ### HLineRenderer
 

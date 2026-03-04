@@ -404,6 +404,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _selectedAxisPaneView = new SelectedDrawingAxisPaneView();
   private _selectedAxisPaneViewArr: readonly IPrimitivePaneView[] = [this._selectedAxisPaneView];
   private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
+  /** Cached de-overlapped Y for the selected hline (set in priceAxisViews) */
+  private _selectedHLineAxisY: number | null = null;
 
   /** When false, paneViews() returns empty — used to exclude drawings from screenshots */
   visible = true;
@@ -514,7 +516,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       this._priceAxisViewPool.push(new DrawingPriceAxisView());
     }
 
-    const views: ISeriesPrimitiveAxisView[] = [];
+    // First pass: compute raw coordinates
+    const items: { poolIdx: number; y: number; text: string; color: string; selected: boolean }[] = [];
     for (let i = 0; i < hlines.length; i++) {
       const d = hlines[i];
       if (d.type !== 'hline') continue;
@@ -525,8 +528,25 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         maximumFractionDigits: this._decimals,
       });
       const selected = d.id === this._selectedId;
-      const axisView = this._priceAxisViewPool[i];
-      axisView.update(y, text, d.color, selected);
+      items.push({ poolIdx: i, y, text, color: d.color, selected });
+    }
+
+    // Sort by Y coordinate and de-overlap: stack labels that are too close
+    const LABEL_HEIGHT = 18;
+    items.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < items.length; i++) {
+      if (items[i].y - items[i - 1].y < LABEL_HEIGHT) {
+        items[i].y = items[i - 1].y + LABEL_HEIGHT;
+      }
+    }
+
+    // Cache de-overlapped Y for the selected hline (used by priceAxisPaneViews)
+    this._selectedHLineAxisY = null;
+    const views: ISeriesPrimitiveAxisView[] = [];
+    for (const item of items) {
+      if (item.selected) this._selectedHLineAxisY = item.y;
+      const axisView = this._priceAxisViewPool[item.poolIdx];
+      axisView.update(item.y, item.text, item.color, item.selected);
       views.push(axisView);
     }
 
@@ -540,7 +560,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     const selected = this._drawings.find((d) => d.id === this._selectedId && d.type === 'hline');
     if (!selected || selected.type !== 'hline') return this._emptyPaneViews;
 
-    const y = this._series.priceToCoordinate(selected.price);
+    // Use cached de-overlapped Y from priceAxisViews(), fall back to raw coordinate
+    const y = this._selectedHLineAxisY ?? this._series.priceToCoordinate(selected.price);
     if (y === null) return this._emptyPaneViews;
 
     const text = selected.price.toLocaleString('en-US', {
