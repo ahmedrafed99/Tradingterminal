@@ -127,8 +127,9 @@ No auth guard — the backend is local-only (CORS locked to `localhost:5173`).
 
 1. Zustand `persist` hydrates store from `localStorage` (synchronous, instant)
 2. `useSettingsSync` hook fires `GET /settings` (async)
-3. If file has data → `useStore.setState(saved)` — file wins over localStorage
+3. If file has data → shallow-compares each key by value (`JSON.stringify`) and only patches keys that actually changed (avoids re-triggering effects with identical data)
 4. If file is empty (first run) → seeds the file with current store state (backs up localStorage data)
+5. Sets `settingsHydrated: true` in store — chart bars loading is gated on this flag to prevent wasted requests on stale localStorage contract data
 
 ### Runtime (ongoing saves)
 

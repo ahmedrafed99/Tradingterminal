@@ -183,6 +183,7 @@ marketDataService.listAvailableContracts()       // GET  /market/contracts/avail
 
 Bar unit values: `1`=Second, `2`=Minute, `3`=Hour, `4`=Day, `5`=Week, `6`=Month.
 Max bars per request: 20,000. Use `live: false` for sim/TopstepX accounts.
+In-flight request dedup: concurrent calls with the same `(contractId, unit, unitNumber)` key share a single network request (prevents duplicate fetches from React StrictMode or rapid re-renders).
 
 ### `orderService.ts`
 
@@ -420,7 +421,7 @@ Trade zone primitive sync, OHLC tooltip on crosshair hover, crosshair price labe
 
 ### `chart/hooks/useChartBars.ts` (270 lines)
 
-- **Historical bars**: loads on mount and when `contract` or `timeframe` changes
+- **Historical bars**: loads when `contract` or `timeframe` changes; gated on `settingsHydrated` flag so bars don't fire until file-based settings have loaded (prevents wasted requests on stale localStorage data)
 - **Initial visible range**: shows last ~100 bars zoomed in (not `fitContent`), re-enables `autoScale` before each data load (so the price axis resets for the new instrument), then disables it after so vertical dragging works immediately
 - **Real-time updates**: subscribes to `GatewayQuote` via SignalR, updates/creates candles
 - Guards against race conditions with stale quotes

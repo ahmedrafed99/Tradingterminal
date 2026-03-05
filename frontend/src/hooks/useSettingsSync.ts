@@ -49,18 +49,31 @@ export function useSettingsSync() {
       .loadSettings()
       .then((saved) => {
         if (saved && Object.keys(saved).length > 0) {
-          // File has data — merge into store (file wins over localStorage)
-          useStore.setState(saved);
+          // File has data — merge into store (file wins over localStorage).
+          // Only apply keys whose values actually changed (by value, not reference)
+          // to avoid re-triggering effects that depend on object identity.
+          const current = useStore.getState() as unknown as Record<string, unknown>;
+          const patch: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(saved)) {
+            if (JSON.stringify(current[k]) !== JSON.stringify(v)) {
+              patch[k] = v;
+            }
+          }
+          if (Object.keys(patch).length > 0) {
+            useStore.setState(patch);
+          }
         } else {
           // File is empty (first run) — seed it with current store state
           // so localStorage data gets backed up immediately
           persistenceService.saveSettings(getPersistedState()).catch(() => {});
         }
         hydrated.current = true;
+        useStore.setState({ settingsHydrated: true });
       })
       .catch(() => {
         // Backend might not be running — fall back to localStorage
         hydrated.current = true;
+        useStore.setState({ settingsHydrated: true });
       });
   }, []);
 

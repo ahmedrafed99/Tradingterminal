@@ -146,6 +146,7 @@ interface OrderPanelState {
 // UI slice
 // ---------------------------------------------------------------------------
 interface UiState {
+  settingsHydrated: boolean;
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
   editingPresetId: string | 'new' | null;
@@ -487,6 +488,7 @@ export const useStore = create<Store>()(
       clearVisibleTradeIds: () => set({ visibleTradeIds: [] }),
 
       // UI
+      settingsHydrated: false,
       settingsOpen: false,
       setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
       editingPresetId: null,

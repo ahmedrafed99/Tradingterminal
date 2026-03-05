@@ -50,6 +50,9 @@ export interface RetrieveBarsParams {
 const barsCache = new Map<string, { bars: Bar[]; ts: number }>();
 const BARS_CACHE_TTL = 60_000; // 60 seconds
 
+// In-flight request dedup — concurrent calls with the same key share one network request
+const inflight = new Map<string, Promise<Bar[]>>();
+
 function barsCacheKey(p: RetrieveBarsParams): string {
   return `${p.contractId}:${p.unit}:${p.unitNumber}`;
 }
@@ -61,10 +64,23 @@ export const marketDataService = {
     if (cached && Date.now() - cached.ts < BARS_CACHE_TTL) {
       return cached.bars;
     }
-    const res = await api.post<{ bars: Bar[]; success: boolean }>('/market/bars', params);
-    const bars = res.data.bars ?? [];
-    barsCache.set(key, { bars, ts: Date.now() });
-    return bars;
+    // If an identical request is already in flight, piggyback on it
+    const existing = inflight.get(key);
+    if (existing) return existing;
+
+    const promise = api
+      .post<{ bars: Bar[]; success: boolean }>('/market/bars', params)
+      .then((res) => {
+        const bars = res.data.bars ?? [];
+        barsCache.set(key, { bars, ts: Date.now() });
+        return bars;
+      })
+      .finally(() => {
+        inflight.delete(key);
+      });
+
+    inflight.set(key, promise);
+    return promise;
   },
 
   async searchContracts(query: string, live = false): Promise<Contract[]> {

@@ -82,8 +82,8 @@ searchContracts(query: string): Promise<Contract[]>       // normalized with com
 listAvailableContracts(): Promise<Contract[]>              // normalized with computed fields
 ```
 
-Bars are cached in memory per `(contractId, unit, unitNumber)`.
-Cache is invalidated when the instrument or timeframe changes.
+Bars are cached in memory per `(contractId, unit, unitNumber)` with a 60s TTL.
+In-flight dedup: concurrent identical requests share a single network call (prevents duplicate fetches from StrictMode double-mount or rapid re-renders).
 
 ### `orderService.ts`
 
