@@ -153,9 +153,9 @@ When position size changes, the SL order size must be synced to match. Two paths
 
 ### Internal helpers
 
-- `cancelSessionOrders(session)` — cancels SL + all unfilled TPs (used by `clearSession`). Checks `isOrderStillOpen()` before each cancel to skip orders already removed by the gateway (prevents spurious retry delays and "Failed to cancel" toasts).
-- `cancelSessionTPs(session)` — cancels only unfilled TPs (used when SL fills, or on `cancelRemainingTPs` condition action). Same `isOrderStillOpen()` guard.
-- `isOrderStillOpen(orderId)` — checks if the order still exists in the Zustand store's `openOrders`. When a position closes, the gateway may auto-cancel bracket orders before the engine's sequential cancel loop reaches them.
+- `cancelSessionOrders(session)` — cancels SL + all unfilled TPs **in parallel** (`Promise.allSettled`) (used by `clearSession`). Checks `isOrderStillOpen()` before each cancel to skip orders already removed by the gateway (prevents spurious retry delays and "Failed to cancel" toasts).
+- `cancelSessionTPs(session)` — cancels only unfilled TPs **in parallel** (`Promise.allSettled`) (used when SL fills, or on `cancelRemainingTPs` condition action). Same `isOrderStillOpen()` guard.
+- `isOrderStillOpen(orderId)` — checks if the order still exists in the Zustand store's `openOrders`. When a position closes, the gateway may auto-cancel bracket orders before the engine's parallel cancel batch reaches them.
 - `getFilledTPSize()` — sums sizes of filled TPs to calculate remaining position
 
 ---

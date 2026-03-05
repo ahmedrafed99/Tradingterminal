@@ -464,55 +464,57 @@ class BracketEngine {
 
   private async cancelSessionTPs(session: ActiveSession) {
     const { accountId, tpOrderIds, filledTPs } = session;
+    const cancels: Promise<void>[] = [];
     for (const [tpIdx, orderId] of tpOrderIds) {
-      if (!filledTPs.has(tpIdx)) {
-        if (!this.isOrderStillOpen(orderId)) {
-          if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
-          continue;
-        }
-        try {
-          if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
-          await orderService.cancelOrder(accountId, orderId);
-        } catch (err) {
-          showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
-        }
+      if (filledTPs.has(tpIdx)) continue;
+      if (!this.isOrderStillOpen(orderId)) {
+        if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
+        continue;
       }
+      if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
+      cancels.push(
+        orderService.cancelOrder(accountId, orderId).catch((err) => {
+          showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
+        }),
+      );
     }
+    await Promise.allSettled(cancels);
   }
 
   private async cancelSessionOrders(session: ActiveSession) {
     const { accountId, slOrderId, tpOrderIds, filledTPs } = session;
+    const cancels: Promise<void>[] = [];
 
     // Cancel SL
     if (slOrderId !== null) {
       if (!this.isOrderStillOpen(slOrderId)) {
         if (DEV) console.log(`[BracketEngine] SL (orderId: ${slOrderId}) already gone, skipping cancel`);
       } else {
-        try {
-          if (DEV) console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
-          await orderService.cancelOrder(accountId, slOrderId);
-        } catch (err) {
-          showToast('warning', 'Failed to cancel Stop Loss order',
-            'Check open orders manually. ' + errorMessage(err));
-        }
+        if (DEV) console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
+        cancels.push(
+          orderService.cancelOrder(accountId, slOrderId).catch((err) => {
+            showToast('warning', 'Failed to cancel Stop Loss order',
+              'Check open orders manually. ' + errorMessage(err));
+          }),
+        );
       }
     }
 
     // Cancel remaining TPs
     for (const [tpIdx, orderId] of tpOrderIds) {
-      if (!filledTPs.has(tpIdx)) {
-        if (!this.isOrderStillOpen(orderId)) {
-          if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
-          continue;
-        }
-        try {
-          if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
-          await orderService.cancelOrder(accountId, orderId);
-        } catch (err) {
-          showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
-        }
+      if (filledTPs.has(tpIdx)) continue;
+      if (!this.isOrderStillOpen(orderId)) {
+        if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
+        continue;
       }
+      if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
+      cancels.push(
+        orderService.cancelOrder(accountId, orderId).catch((err) => {
+          showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
+        }),
+      );
     }
+    await Promise.allSettled(cancels);
   }
 
   private async executeAction(action: ConditionAction) {
