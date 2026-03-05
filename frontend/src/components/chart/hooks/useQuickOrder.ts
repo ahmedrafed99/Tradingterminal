@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
-import { buildNativeBracketParams } from '../../../types/bracket';
+import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
 import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
@@ -257,8 +257,9 @@ export function useQuickOrder(
       let bracketsArmed = false;
 
       // Use gateway-native brackets for <= 1 TP (atomic placement).
-      // Fall back to client-side bracket engine for 2+ TPs.
+      // For 2+ TPs, attach native SL bracket (zero-latency SL) + arm engine for TPs only.
       let nativeBrackets: ReturnType<typeof buildNativeBracketParams> = null;
+      let nativeSL: ReturnType<typeof buildNativeSLOnly> = null;
 
       if (activePreset) {
         const bc = activePreset.config;
@@ -267,7 +268,9 @@ export function useQuickOrder(
           nativeBrackets = buildNativeBracketParams(bc, side, contract!);
 
           if (!nativeBrackets) {
-            // 2+ TPs — arm bracket engine
+            // 2+ TPs — attach native SL for zero-latency protection, engine handles TPs after fill
+            nativeSL = buildNativeSLOnly(bc, side, contract!);
+
             bracketEngine.armForEntry({
               accountId: st.activeAccountId,
               contractId: contract!.id,
@@ -275,6 +278,7 @@ export function useQuickOrder(
               entrySize: st.orderSize,
               config: bc,
               contract: contract!,
+              nativeSL: !!nativeSL,
             });
             bracketsArmed = true;
           }
@@ -314,6 +318,7 @@ export function useQuickOrder(
         size: st.orderSize,
         limitPrice: snappedPrice,
         ...nativeBrackets,
+        ...nativeSL,
       }).then(({ orderId }) => {
         if (bracketsArmed) {
           bracketEngine.confirmEntryOrderId(orderId);

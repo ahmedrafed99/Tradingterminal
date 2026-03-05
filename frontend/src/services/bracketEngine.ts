@@ -21,6 +21,8 @@ export interface PendingEntryConfig {
   entrySize: number;
   config: BracketConfig;
   contract: Contract;
+  /** SL was attached as a native bracket on the entry order (gateway handles it). */
+  nativeSL?: boolean;
 }
 
 interface NormalizedTP {
@@ -59,6 +61,13 @@ class BracketEngine {
   private bufferedFills: RealtimeOrder[] = [];
 
   private session: ActiveSession | null = null;
+
+  // Native SL discovery state
+  private _awaitingNativeSL: {
+    oppositeSide: OrderSide;
+    slType: OrderType;
+  } | null = null;
+  private _nativeSLTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Step 1: Call BEFORE placing the entry order.
@@ -115,6 +124,11 @@ class BracketEngine {
     this.confirmedOrderId = null;
     this.bufferedFills = [];
     this.session = null; // Null out first so concurrent calls don't double-cancel
+    if (this._nativeSLTimer) {
+      clearTimeout(this._nativeSLTimer);
+      this._nativeSLTimer = null;
+    }
+    this._awaitingNativeSL = null;
 
     const handledIds = new Set<number>();
     if (snapshot) {
@@ -162,6 +176,69 @@ class BracketEngine {
     }
   }
 
+  // ── Native SL Discovery ──────────────────────────────────────────────
+
+  /**
+   * After entry fill with nativeSL, discover the gateway-created SL order.
+   * Checks the store immediately, then falls back to watching onOrderEvent.
+   */
+  private discoverNativeSL(): void {
+    if (!this.session) return;
+    const oppositeSide = this.session.entrySide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+    const slType = this.session.config.stopLoss.type === 'Stop' ? OrderType.Stop : OrderType.TrailingStop;
+
+    // Try immediate lookup in store (order may already be there)
+    const found = this.findNativeSLInStore(oppositeSide);
+    if (found) {
+      this.session.slOrderId = found;
+      if (DEV) console.log('[BracketEngine] Native SL discovered immediately, orderId:', found);
+      this.flushPendingActions();
+      return;
+    }
+
+    // Not found yet — watch incoming order events
+    this._awaitingNativeSL = { oppositeSide, slType };
+    if (DEV) console.log('[BracketEngine] Awaiting native SL discovery...');
+
+    this._nativeSLTimer = setTimeout(() => {
+      if (this._awaitingNativeSL && this.session) {
+        // One last store check before giving up
+        const lastChance = this.findNativeSLInStore(this._awaitingNativeSL.oppositeSide);
+        if (lastChance) {
+          this.session.slOrderId = lastChance;
+          if (DEV) console.log('[BracketEngine] Native SL discovered on timeout check, orderId:', lastChance);
+          this.flushPendingActions();
+        } else {
+          showToast('warning', 'Could not track native SL order',
+            'SL is live but auto-resize on TP fills may not work. Check orders.');
+        }
+        this._awaitingNativeSL = null;
+      }
+    }, 3000);
+  }
+
+  private findNativeSLInStore(oppositeSide: OrderSide): number | null {
+    if (!this.session) return null;
+    const orders = useStore.getState().openOrders;
+    const match = orders.find(
+      (o) => String(o.contractId) === String(this.session!.contractId)
+        && o.side === oppositeSide
+        && (o.type === OrderType.Stop || o.type === OrderType.TrailingStop)
+        && o.size === this.session!.entrySize,
+    );
+    return match ? match.id : null;
+  }
+
+  private flushPendingActions(): void {
+    if (this.session && this.session.pendingActions.length > 0) {
+      const actions = [...this.session.pendingActions];
+      this.session.pendingActions = [];
+      for (const action of actions) {
+        this.executeAction(action);
+      }
+    }
+  }
+
   /**
    * Called on every SignalR order event.
    */
@@ -205,6 +282,25 @@ class BracketEngine {
     // --- Active session ---
     if (!this.session) return;
     if (order.contractId !== this.session.contractId) return;
+
+    // --- Check if this is the native SL we're waiting to discover ---
+    if (this._awaitingNativeSL && this.session.slOrderId === null) {
+      const { oppositeSide } = this._awaitingNativeSL;
+      if (
+        order.side === oppositeSide &&
+        (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) &&
+        order.size === this.session.entrySize
+      ) {
+        this.session.slOrderId = order.id;
+        if (DEV) console.log('[BracketEngine] Native SL discovered via event, orderId:', order.id);
+        if (this._nativeSLTimer) clearTimeout(this._nativeSLTimer);
+        this._nativeSLTimer = null;
+        this._awaitingNativeSL = null;
+        this.flushPendingActions();
+        // Don't return — if it's already filled, fall through to SL fill handling
+      }
+    }
+
     if (order.status !== OrderStatus.Filled) return;
 
     // Check if SL was filled → cancel all remaining TPs
@@ -365,8 +461,12 @@ class BracketEngine {
 
     const oppositeSide = entrySide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
 
-    // Place SL as a separate stop order (with retry)
-    if (config.stopLoss.points >= 1) {
+    if (cfg.nativeSL && config.stopLoss.points >= 1) {
+      // SL was attached as native bracket — discover the gateway-created order
+      if (DEV) console.log('[BracketEngine] Native SL used, discovering gateway-created SL order...');
+      this.discoverNativeSL();
+    } else if (config.stopLoss.points >= 1) {
+      // Place SL as a separate stop order (with retry)
       const slOffset = pointsToPrice(config.stopLoss.points, contract);
       const stopPrice =
         entrySide === OrderSide.Buy
@@ -407,13 +507,7 @@ class BracketEngine {
         }
 
         // Flush any pending actions
-        if (this.session && this.session.pendingActions.length > 0) {
-          const actions = [...this.session.pendingActions];
-          this.session.pendingActions = [];
-          for (const action of actions) {
-            await this.executeAction(action);
-          }
-        }
+        this.flushPendingActions();
       } catch {
         // Toast already shown by onExhausted
       }

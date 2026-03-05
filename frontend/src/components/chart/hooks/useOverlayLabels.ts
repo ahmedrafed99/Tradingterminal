@@ -7,6 +7,7 @@ import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
+import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import type { ChartRefs, PreviewLineRole } from './types';
 
 /**
@@ -309,9 +310,10 @@ export function useOverlayLabels(
           };
         };
       } else {
-        initPnlText = (oType === OrderType.Stop || oType === OrderType.TrailingStop) ? 'SL'
-          : oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
-        initPnlBg = (oType === OrderType.Stop || oType === OrderType.TrailingStop) ? '#ff0000' : '#cac9cb';
+        // No position — SL/TP labels are meaningless (order is about to be cancelled)
+        if (oType === OrderType.Stop || oType === OrderType.TrailingStop) continue;
+        initPnlText = oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
+        initPnlBg = '#cac9cb';
       }
 
       // Find the matching PriceLevelLine for this order
@@ -552,20 +554,33 @@ export function useOverlayLabels(
           const bracketsActive = mergedConfig != null
             && (mergedConfig.stopLoss.points >= 1 || mergedConfig.takeProfits.length >= 1);
 
+          let engineArmed = false;
           if (bracketsActive && mergedConfig) {
-            bracketEngine.armForEntry({
-              accountId: st.activeAccountId,
-              contractId: contract.id,
-              entrySide: side,
-              entrySize: st.orderSize,
-              config: mergedConfig,
-              contract: contract,
-            });
+            // Use full native brackets for <= 1 TP, native SL only for 2+ TPs
+            const nativeBrackets = buildNativeBracketParams(mergedConfig, side, contract);
+            if (nativeBrackets) {
+              Object.assign(params, nativeBrackets);
+            } else {
+              // 2+ TPs — attach native SL, engine handles TPs after fill
+              const nativeSL = buildNativeSLOnly(mergedConfig, side, contract);
+              if (nativeSL) Object.assign(params, nativeSL);
+
+              bracketEngine.armForEntry({
+                accountId: st.activeAccountId,
+                contractId: contract.id,
+                entrySide: side,
+                entrySize: st.orderSize,
+                config: mergedConfig,
+                contract: contract,
+                nativeSL: !!nativeSL,
+              });
+              engineArmed = true;
+            }
           }
 
           try {
             const { orderId } = await orderService.placeOrder(params);
-            if (bracketsActive) bracketEngine.confirmEntryOrderId(orderId);
+            if (engineArmed) bracketEngine.confirmEntryOrderId(orderId);
             const s = useStore.getState();
             s.clearDraftOverrides();
             if (s.orderType === 'market') {
@@ -577,6 +592,7 @@ export function useOverlayLabels(
             }
           } catch (err) {
             showToast('error', 'Order placement failed', errorMessage(err));
+            if (engineArmed) bracketEngine.clearSession();
           }
         };
       } else if (role.kind === 'sl') {

@@ -33,6 +33,15 @@ vi.mock('../../utils/retry', () => ({
   }),
 }));
 
+// Mock store for openOrders (used by isOrderStillOpen and findNativeSLInStore)
+let mockOpenOrders: Array<{ id: number; contractId: string; side: OrderSide; type: OrderType; size: number }> = [];
+vi.mock('../../store/useStore', () => ({
+  useStore: {
+    getState: () => ({ openOrders: mockOpenOrders }),
+    subscribe: vi.fn(() => () => {}),
+  },
+}));
+
 // Import AFTER mocks
 import { bracketEngine } from '../bracketEngine';
 import { orderService } from '../orderService';
@@ -88,6 +97,7 @@ function armAndConfirm(
   config: BracketConfig = baseBracketConfig,
   entrySize = 1,
   entrySide: OrderSide = OrderSide.Buy,
+  nativeSL = false,
 ) {
   bracketEngine.armForEntry({
     accountId: 100,
@@ -96,6 +106,7 @@ function armAndConfirm(
     entrySize,
     config,
     contract: mockContract,
+    nativeSL,
   });
 }
 
@@ -107,7 +118,12 @@ beforeEach(async () => {
   await new Promise((r) => setTimeout(r, 50));
   vi.clearAllMocks();
   orderIdCounter = 100;
-  placeOrder.mockImplementation(async () => ({ orderId: ++orderIdCounter }));
+  mockOpenOrders = [];
+  placeOrder.mockImplementation(async (params: { contractId: string; side: OrderSide; type: OrderType; size: number }) => {
+    const id = ++orderIdCounter;
+    mockOpenOrders.push({ id, contractId: params.contractId, side: params.side, type: params.type, size: params.size });
+    return { orderId: id };
+  });
   cancelOrder.mockResolvedValue(undefined);
   modifyOrder.mockResolvedValue(undefined);
 });
@@ -437,5 +453,136 @@ describe('moveSLToBreakeven', () => {
   it('should return false and toast when no active session', async () => {
     const result = await bracketEngine.moveSLToBreakeven();
     expect(result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Native SL Discovery Tests
+// ---------------------------------------------------------------------------
+
+describe('native SL discovery', () => {
+  const multiTpConfig: BracketConfig = {
+    stopLoss: { points: 10, type: 'Stop' },
+    takeProfits: [
+      { id: 'tp1', points: 10, size: 1 },
+      { id: 'tp2', points: 20, size: 2 },
+    ],
+    conditions: [],
+  };
+
+  it('should skip SL placeOrder when nativeSL is true', async () => {
+    armAndConfirm(multiTpConfig, 3, OrderSide.Buy, true);
+    bracketEngine.confirmEntryOrderId(42);
+
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    // Only TP calls — no SL placeOrder
+    const slCalls = placeOrder.mock.calls.filter(
+      (c: unknown[]) => (c[0] as { type: number }).type === OrderType.Stop,
+    );
+    expect(slCalls).toHaveLength(0);
+
+    // TPs should still be placed
+    const tpCalls = placeOrder.mock.calls.filter(
+      (c: unknown[]) => (c[0] as { type: number }).type === OrderType.Limit,
+    );
+    expect(tpCalls).toHaveLength(2);
+  });
+
+  it('should discover native SL from store immediately', async () => {
+    // Pre-populate store with the gateway-created SL order
+    mockOpenOrders = [
+      { id: 999, contractId: 'CON-NQ', side: OrderSide.Sell, type: OrderType.Stop, size: 3 },
+    ];
+
+    armAndConfirm(multiTpConfig, 3, OrderSide.Buy, true);
+    bracketEngine.confirmEntryOrderId(42);
+
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    // Now simulate TP1 fill — SL should be resized (proving discovery worked)
+    const tp1OrderId = (await placeOrder.mock.results[0].value).orderId;
+    await bracketEngine.onOrderEvent(mockOrder({
+      id: tp1OrderId,
+      contractId: 'CON-NQ',
+      status: OrderStatus.Filled,
+    }));
+
+    expect(modifyOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: 999, size: 2 }),
+    );
+  });
+
+  it('should discover native SL from order event', async () => {
+    armAndConfirm(multiTpConfig, 3, OrderSide.Buy, true);
+    bracketEngine.confirmEntryOrderId(42);
+
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    // Simulate gateway-created SL arriving via SignalR
+    await bracketEngine.onOrderEvent(mockOrder({
+      id: 888,
+      contractId: 'CON-NQ',
+      side: OrderSide.Sell,
+      type: OrderType.Stop,
+      size: 3,
+      status: OrderStatus.Pending,
+    }));
+
+    // Now simulate TP1 fill — SL should be resized (proving discovery worked)
+    const tp1OrderId = (await placeOrder.mock.results[0].value).orderId;
+    await bracketEngine.onOrderEvent(mockOrder({
+      id: tp1OrderId,
+      contractId: 'CON-NQ',
+      status: OrderStatus.Filled,
+    }));
+
+    expect(modifyOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: 888, size: 2 }),
+    );
+  });
+
+  it('should resize native SL on TP fill', async () => {
+    mockOpenOrders = [
+      { id: 777, contractId: 'CON-NQ', side: OrderSide.Sell, type: OrderType.Stop, size: 3 },
+    ];
+
+    armAndConfirm(multiTpConfig, 3, OrderSide.Buy, true);
+    bracketEngine.confirmEntryOrderId(42);
+
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    const tp1OrderId = (await placeOrder.mock.results[0].value).orderId;
+
+    // TP1 fills (size 1) → SL should be reduced to 3-1=2
+    await bracketEngine.onOrderEvent(mockOrder({
+      id: tp1OrderId,
+      contractId: 'CON-NQ',
+      status: OrderStatus.Filled,
+    }));
+
+    expect(modifyOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ orderId: 777, size: 2 }),
+    );
+  });
+
+  it('should warn on discovery timeout', async () => {
+    vi.useFakeTimers();
+
+    armAndConfirm(multiTpConfig, 3, OrderSide.Buy, true);
+    bracketEngine.confirmEntryOrderId(42);
+
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    // Advance past the 3s timeout
+    vi.advanceTimersByTime(3100);
+
+    expect(toast).toHaveBeenCalledWith(
+      'warning',
+      'Could not track native SL order',
+      expect.any(String),
+    );
+
+    vi.useRealTimers();
   });
 });

@@ -108,3 +108,22 @@ export function buildNativeBracketParams(
 
   return result;
 }
+
+/**
+ * Build ONLY the stopLossBracket param for gateway-native attachment.
+ * Used when 2+ TPs exist (TPs are placed client-side after fill).
+ */
+export function buildNativeSLOnly(
+  config: BracketConfig,
+  side: OrderSide,
+  contract: Contract,
+): { stopLossBracket: { ticks: number; type: number } } | null {
+  if (config.stopLoss.points < 1) return null;
+  const isBuy = side === OrderSide.Buy;
+  return {
+    stopLossBracket: {
+      ticks: pointsToTicks(config.stopLoss.points, contract) * (isBuy ? -1 : 1),
+      type: slTypeToApiType(config.stopLoss.type),
+    },
+  };
+}

@@ -7,7 +7,7 @@ import { OrderType, OrderSide } from '../../types/enums';
 import { showToast } from '../../utils/toast';
 import type { PlaceOrderParams } from '../../services/orderService';
 import type { BracketConfig } from '../../types/bracket';
-import { buildNativeBracketParams } from '../../types/bracket';
+import { buildNativeBracketParams, buildNativeSLOnly } from '../../types/bracket';
 
 export function BuySellButtons() {
   const {
@@ -87,13 +87,16 @@ export function BuySellButtons() {
       && (mergedConfig.stopLoss.points >= 1 || mergedConfig.takeProfits.length >= 1);
 
     // Use gateway-native brackets for <= 1 TP (atomic placement, zero latency gap).
-    // Fall back to client-side bracket engine for 2+ TPs.
+    // For 2+ TPs, attach native SL bracket (zero-latency SL) + arm engine for TPs only.
     const nativeBrackets = bracketsActive && mergedConfig ? buildNativeBracketParams(mergedConfig, side, orderContract) : null;
 
     if (nativeBrackets) {
       Object.assign(params, nativeBrackets);
     } else if (bracketsActive && mergedConfig) {
-      // 2+ TPs — arm bracket engine BEFORE placing so it can buffer fill events
+      // 2+ TPs — attach native SL for zero-latency protection, engine handles TPs after fill
+      const nativeSL = buildNativeSLOnly(mergedConfig, side, orderContract);
+      if (nativeSL) Object.assign(params, nativeSL);
+
       bracketEngine.armForEntry({
         accountId: activeAccountId,
         contractId: orderContract.id,
@@ -101,6 +104,7 @@ export function BuySellButtons() {
         entrySize: orderSize,
         config: mergedConfig,
         contract: orderContract,
+        nativeSL: !!nativeSL,
       });
     }
 

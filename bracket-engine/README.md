@@ -1,6 +1,6 @@
 # Feature: Bracket Engine (Runtime)
 
-Client-side singleton service that manages SL + multi-TP bracket orders after entry fill. Separate from the bracket settings UI modal — this is the **runtime execution engine**.
+Client-side singleton service that manages multi-TP bracket orders after entry fill. SL is always attached as a **native bracket** on the entry order (zero-latency protection); the engine discovers the gateway-created SL and manages it (resize, conditions). Separate from the bracket settings UI modal — this is the **runtime execution engine**.
 
 **Status**: Implemented
 
@@ -8,18 +8,19 @@ Client-side singleton service that manages SL + multi-TP bracket orders after en
 
 ## Native vs Client-Side Brackets
 
-The ProjectX gateway supports atomic bracket placement (SL + 1 TP attached to the entry order) when "Auto OCO Brackets" is enabled. The app uses a **dual-path strategy**:
+The ProjectX gateway supports atomic bracket placement (SL + 1 TP attached to the entry order) when "Auto OCO Brackets" is enabled. The app uses a **dual-path strategy**, but **SL is always native**:
 
-| TPs | Path | Latency gap | Managed by |
-|-----|------|-------------|------------|
-| 0-1 | **Gateway-native brackets** | Zero — atomic with entry | Gateway (OCO auto-cancel) |
-| 2+  | **Client-side bracket engine** | Brief — orders placed after fill | `bracketEngine.ts` |
+| TPs | SL | TPs | Latency gap | Managed by |
+|-----|-----|-----|-------------|------------|
+| 0-1 | **Native bracket** (atomic) | **Native bracket** (atomic) | Zero | Gateway (OCO auto-cancel) |
+| 2+  | **Native bracket** (atomic) | **Client-side engine** (after fill) | Zero for SL, brief for TPs | `bracketEngine.ts` |
 
-`buildNativeBracketParams()` in `types/bracket.ts` decides which path: returns bracket params for <= 1 TP, returns `null` for 2+ TPs (triggering the engine).
+- `buildNativeBracketParams()` in `types/bracket.ts` handles the 0-1 TP path (returns SL + TP brackets).
+- `buildNativeSLOnly()` in `types/bracket.ts` handles the 2+ TP path (returns only the SL bracket).
 
-### Why client-side for 2+ TPs?
+### Why client-side TPs for 2+ TPs?
 
-The gateway only supports **one** TP per bracket. For multi-TP setups, **all brackets (SL + TPs) are placed as separate orders** after detecting the entry fill via SignalR.
+The gateway only supports **one** TP per bracket. For multi-TP setups, TPs are placed as separate limit orders after detecting the entry fill via SignalR. The SL is still native — the engine discovers the gateway-created SL order and manages it (resize on TP fills, condition actions).
 
 ---
 
@@ -53,7 +54,7 @@ If `placeOrder` throws, callers must disarm the engine via `clearSession()` to p
 
 When the entry order fills (detected via SignalR `GatewayUserOrder` with status=2):
 
-1. **Places SL** as a stop order (type 4 for Stop, type 5 for TrailingStop) — wrapped in `retryAsync` (3 attempts, exponential backoff). If all retries fail, shows a non-dismissible critical toast ("UNPROTECTED position").
+1. **Discovers native SL** — the gateway-created SL order is found by matching `contractId + opposite side + stop type + entry size` in the store or via incoming SignalR events. If not found within 3 seconds, shows a warning toast (SL is still live, but auto-resize/conditions won't work). If `nativeSL` was not set (fallback path), places SL as a separate stop order with retry (3 attempts).
 2. **Places all TPs concurrently** (`Promise.allSettled`) as separate limit orders, sorted nearest-first — each wrapped in `retryAsync` (2 attempts)
    - TP sizes are **normalized** before placement (see TP Size Normalization below)
    - Last TP gets the remainder to ensure all contracts are covered
@@ -115,7 +116,8 @@ All critical operations use `retryAsync` (from `utils/retry.ts`) with exponentia
 
 | Operation | Retries | On exhaustion |
 |-----------|---------|---------------|
-| SL placement | 3 | Critical toast (non-dismissible): "UNPROTECTED position" |
+| SL placement (fallback, non-native) | 3 | Critical toast (non-dismissible): "UNPROTECTED position" |
+| Native SL discovery | N/A (3s timeout) | Warning toast: "Could not track native SL order" |
 | TP placement | 2 | Error toast |
 | SL size modify (after TP fill) | 2 | Warning toast |
 | Move SL to breakeven | 1 | Error toast |
@@ -171,6 +173,7 @@ armForEntry(config: {
   entrySize: number;
   config: BracketConfig;
   contract: Contract;       // instrument metadata (tickSize, tickValue, ticksPerPoint)
+  nativeSL?: boolean;       // true when SL was attached as native bracket on entry order
 }): void
 
 confirmEntryOrderId(orderId: number): void
@@ -222,9 +225,9 @@ Managed by the Zustand store (not the engine itself):
 
 ## Tests
 
-`frontend/src/services/__tests__/bracketEngine.test.ts` — 15 tests using Vitest, mocking `orderService` and `showToast`.
+`frontend/src/services/__tests__/bracketEngine.test.ts` — 20 tests using Vitest, mocking `orderService`, `showToast`, and `useStore`.
 
-Coverage: arm/confirm lifecycle, entry fill (long/short/buffered), SL placement failure + critical toast, TP size normalization, SL fill cancels TPs, TP fill reduces SL size, clearSession cancels orders, conditions (moveSLToBreakeven on TP fill), condition action failure toast.
+Coverage: arm/confirm lifecycle, entry fill (long/short/buffered), SL placement failure + critical toast, TP size normalization, SL fill cancels TPs, TP fill reduces SL size, clearSession cancels orders, conditions (moveSLToBreakeven on TP fill), condition action failure toast, **native SL discovery** (from store, from event, resize on TP fill, discovery timeout warning).
 
 ```bash
 cd frontend && npm test

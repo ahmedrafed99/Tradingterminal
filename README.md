@@ -216,10 +216,10 @@ Canonical color and style values. **Do not add new values — pick from this tab
 
 ## Bracket Strategy
 
-The app uses a **dual-path** bracket strategy depending on the number of take-profit levels:
+The app uses a **dual-path** bracket strategy depending on the number of take-profit levels. **SL is always attached as a native bracket** on the entry order for zero-latency protection.
 
 - **0-1 TPs**: Uses **gateway-native brackets** — SL and TP are attached atomically to the entry order (zero latency gap). Requires "Auto OCO Brackets" enabled on the account. Gateway handles OCO auto-cancel.
-- **2+ TPs**: Uses the **client-side bracket engine** — after the entry order fills (detected via SignalR), the app places SL + each TP as separate orders. Conditions (e.g. "move SL to breakeven when TP 1 hits") are also evaluated client-side.
+- **2+ TPs**: **SL is still native** (attached to entry order), but TPs are placed by the **client-side bracket engine** after fill (detected via SignalR). The engine discovers the gateway-created SL order to manage it (resize on TP fills, move on conditions). Conditions (e.g. "move SL to breakeven when TP 1 hits") are evaluated client-side.
 
 See `bracket-engine/README.md` for the full runtime lifecycle.
 
