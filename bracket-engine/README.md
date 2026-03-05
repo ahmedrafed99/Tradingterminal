@@ -54,7 +54,7 @@ If `placeOrder` throws, callers must disarm the engine via `clearSession()` to p
 When the entry order fills (detected via SignalR `GatewayUserOrder` with status=2):
 
 1. **Places SL** as a stop order (type 4 for Stop, type 5 for TrailingStop) — wrapped in `retryAsync` (3 attempts, exponential backoff). If all retries fail, shows a non-dismissible critical toast ("UNPROTECTED position").
-2. **Places each TP** as a separate limit order, sorted nearest-first — wrapped in `retryAsync` (2 attempts)
+2. **Places all TPs concurrently** (`Promise.allSettled`) as separate limit orders, sorted nearest-first — each wrapped in `retryAsync` (2 attempts)
    - TP sizes are **normalized** before placement (see TP Size Normalization below)
    - Last TP gets the remainder to ensure all contracts are covered
    - Skips TPs if all entry contracts are already allocated

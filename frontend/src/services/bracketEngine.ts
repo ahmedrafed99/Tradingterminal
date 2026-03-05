@@ -419,9 +419,8 @@ class BracketEngine {
       }
     }
 
-    // Place all TPs as separate limit orders (normalized sizes)
-    for (let i = 0; i < normalizedTPs.length; i++) {
-      const tp = normalizedTPs[i];
+    // Place all TPs concurrently as separate limit orders (normalized sizes)
+    const tpPlacements = normalizedTPs.map((tp, i) => {
       const tpOffset = pointsToPrice(tp.points, contract);
       const limitPrice =
         entrySide === OrderSide.Buy
@@ -430,31 +429,32 @@ class BracketEngine {
 
       if (DEV) console.log(`[BracketEngine] Placing TP${i + 1}: side=${oppositeSide} limitPrice=${limitPrice} size=${tp.size}`);
 
-      try {
-        const { orderId } = await retryAsync(
-          () => orderService.placeOrder({
-            accountId,
-            contractId,
-            type: OrderType.Limit,
-            side: oppositeSide,
-            size: tp.size,
-            limitPrice,
-          }),
-          {
-            maxAttempts: 2,
-            baseDelay: 300,
-            onExhausted: (err) => {
-              showToast('error', `Take Profit ${i + 1} placement failed`,
-                `${tp.size} contract(s) — ${errorMessage(err)}`);
-            },
+      return retryAsync(
+        () => orderService.placeOrder({
+          accountId,
+          contractId,
+          type: OrderType.Limit,
+          side: oppositeSide,
+          size: tp.size,
+          limitPrice,
+        }),
+        {
+          maxAttempts: 2,
+          baseDelay: 300,
+          onExhausted: (err) => {
+            showToast('error', `Take Profit ${i + 1} placement failed`,
+              `${tp.size} contract(s) — ${errorMessage(err)}`);
           },
-        );
+        },
+      ).then(({ orderId }) => {
         if (DEV) console.log(`[BracketEngine] TP${i + 1} placed, orderId:`, orderId);
         this.session?.tpOrderIds.set(i, orderId);
-      } catch {
+      }).catch(() => {
         // Toast already shown by onExhausted
-      }
-    }
+      });
+    });
+
+    await Promise.allSettled(tpPlacements);
   }
 
   /** Check if an order still exists in the store (not yet cancelled by the gateway). */
