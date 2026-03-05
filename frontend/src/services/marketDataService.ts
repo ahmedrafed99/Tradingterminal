@@ -53,6 +53,29 @@ const BARS_CACHE_TTL = 60_000; // 60 seconds
 // In-flight request dedup — concurrent calls with the same key share one network request
 const inflight = new Map<string, Promise<Bar[]>>();
 
+// sessionStorage cache — survives page refreshes so the chart renders instantly
+const SS_PREFIX = 'bars:';
+const SS_TTL = 60_000; // 60 seconds
+
+function ssGet(key: string): Bar[] | null {
+  try {
+    const raw = sessionStorage.getItem(SS_PREFIX + key);
+    if (!raw) return null;
+    const { bars, ts } = JSON.parse(raw) as { bars: Bar[]; ts: number };
+    if (Date.now() - ts > SS_TTL) {
+      sessionStorage.removeItem(SS_PREFIX + key);
+      return null;
+    }
+    return bars;
+  } catch { return null; }
+}
+
+function ssSet(key: string, bars: Bar[]): void {
+  try {
+    sessionStorage.setItem(SS_PREFIX + key, JSON.stringify({ bars, ts: Date.now() }));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 function barsCacheKey(p: RetrieveBarsParams): string {
   return `${p.contractId}:${p.unit}:${p.unitNumber}`;
 }
@@ -60,19 +83,31 @@ function barsCacheKey(p: RetrieveBarsParams): string {
 export const marketDataService = {
   async retrieveBars(params: RetrieveBarsParams): Promise<Bar[]> {
     const key = barsCacheKey(params);
+
+    // 1. In-memory cache (fastest)
     const cached = barsCache.get(key);
     if (cached && Date.now() - cached.ts < BARS_CACHE_TTL) {
       return cached.bars;
     }
-    // If an identical request is already in flight, piggyback on it
+
+    // 2. sessionStorage cache (survives refresh)
+    const ssCached = ssGet(key);
+    if (ssCached) {
+      barsCache.set(key, { bars: ssCached, ts: Date.now() });
+      return ssCached;
+    }
+
+    // 3. In-flight dedup
     const existing = inflight.get(key);
     if (existing) return existing;
 
+    // 4. Network fetch
     const promise = api
       .post<{ bars: Bar[]; success: boolean }>('/market/bars', params)
       .then((res) => {
         const bars = res.data.bars ?? [];
         barsCache.set(key, { bars, ts: Date.now() });
+        ssSet(key, bars);
         return bars;
       })
       .finally(() => {

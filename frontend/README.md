@@ -184,6 +184,7 @@ marketDataService.listAvailableContracts()       // GET  /market/contracts/avail
 Bar unit values: `1`=Second, `2`=Minute, `3`=Hour, `4`=Day, `5`=Week, `6`=Month.
 Max bars per request: 20,000. Use `live: false` for sim/TopstepX accounts.
 In-flight request dedup: concurrent calls with the same `(contractId, unit, unitNumber)` key share a single network request (prevents duplicate fetches from React StrictMode or rapid re-renders).
+Cache hierarchy: in-memory Map → sessionStorage (survives page refresh, 60s TTL) → in-flight dedup → network fetch. Chart renders instantly on refresh from sessionStorage.
 
 ### `orderService.ts`
 

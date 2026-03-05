@@ -82,8 +82,9 @@ searchContracts(query: string): Promise<Contract[]>       // normalized with com
 listAvailableContracts(): Promise<Contract[]>              // normalized with computed fields
 ```
 
-Bars are cached in memory per `(contractId, unit, unitNumber)` with a 60s TTL.
-In-flight dedup: concurrent identical requests share a single network call (prevents duplicate fetches from StrictMode double-mount or rapid re-renders).
+Cache hierarchy (all keyed by `contractId:unit:unitNumber`, 60s TTL):
+1. In-memory `Map` (fastest, lost on refresh) → 2. `sessionStorage` (survives refresh) → 3. In-flight dedup → 4. Network fetch.
+Chart renders instantly on page refresh from sessionStorage cache.
 
 ### `orderService.ts`
 
