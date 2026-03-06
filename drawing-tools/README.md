@@ -189,11 +189,11 @@ Template button only shown for hline drawings.
 **Sub-popovers:**
 
 1. **ColorPopover** (252px wide): 7×10 color palette grid (grayscale → dark tones), custom color `<input type="color">` via "+" button
-2. **TextPopover** (272px wide):
+2. **TextPopover** (272px wide) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
    - Row 1: Color swatch (toggles palette) + font size dropdown + **B** bold + *I* italic
    - Row 2: Multiline textarea (system-ui font, dark grey border, no focus outline)
    - Row 3: "Text alignment" label + vertical (Top/Middle/Bottom) + horizontal (Left/Center/Right) dropdowns
-   - Row 4: Cancel / Ok buttons
+   - Row 4: Cancel (restore original) / Ok (keep changes) buttons
 3. **StrokePopover** (120px wide, centered): visual line thickness previews for 1-4px
 4. **TemplatePopover** (220px wide, hline only): saved style templates with export/import
 

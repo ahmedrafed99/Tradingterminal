@@ -28,6 +28,19 @@ function TextPopover({
   const [vAlign, setVAlign] = useState<TextVAlign>(drawing.text?.vAlign ?? 'middle');
   const [showColorGrid, setShowColorGrid] = useState(false);
 
+  // Snapshot original text so we can restore on cancel
+  const originalText = useRef(drawing.text ? { ...drawing.text } : null);
+
+  // Live-preview: push changes to drawing whenever any field changes
+  useEffect(() => {
+    if (content.trim()) {
+      onUpdate({ text: { content: content.trim(), color, fontSize, bold, italic, hAlign, vAlign } });
+    } else {
+      onUpdate({ text: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, color, fontSize, bold, italic, hAlign, vAlign]);
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
@@ -37,15 +50,13 @@ function TextPopover({
   }, [onClose]);
 
   const apply = () => {
-    if (content.trim()) {
-      onUpdate({ text: { content: content.trim(), color, fontSize, bold, italic, hAlign, vAlign } });
-    } else {
-      onUpdate({ text: null });
-    }
+    // Changes already applied via live preview — just close
     onClose();
   };
 
   const cancel = () => {
+    // Restore original text state
+    onUpdate({ text: originalText.current });
     onClose();
   };
 
