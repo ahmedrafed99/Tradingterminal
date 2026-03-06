@@ -158,6 +158,7 @@ Price offsets computed via `pointsToPrice(points, contract)` from `utils/instrum
 Both paths:
 - Set `qoPendingPreview` in the store with computed prices/sizes
 - Remove hover labels (permanent ones take over via overlay label effect)
+- Destroy the entry reference line immediately (the live order line replaces it); only SL/TP preview lines persist
 - Subscribe to store for fill/cancel detection to clean up preview lines
 
 ```ts

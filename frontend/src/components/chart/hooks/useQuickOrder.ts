@@ -304,7 +304,13 @@ export function useQuickOrder(
 
       // Remove hover labels (labels on preview lines)
       for (const line of qoPreviewLines) line.setLabel(null);
-      if (!bracketsArmed && !nativeBrackets) removePreviewLines();
+      if (!bracketsArmed && !nativeBrackets) {
+        removePreviewLines();
+      } else {
+        // Destroy the entry reference line — the live order line replaces it
+        const entryLine = qoPreviewLines.shift();
+        if (entryLine) entryLine.destroy();
+      }
 
       // Set placeholder immediately so onLeave won't remove preview lines
       // before the async .then() replaces it with the real subscription
