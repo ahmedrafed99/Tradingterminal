@@ -189,11 +189,12 @@ Template button only shown for hline drawings.
 **Sub-popovers:**
 
 1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button
-2. **TextPopover** (272px wide) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
-   - Row 1: Color swatch (toggles palette) + font size dropdown + **B** bold + *I* italic
-   - Row 2: Multiline textarea (system-ui font, dark grey border, no focus outline)
-   - Row 3: "Text alignment" label + vertical (Top/Middle/Bottom) + horizontal (Left/Center/Right) dropdowns
-   - Row 4: Cancel (restore original) / Ok (keep changes) buttons
+2. **TextPopover** (290px wide, `bg: #000`) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
+   - Row 1: Color swatch (toggles palette with animated slide) + font size select (`bg: #111`) + **B** bold + *I* italic toggle buttons (active: `#f0a830` text + `#111` bg + `#434651` border, inactive: `#787b86` text, 0.15s transitions)
+   - Color grid: animated expand/collapse (`max-height` + `opacity` transition)
+   - Row 2: Multiline textarea (`bg: #111`, `text: #d1d4dc`, `border: #2a2e39`, system-ui font)
+   - Row 3: "TEXT ALIGNMENT" section label (`10px uppercase tracking-wider #787b86`) + toggle button groups for vertical (Top/Middle/Bottom) and horizontal (Left/Center/Right) separated by a `#2a2e39` divider
+   - Row 4: Cancel (`bg: #1e222d`, hover `#363a45`) / Ok (`bg: #1a3a6e`, hover `#1e4a8a`) buttons
 3. **StrokePopover** (120px wide, centered): visual line thickness previews for 1-4px
 4. **TemplatePopover** (220px wide, hline only): saved style templates with export/import
 

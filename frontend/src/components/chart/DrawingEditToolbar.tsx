@@ -167,26 +167,29 @@ function TextPopover({
   const vAlignLabel: Record<TextVAlign, string> = { top: 'Top', middle: 'Middle', bottom: 'Bottom' };
   const hAlignLabel: Record<TextHAlign, string> = { left: 'Left', center: 'Center', right: 'Right' };
 
-  const selectStyle: React.CSSProperties = {
-    background: '#2a2e39',
-    color: '#d1d4dc',
-    border: '1px solid #434651',
+  const toggleBtn = (active: boolean): React.CSSProperties => ({
+    width: 28,
+    height: 28,
     borderRadius: 4,
-    padding: '4px 6px',
-    fontSize: 11,
+    border: active ? '1px solid #434651' : '1px solid transparent',
     cursor: 'pointer',
-    flex: 1,
-  };
+    background: active ? '#111' : 'transparent',
+    color: active ? '#f0a830' : '#787b86',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+  });
 
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
-      style={{ padding: 12, width: 272 }}
+      className="absolute top-full left-0 mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      style={{ padding: 12, width: 290, background: '#000' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Row 1: Color swatch + Font size + Bold + Italic */}
-      <div className="flex items-center gap-2" style={{ marginBottom: 8 }}>
+      <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
         {/* Color swatch */}
         <button
           onClick={() => setShowColorGrid(!showColorGrid)}
@@ -195,9 +198,10 @@ function TextPopover({
             height: 28,
             background: color,
             borderRadius: 4,
-            border: '1px solid #434651',
+            border: showColorGrid ? '2px solid #fff' : '1px solid #2a2e39',
             cursor: 'pointer',
             flexShrink: 0,
+            transition: 'border-color 0.15s',
           }}
           title="Text color"
         />
@@ -206,14 +210,15 @@ function TextPopover({
           value={fontSize}
           onChange={(e) => setFontSize(Number(e.target.value))}
           style={{
-            background: '#2a2e39',
+            background: '#111',
             color: '#d1d4dc',
-            border: '1px solid #434651',
+            border: '1px solid #2a2e39',
             borderRadius: 4,
             padding: '4px 6px',
             fontSize: 12,
             cursor: 'pointer',
             width: 56,
+            outline: 'none',
           }}
           title="Font size"
         >
@@ -224,19 +229,7 @@ function TextPopover({
         {/* Bold toggle */}
         <button
           onClick={() => setBold(!bold)}
-          className={`rounded ${bold ? 'bg-[#363a45] text-white' : 'text-[#787b86] hover:text-white'}`}
-          style={{
-            width: 28,
-            height: 28,
-            fontSize: 14,
-            fontWeight: 700,
-            border: bold ? '1px solid #434651' : '1px solid transparent',
-            cursor: 'pointer',
-            background: bold ? '#363a45' : 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={{ ...toggleBtn(bold), fontSize: 14, fontWeight: 700 }}
           title="Bold"
         >
           B
@@ -244,40 +237,35 @@ function TextPopover({
         {/* Italic toggle */}
         <button
           onClick={() => setItalic(!italic)}
-          className={`rounded ${italic ? 'bg-[#363a45] text-white' : 'text-[#787b86] hover:text-white'}`}
-          style={{
-            width: 28,
-            height: 28,
-            fontSize: 14,
-            fontStyle: 'italic',
-            border: italic ? '1px solid #434651' : '1px solid transparent',
-            cursor: 'pointer',
-            background: italic ? '#363a45' : 'transparent',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={{ ...toggleBtn(italic), fontSize: 14, fontStyle: 'italic' }}
           title="Italic"
         >
           I
         </button>
       </div>
 
-      {/* Color palette grid (toggle) */}
-      {showColorGrid && (
+      {/* Color palette grid (animated toggle) */}
+      <div
+        style={{
+          overflow: 'hidden',
+          maxHeight: showColorGrid ? 300 : 0,
+          opacity: showColorGrid ? 1 : 0,
+          transition: 'max-height 0.2s ease, opacity 0.15s ease',
+        }}
+      >
         <TextColorGrid
           color={color}
           setColor={setColor}
           customColorRef={customColorRef}
         />
-      )}
+      </div>
 
       {/* Row 2: Textarea */}
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="text"
-        className="w-full bg-[#131722] text-white text-xs rounded outline-none"
+        className="w-full text-[#d1d4dc] text-xs rounded outline-none"
         style={{
           padding: '8px 10px',
           marginBottom: 8,
@@ -287,48 +275,94 @@ function TextPopover({
           fontSize: 12,
           lineHeight: '1.4',
           border: '1px solid #2a2e39',
+          background: '#111',
         }}
         autoFocus
       />
 
       {/* Row 3: Text alignment */}
-      <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
-        <span className="text-[11px] text-[#787b86]" style={{ flexShrink: 0 }}>Text alignment</span>
-        <select
-          value={vAlign}
-          onChange={(e) => setVAlign(e.target.value as TextVAlign)}
-          style={selectStyle}
-          title="Vertical alignment"
-        >
-          <option value="top">{vAlignLabel.top}</option>
-          <option value="middle">{vAlignLabel.middle}</option>
-          <option value="bottom">{vAlignLabel.bottom}</option>
-        </select>
-        <select
-          value={hAlign}
-          onChange={(e) => setHAlign(e.target.value as TextHAlign)}
-          style={selectStyle}
-          title="Horizontal alignment"
-        >
-          <option value="left">{hAlignLabel.left}</option>
-          <option value="center">{hAlignLabel.center}</option>
-          <option value="right">{hAlignLabel.right}</option>
-        </select>
+      <div style={{ marginBottom: 10 }}>
+        <div className="text-[10px] uppercase tracking-wider text-[#787b86]" style={{ marginBottom: 6 }}>
+          Text alignment
+        </div>
+        <div className="flex items-center" style={{ gap: 6 }}>
+          {/* Vertical alignment buttons */}
+          <div className="flex items-center" style={{ gap: 2, flex: 1 }}>
+            {(['top', 'middle', 'bottom'] as TextVAlign[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setVAlign(v)}
+                style={{
+                  ...toggleBtn(vAlign === v),
+                  flex: 1,
+                  width: 'auto',
+                  height: 24,
+                  padding: '0 6px',
+                  fontSize: 11,
+                  fontWeight: 400,
+                  fontStyle: 'normal',
+                }}
+                title={`Vertical: ${vAlignLabel[v]}`}
+              >
+                {vAlignLabel[v]}
+              </button>
+            ))}
+          </div>
+          <div style={{ width: 1, height: 20, background: '#2a2e39', flexShrink: 0 }} />
+          {/* Horizontal alignment buttons */}
+          <div className="flex items-center" style={{ gap: 2, flex: 1 }}>
+            {(['left', 'center', 'right'] as TextHAlign[]).map((h) => (
+              <button
+                key={h}
+                onClick={() => setHAlign(h)}
+                style={{
+                  ...toggleBtn(hAlign === h),
+                  flex: 1,
+                  width: 'auto',
+                  height: 24,
+                  padding: '0 6px',
+                  fontSize: 11,
+                  fontWeight: 400,
+                  fontStyle: 'normal',
+                }}
+                title={`Horizontal: ${hAlignLabel[h]}`}
+              >
+                {hAlignLabel[h]}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Row 4: Cancel + Ok */}
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end" style={{ gap: 6 }}>
         <button
           onClick={cancel}
-          className="text-xs text-[#d1d4dc] bg-[#2a2e39] border border-[#434651] rounded hover:bg-[#363a45]"
-          style={{ padding: '5px 16px' }}
+          className="text-xs text-[#d1d4dc] rounded"
+          style={{
+            padding: '5px 16px',
+            background: '#1e222d',
+            border: '1px solid #2a2e39',
+            cursor: 'pointer',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#363a45')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#1e222d')}
         >
           Cancel
         </button>
         <button
           onClick={apply}
-          className="text-xs text-white bg-[#2962ff] rounded hover:bg-[#1e53e5]"
-          style={{ padding: '5px 16px' }}
+          className="text-xs text-white rounded"
+          style={{
+            padding: '5px 16px',
+            background: '#1a3a6e',
+            border: '1px solid transparent',
+            cursor: 'pointer',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#1e4a8a')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = '#1a3a6e')}
         >
           Ok
         </button>
