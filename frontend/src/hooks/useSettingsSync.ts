@@ -5,6 +5,9 @@ import { persistenceService } from '../services/persistenceService';
 /** Debounce timer for saving settings to backend */
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+/** Snapshot of last-saved state — skip save if nothing changed */
+let lastSavedSnapshot: string | null = null;
+
 /** Keys we persist to the backend file */
 function getPersistedState() {
   const s = useStore.getState();
@@ -68,12 +71,15 @@ export function useSettingsSync() {
           persistenceService.saveSettings(getPersistedState()).catch(() => {});
         }
         useStore.setState({ settingsHydrated: true });
+        // Snapshot what we just loaded so the save handler can skip no-op saves
+        lastSavedSnapshot = JSON.stringify(getPersistedState());
         // Delay enabling saves so the hydration setState doesn't trigger an immediate save-back
         requestAnimationFrame(() => { hydrated.current = true; });
       })
       .catch(() => {
         // Backend might not be running — fall back to localStorage
         useStore.setState({ settingsHydrated: true });
+        lastSavedSnapshot = JSON.stringify(getPersistedState());
         requestAnimationFrame(() => { hydrated.current = true; });
       });
   }, []);
@@ -86,6 +92,9 @@ export function useSettingsSync() {
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         const data = getPersistedState();
+        const snapshot = JSON.stringify(data);
+        if (snapshot === lastSavedSnapshot) return; // nothing changed — skip
+        lastSavedSnapshot = snapshot;
         persistenceService.saveSettings(data).catch(() => {
           // Silent fail — localStorage still works as fallback
         });
