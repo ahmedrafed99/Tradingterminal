@@ -57,9 +57,11 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
+      setSearching(false);
       return;
     }
     setSearching(true);
+    setResults([]);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
