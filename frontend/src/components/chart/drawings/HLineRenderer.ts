@@ -34,12 +34,83 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
         }
       }
 
-      ctx.beginPath();
+      // Measure text gap (only when vAlign is middle, so text sits on the line)
+      const text = this._drawing.text;
+      let gapLeft = 0;
+      let gapRight = 0;
+      let textFont = '';
+      let textTx = 0;
+      let textTy = y;
+      let textAlign: CanvasTextAlign = 'center';
+      let textBaseline: CanvasTextBaseline = 'middle';
+
+      if (text?.content) {
+        const fs = Math.round((text.fontSize ?? 11) * vpr);
+        const weight = (text.bold ?? true) ? 'bold' : 'normal';
+        const style = (text.italic ?? false) ? 'italic' : 'normal';
+        textFont = `${style} ${weight} ${fs}px system-ui, -apple-system, sans-serif`;
+        ctx.font = textFont;
+
+        const measured = ctx.measureText(text.content);
+        const pad = Math.round(4 * hpr); // padding around text
+
+        // Horizontal position
+        if (text.hAlign === 'left') {
+          textAlign = 'left';
+          textTx = startX + Math.round(8 * hpr);
+          if (text.vAlign === 'middle') {
+            gapLeft = textTx - pad;
+            gapRight = textTx + measured.width + pad;
+          }
+        } else if (text.hAlign === 'right') {
+          textAlign = 'right';
+          textTx = bitmapSize.width - Math.round(8 * hpr);
+          if (text.vAlign === 'middle') {
+            gapLeft = textTx - measured.width - pad;
+            gapRight = textTx + pad;
+          }
+        } else {
+          textAlign = 'center';
+          textTx = (startX + bitmapSize.width) / 2;
+          if (text.vAlign === 'middle') {
+            gapLeft = textTx - measured.width / 2 - pad;
+            gapRight = textTx + measured.width / 2 + pad;
+          }
+        }
+
+        // Vertical offset from line
+        const gap = Math.round(2 * vpr);
+        if (text.vAlign === 'top') {
+          textBaseline = 'bottom';
+          textTy = y - fs / 2 - gap;
+        } else if (text.vAlign === 'bottom') {
+          textBaseline = 'top';
+          textTy = y + fs / 2 + gap;
+        } else {
+          textBaseline = 'middle';
+          textTy = y;
+        }
+      }
+
+      // Draw the horizontal line (with gap for middle-aligned text)
       ctx.strokeStyle = this._drawing.color;
-      ctx.lineWidth = this._drawing.strokeWidth; // 1 = 1 device pixel
-      ctx.moveTo(startX, y);
-      ctx.lineTo(bitmapSize.width, y);
-      ctx.stroke();
+      ctx.lineWidth = this._drawing.strokeWidth;
+      if (gapLeft > 0 && gapRight > 0 && gapLeft > startX) {
+        // Two segments: before and after the text
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(gapLeft, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(gapRight, y);
+        ctx.lineTo(bitmapSize.width, y);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(startX, y);
+        ctx.lineTo(bitmapSize.width, y);
+        ctx.stroke();
+      }
 
       // Selection handles
       if (this._selected) {
@@ -57,42 +128,12 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
       }
 
       // Text label
-      const text = this._drawing.text;
       if (text?.content) {
-        const fs = Math.round((text.fontSize ?? 11) * vpr);
-        const weight = (text.bold ?? true) ? 'bold' : 'normal';
-        const style = (text.italic ?? false) ? 'italic' : 'normal';
-        ctx.font = `${style} ${weight} ${fs}px system-ui, -apple-system, sans-serif`;
+        ctx.font = textFont;
         ctx.fillStyle = text.color;
-
-        // Horizontal position
-        let tx: number;
-        if (text.hAlign === 'left') {
-          ctx.textAlign = 'left';
-          tx = startX + Math.round(8 * hpr);
-        } else if (text.hAlign === 'right') {
-          ctx.textAlign = 'right';
-          tx = bitmapSize.width - Math.round(8 * hpr);
-        } else {
-          ctx.textAlign = 'center';
-          tx = (startX + bitmapSize.width) / 2;
-        }
-
-        // Vertical offset from line
-        let ty: number;
-        const gap = Math.round(2 * vpr);
-        if (text.vAlign === 'top') {
-          ctx.textBaseline = 'bottom';
-          ty = y - fs / 2 - gap;
-        } else if (text.vAlign === 'bottom') {
-          ctx.textBaseline = 'top';
-          ty = y + fs / 2 + gap;
-        } else {
-          ctx.textBaseline = 'middle';
-          ty = y;
-        }
-
-        ctx.fillText(text.content, tx, ty);
+        ctx.textAlign = textAlign;
+        ctx.textBaseline = textBaseline;
+        ctx.fillText(text.content, textTx, textTy);
       }
     });
   }

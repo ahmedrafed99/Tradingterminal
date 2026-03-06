@@ -106,7 +106,7 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, 
 | File | Lines | Purpose |
 |------|-------|---------|
 | `frontend/src/components/chart/drawings/DrawingsPrimitive.ts` | ~320 | ISeriesPrimitive orchestrator — manages all drawing views + ruler preview |
-| `frontend/src/components/chart/drawings/HLineRenderer.ts` | ~114 | Horizontal line renderer + hit test |
+| `frontend/src/components/chart/drawings/HLineRenderer.ts` | ~187 | Horizontal line renderer + hit test |
 | `frontend/src/components/chart/drawings/OvalRenderer.ts` | ~197 | Oval/ellipse renderer + 8-handle resize + hit test |
 | `frontend/src/components/chart/drawings/ArrowPathRenderer.ts` | ~200 | Arrow path polyline renderer + node drag + hit test |
 | `frontend/src/components/chart/drawings/RulerRenderer.ts` | ~230 | Ruler measurement renderer (used for persisted rulers) |
@@ -222,7 +222,7 @@ Draws a full-width horizontal line at the drawing's price level.
 
 - Stroke: `drawing.color`, `drawing.strokeWidth`
 - Selected: 3 small handle squares (left edge, center, right edge)
-- Text label: positioned by `hAlign` (left=8px, center=mid, right=width-8) and `vAlign` (top/middle/bottom relative to line)
+- Text label: positioned by `hAlign` (left=8px, center=mid, right=width-8) and `vAlign` (top/middle/bottom relative to line). When `vAlign` is `middle`, the line is split into two segments with a gap around the text (4px padding each side) so the line does not cut through the letters.
 - Font: `system-ui, -apple-system, sans-serif` with configurable size/bold/italic
 - Hit test: `|mouseY - lineY| <= 5px`, excludes price scale area (`mouseX >= timeScale.width()`)
 
