@@ -5,16 +5,16 @@ Place orders automatically when a candle closes above or below a price. Runs 24/
 ## How it works
 
 ```
-+-----------+         +---------------------------+
-|  Frontend |--REST-->|  Backend (remote server)   |
-|  (your PC)|<--SSE---|  condition engine + timers  |
-+-----------+         +---------------------------+
++-----------+         +-------------------------------+         +------------+
+|  Frontend |--REST-->|  Backend (remote server)       |--WS--->|  Exchange   |
+|  (your PC)|<--SSE---|  condition engine + SignalR sub |<--WS---|  (SignalR)  |
++-----------+         +-------------------------------+         +------------+
 ```
 
 1. **You create a condition** via the frontend (e.g. "if 15m candle closes above 21500 -> buy 1 MNQ at market")
 2. The condition is sent to the **remote backend** via REST and saved to `data/conditions.json`
-3. The **condition engine** sets a timer aligned to the timeframe boundary (e.g. every 15 minutes)
-4. When the timer fires, it fetches the last closed bar from the exchange API
+3. The **condition engine** subscribes to live bar updates via the exchange's real-time feed (SignalR for TopstepX)
+4. When a bar closes on the subscribed timeframe, the engine evaluates all armed conditions for that contract+timeframe
 5. If the bar's close price meets the condition, it **places the order** via the exchange adapter
 6. The frontend receives a **live SSE event** (triggered/failed) and shows a toast
 
@@ -28,27 +28,37 @@ Place orders automatically when a candle closes above or below a price. Runs 24/
 
 ## Deployment
 
-The backend is containerized with Docker for easy deployment anywhere:
+### Build and push (from your dev PC)
+
+```bash
+# Build the image
+docker build -t yourdockerhubuser/trading-conditions:latest .
+
+# Push to Docker Hub
+docker login
+docker push yourdockerhubuser/trading-conditions:latest
+```
+
+### Run (on any machine -- second PC, Synology, VPS)
 
 ```bash
 # 1. Copy .env.example -> .env and fill in credentials
 cp .env.example .env
 
-# 2. Build and run
+# 2. Pull and run
 docker compose up -d
 ```
 
 The `.env` file provides auto-connect credentials so the container authenticates on startup without needing the frontend open.
 
-### Local testing
+The `docker-compose.yml` references the Docker Hub image, so the target machine only needs Docker -- no Node.js, no source code.
 
-To simulate the remote server locally, run a second backend instance on a different port:
+### Testing
 
-```bash
-cd backend && PORT=3002 PROJECTX_USERNAME=you@email.com PROJECTX_API_KEY=your-key npm run dev
-```
-
-Then set the "Conditional Orders Server" URL to `http://localhost:3002` in Settings.
+1. Build and push from your dev PC
+2. On second PC: `docker compose up -d` (pulls image from Docker Hub)
+3. In frontend Settings, set "Conditional Orders Server" to `http://<other-pc-ip>:3001`
+4. Once confirmed working, repeat on Synology/VPS
 
 ## Condition types
 
@@ -64,13 +74,13 @@ Future candidates: crosses MA, volume spike, multi-condition chains.
 |------|---------|
 | `backend/src/types/condition.ts` | Zod schemas + TypeScript types |
 | `backend/src/services/conditionStore.ts` | JSON file persistence |
-| `backend/src/services/conditionEngine.ts` | Timer management + bar evaluation + order execution |
+| `backend/src/services/conditionEngine.ts` | Real-time bar subscription + condition evaluation + order execution |
 | `backend/src/routes/conditionRoutes.ts` | REST API + SSE endpoint |
 | `frontend/src/services/conditionService.ts` | API client + SSE connection |
 | `frontend/src/components/bottom-panel/ConditionsTab.tsx` | Conditions table in bottom panel |
 | `frontend/src/components/bottom-panel/ConditionModal.tsx` | Create/edit condition form |
 | `Dockerfile` | Multi-stage build for the backend |
-| `docker-compose.yml` | Container orchestration |
+| `docker-compose.yml` | Container orchestration (references Docker Hub image) |
 | `.env.example` | Auto-connect credential template |
 
 ## Files to modify
@@ -85,7 +95,7 @@ Future candidates: crosses MA, volume spike, multi-condition chains.
 
 ## Key design decisions
 
-- **Timer-based bar detection**: Aligns to timeframe boundaries from epoch + 2s delay, then fetches the official closed bar via REST. No WebSocket needed.
+- **Real-time bar detection**: Subscribes to live bar updates via the exchange's WebSocket feed (SignalR for TopstepX). When a completed bar arrives, conditions are evaluated immediately -- no timers, no polling, no risk of delayed data causing missed triggers.
 - **Exchange-agnostic**: Only calls through the generic `ExchangeAdapter` interface. Only auto-connect env vars are exchange-specific.
 - **JSON file persistence**: `data/conditions.json` with in-memory array and debounced disk writes (500ms). Simple, no database needed.
 - **SSE for live updates**: Frontend opens an EventSource to the condition server. Events: `triggered`, `failed`, `expired`, `deleted`, `updated`.
