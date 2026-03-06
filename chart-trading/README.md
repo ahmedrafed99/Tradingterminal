@@ -556,6 +556,63 @@ interface OrderPanelState {
 
 ---
 
+## Size Adjustment +/- Buttons
+
+Hover-reveal `−` / `+` buttons on the **size cell** of order labels.
+
+### Implemented
+
+#### Quick-order label (+ button hover)
+
+When no bracket preset is active, the quick-order label's size cell shows `−` / `+` on hover to adjust `orderSize` in the store.
+
+```
+Normal:      [│ Buy Limit ][ 2 ][ + ]
+Size hover:  [│ Buy Limit ][ − 2 + ][ + ]
+Text hover:  [│ Buy Limit ][ − 2 + ][ + ]   (buttons visible, size bg not darkened)
+```
+
+**Behavior**:
+- `prepareSizeButtons()` on wrap enter: injects `−`/count/`+` sub-elements into size cell (hidden)
+- `revealSizeButtons()` on size cell `mouseenter`: shows buttons, darkens size bg
+- `hideSizeButtons()` on size cell `mouseleave`: hides buttons, restores bg
+- Hovering the text cell also reveals buttons (without darkening size bg)
+- Min size = 1 (disable `−` via opacity 0.35 + cursor:default)
+- `−` / `+` scale to 1.4× on individual hover with 0.15s transition
+- Text cell darkens `#cac9cb` → `#b0afb1` on hover
+- Size cell darkens `#00c805` → `#00a004` (buy) / `#ff0000` → `#cc0000` (sell)
+- `mousedown` with `stopPropagation` prevents order placement clicks
+- Only active when no bracket preset is selected
+
+**Files**: `useQuickOrder.ts` (lines ~170–320)
+
+#### Live TP size redistribution (existing, polished)
+
+Existing `−` / `+` buttons on live TP order size cells now have:
+- Scale 1.4× on individual `−` / `+` hover (0.15s transition)
+- Size cell bg darkens on hover (0.15s transition via `darken()` helper)
+- Darken persists across label rebuilds when hover is active
+
+**Files**: `useOverlayLabels.ts` (TP size button creation + `onTpSizeHover`)
+
+### TODO — future contexts
+
+#### Preview entry line — total order size
+
+Entry label's size cell `−` / `+` to adjust `orderSize` + auto-redistribute TPs.
+
+Redistribution rule: `floor(newSize / numTPs)` per TP, remainder to closest. When removing, take from furthest first, never below 1.
+
+#### Preview TP lines — per-TP manual redistribution
+
+Each TP preview line's size cell `−` / `+` for manual size override. Total stays capped at `orderSize`.
+
+#### Live open orders — direct modify
+
+Any open order gets `−` / `+` on size cell. Calls `orderService.modifyOrder()` with in-flight guard per order.
+
+---
+
 ## API Calls
 
 | Action | Proxy Route | ProjectX Endpoint |

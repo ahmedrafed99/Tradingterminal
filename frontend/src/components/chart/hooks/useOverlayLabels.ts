@@ -64,6 +64,15 @@ export function useOverlayLabels(
       return '#000';
     }
 
+    // Darken a hex color by a factor (0–1, where 0.85 = 15% darker)
+    function darken(hex: string, factor = 0.82): string {
+      const h = hex.replace('#', '');
+      const r = Math.round(parseInt(h.substring(0, 2), 16) * factor);
+      const g = Math.round(parseInt(h.substring(2, 4), 16) * factor);
+      const b = Math.round(parseInt(h.substring(4, 6), 16) * factor);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+
     // --- Position label ---
     if (contract) {
       const pos = positions.find(
@@ -166,6 +175,7 @@ export function useOverlayLabels(
     const tpSizeButtons = new Map<number, {
       minusEl: HTMLDivElement; plusEl: HTMLDivElement;
       countEl: HTMLDivElement; sizeCell: HTMLDivElement;
+      sizeBg: string;
     }>();
 
     // Redistribution handler for TP size +/- buttons
@@ -369,12 +379,15 @@ export function useOverlayLabels(
         sizeCell.style.display = 'flex';
         sizeCell.style.alignItems = 'center';
         sizeCell.style.padding = '0';
+        sizeCell.style.transition = 'background 0.15s';
         sizeCell.textContent = '';
         sizeCell.dataset.screenshotText = String(oSize);
 
         const minusEl = document.createElement('div');
         minusEl.textContent = '\u2212';
-        minusEl.style.cssText = `display:none;padding:0 3px;cursor:${minusDisabled ? 'default' : 'pointer'};opacity:${minusDisabled ? '0.5' : '1'};transition:opacity 0.15s;`;
+        minusEl.style.cssText = `display:none;padding:0 3px;cursor:${minusDisabled ? 'default' : 'pointer'};opacity:${minusDisabled ? '0.5' : '1'};transition:opacity 0.15s, transform 0.15s;`;
+        minusEl.addEventListener('mouseenter', () => { minusEl.style.transform = 'scale(1.4)'; });
+        minusEl.addEventListener('mouseleave', () => { minusEl.style.transform = ''; });
 
         const countEl = document.createElement('div');
         countEl.textContent = String(oSize);
@@ -382,18 +395,21 @@ export function useOverlayLabels(
 
         const plusEl = document.createElement('div');
         plusEl.textContent = '+';
-        plusEl.style.cssText = `display:none;padding:0 3px;cursor:${plusDisabled ? 'default' : 'pointer'};opacity:${plusDisabled ? '0.5' : '1'};transition:opacity 0.15s;`;
+        plusEl.style.cssText = `display:none;padding:0 3px;cursor:${plusDisabled ? 'default' : 'pointer'};opacity:${plusDisabled ? '0.5' : '1'};transition:opacity 0.15s, transform 0.15s;`;
+        plusEl.addEventListener('mouseenter', () => { plusEl.style.transform = 'scale(1.4)'; });
+        plusEl.addEventListener('mouseleave', () => { plusEl.style.transform = ''; });
 
         sizeCell.appendChild(minusEl);
         sizeCell.appendChild(countEl);
         sizeCell.appendChild(plusEl);
 
-        tpSizeButtons.set(orderId, { minusEl, plusEl, countEl, sizeCell });
+        tpSizeButtons.set(orderId, { minusEl, plusEl, countEl, sizeCell, sizeBg });
 
         // Persist hover across label rebuilds
         if (refs.hoveredTpOrderId.current === orderId) {
           minusEl.style.display = '';
           plusEl.style.display = '';
+          sizeCell.style.background = darken(sizeBg);
         }
 
         // Register hit targets for enabled +/- buttons (priority 0)
@@ -478,20 +494,22 @@ export function useOverlayLabels(
       }
 
       if (foundId !== refs.hoveredTpOrderId.current) {
-        // Hide previous
+        // Hide previous — restore backgrounds
         if (refs.hoveredTpOrderId.current != null) {
           const prev = tpSizeButtons.get(refs.hoveredTpOrderId.current);
           if (prev) {
             prev.minusEl.style.display = 'none';
             prev.plusEl.style.display = 'none';
+            prev.sizeCell.style.background = prev.sizeBg;
           }
         }
-        // Show new
+        // Show new — darken size cell bg
         if (foundId != null) {
           const cur = tpSizeButtons.get(foundId);
           if (cur) {
             cur.minusEl.style.display = '';
             cur.plusEl.style.display = '';
+            cur.sizeCell.style.background = darken(cur.sizeBg);
           }
         }
         refs.hoveredTpOrderId.current = foundId;

@@ -167,13 +167,157 @@ export function useQuickOrder(
       }
     }
 
+    // Size +/- sub-elements (created once, shown when no preset is active)
+    let sizeMinusEl: HTMLDivElement | null = null;
+    let sizeCountEl: HTMLDivElement | null = null;
+    let sizePlusEl: HTMLDivElement | null = null;
+    let sizeButtonsActive = false;
+
+    function setupSizeButtons() {
+      if (sizeMinusEl) return; // already created
+
+      sizeMinusEl = document.createElement('div');
+      sizeMinusEl.textContent = '\u2212';
+      sizeMinusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
+
+      sizeCountEl = document.createElement('div');
+      sizeCountEl.style.cssText = 'padding:0 4px;';
+
+      sizePlusEl = document.createElement('div');
+      sizePlusEl.textContent = '+';
+      sizePlusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
+
+      // Scale up on hover
+      sizeMinusEl.addEventListener('mouseenter', () => { sizeMinusEl!.style.transform = 'scale(1.4)'; });
+      sizeMinusEl.addEventListener('mouseleave', () => { sizeMinusEl!.style.transform = ''; });
+      sizePlusEl.addEventListener('mouseenter', () => { sizePlusEl!.style.transform = 'scale(1.4)'; });
+      sizePlusEl.addEventListener('mouseleave', () => { sizePlusEl!.style.transform = ''; });
+
+      // Click handlers — stopPropagation so they don't trigger order placement
+      sizeMinusEl.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const st = useStore.getState();
+        if (st.orderSize <= 1) return;
+        st.setOrderSize(st.orderSize - 1);
+        refreshLabel();
+      });
+
+      sizePlusEl.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const st = useStore.getState();
+        st.setOrderSize(st.orderSize + 1);
+        refreshLabel();
+      });
+    }
+
+    // Prepare size buttons DOM (hidden) — called on hover enter
+    function prepareSizeButtons() {
+      const st = useStore.getState();
+      const hasPreset = st.bracketPresets.some((p) => p.id === st.activePresetId);
+      if (hasPreset) return;
+
+      setupSizeButtons();
+      if (!sizeMinusEl || !sizeCountEl || !sizePlusEl) return;
+
+      // Replace labelSize content with sub-elements (buttons stay hidden)
+      labelSize.textContent = '';
+      labelSize.style.display = 'flex';
+      labelSize.style.alignItems = 'center';
+      labelSize.style.padding = '0';
+      labelSize.style.transition = 'background 0.15s';
+
+      if (!labelSize.contains(sizeMinusEl)) {
+        labelSize.appendChild(sizeMinusEl);
+        labelSize.appendChild(sizeCountEl!);
+        labelSize.appendChild(sizePlusEl);
+      }
+
+      sizeCountEl.textContent = String(st.orderSize);
+      // Keep buttons hidden until mouse enters the size cell
+      sizeMinusEl.style.display = 'none';
+      sizePlusEl.style.display = 'none';
+    }
+
+    // Reveal +/- and darken bg — called when mouse enters the size cell
+    function revealSizeButtons() {
+      if (!sizeMinusEl || !sizeCountEl || !sizePlusEl) return;
+      const sz = useStore.getState().orderSize;
+      sizeMinusEl.style.display = '';
+      sizePlusEl.style.display = '';
+      labelSize.style.background = isBuy ? '#00a004' : '#cc0000';
+      requestAnimationFrame(() => {
+        if (sizeMinusEl) sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
+        if (sizePlusEl) sizePlusEl.style.opacity = '1';
+      });
+      sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
+      sizeButtonsActive = true;
+    }
+
+    // Hide +/- and restore bg — called when mouse leaves the size cell
+    function hideSizeButtons() {
+      if (!sizeButtonsActive) return;
+      labelSize.style.background = isBuy ? '#00c805' : '#ff0000';
+      if (sizeMinusEl) { sizeMinusEl.style.opacity = '0'; sizeMinusEl.style.display = 'none'; }
+      if (sizePlusEl) { sizePlusEl.style.opacity = '0'; sizePlusEl.style.display = 'none'; }
+      sizeButtonsActive = false;
+    }
+
+    // Show +/- when hovering labelText (without darkening size bg)
+    let textHovered = false;
+    function onTextEnter() {
+      textHovered = true;
+      labelText.style.background = '#b0afb1';
+      labelText.style.transition = 'background 0.15s';
+      // Reveal +/- buttons without darkening the size cell bg
+      if (sizeMinusEl && sizePlusEl && !sizeButtonsActive) {
+        sizeMinusEl.style.display = '';
+        sizePlusEl.style.display = '';
+        const sz = useStore.getState().orderSize;
+        requestAnimationFrame(() => {
+          if (sizeMinusEl) sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
+          if (sizePlusEl) sizePlusEl.style.opacity = '1';
+        });
+        if (sizeMinusEl) sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
+      }
+    }
+    function onTextLeave() {
+      textHovered = false;
+      labelText.style.background = '#cac9cb';
+      // Hide +/- if not hovering size cell
+      if (!sizeButtonsActive && sizeMinusEl && sizePlusEl) {
+        sizeMinusEl.style.opacity = '0';
+        sizeMinusEl.style.display = 'none';
+        sizePlusEl.style.opacity = '0';
+        sizePlusEl.style.display = 'none';
+      }
+    }
+    labelText.addEventListener('mouseenter', onTextEnter);
+    labelText.addEventListener('mouseleave', onTextLeave);
+
+    // Wire mouseenter/mouseleave on labelSize for size cell hover detection
+    labelSize.addEventListener('mouseenter', revealSizeButtons);
+    labelSize.addEventListener('mouseleave', hideSizeButtons);
+
     function refreshLabel() {
       const sz = useStore.getState().orderSize;
       labelText.textContent = isBuy ? 'Buy Limit' : 'Sell Limit';
-      const sideColor = isBuy ? '#00c805' : '#ff0000';
-      labelSize.textContent = String(sz);
-      labelSize.style.background = sideColor;
+      labelSize.style.background = sizeButtonsActive
+        ? (isBuy ? '#00a004' : '#cc0000')
+        : (isBuy ? '#00c805' : '#ff0000');
       labelSize.style.color = '#000';
+
+      if (sizeCountEl && labelSize.contains(sizeCountEl)) {
+        // Sub-elements are in the DOM — update the count span only
+        sizeCountEl.textContent = String(sz);
+        if (sizeButtonsActive && sizeMinusEl) {
+          sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
+          sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
+        }
+      } else {
+        labelSize.textContent = String(sz);
+      }
     }
 
     const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
@@ -225,6 +369,7 @@ export function useQuickOrder(
       plusEl.style.borderRadius = '0 2px 2px 0';
       plusEl.style.background = '#434651';
       refreshLabel();
+      prepareSizeButtons();
       // Keep crosshair visible while hovering the + button
       const timeToUse = lastCrosshairTime ?? lastValidTime;
       if (snappedPrice != null && timeToUse != null) {
@@ -239,6 +384,8 @@ export function useQuickOrder(
       if (isDragging || awaitingClick) return;
       isHovered = false;
       refs.qoHovered.current = false;
+      hideSizeButtons();
+      if (textHovered) onTextLeave();
       label.style.display = 'none';
       plusEl.style.borderRadius = '2px';
       plusEl.style.background = '#2a2e39';
@@ -464,6 +611,26 @@ export function useQuickOrder(
     return () => {
       if (hideTimer) clearTimeout(hideTimer);
       cleanupAwait();
+      hideSizeButtons();
+      labelSize.removeEventListener('mouseenter', revealSizeButtons);
+      labelSize.removeEventListener('mouseleave', hideSizeButtons);
+      labelText.removeEventListener('mouseenter', onTextEnter);
+      labelText.removeEventListener('mouseleave', onTextLeave);
+      labelText.style.background = '#cac9cb';
+      // Reset labelSize to plain text mode
+      labelSize.textContent = '';
+      labelSize.style.display = '';
+      labelSize.style.padding = '0 6px';
+      labelSize.style.transition = '';
+      if (sizeMinusEl && labelSize.contains(sizeMinusEl)) {
+        labelSize.removeChild(sizeMinusEl);
+        labelSize.removeChild(sizeCountEl!);
+        labelSize.removeChild(sizePlusEl!);
+      }
+      sizeMinusEl = null;
+      sizeCountEl = null;
+      sizePlusEl = null;
+      sizeButtonsActive = false;
       refs.qoHovered.current = false;
       if (pendingFillUnsub) {
         pendingFillUnsub(); pendingFillUnsub = null;
