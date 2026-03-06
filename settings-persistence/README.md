@@ -64,11 +64,15 @@ On startup, the file-based settings take priority over localStorage. On every st
 | Bookmarked timeframes | `pinnedTimeframes`, `timeframe` |
 | Pinned instruments | `pinnedInstruments` |
 | Connection | `baseUrl`, `activeAccountId` |
-| Order panel | `orderSize` |
+| Order panel | `orderSize`, `orderContract` |
 | Volume profile | `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor` |
 | Bottom panel | `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab` |
 
 **Not persisted** (ephemeral/live): `connected`, `accounts`, `openOrders`, `positions`, `lastPrice`, `toasts`, `drawingUndoStack`, draft/ad-hoc bracket overrides, `settingsOpen`, `editingPresetId`, `activeTool`, `selectedDrawingId`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`, `qoPendingPreview`
+
+### Page-unload flush
+
+To prevent data loss when the user refreshes before the 500ms debounce fires, the hook registers a `beforeunload` handler that flushes any pending save via `fetch(..., { keepalive: true })`. This ensures the backend file is never stale after a quick settings change + immediate refresh.
 
 ---
 
@@ -88,7 +92,7 @@ On startup, the file-based settings take priority over localStorage. On every st
 |------|---------|
 | `frontend/src/services/persistenceService.ts` | API wrapper (`loadSettings`, `saveSettings`) |
 | `frontend/src/hooks/useSettingsSync.ts` | Hydration on mount + debounced save on change |
-| `frontend/src/store/useStore.ts` | `contract` and `secondContract` added to `partialize` |
+| `frontend/src/store/useStore.ts` | `contract`, `secondContract`, `orderContract` added to `partialize` |
 | `frontend/src/App.tsx` | Calls `useSettingsSync()` |
 | `frontend/vite.config.ts` | `/settings` added to proxy table |
 

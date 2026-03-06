@@ -35,6 +35,7 @@ function getPersistedState() {
     bottomPanelTab: s.bottomPanelTab,
     contract: s.contract,
     secondContract: s.secondContract,
+    orderContract: s.orderContract,
   };
 }
 
@@ -101,8 +102,30 @@ export function useSettingsSync() {
       }, 500);
     });
 
+    // Flush any pending save on page unload so the backend file is never stale
+    function flushBeforeUnload() {
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      const data = getPersistedState();
+      const snapshot = JSON.stringify(data);
+      if (snapshot !== lastSavedSnapshot) {
+        lastSavedSnapshot = snapshot;
+        // Use fetch with keepalive for reliable delivery during unload
+        fetch('/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    }
+    window.addEventListener('beforeunload', flushBeforeUnload);
+
     return () => {
       unsub();
+      window.removeEventListener('beforeunload', flushBeforeUnload);
       if (saveTimer) clearTimeout(saveTimer);
     };
   }, []);

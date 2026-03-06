@@ -52,6 +52,7 @@ and the preview toggle that overlays ghost lines on the chart.
 - Typing debounces 300 ms then fetches matching contracts
 - Shows contract name + description in options
 - Uses `fixed` prop to bind to `orderContract` (independent of chart selection)
+- Selection is persisted across refreshes (both localStorage and backend file)
 - On change: chart reloads bars for the new contract
 
 ### `OrderTypeTabs`

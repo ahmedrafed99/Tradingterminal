@@ -647,6 +647,7 @@ export const useStore = create<Store>()(
         bottomPanelTab: s.bottomPanelTab,
         contract: s.contract,
         secondContract: s.secondContract,
+        orderContract: s.orderContract,
       }),
     },
   ),

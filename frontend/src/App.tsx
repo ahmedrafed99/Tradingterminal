@@ -50,6 +50,7 @@ function VerticalSeparator({
 
 export default function App() {
   const connected = useStore((s) => s.connected);
+  const settingsHydrated = useStore((s) => s.settingsHydrated);
   const contract = useStore((s) => s.contract);
   const orderContract = useStore((s) => s.orderContract);
   const settingsOpen = useStore((s) => s.settingsOpen);
@@ -87,7 +88,7 @@ export default function App() {
 
   // Auto-load NQ into order panel when connected and no order contract selected
   useEffect(() => {
-    if (!connected || orderContract) return;
+    if (!connected || !settingsHydrated || orderContract) return;
     marketDataService
       .searchContracts('NQ')
       .then((contracts) => {
@@ -95,7 +96,7 @@ export default function App() {
         if (active) useStore.getState().setOrderContract(active);
       })
       .catch(() => {});
-  }, [connected, orderContract]);
+  }, [connected, settingsHydrated, orderContract]);
 
   return (
     <div className="flex flex-col h-screen bg-[#131722] text-[#d1d4dc]">
