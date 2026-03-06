@@ -696,6 +696,45 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     };
     container.addEventListener('mousedown', onOverlayHitTest);
 
+    // Double-click: finalize arrow path (instead of right-click)
+    const onDblClick = (e: MouseEvent) => {
+      if (!arrowPathCreation) return;
+      e.stopPropagation();
+      e.preventDefault();
+
+      // The two mouseup events from the double-click each added a point.
+      // Remove the duplicate last point (zero-length segment kills the arrowhead).
+      const pts = arrowPathCreation.points;
+      if (pts.length >= 2) {
+        const last = pts[pts.length - 1];
+        const prev = pts[pts.length - 2];
+        const dx = Math.abs(last.time - prev.time);
+        const dy = Math.abs(last.price - prev.price);
+        if (dx < 0.0001 && dy < 0.0001) {
+          pts.pop();
+          arrowPathCreation.cssPoints.pop();
+        }
+      }
+
+      const { addDrawing, setActiveTool } = useStore.getState();
+      if (arrowPathCreation.points.length >= 2 && contract) {
+        addDrawing({
+          id: crypto.randomUUID(),
+          type: 'arrowpath',
+          points: [...arrowPathCreation.points],
+          color: DEFAULT_ARROWPATH_COLOR,
+          strokeWidth: 2,
+          text: null,
+          contractId: String(contract.id),
+        });
+      }
+      arrowPathCreation = null;
+      primitive.clearArrowPathPreview();
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+      setActiveTool('select');
+    };
+    container.addEventListener('dblclick', onDblClick);
+
     container.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('mousemove', onOvalMouseMove);
     window.addEventListener('mouseup', onOvalMouseUp);
@@ -905,6 +944,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       container.removeEventListener('mousedown', onDrawingDragMouseDown);
       container.removeEventListener('mousedown', onOverlayHitTest);
       container.removeEventListener('mousedown', onOvalMouseDown);
+      container.removeEventListener('dblclick', onDblClick);
       container.removeEventListener('contextmenu', onContextMenu);
       container.removeEventListener('mousemove', onHandleHover);
       container.removeEventListener('mousedown', onChartPanDown);

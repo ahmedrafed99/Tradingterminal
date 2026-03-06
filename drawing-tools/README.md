@@ -166,7 +166,7 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 | Select (cursor) | Arrow pointer | Click drawings to select, drag to move |
 | Horizontal Line | Line with endpoint dots | Click on chart to place at price level |
 | Oval | Ellipse | Click-and-drag to define bounding rectangle |
-| Arrow Path | Polyline with arrow | Click to place nodes, right-click to finalize |
+| Arrow Path | Polyline with arrow | Click to place nodes, double-click to finalize (right-click also works) |
 | Ruler | Diagonal ruler | Click to start, move, click to finish — ephemeral measurement overlay |
 
 ### DrawingEditToolbar
@@ -267,7 +267,8 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Tool: `arrowpath`
 - Click to place polyline nodes (each click adds a point)
 - Live preview line follows cursor from last placed node
-- Right-click finalizes the path (adds final point at cursor, creates drawing if >= 2 points)
+- Double-click finalizes the path (deduplicates the last point to preserve arrowhead, creates drawing if >= 2 points)
+- Right-click also finalizes (adds final point at cursor, creates drawing if >= 2 points)
 - Escape cancels creation
 - Arrow tip drawn at the last point
 
