@@ -342,6 +342,7 @@ function TemplatePopover({
   const removeTemplate = useStore((s) => s.removeHLineTemplate);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -358,6 +359,9 @@ function TemplatePopover({
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    // If a template with this name already exists, remove it first (override)
+    const existing = templates.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) removeTemplate(existing.id);
     addTemplate({
       id: crypto.randomUUID(),
       name: trimmed,
@@ -368,6 +372,10 @@ function TemplatePopover({
     setSaving(false);
     setName('');
   };
+
+  const suggestions = templates.filter(
+    (t) => name.trim() && t.name.toLowerCase().includes(name.trim().toLowerCase())
+  );
 
   const handleApplyDefaults = () => {
     onApply({ id: '', name: '', color: DEFAULT_HLINE_COLOR, strokeWidth: 1, text: null });
@@ -449,16 +457,17 @@ function TemplatePopover({
       {/* Save as... */}
       {saving ? (
         <div style={{ padding: '6px 10px' }}>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" style={{ position: 'relative' }}>
             <input
               ref={nameRef}
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setShowSuggestions(true); }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSave();
-                if (e.key === 'Escape') { setSaving(false); setName(''); }
+                if (e.key === 'Escape') { setSaving(false); setName(''); setShowSuggestions(false); }
               }}
+              onFocus={() => setShowSuggestions(true)}
               placeholder="Template name"
               className="bg-[#131722] text-white text-xs rounded outline-none"
               style={{
@@ -468,12 +477,37 @@ function TemplatePopover({
             />
             <button
               onClick={handleSave}
-              className="text-xs text-white bg-[#2962ff] rounded hover:bg-[#1e53e5]"
-              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0 }}
+              className="text-xs text-white rounded"
+              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: '#1a3a6e', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#1e4a8a')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = '#1a3a6e')}
             >
               Save
             </button>
           </div>
+          {/* Suggestions dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              className="bg-[#131722] border border-[#2a2e39] rounded"
+              style={{ marginTop: 4, maxHeight: 120, overflowY: 'auto' }}
+            >
+              {suggestions.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { setName(t.name); setShowSuggestions(false); nameRef.current?.focus(); }}
+                  className="flex items-center gap-2 w-full text-left text-xs text-[#d1d4dc] hover:bg-[#1e222d]"
+                  style={{ padding: '5px 8px', border: 'none', background: 'none', cursor: 'pointer' }}
+                >
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%',
+                    background: t.color, flexShrink: 0,
+                    border: '1px solid #2a2e39',
+                  }} />
+                  <span className="truncate">{t.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         <button

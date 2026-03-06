@@ -369,9 +369,10 @@ Dropdown popover (220px wide, `maxHeight: 300`, `overflowY: auto`) attached to t
    - Delete button (×) appears on hover via `group-hover:opacity-100`
 2. **Divider** (if templates exist)
 3. **"Save as..."** button → toggles inline save form:
-   - Text input (auto-focused) + "Save" button
+   - Text input (auto-focused) + muted blue "Save" button (`#1a3a6e`, hover `#1e4a8a`)
+   - **Autocomplete suggestions**: as you type, a dropdown shows existing templates whose names match the input (case-insensitive substring). Clicking a suggestion fills the name field — saving with an existing name overrides that template.
    - Enter to save, Escape to cancel
-   - Saves current drawing's color, strokeWidth, and text as a new template with `crypto.randomUUID()` ID
+   - Saves current drawing's color, strokeWidth, and text as a new template with `crypto.randomUUID()` ID. If a template with the same name already exists (case-insensitive), it is removed first (override).
 4. **"Apply defaults"** button → resets drawing to `DEFAULT_HLINE_COLOR` (#787b86), strokeWidth 1, no text
 5. **Divider**
 6. **Export / Import** row:
