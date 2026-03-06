@@ -299,13 +299,16 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
                 fontSize: 11,
                 fontWeight: 'bold',
                 fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
-                padding: '0 6px',
                 height: 20,
                 lineHeight: '20px',
                 whiteSpace: 'nowrap',
                 borderRadius: '2px 0 0 2px',
+                overflow: 'hidden',
               }}
-            />
+            >
+              <span data-qo-text style={{ padding: '0 6px', background: '#cac9cb', color: '#000' }} />
+              <span data-qo-size style={{ padding: '0 6px', borderLeft: '1px solid #000' }} />
+            </div>
             <div
               data-qo-plus
               style={{

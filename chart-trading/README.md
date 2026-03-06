@@ -55,8 +55,8 @@ One-click limit order button attached to the left side of the crosshair price la
 
 - **"+" button**: 20x20px, `background: #2a2e39`, `borderRadius: 2px`, text `#d1d4dc`
 - **"+" hover state**: `background: #434651`, border radius changes to `0 2px 2px 0` (rounds only right side)
-- **Label (buy)**: `background: #00c805`, `color: #000`
-- **Label (sell)**: `background: #ff0000`, `color: #fff`
+- **Label text cell**: `background: #cac9cb`, `color: #000` (matches live order labels without a position)
+- **Label size cell**: `background: #00c805` (buy) / `#ff0000` (sell), `color: #000`, separated by `1px solid #000` border
 - **Label font**: `monospace`, 11px, bold
 - **Label border radius**: `2px 0 0 2px` (rounds only left side)
 - **Vertical position**: centered on the crosshair via `transform: translateY(-50%)`

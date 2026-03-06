@@ -31,8 +31,10 @@ export function useQuickOrder(
 
     const wrap = el.querySelector('[data-qo-wrap]') as HTMLDivElement;
     const label = el.querySelector('[data-qo-label]') as HTMLDivElement;
+    const labelText = el.querySelector('[data-qo-text]') as HTMLSpanElement;
+    const labelSize = el.querySelector('[data-qo-size]') as HTMLSpanElement;
     const plusEl = el.querySelector('[data-qo-plus]') as HTMLDivElement;
-    if (!wrap || !label || !plusEl) return;
+    if (!wrap || !label || !labelText || !labelSize || !plusEl) return;
 
     let snappedPrice: number | null = null;
     let lastCrosshairTime: unknown = null;
@@ -167,9 +169,11 @@ export function useQuickOrder(
 
     function refreshLabel() {
       const sz = useStore.getState().orderSize;
-      label.textContent = isBuy ? `Buy Limit ${sz}` : `Sell Limit ${sz}`;
-      label.style.background = isBuy ? '#00c805' : '#ff0000';
-      label.style.color = isBuy ? '#000' : '#fff';
+      labelText.textContent = isBuy ? 'Buy Limit' : 'Sell Limit';
+      const sideColor = isBuy ? '#00c805' : '#ff0000';
+      labelSize.textContent = String(sz);
+      labelSize.style.background = sideColor;
+      labelSize.style.color = '#000';
     }
 
     const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
@@ -217,7 +221,7 @@ export function useQuickOrder(
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
       isHovered = true;
       refs.qoHovered.current = true;
-      label.style.display = 'block';
+      label.style.display = 'flex';
       plusEl.style.borderRadius = '0 2px 2px 0';
       plusEl.style.background = '#434651';
       refreshLabel();
