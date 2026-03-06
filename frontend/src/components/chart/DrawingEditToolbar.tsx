@@ -21,6 +21,15 @@ function TextColorGrid({
   const addCustomColor = useStore((s) => s.addCustomColor);
   const removeCustomColor = useStore((s) => s.removeCustomColor);
 
+  // Save custom color only on final selection (native 'change'), not during drag
+  useEffect(() => {
+    const input = customColorRef.current;
+    if (!input) return;
+    const handler = () => addCustomColor(input.value);
+    input.addEventListener('change', handler);
+    return () => input.removeEventListener('change', handler);
+  }, [customColorRef, addCustomColor]);
+
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: customColors.length > 0 ? 4 : 6 }}>
@@ -96,7 +105,7 @@ function TextColorGrid({
         ref={customColorRef}
         type="color"
         value={color}
-        onChange={(e) => { setColor(e.target.value); addCustomColor(e.target.value); }}
+        onChange={(e) => setColor(e.target.value)}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
       />
     </div>

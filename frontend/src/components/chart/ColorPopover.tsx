@@ -61,11 +61,14 @@ export function ColorPopover({
     return () => window.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const c = e.target.value;
-    onChange(c);
-    addCustomColor(c);
-  };
+  // Save custom color only on final selection (native 'change'), not during drag
+  useEffect(() => {
+    const input = customInputRef.current;
+    if (!input) return;
+    const handler = () => addCustomColor(input.value);
+    input.addEventListener('change', handler);
+    return () => input.removeEventListener('change', handler);
+  }, [addCustomColor]);
 
   return (
     <div
@@ -129,7 +132,7 @@ export function ColorPopover({
         ref={customInputRef}
         type="color"
         value={current}
-        onChange={handleCustomColorChange}
+        onChange={(e) => onChange(e.target.value)}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
       />
     </div>

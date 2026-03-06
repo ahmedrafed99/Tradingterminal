@@ -633,9 +633,10 @@ export const useStore = create<Store>()(
       customColors: [] as string[],
       addCustomColor: (color) =>
         set((s) => {
-          // Don't duplicate; move to end if already exists
+          // Don't duplicate; move to end if already exists. Cap at 10 (one row).
           const filtered = s.customColors.filter((c) => c.toLowerCase() !== color.toLowerCase());
-          return { customColors: [...filtered, color] };
+          const next = [...filtered, color];
+          return { customColors: next.length > 10 ? next.slice(next.length - 10) : next };
         }),
       removeCustomColor: (index) =>
         set((s) => ({ customColors: s.customColors.filter((_, i) => i !== index) })),
