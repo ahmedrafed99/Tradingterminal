@@ -118,6 +118,10 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     const toPrice = (points: number) => pointsToPrice(points, contract);
 
     function doUpdate() {
+      // Skip while dragging a live order line — the drag handler manages
+      // preview positions itself, and store.limitPrice is stale until mouseUp.
+      if (refs.orderDragState.current) return;
+
       const snap = useStore.getState();
       const entryPrice = snap.orderType === 'limit' ? snap.limitPrice : snap.lastPrice;
       if (!entryPrice) return;

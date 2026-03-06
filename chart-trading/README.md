@@ -244,6 +244,7 @@ Rendered when `previewEnabled = true` (set from OrderPanel checkbox). Each previ
 - Dashed price lines for Entry (grey `#787b86`), SL (red `#ff0000`), each TP (green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`, trimming TPs to fit within `orderSize` via `fitTpsToOrderSize()` (first TPs get priority; extras that exceed the order quantity are dropped)
 - Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
+- The price-update effect's `doUpdate()` is skipped while a live order drag is active (`orderDragState` ref set) — the drag handler manages preview positions itself, and the store's `limitPrice` is stale until mouseup, so `doUpdate()` would snap SL/TP lines back to pre-drag positions on every market tick
 - Initial prices read imperatively via `useStore.getState()` to avoid flash-at-bottom on first toggle
 
 Shows ghost price lines (semi-transparent) for:
