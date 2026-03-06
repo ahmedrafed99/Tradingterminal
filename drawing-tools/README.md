@@ -147,7 +147,7 @@ interface HLineTemplatesState {
 }
 ```
 
-Persisted to localStorage: `drawings`, `drawingToolbarOpen`, `drawingDefaults`, `hlineTemplates`.
+Persisted to localStorage: `drawings`, `drawingToolbarOpen`, `drawingDefaults`, `hlineTemplates`, `customColors`.
 
 ### drawingDefaults
 
@@ -188,7 +188,7 @@ Template button only shown for hline drawings.
 
 **Sub-popovers:**
 
-1. **ColorPopover** (252px wide): 7×10 color palette grid (grayscale → dark tones), custom color `<input type="color">` via "+" button
+1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button
 2. **TextPopover** (272px wide) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
    - Row 1: Color swatch (toggles palette) + font size dropdown + **B** bold + *I* italic
    - Row 2: Multiline textarea (system-ui font, dark grey border, no focus outline)
@@ -415,7 +415,7 @@ Each drawing stores a `contractId` to scope it per instrument. When rendering, d
 
 ## Color Palette
 
-Both the color picker and text color picker use the same 7×10 grid:
+Both the color picker and text color picker use the same 8×10 grid:
 
 | Row | Theme |
 |-----|-------|
@@ -426,5 +426,6 @@ Both the color picker and text color picker use the same 7×10 grid:
 | 5 | Medium tones |
 | 6 | Strong tones |
 | 7 | Dark tones |
+| 8 | Deepest tones |
 
-Plus a "+" button for custom colors via native `<input type="color">`.
+**Custom colors:** The "+" button opens a native `<input type="color">` picker. Chosen colors are saved to a persistent custom colors row (displayed between the palette grid and the "+" button). Custom colors are stored in the Zustand store (`customColors: string[]`) and persisted to localStorage. Duplicate colors are deduplicated (moved to end). Each custom swatch shows a "×" delete button on hover.

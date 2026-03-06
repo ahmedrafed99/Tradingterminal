@@ -8,6 +8,101 @@ import { ColorPopover, COLOR_PALETTE } from './ColorPopover';
 // Sub-components
 // ---------------------------------------------------------------------------
 
+function TextColorGrid({
+  color,
+  setColor,
+  customColorRef,
+}: {
+  color: string;
+  setColor: (c: string) => void;
+  customColorRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  const customColors = useStore((s) => s.customColors);
+  const addCustomColor = useStore((s) => s.addCustomColor);
+  const removeCustomColor = useStore((s) => s.removeCustomColor);
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: customColors.length > 0 ? 4 : 6 }}>
+        {COLOR_PALETTE.flat().map((c, i) => (
+          <button
+            key={`txt-${c}-${i}`}
+            onClick={() => setColor(c)}
+            style={{
+              width: 20,
+              height: 20,
+              background: c,
+              borderRadius: 3,
+              border: c === color ? '2px solid #fff' : '1px solid #2a2e39',
+              cursor: 'pointer',
+              boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
+            }}
+          />
+        ))}
+      </div>
+      {customColors.length > 0 && (
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 6 }}>
+          {customColors.map((c, i) => (
+            <div key={`txt-custom-${c}-${i}`} className="relative group">
+              <button
+                onClick={() => setColor(c)}
+                style={{
+                  width: 20,
+                  height: 20,
+                  background: c,
+                  borderRadius: 3,
+                  border: c === color ? '2px solid #fff' : '1px solid #2a2e39',
+                  cursor: 'pointer',
+                  boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
+                }}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); removeCustomColor(i); }}
+                className="absolute opacity-0 group-hover:opacity-100"
+                style={{
+                  top: -4, right: -4, width: 12, height: 12,
+                  borderRadius: '50%', background: '#000', border: '1px solid #434651',
+                  color: '#787b86', fontSize: 8, lineHeight: '10px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <button
+        onClick={() => customColorRef.current?.click()}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 3,
+          border: '1px dashed #787b86',
+          background: 'transparent',
+          color: '#787b86',
+          fontSize: 14,
+          lineHeight: '18px',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        +
+      </button>
+      <input
+        ref={customColorRef}
+        type="color"
+        value={color}
+        onChange={(e) => { setColor(e.target.value); addCustomColor(e.target.value); }}
+        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+      />
+    </div>
+  );
+}
+
 function TextPopover({
   drawing,
   onUpdate,
@@ -161,51 +256,11 @@ function TextPopover({
 
       {/* Color palette grid (toggle) */}
       {showColorGrid && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: 6 }}>
-            {COLOR_PALETTE.flat().map((c, i) => (
-              <button
-                key={`txt-${c}-${i}`}
-                onClick={() => setColor(c)}
-                style={{
-                  width: 20,
-                  height: 20,
-                  background: c,
-                  borderRadius: 3,
-                  border: c === color ? '2px solid #fff' : '1px solid #2a2e39',
-                  cursor: 'pointer',
-                  boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
-                }}
-              />
-            ))}
-          </div>
-          <button
-            onClick={() => customColorRef.current?.click()}
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: 3,
-              border: '1px dashed #787b86',
-              background: 'transparent',
-              color: '#787b86',
-              fontSize: 14,
-              lineHeight: '18px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            +
-          </button>
-          <input
-            ref={customColorRef}
-            type="color"
-            value={color}
-            onChange={(e) => setColor(e.target.value)}
-            style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
-          />
-        </div>
+        <TextColorGrid
+          color={color}
+          setColor={setColor}
+          customColorRef={customColorRef}
+        />
       )}
 
       {/* Row 2: Textarea */}

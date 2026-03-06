@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useStore } from '../../store/useStore';
 
 // 10-column palette matching standard design-tool layout
 export const COLOR_PALETTE = [
@@ -16,7 +17,26 @@ export const COLOR_PALETTE = [
   ['#d32f2f', '#f57c00', '#fbc02d', '#7cb342', '#00897b', '#00acc1', '#3949ab', '#5e35b1', '#8e24aa', '#c2185b'],
   // Row 7 — dark tones
   ['#b71c1c', '#e65100', '#f9a825', '#2e7d32', '#004d40', '#006064', '#1a237e', '#311b92', '#4a148c', '#880e4f'],
+  // Row 8 — deepest tones
+  ['#7f0000', '#bf360c', '#c68400', '#1b5e20', '#003330', '#004d50', '#0d1642', '#1a0e5b', '#2c0b3f', '#560027'],
 ];
+
+function ColorSwatch({ color, current, onClick }: { color: string; current: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: 20,
+        height: 20,
+        background: color,
+        borderRadius: 3,
+        border: color === current ? '2px solid #fff' : '1px solid #2a2e39',
+        cursor: 'pointer',
+        boxShadow: color === current ? '0 0 0 1px #1e222d' : 'none',
+      }}
+    />
+  );
+}
 
 export function ColorPopover({
   current,
@@ -29,6 +49,9 @@ export function ColorPopover({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
+  const customColors = useStore((s) => s.customColors);
+  const addCustomColor = useStore((s) => s.addCustomColor);
+  const removeCustomColor = useStore((s) => s.removeCustomColor);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -38,6 +61,12 @@ export function ColorPopover({
     return () => window.removeEventListener('mousedown', handler);
   }, [onClose]);
 
+  const handleCustomColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const c = e.target.value;
+    onChange(c);
+    addCustomColor(c);
+  };
+
   return (
     <div
       ref={ref}
@@ -46,23 +75,35 @@ export function ColorPopover({
       onClick={(e) => e.stopPropagation()}
     >
       {/* Color palette grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: customColors.length > 0 ? 4 : 8 }}>
         {COLOR_PALETTE.flat().map((c, i) => (
-          <button
-            key={`${c}-${i}`}
-            onClick={() => onChange(c)}
-            style={{
-              width: 20,
-              height: 20,
-              background: c,
-              borderRadius: 3,
-              border: c === current ? '2px solid #fff' : '1px solid #2a2e39',
-              cursor: 'pointer',
-              boxShadow: c === current ? '0 0 0 1px #1e222d' : 'none',
-            }}
-          />
+          <ColorSwatch key={`${c}-${i}`} color={c} current={current} onClick={() => onChange(c)} />
         ))}
       </div>
+
+      {/* Custom colors row */}
+      {customColors.length > 0 && (
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 8 }}>
+          {customColors.map((c, i) => (
+            <div key={`custom-${c}-${i}`} className="relative group">
+              <ColorSwatch color={c} current={current} onClick={() => onChange(c)} />
+              <button
+                onClick={(e) => { e.stopPropagation(); removeCustomColor(i); }}
+                className="absolute opacity-0 group-hover:opacity-100"
+                style={{
+                  top: -4, right: -4, width: 12, height: 12,
+                  borderRadius: '50%', background: '#000', border: '1px solid #434651',
+                  color: '#787b86', fontSize: 8, lineHeight: '10px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                &times;
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Custom color "+" button */}
       <button
@@ -88,7 +129,7 @@ export function ColorPopover({
         ref={customInputRef}
         type="color"
         value={current}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleCustomColorChange}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
       />
     </div>

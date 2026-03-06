@@ -209,6 +209,12 @@ interface HLineTemplatesState {
   removeHLineTemplate: (id: string) => void;
 }
 
+interface CustomColorsState {
+  customColors: string[];
+  addCustomColor: (color: string) => void;
+  removeCustomColor: (index: number) => void;
+}
+
 // ---------------------------------------------------------------------------
 // Bottom Panel slice
 // ---------------------------------------------------------------------------
@@ -267,7 +273,7 @@ interface ToastState {
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = AuthState & AccountsState & InstrumentState & OrdersState
-  & PositionsState & TradesState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & DualChartState & BottomPanelState & VolumeProfileState & ToastState;
+  & PositionsState & TradesState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState;
 
 export const useStore = create<Store>()(
   persist(
@@ -623,6 +629,17 @@ export const useStore = create<Store>()(
       removeHLineTemplate: (id) =>
         set((s) => ({ hlineTemplates: s.hlineTemplates.filter((t) => t.id !== id) })),
 
+      // Custom colors (persisted)
+      customColors: [] as string[],
+      addCustomColor: (color) =>
+        set((s) => {
+          // Don't duplicate; move to end if already exists
+          const filtered = s.customColors.filter((c) => c.toLowerCase() !== color.toLowerCase());
+          return { customColors: [...filtered, color] };
+        }),
+      removeCustomColor: (index) =>
+        set((s) => ({ customColors: s.customColors.filter((_, i) => i !== index) })),
+
       // Toasts (not persisted — live state only)
       toasts: [] as ToastItem[],
       addToast: (toast) =>
@@ -656,6 +673,7 @@ export const useStore = create<Store>()(
         drawingToolbarOpen: s.drawingToolbarOpen,
         drawingDefaults: s.drawingDefaults,
         hlineTemplates: s.hlineTemplates,
+        customColors: s.customColors,
         dualChart: s.dualChart,
         secondTimeframe: s.secondTimeframe,
         splitRatio: s.splitRatio,
