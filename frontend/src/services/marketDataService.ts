@@ -82,7 +82,7 @@ function ssSet(key: string, bars: Bar[]): void {
 }
 
 function barsCacheKey(p: RetrieveBarsParams): string {
-  return `${p.contractId}:${p.unit}:${p.unitNumber}`;
+  return `${p.contractId}:${p.unit}:${p.unitNumber}:${p.limit ?? 0}`;
 }
 
 export const marketDataService = {
