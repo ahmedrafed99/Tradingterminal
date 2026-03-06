@@ -152,6 +152,12 @@ interface ChartState {
   label remains visible when hovering past the latest candle. The whitespace
   lives on its own series (not the candlestick series) so that real-time
   `series.update()` calls are unaffected.
-- **Dual-chart crosshair sync** does not gate on `dataMap` membership — it
-  syncs at any timestamp present on the shared time scale, including
-  whitespace regions beyond the last candle.
+- **Dual-chart crosshair sync** uses a `master` variable (`'left' | 'right' | null`)
+  in `ChartArea.tsx`. The chart the mouse is on becomes master; crosshair-move
+  events from the other chart are ignored entirely, preventing async bounce-back
+  loops. When the source time exceeds the target chart's visible range
+  (`timeScale().getVisibleRange()`), the time is clamped to the nearest boundary
+  so the horizontal price crosshair stays visible on both charts. Master resets
+  to `null` when the mouse leaves a chart (16 ms clear timer). Does not gate on
+  `dataMap` membership — syncs at any timestamp on the shared time scale,
+  including whitespace regions beyond the last candle.

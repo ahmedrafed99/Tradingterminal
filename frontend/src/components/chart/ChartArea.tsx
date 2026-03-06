@@ -71,65 +71,73 @@ export function ChartArea() {
 
       let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
       let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
-      // Flags to prevent infinite sync loops (A→B→A) while still allowing
-      // programmatic crosshair moves (e.g. QO drag) to sync to the peer chart.
-      let syncingToRight = false;
-      let syncingToLeft = false;
+      // The chart currently driving the crosshair. While a master is set,
+      // crosshair-move events from the *other* chart are ignored entirely,
+      // preventing any async bounce-back from the library.
+      let master: 'left' | 'right' | null = null;
 
       const onLeftMove = (param: MouseEventParams) => {
-        if (syncingToLeft) return;
+        if (master === 'right') return;
+        master = 'left';
         if (!param.time || !param.point) {
           if (rightClearTimer) clearTimeout(rightClearTimer);
           rightClearTimer = setTimeout(() => {
             if (!leftRef.current?.isQoHovered()) {
-              syncingToRight = true;
               rightChart.clearCrosshairPosition();
-              syncingToRight = false;
               rightRef.current?.setCrosshairPrice(null);
             }
+            master = null;
           }, 16);
           return;
         }
         if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
         const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
-          syncingToRight = true;
-          rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
-          syncingToRight = false;
+          // Clamp time to the right chart's visible range so the target chart
+          // just sticks to its boundary when the source goes past it.
+          const rightRange = rightChart.timeScale().getVisibleRange();
+          let syncTime = param.time;
+          if (rightRange) {
+            const t = param.time as number;
+            if (t < (rightRange.from as number)) syncTime = rightRange.from;
+            else if (t > (rightRange.to as number)) syncTime = rightRange.to;
+          }
+          rightChart.setCrosshairPosition(sourcePrice, syncTime, rightSeries);
           rightRef.current?.setCrosshairPrice(sourcePrice);
         } else {
-          syncingToRight = true;
           rightChart.clearCrosshairPosition();
-          syncingToRight = false;
           rightRef.current?.setCrosshairPrice(null);
         }
       };
 
       const onRightMove = (param: MouseEventParams) => {
-        if (syncingToRight) return;
+        if (master === 'left') return;
+        master = 'right';
         if (!param.time || !param.point) {
           if (leftClearTimer) clearTimeout(leftClearTimer);
           leftClearTimer = setTimeout(() => {
             if (!rightRef.current?.isQoHovered()) {
-              syncingToLeft = true;
               leftChart.clearCrosshairPosition();
-              syncingToLeft = false;
               leftRef.current?.setCrosshairPrice(null);
             }
+            master = null;
           }, 16);
           return;
         }
         if (leftClearTimer) { clearTimeout(leftClearTimer); leftClearTimer = null; }
         const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
-          syncingToLeft = true;
-          leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
-          syncingToLeft = false;
+          const leftRange = leftChart.timeScale().getVisibleRange();
+          let syncTime = param.time;
+          if (leftRange) {
+            const t = param.time as number;
+            if (t < (leftRange.from as number)) syncTime = leftRange.from;
+            else if (t > (leftRange.to as number)) syncTime = leftRange.to;
+          }
+          leftChart.setCrosshairPosition(sourcePrice, syncTime, leftSeries);
           leftRef.current?.setCrosshairPrice(sourcePrice);
         } else {
-          syncingToLeft = true;
           leftChart.clearCrosshairPosition();
-          syncingToLeft = false;
           leftRef.current?.setCrosshairPrice(null);
         }
       };
@@ -140,15 +148,13 @@ export function ChartArea() {
       // Expose direct peer-sync callbacks so QO drag can bypass the async
       // crosshair callback chain (eliminates 1–2 frame lag).
       leftRef.current?.setPeerSync((price, time) => {
-        syncingToRight = true;
+        master = 'left';
         rightChart.setCrosshairPosition(price, time as Parameters<typeof rightChart.setCrosshairPosition>[1], rightSeries);
-        syncingToRight = false;
         rightRef.current?.setCrosshairPrice(price);
       });
       rightRef.current?.setPeerSync((price, time) => {
-        syncingToLeft = true;
+        master = 'right';
         leftChart.setCrosshairPosition(price, time as Parameters<typeof leftChart.setCrosshairPosition>[1], leftSeries);
-        syncingToLeft = false;
         leftRef.current?.setCrosshairPrice(price);
       });
 
