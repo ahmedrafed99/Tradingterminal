@@ -53,6 +53,11 @@ const BARS_CACHE_TTL = 60_000; // 60 seconds
 // In-flight request dedup — concurrent calls with the same key share one network request
 const inflight = new Map<string, Promise<Bar[]>>();
 
+// searchContracts cache + dedup — avoids redundant network calls for the same query
+const searchCache = new Map<string, { contracts: Contract[]; ts: number }>();
+const SEARCH_CACHE_TTL = 120_000; // 2 minutes
+const searchInflight = new Map<string, Promise<Contract[]>>();
+
 // sessionStorage cache — survives page refreshes so the chart renders instantly
 const SS_PREFIX = 'bars:';
 const SS_TTL = 60_000; // 60 seconds
@@ -119,10 +124,32 @@ export const marketDataService = {
   },
 
   async searchContracts(query: string, live = false): Promise<Contract[]> {
-    const res = await api.get<{ contracts: Contract[]; success: boolean }>(
-      `/market/contracts/search?q=${encodeURIComponent(query)}&live=${live}`,
-    );
-    return (res.data.contracts ?? []).map(normalizeContract);
+    const key = `${query.toUpperCase()}:${live}`;
+
+    // 1. Cache hit
+    const cached = searchCache.get(key);
+    if (cached && Date.now() - cached.ts < SEARCH_CACHE_TTL) return cached.contracts;
+
+    // 2. In-flight dedup
+    const existing = searchInflight.get(key);
+    if (existing) return existing;
+
+    // 3. Network fetch
+    const promise = api
+      .get<{ contracts: Contract[]; success: boolean }>(
+        `/market/contracts/search?q=${encodeURIComponent(query)}&live=${live}`,
+      )
+      .then((res) => {
+        const contracts = (res.data.contracts ?? []).map(normalizeContract);
+        searchCache.set(key, { contracts, ts: Date.now() });
+        return contracts;
+      })
+      .finally(() => {
+        searchInflight.delete(key);
+      });
+
+    searchInflight.set(key, promise);
+    return promise;
   },
 
   async listAvailableContracts(): Promise<Contract[]> {

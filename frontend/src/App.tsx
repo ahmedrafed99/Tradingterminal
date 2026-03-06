@@ -52,9 +52,6 @@ export default function App() {
   const connected = useStore((s) => s.connected);
   const contract = useStore((s) => s.contract);
   const orderContract = useStore((s) => s.orderContract);
-  const setConnected = useStore((s) => s.setConnected);
-  const setContract = useStore((s) => s.setContract);
-  const setOrderContract = useStore((s) => s.setOrderContract);
   const settingsOpen = useStore((s) => s.settingsOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
@@ -69,12 +66,12 @@ export default function App() {
     authService
       .getStatus()
       .then((status) => {
-        setConnected(status.connected, status.baseUrl);
+        useStore.getState().setConnected(status.connected, status.baseUrl);
       })
       .catch(() => {
         // Backend might not be running yet — ignore
       });
-  }, [setConnected]);
+  }, []);
 
   // Auto-load NQ when connected and no contract selected (left chart)
   useEffect(() => {
@@ -83,10 +80,10 @@ export default function App() {
       .searchContracts('NQ')
       .then((contracts) => {
         const active = contracts.find((c) => c.activeContract);
-        if (active) setContract(active);
+        if (active) useStore.getState().setContract(active);
       })
       .catch(() => {});
-  }, [connected, contract, setContract]);
+  }, [connected, contract]);
 
   // Auto-load NQ into order panel when connected and no order contract selected
   useEffect(() => {
@@ -95,10 +92,10 @@ export default function App() {
       .searchContracts('NQ')
       .then((contracts) => {
         const active = contracts.find((c) => c.activeContract);
-        if (active) setOrderContract(active);
+        if (active) useStore.getState().setOrderContract(active);
       })
       .catch(() => {});
-  }, [connected, orderContract, setOrderContract]);
+  }, [connected, orderContract]);
 
   return (
     <div className="flex flex-col h-screen bg-[#131722] text-[#d1d4dc]">

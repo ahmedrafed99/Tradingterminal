@@ -100,11 +100,11 @@ export function TopBar() {
   // Reload accounts when connection state becomes true
   useEffect(() => {
     if (connected) {
-      accountService.searchAccounts().then(setAccounts).catch(() => {});
+      accountService.searchAccounts().then((a) => useStore.getState().setAccounts(a)).catch(() => {});
     } else {
-      setAccounts([]);
+      useStore.getState().setAccounts([]);
     }
-  }, [connected, setAccounts]);
+  }, [connected]);
 
   // Fetch daily realized P&L when account changes
   useEffect(() => {

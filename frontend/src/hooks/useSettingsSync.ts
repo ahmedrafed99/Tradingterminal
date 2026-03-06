@@ -67,13 +67,14 @@ export function useSettingsSync() {
           // so localStorage data gets backed up immediately
           persistenceService.saveSettings(getPersistedState()).catch(() => {});
         }
-        hydrated.current = true;
         useStore.setState({ settingsHydrated: true });
+        // Delay enabling saves so the hydration setState doesn't trigger an immediate save-back
+        requestAnimationFrame(() => { hydrated.current = true; });
       })
       .catch(() => {
         // Backend might not be running — fall back to localStorage
-        hydrated.current = true;
         useStore.setState({ settingsHydrated: true });
+        requestAnimationFrame(() => { hydrated.current = true; });
       });
   }, []);
 

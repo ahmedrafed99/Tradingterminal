@@ -82,9 +82,15 @@ searchContracts(query: string): Promise<Contract[]>       // normalized with com
 listAvailableContracts(): Promise<Contract[]>              // normalized with computed fields
 ```
 
-Cache hierarchy (all keyed by `contractId:unit:unitNumber`, 60s TTL):
+**`retrieveBars` cache** (keyed by `contractId:unit:unitNumber`, 60s TTL):
 1. In-memory `Map` (fastest, lost on refresh) → 2. `sessionStorage` (survives refresh) → 3. In-flight dedup → 4. Network fetch.
 Chart renders instantly on page refresh from sessionStorage cache.
+
+**`searchContracts` cache** (keyed by `QUERY:live`, 2min TTL):
+1. In-memory `Map` → 2. In-flight dedup → 3. Network fetch.
+Prevents duplicate requests when multiple components (chart toolbars, order panel) resolve the same pinned instruments concurrently.
+
+**`getStatus` / `loadSettings` dedup**: Both use in-flight promise dedup — concurrent calls (e.g. from React StrictMode double-mounting) share a single network request.
 
 ### `orderService.ts`
 

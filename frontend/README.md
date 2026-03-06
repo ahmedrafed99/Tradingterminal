@@ -165,6 +165,8 @@ authService.disconnect()                          // POST /auth/disconnect
 authService.getStatus()                           // GET  /auth/status → { connected, baseUrl }
 ```
 
+In-flight dedup: `getStatus()` shares a single request across concurrent calls (prevents StrictMode double-fetch).
+
 ### `accountService.ts`
 
 ```ts
@@ -183,8 +185,9 @@ marketDataService.listAvailableContracts()       // GET  /market/contracts/avail
 
 Bar unit values: `1`=Second, `2`=Minute, `3`=Hour, `4`=Day, `5`=Week, `6`=Month.
 Max bars per request: 20,000. Use `live: false` for sim/TopstepX accounts.
-In-flight request dedup: concurrent calls with the same `(contractId, unit, unitNumber)` key share a single network request (prevents duplicate fetches from React StrictMode or rapid re-renders).
+**`retrieveBars`** — In-flight request dedup: concurrent calls with the same `(contractId, unit, unitNumber)` key share a single network request (prevents duplicate fetches from React StrictMode or rapid re-renders).
 Cache hierarchy: in-memory Map → sessionStorage (survives page refresh, 60s TTL) → in-flight dedup → network fetch. Chart renders instantly on refresh from sessionStorage.
+**`searchContracts`** — In-memory cache (2min TTL) + in-flight dedup. Multiple components resolving the same pinned instrument (e.g. NQ) share one request and get cached results.
 
 ### `orderService.ts`
 
@@ -271,6 +274,8 @@ File-based settings persistence — backs up store state to the Express backend'
 persistenceService.loadSettings()   // GET  /settings → { bracketPresets, drawings, contract, ... }
 persistenceService.saveSettings(data) // PUT  /settings — writes full persisted state to disk
 ```
+
+In-flight dedup: `loadSettings()` shares a single request across concurrent calls (prevents StrictMode double-fetch).
 
 Used by the `useSettingsSync` hook (see below). Survives browser cache clears, origin changes, and port differences. See `settings-persistence/README.md` for the full sync lifecycle.
 
