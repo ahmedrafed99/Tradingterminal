@@ -58,7 +58,7 @@ On startup, the file-based settings take priority over localStorage. On every st
 | Category | Store Fields |
 |----------|-------------|
 | Bracket presets | `bracketPresets`, `activePresetId` |
-| Drawings | `drawings`, `hlineTemplates`, `drawingToolbarOpen` |
+| Drawings | `drawings`, `hlineTemplates`, `drawingToolbarOpen`, `drawingDefaults` |
 | Last selected instruments | `contract`, `secondContract` |
 | Chart layout | `dualChart`, `secondTimeframe`, `splitRatio` |
 | Bookmarked timeframes | `pinnedTimeframes`, `timeframe` |

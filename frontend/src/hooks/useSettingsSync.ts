@@ -22,6 +22,7 @@ function getPersistedState() {
     activePresetId: s.activePresetId,
     drawings: s.drawings,
     drawingToolbarOpen: s.drawingToolbarOpen,
+    drawingDefaults: s.drawingDefaults,
     hlineTemplates: s.hlineTemplates,
     dualChart: s.dualChart,
     secondTimeframe: s.secondTimeframe,

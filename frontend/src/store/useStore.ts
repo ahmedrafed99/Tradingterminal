@@ -161,12 +161,19 @@ type UndoEntry =
   | { type: 'update'; drawingId: string; previous: Partial<Drawing> }
   | { type: 'remove'; drawing: Drawing };
 
+/** Per-type sticky defaults for new drawings (color + strokeWidth). */
+interface DrawingStyleDefaults {
+  color: string;
+  strokeWidth: number;
+}
+
 interface DrawingsState {
   activeTool: DrawingTool;
   drawingToolbarOpen: boolean;
   selectedDrawingId: string | null;
   drawings: Drawing[];
   drawingUndoStack: UndoEntry[];
+  drawingDefaults: Record<string, DrawingStyleDefaults>;
   setActiveTool: (tool: DrawingTool) => void;
   setDrawingToolbarOpen: (open: boolean) => void;
   setSelectedDrawingId: (id: string | null) => void;
@@ -500,6 +507,7 @@ export const useStore = create<Store>()(
       selectedDrawingId: null,
       drawings: [] as Drawing[],
       drawingUndoStack: [] as UndoEntry[],
+      drawingDefaults: {} as Record<string, DrawingStyleDefaults>,
       setActiveTool: (activeTool) => set({ activeTool, selectedDrawingId: null }),
       setDrawingToolbarOpen: (drawingToolbarOpen) => set({ drawingToolbarOpen }),
       setSelectedDrawingId: (selectedDrawingId) => set({ selectedDrawingId }),
@@ -525,6 +533,18 @@ export const useStore = create<Store>()(
               ...s.drawingUndoStack,
               { type: 'update', drawingId: id, previous },
             ].slice(-50);
+
+            // Auto-save style defaults when user edits color or strokeWidth
+            if (existing && ('color' in patch || 'strokeWidth' in patch)) {
+              const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
+              result.drawingDefaults = {
+                ...s.drawingDefaults,
+                [existing.type]: {
+                  color: (patch as { color?: string }).color ?? cur.color,
+                  strokeWidth: (patch as { strokeWidth?: number }).strokeWidth ?? cur.strokeWidth,
+                },
+              };
+            }
           }
           return result;
         }),
@@ -634,6 +654,7 @@ export const useStore = create<Store>()(
         activePresetId: s.activePresetId,
         drawings: s.drawings,
         drawingToolbarOpen: s.drawingToolbarOpen,
+        drawingDefaults: s.drawingDefaults,
         hlineTemplates: s.hlineTemplates,
         dualChart: s.dualChart,
         secondTimeframe: s.secondTimeframe,

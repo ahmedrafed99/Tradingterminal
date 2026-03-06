@@ -43,18 +43,19 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       if (!param.point) return;
       // Suppress click after a drag-to-move
       if (drawingDragOccurred) { drawingDragOccurred = false; return; }
-      const { activeTool, addDrawing, setActiveTool, setSelectedDrawingId } = useStore.getState();
+      const { activeTool, addDrawing, setActiveTool, setSelectedDrawingId, drawingDefaults } = useStore.getState();
 
       if (activeTool === 'hline') {
         const price = series.coordinateToPrice(param.point.y);
         const clickTime = chart.timeScale().coordinateToTime(param.point.x);
         if (price === null || contract === null) return;
+        const def = drawingDefaults['hline'];
         addDrawing({
           id: crypto.randomUUID(),
           type: 'hline',
           price: price as number,
-          color: DEFAULT_HLINE_COLOR,
-          strokeWidth: 1,
+          color: def?.color ?? DEFAULT_HLINE_COLOR,
+          strokeWidth: def?.strokeWidth ?? 1,
           text: null,
           contractId: String(contract.id),
           startTime: clickTime ? (clickTime as number) : 0,
@@ -586,13 +587,14 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         const dx = Math.abs(x - ovalDrag.startX);
         const dy = Math.abs(y - ovalDrag.startY);
         if (dx > 5 || dy > 5) {
+          const ovalDef = useStore.getState().drawingDefaults['oval'];
           useStore.getState().addDrawing({
             id: crypto.randomUUID(),
             type: 'oval',
             p1: { time: ovalDrag.startTime, price: ovalDrag.startPrice },
             p2: { time: endTime as number, price: endPrice as number },
-            color: DEFAULT_OVAL_COLOR,
-            strokeWidth: 1,
+            color: ovalDef?.color ?? DEFAULT_OVAL_COLOR,
+            strokeWidth: ovalDef?.strokeWidth ?? 1,
             text: null,
             contractId: String(contract.id),
           });
@@ -628,14 +630,15 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           }
         }
 
-        const { addDrawing } = useStore.getState();
+        const { addDrawing, drawingDefaults: ctxDef } = useStore.getState();
+        const apDef = ctxDef['arrowpath'];
         if (arrowPathCreation.points.length >= 2 && contract) {
           addDrawing({
             id: crypto.randomUUID(),
             type: 'arrowpath',
             points: [...arrowPathCreation.points],
-            color: DEFAULT_ARROWPATH_COLOR,
-            strokeWidth: 2,
+            color: apDef?.color ?? DEFAULT_ARROWPATH_COLOR,
+            strokeWidth: apDef?.strokeWidth ?? 2,
             text: null,
             contractId: String(contract.id),
           });
@@ -716,14 +719,15 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         }
       }
 
-      const { addDrawing, setActiveTool } = useStore.getState();
+      const { addDrawing, setActiveTool, drawingDefaults: dblDef } = useStore.getState();
+      const dblApDef = dblDef['arrowpath'];
       if (arrowPathCreation.points.length >= 2 && contract) {
         addDrawing({
           id: crypto.randomUUID(),
           type: 'arrowpath',
           points: [...arrowPathCreation.points],
-          color: DEFAULT_ARROWPATH_COLOR,
-          strokeWidth: 2,
+          color: dblApDef?.color ?? DEFAULT_ARROWPATH_COLOR,
+          strokeWidth: dblApDef?.strokeWidth ?? 2,
           text: null,
           contractId: String(contract.id),
         });

@@ -147,7 +147,11 @@ interface HLineTemplatesState {
 }
 ```
 
-Persisted to localStorage: `drawings`, `drawingToolbarOpen`, `hlineTemplates`.
+Persisted to localStorage: `drawings`, `drawingToolbarOpen`, `drawingDefaults`, `hlineTemplates`.
+
+### drawingDefaults
+
+Per-type sticky style defaults (`Record<string, { color: string; strokeWidth: number }>`). When a user edits a drawing's color or strokeWidth via the edit toolbar, the new values are saved as defaults for that drawing type. The next drawing of the same type will use the last-used color and strokeWidth instead of the hardcoded constants. Persisted to both localStorage and the backend settings file.
 
 ---
 
