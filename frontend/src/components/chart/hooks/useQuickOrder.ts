@@ -167,7 +167,7 @@ export function useQuickOrder(
       }
     }
 
-    // Size +/- sub-elements (created once, shown when no preset is active)
+    // Size +/- sub-elements (created once, shown on size cell hover)
     let sizeMinusEl: HTMLDivElement | null = null;
     let sizeCountEl: HTMLDivElement | null = null;
     let sizePlusEl: HTMLDivElement | null = null;
@@ -201,25 +201,35 @@ export function useQuickOrder(
         if (st.orderSize <= 1) return;
         st.setOrderSize(st.orderSize - 1);
         refreshLabel();
+        // With preset: rebuild preview lines so TPs trim to new size
+        if (getPresetMaxSize() != null) createPreviewLines();
       });
 
       sizePlusEl.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         e.preventDefault();
         const st = useStore.getState();
+        const max = getPresetMaxSize();
+        if (max != null && st.orderSize >= max) return; // can't exceed preset size
         st.setOrderSize(st.orderSize + 1);
         refreshLabel();
+        if (max != null) createPreviewLines();
       });
+    }
+
+    function getPresetMaxSize(): number | null {
+      const st = useStore.getState();
+      const preset = st.bracketPresets.find((p) => p.id === st.activePresetId);
+      if (!preset) return null;
+      return preset.config.takeProfits.reduce((sum, tp) => sum + tp.size, 0);
     }
 
     // Prepare size buttons DOM (hidden) — called on hover enter
     function prepareSizeButtons() {
-      const st = useStore.getState();
-      const hasPreset = st.bracketPresets.some((p) => p.id === st.activePresetId);
-      if (hasPreset) return;
-
       setupSizeButtons();
       if (!sizeMinusEl || !sizeCountEl || !sizePlusEl) return;
+
+      const st = useStore.getState();
 
       // Replace labelSize content with sub-elements (buttons stay hidden)
       labelSize.textContent = '';
@@ -244,14 +254,18 @@ export function useQuickOrder(
     function revealSizeButtons() {
       if (!sizeMinusEl || !sizeCountEl || !sizePlusEl) return;
       const sz = useStore.getState().orderSize;
+      const max = getPresetMaxSize();
+      const minDisabled = sz <= 1;
+      const plusDisabled = max != null && sz >= max;
       sizeMinusEl.style.display = '';
       sizePlusEl.style.display = '';
       labelSize.style.background = isBuy ? '#00a004' : '#cc0000';
       requestAnimationFrame(() => {
-        if (sizeMinusEl) sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
-        if (sizePlusEl) sizePlusEl.style.opacity = '1';
+        if (sizeMinusEl) sizeMinusEl.style.opacity = minDisabled ? '0.35' : '1';
+        if (sizePlusEl) sizePlusEl.style.opacity = plusDisabled ? '0.35' : '1';
       });
-      sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
+      sizeMinusEl.style.cursor = minDisabled ? 'default' : 'pointer';
+      sizePlusEl.style.cursor = plusDisabled ? 'default' : 'pointer';
       sizeButtonsActive = true;
     }
 
@@ -275,11 +289,14 @@ export function useQuickOrder(
         sizeMinusEl.style.display = '';
         sizePlusEl.style.display = '';
         const sz = useStore.getState().orderSize;
+        const max = getPresetMaxSize();
+        const plusDisabled = max != null && sz >= max;
         requestAnimationFrame(() => {
           if (sizeMinusEl) sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
-          if (sizePlusEl) sizePlusEl.style.opacity = '1';
+          if (sizePlusEl) sizePlusEl.style.opacity = plusDisabled ? '0.35' : '1';
         });
         if (sizeMinusEl) sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
+        if (sizePlusEl) sizePlusEl.style.cursor = plusDisabled ? 'default' : 'pointer';
       }
     }
     function onTextLeave() {
@@ -311,9 +328,13 @@ export function useQuickOrder(
       if (sizeCountEl && labelSize.contains(sizeCountEl)) {
         // Sub-elements are in the DOM — update the count span only
         sizeCountEl.textContent = String(sz);
-        if (sizeButtonsActive && sizeMinusEl) {
+        if (sizeButtonsActive && sizeMinusEl && sizePlusEl) {
           sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
           sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
+          const max = getPresetMaxSize();
+          const plusDisabled = max != null && sz >= max;
+          sizePlusEl.style.opacity = plusDisabled ? '0.35' : '1';
+          sizePlusEl.style.cursor = plusDisabled ? 'default' : 'pointer';
         }
       } else {
         labelSize.textContent = String(sz);

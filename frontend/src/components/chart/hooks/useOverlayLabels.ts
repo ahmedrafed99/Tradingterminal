@@ -51,9 +51,13 @@ export function useOverlayLabels(
     // Clear previous labels + hit targets
     for (const line of refs.previewLines.current) line.setLabel(null);
     for (const line of refs.orderLines.current) line.setLabel(null);
-    const qoPrev = refs.qoPreviewLines.current;
-    if (qoPrev.sl) qoPrev.sl.setLabel(null);
-    for (const tp of qoPrev.tps) if (tp) tp.setLabel(null);
+    // Only strip qo preview labels if qoPendingPreview is active (this effect owns those labels).
+    // Hover-preview labels are baked in by useQuickOrder's createPreviewLines() — not ours to clear.
+    if (qoPendingPreview) {
+      const qoPrev = refs.qoPreviewLines.current;
+      if (qoPrev.sl) qoPrev.sl.setLabel(null);
+      for (const tp of qoPrev.tps) if (tp) tp.setLabel(null);
+    }
     refs.hitTargets.current = [];
 
     // P&L updater closures — called every frame in updatePositions()
@@ -973,9 +977,14 @@ export function useOverlayLabels(
       // Remove labels from all lines (don't destroy — that's the owning hook's job)
       for (const line of refs.previewLines.current) line.setLabel(null);
       for (const line of refs.orderLines.current) line.setLabel(null);
-      const qoClean = refs.qoPreviewLines.current;
-      if (qoClean.sl) qoClean.sl.setLabel(null);
-      for (const tp of qoClean.tps) if (tp) tp.setLabel(null);
+      // Only strip qo preview labels if this effect actually created them (qoPendingPreview path).
+      // Hover-preview labels are baked in by useQuickOrder's createPreviewLines() — stripping them
+      // here would leave lines without labels when unrelated deps (e.g. orderSize) change.
+      if (qoPendingPreview) {
+        const qoClean = refs.qoPreviewLines.current;
+        if (qoClean.sl) qoClean.sl.setLabel(null);
+        for (const tp of qoClean.tps) if (tp) tp.setLabel(null);
+      }
       refs.hitTargets.current = [];
       refs.updateOverlay.current = () => {};
     };

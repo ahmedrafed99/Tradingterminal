@@ -564,7 +564,7 @@ Hover-reveal `−` / `+` buttons on the **size cell** of order labels.
 
 #### Quick-order label (+ button hover)
 
-When no bracket preset is active, the quick-order label's size cell shows `−` / `+` on hover to adjust `orderSize` in the store.
+The quick-order label's size cell shows `−` / `+` on hover to adjust `orderSize` in the store.
 
 ```
 Normal:      [│ Buy Limit ][ 2 ][ + ]
@@ -582,9 +582,12 @@ Text hover:  [│ Buy Limit ][ − 2 + ][ + ]   (buttons visible, size bg not da
 - Text cell darkens `#cac9cb` → `#b0afb1` on hover
 - Size cell darkens `#00c805` → `#00a004` (buy) / `#ff0000` → `#cc0000` (sell)
 - `mousedown` with `stopPropagation` prevents order placement clicks
-- Only active when no bracket preset is selected
 
-**Files**: `useQuickOrder.ts` (lines ~170–320)
+**With preset active**: `+` is disabled (opacity 0.35) when `orderSize >= preset total TP size` — user cannot increase beyond the preset's configured size. `−` reduces `orderSize` and rebuilds preview lines via `createPreviewLines()`, which uses `fitTpsToOrderSize()` to drop the last TP when it no longer fits. Min size = 1 (1 TP with 1 contract). `getPresetMaxSize()` computes the cap from `preset.config.takeProfits`.
+
+**Without preset**: `+` increases freely with no cap; `−` decreases to min 1.
+
+**Files**: `useQuickOrder.ts` (lines ~170–340)
 
 #### Live TP size redistribution (existing, polished)
 
