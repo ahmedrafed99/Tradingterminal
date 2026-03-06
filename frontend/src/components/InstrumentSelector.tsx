@@ -158,17 +158,12 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
 
       {open && (
         <div
-          className="absolute top-full mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-1 animate-dropdown-in"
+          className="absolute top-full mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-2 animate-dropdown-in"
           style={{
             boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
             ...dropdownStyle,
           }}
         >
-          {/* Section label */}
-          {!showingSearch && bookmarks.length > 0 && (
-            <div className="px-3 pt-2.5 pb-2 text-[10px] text-[#787b86] uppercase tracking-wider text-center">Favorites</div>
-          )}
-
           {searching && results.length === 0 && (
             <div className="px-3 py-2 text-xs text-[#787b86] text-center">Searching...</div>
           )}
