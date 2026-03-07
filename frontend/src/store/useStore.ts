@@ -151,7 +151,8 @@ interface UiState {
 type UndoEntry =
   | { type: 'add'; drawingId: string }
   | { type: 'update'; drawingId: string; previous: Partial<Drawing> }
-  | { type: 'remove'; drawing: Drawing };
+  | { type: 'remove'; drawing: Drawing }
+  | { type: 'clear'; drawings: Drawing[] };
 
 /** Per-type sticky defaults for new drawings (color + strokeWidth). */
 interface DrawingStyleDefaults {
@@ -174,6 +175,7 @@ interface DrawingsState {
   removeDrawing: (id: string) => void;
   pushDrawingUndo: (entry: UndoEntry) => void;
   undoDrawing: () => void;
+  clearAllDrawings: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -580,9 +582,24 @@ export const useStore = create<Store>()(
                 drawingUndoStack: stack,
                 drawings: [...s.drawings, entry.drawing],
               };
+            case 'clear':
+              return {
+                drawingUndoStack: stack,
+                drawings: entry.drawings,
+              };
             default:
               return { drawingUndoStack: stack };
           }
+        }),
+
+      clearAllDrawings: () =>
+        set((s) => {
+          if (s.drawings.length === 0) return s;
+          return {
+            drawings: [],
+            selectedDrawingId: null,
+            drawingUndoStack: [...s.drawingUndoStack, { type: 'clear', drawings: s.drawings }].slice(-50),
+          };
         }),
 
       // Dual Chart

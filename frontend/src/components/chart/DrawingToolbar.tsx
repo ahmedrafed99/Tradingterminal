@@ -53,6 +53,18 @@ function RulerIcon() {
   );
 }
 
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6" />
+      <path d="M14 11v6" />
+      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+    </svg>
+  );
+}
+
 function ChevronRight({ className }: { className?: string }) {
   return (
     <svg width="12" height="12" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
@@ -74,6 +86,8 @@ export function DrawingToolbar() {
   const activeTool = useStore((s) => s.activeTool);
   const setOpen = useStore((s) => s.setDrawingToolbarOpen);
   const setTool = useStore((s) => s.setActiveTool);
+  const drawings = useStore((s) => s.drawings);
+  const clearAllDrawings = useStore((s) => s.clearAllDrawings);
   const [closing, setClosing] = useState(false);
 
   const handleToggle = () => {
@@ -123,6 +137,19 @@ export function DrawingToolbar() {
               <Icon />
             </button>
           ))}
+          {drawings.length > 0 && (
+            <>
+              <div className="border-t border-[#2a2e39]" style={{ margin: '2px 6px' }} />
+              <button
+                onClick={clearAllDrawings}
+                className="flex items-center justify-center text-[#787b86] hover:text-red-400 hover:bg-[#2a2e39]/50 transition-colors"
+                style={{ width: 36, height: 32 }}
+                title="Delete all drawings"
+              >
+                <TrashIcon />
+              </button>
+            </>
+          )}
         </div>
       )}
 

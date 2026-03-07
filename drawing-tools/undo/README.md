@@ -30,7 +30,8 @@ No new components or files — only modifications to existing store slice and ke
 type UndoEntry =
   | { type: 'add'; drawingId: string }
   | { type: 'update'; drawingId: string; previous: Partial<Drawing> }
-  | { type: 'remove'; drawing: Drawing };
+  | { type: 'remove'; drawing: Drawing }
+  | { type: 'clear'; drawings: Drawing[] };
 ```
 
 | Original action | What gets pushed | How undo reverses it |
@@ -38,6 +39,7 @@ type UndoEntry =
 | `addDrawing(d)` | `{ type: 'add', drawingId: d.id }` | Removes the drawing by id |
 | `updateDrawing(id, patch)` | `{ type: 'update', drawingId: id, previous }` | Restores the previous field values (snapshot of patched keys before mutation) |
 | `removeDrawing(id)` | `{ type: 'remove', drawing }` | Re-adds the full drawing object |
+| `clearAllDrawings()` | `{ type: 'clear', drawings }` | Restores all removed drawings |
 
 ---
 
@@ -67,7 +69,9 @@ interface DrawingsState {
 
 **`pushDrawingUndo(entry)`** — manually pushes a single undo entry. Used on drag/resize mouseup to record the pre-drag state as one undoable action.
 
-**`undoDrawing`** — pops the latest entry and reverses it (remove for add, restore previous for update, re-add for remove).
+**`clearAllDrawings`** — saves all current drawings in a `{ type: 'clear', drawings }` undo entry, then clears the drawings array and selection. No-op if no drawings exist.
+
+**`undoDrawing`** — pops the latest entry and reverses it (remove for add, restore previous for update, re-add for remove, restore all for clear).
 
 ### Drag/resize: skipUndo + pushDrawingUndo pattern
 
@@ -127,6 +131,7 @@ Undoable operations:
 - Drag an arrow path node → Ctrl+Z restores original node position
 - Edit color/stroke/text via toolbar → Ctrl+Z restores previous style
 - Delete a drawing → Ctrl+Z brings it back
+- Delete all drawings (trash button) → Ctrl+Z restores all of them
 
 ---
 

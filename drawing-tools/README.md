@@ -138,6 +138,7 @@ interface DrawingsState {
   addDrawing: (drawing: Drawing) => void;
   updateDrawing: (id: string, patch: Partial<Drawing>) => void;
   removeDrawing: (id: string) => void;             // also clears selection if removed
+  clearAllDrawings: () => void;                    // removes all drawings, undoable via Ctrl+Z
 }
 
 interface HLineTemplatesState {
@@ -172,6 +173,7 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 | Oval | Ellipse | Click-and-drag to define bounding rectangle |
 | Arrow Path | Polyline with arrow | Click to place nodes, double-click to finalize (right-click also works) |
 | Ruler | Diagonal ruler | Click to start, move, click to finish — ephemeral measurement overlay |
+| Delete All | Trash bin | Removes all drawings from all charts. Only shown when drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
 
 ### DrawingEditToolbar
 
