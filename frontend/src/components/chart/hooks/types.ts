@@ -6,6 +6,7 @@ import type { CountdownPrimitive } from '../CountdownPrimitive';
 import type { CrosshairLabelPrimitive } from '../CrosshairLabelPrimitive';
 import type { TradeZonePrimitive } from '../TradeZonePrimitive';
 import type { VolumeProfilePrimitive } from '../VolumeProfilePrimitive';
+import type { NewsEventsPrimitive } from '../primitives/NewsEventsPrimitive';
 import type { PriceLevelLine } from '../PriceLevelLine';
 
 // ── Preview line role (entry, SL, TP, or quick-order variants) ──
@@ -69,6 +70,7 @@ export interface ChartRefs {
   whitespaceSeries: React.MutableRefObject<ISeriesApi<'Line'> | null>;
   tradeZonePrimitive: React.MutableRefObject<TradeZonePrimitive | null>;
   vpPrimitive: React.MutableRefObject<VolumeProfilePrimitive | null>;
+  newsEventsPrimitive: React.MutableRefObject<NewsEventsPrimitive | null>;
 
   // DOM elements
   ohlc: React.RefObject<HTMLDivElement | null>;

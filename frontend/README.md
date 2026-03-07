@@ -33,7 +33,8 @@ frontend/
 │   ├── index.css               ← Tailwind import + dark base styles + TradingView watermark hide
 │   ├── types/
 │   │   ├── bracket.ts          ← BracketConfig, BracketPreset, Condition types, buildNativeBracketParams
-│   │   └── drawing.ts          ← Drawing (HLine|Oval|ArrowPath), DrawingTool, DrawingText, HLineTemplate types + constants
+│   │   ├── drawing.ts          ← Drawing (HLine|Oval|ArrowPath), DrawingTool, DrawingText, HLineTemplate types + constants
+│   │   └── news.ts             ← NewsEvent interface
 │   ├── utils/
 │   │   ├── instrument.ts       ← calcPnl, pointsToPrice, priceToPoints, pointsToTicks, getTicksPerPoint
 │   │   ├── cmeSession.ts       ← getCmeSessionStart() — CME session boundary (6 pm NY)
@@ -54,11 +55,12 @@ frontend/
 │   │   ├── tradeService.ts     ← searchTrades (session fills)
 │   │   ├── realtimeService.ts  ← thin facade delegating to active RealtimeAdapter (re-exports types)
 │   │   ├── persistenceService.ts ← file-based settings load/save (GET/PUT /settings)
-│   │   └── bracketEngine.ts    ← client-side bracket order management (SL + multi-TP + conditions + retry + toasts)
+│   │   ├── bracketEngine.ts    ← client-side bracket order management (SL + multi-TP + conditions + retry + toasts)
+│   │   └── newsService.ts     ← fetchEconomicEvents() — GET /news/economic, 4h cache + in-flight dedup
 │   ├── hooks/
 │   │   └── useSettingsSync.ts  ← file-based persistence: hydrate on mount + debounced save on change
 │   ├── store/
-│   │   └── useStore.ts         ← Zustand combined store (11 slices, includes toast)
+│   │   └── useStore.ts         ← Zustand combined store (12 slices, includes toast + news)
 │   └── components/
 │       ├── Toast.tsx            ← ToastContainer + ToastEntry — slide-in notifications (bottom-right)
 │       ├── TopBar.tsx           ← header: account selector, balance, privacy toggle, status, settings
@@ -76,6 +78,8 @@ frontend/
 │       │   ├── PriceLevelLine.ts       ← unified imperative class: horizontal line + label pill + axis label (HTML)
 │       │   ├── CrosshairLabelPrimitive.ts ← HTML crosshair price label (z-index:30, above PriceLevelLine)
 │       │   ├── TradeZonePrimitive.ts  ← ISeriesPrimitive for entry/exit trade zone visualization
+│       │   ├── primitives/
+│       │   │   └── NewsEventsPrimitive.ts ← ISeriesPrimitive for economic calendar markers + click tooltip
 │       │   ├── hooks/
 │       │   │   ├── types.ts              ← ChartRefs interface, shared types (HitTarget, PreviewLineRole, etc.)
 │       │   │   ├── resolvePreviewConfig.ts ← unifies preset+draft and ad-hoc state into BracketConfig
@@ -84,7 +88,8 @@ frontend/
 │       │   │   ├── useChartDrawings.ts   ← drawing creation, drag, resize, undo, keyboard shortcuts
 │       │   │   ├── useQuickOrder.ts      ← + button on price scale, bracket preview, order placement
 │       │   │   ├── useOrderLines.ts      ← preview/order/position price lines, all drag interactions
-│       │   │   └── useOverlayLabels.ts   ← HTML labels (P&L, cancel, +SL/+TP), hit targets, sync
+│       │   │   ├── useOverlayLabels.ts   ← HTML labels (P&L, cancel, +SL/+TP), hit targets, sync
+│       │   │   └── useNewsEvents.ts     ← economic calendar: fetch, store sync, click/hover wiring
 │       │   └── drawings/
 │       │       ├── DrawingsPrimitive.ts ← ISeriesPrimitive orchestrator for all drawings
 │       │       ├── HLineRenderer.ts    ← horizontal line renderer + hit test
@@ -136,6 +141,7 @@ npm run dev
 | `/orders` | `http://localhost:3001` |
 | `/trades` | `http://localhost:3001` |
 | `/health` | `http://localhost:3001` |
+| `/news` | `http://localhost:3001` |
 | `/hubs` | `http://localhost:3001` (WebSocket) |
 
 ---
@@ -279,6 +285,14 @@ In-flight dedup: `loadSettings()` shares a single request across concurrent call
 
 Used by the `useSettingsSync` hook (see below). Survives browser cache clears, origin changes, and port differences. See `settings-persistence/README.md` for the full sync lifecycle.
 
+### `newsService.ts`
+
+```ts
+fetchEconomicEvents()  // GET /news/economic → NewsEvent[]
+```
+
+In-memory cache (4h TTL) + in-flight dedup. Uses native `fetch` (not axios) since the response is a plain array, not the `{ success, ... }` envelope. Called once on chart mount; results stored in Zustand.
+
 ### `bracketEngine.ts`
 
 Client-side singleton that manages SL + multi-TP bracket orders after entry fill. Uses `retryAsync` for SL/TP placement and `showToast` for error notifications. `clearSession()` returns `Set<number>` of order IDs being cancelled. See [bracket-engine/](../bracket-engine/) for full documentation.
@@ -289,8 +303,8 @@ Client-side singleton that manages SL + multi-TP bracket orders after entry fill
 
 Combined store with `persist` middleware (key: `chart-store`). Dual-layer persistence: Zustand writes to `localStorage` (fast), `useSettingsSync` hook writes to `backend/data/user-settings.json` (resilient). On startup, file-based settings take priority. See `settings-persistence/README.md`.
 
-**Persisted fields** (to localStorage + backend JSON file): `baseUrl`, `activeAccountId`, `timeframe`, `pinnedTimeframes`, `pinnedInstruments`, `orderSize`, `bracketPresets`, `activePresetId`, `drawings`, `drawingToolbarOpen`, `hlineTemplates`, `dualChart`, `secondTimeframe`, `splitRatio`, `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab`, `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor`, `contract`, `secondContract`
-**Not persisted** (live state): `connected`, `accounts`, `openOrders`, `positions`, `lastPrice`, `suspendedPresetId`, `settingsOpen`, `editingPresetId`, `draftSlPoints`, `draftTpPoints`, `adHocSlPoints`, `adHocTpLevels`, `activeTool`, `selectedDrawingId`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`, `toasts`
+**Persisted fields** (to localStorage + backend JSON file): `baseUrl`, `activeAccountId`, `timeframe`, `pinnedTimeframes`, `pinnedInstruments`, `orderSize`, `bracketPresets`, `activePresetId`, `drawings`, `drawingToolbarOpen`, `hlineTemplates`, `dualChart`, `secondTimeframe`, `splitRatio`, `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab`, `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor`, `contract`, `secondContract`, `newsVisible`
+**Not persisted** (live state): `connected`, `accounts`, `openOrders`, `positions`, `lastPrice`, `suspendedPresetId`, `settingsOpen`, `editingPresetId`, `draftSlPoints`, `draftTpPoints`, `adHocSlPoints`, `adHocTpLevels`, `activeTool`, `selectedDrawingId`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`, `toasts`, `newsEvents`
 
 ### Slices
 
@@ -309,6 +323,7 @@ Combined store with `persist` middleware (key: `chart-store`). Dual-layer persis
 | DualChart | `dualChart`, `secondContract`, `secondTimeframe`, `selectedChart`, `splitRatio` | `setDualChart`, `setSecondContract`, `setSecondTimeframe`, `setSelectedChart`, `setSplitRatio` |
 | VolumeProfile | `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor`, `vpTradeMode` | `setVpEnabled`, `setVpColor`, `setSecondVpEnabled`, `setSecondVpColor`, `setVpTradeMode` |
 | Toast | `toasts[]` | `addToast`, `dismissToast`, `clearToasts` |
+| News | `newsEvents[]`, `newsVisible` | `setNewsEvents`, `setNewsVisible` |
 
 ### Preset Suspend/Restore
 
@@ -403,15 +418,16 @@ Toast notification system. `<ToastContainer />` is mounted in `App.tsx` (renders
 
 ### `chart/CandlestickChart.tsx` (Orchestrator — 346 lines)
 
-Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.memo` + `forwardRef`. Declares 28 refs bundled into a typed `ChartRefs` bag, runs the chart init effect (createChart, series, primitives, HTML crosshair label), then delegates all behavior to 6 hooks. Exposes `getChartApi()`, `getSeriesApi()`, `getDataMap()`, `isQoHovered()`, `setCrosshairPrice()` via `useImperativeHandle`.
+Full-height candlestick chart using Lightweight Charts v5. Wrapped in `React.memo` + `forwardRef`. Declares 29 refs bundled into a typed `ChartRefs` bag, runs the chart init effect (createChart, series, primitives, HTML crosshair label), then delegates all behavior to 7 hooks. Exposes `getChartApi()`, `getSeriesApi()`, `getDataMap()`, `isQoHovered()`, `setCrosshairPrice()` via `useImperativeHandle`.
 
 Hook call order (preserves original effect ordering):
 1. `useChartWidgets(refs, contract, timeframe)` → `{ showScrollBtn, scrollBtnPos }`
 2. `useChartBars(refs, chartId, contract, timeframe)` → `{ loading, error }`
 3. `useChartDrawings(refs, contract)`
-4. `useQuickOrder(refs, contract, timeframe, isOrderChart)`
-5. `useOrderLines(refs, contract, isOrderChart)`
-6. `useOverlayLabels(refs, contract, isOrderChart)`
+4. `useNewsEvents(refs)`
+5. `useQuickOrder(refs, contract, timeframe, isOrderChart)`
+6. `useOrderLines(refs, contract, isOrderChart)`
+7. `useOverlayLabels(refs, contract, isOrderChart)`
 
 ### `chart/PriceLevelLine.ts` (347 lines)
 
@@ -478,7 +494,7 @@ The + button on the price scale: appears on hover, creates `PriceLevelLine` inst
 
 ### `chart/hooks/types.ts` (112 lines)
 
-Shared type definitions: `ChartRefs` interface (28 refs), `PreviewLineRole`, `OrderLineMeta`, `HitTarget`, `QoPreviewLines`, `PosDragState`, `OrderDragState`. Uses `PriceLevelLine` type from `../PriceLevelLine` for line refs.
+Shared type definitions: `ChartRefs` interface (29 refs), `PreviewLineRole`, `OrderLineMeta`, `HitTarget`, `QoPreviewLines`, `PosDragState`, `OrderDragState`. Uses `PriceLevelLine` type from `../PriceLevelLine` for line refs.
 
 **Label-initiated drag** (click label to edit price):
 - All labels are `pointer-events: none` — interaction detected by container-level `onOverlayHitTest` handler (in useChartDrawings) via coordinate hit testing
@@ -574,7 +590,9 @@ Drawing interactions in `useChartDrawings.ts`: click-to-place (hline), drag-to-c
 
 ### `chart/ChartToolbar.tsx`
 
-Horizontal toolbar: `[InstrumentSelector] | [1m] [15m] [...pinned] [▼ dropdown]  20:05:24 New York`
+Horizontal toolbar: `[InstrumentSelector] | [1m] [15m] [...pinned] [▼ dropdown] [Indicators ▼] [📅 News] ... [Layout] [📷] 20:05:24 New York`
+
+Includes `NewsToggle` button — calendar icon that toggles economic calendar markers on the chart. Active state: `#f0a830` (gold), inactive: `#787b86` (muted). Visibility persisted to localStorage.
 
 ### `order-panel/OrderPanel.tsx`
 
@@ -742,3 +760,4 @@ Calculates the current CME session boundary. If current NY time is before 6 pm, 
 | 10 | Drawing tools (hline, oval, arrow path, text labels, color/stroke editing, drag-to-move, resize) | Done |
 | 11 | Bottom panel (Orders + Trades tabs, draggable separator, session trade list) | Done |
 | 12 | Trade zone visualization (entry/exit rectangles, FIFO matching, chart overlay) | Done |
+| 13 | Economic calendar (news markers on chart, click tooltip, toggle) | Done |

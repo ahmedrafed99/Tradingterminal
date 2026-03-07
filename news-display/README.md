@@ -1,18 +1,12 @@
 # Feature: Economic Calendar on Chart
 
-**Status**: Ready to build — data source confirmed (FXStreet Calendar API)
+**Status**: Implemented and working
 
 Display upcoming economic events (CPI, FOMC, jobless claims, etc.) as markers on the chart. This is a **forward-looking calendar**, not a historical news feed. The primary value is seeing what events are coming up so the trader can plan around them.
 
 ---
 
-## Key Requirement
-
-**We need upcoming/future events, not just past articles.** The FXStreet Calendar API provides exactly this — scheduled event dates with impact levels, consensus, and previous values, weeks in advance.
-
----
-
-## Data Source: FXStreet Calendar API (Confirmed Working)
+## Data Source: FXStreet Calendar API
 
 ### Endpoint
 
@@ -22,51 +16,16 @@ GET https://calendar-api.fxstreet.com/en/api/v1/eventDates/{from}/{to}
 
 - **No API key required**
 - Requires headers: `Origin: https://www.fxstreet.com` and `Referer: https://www.fxstreet.com/`
-- Returns full JSON array of events for the date range
-- Supports arbitrary date ranges (full month, multi-month, etc.)
+- Date range: current month through end of next month
 
-### Date range strategy
+### Filtering (server-side)
 
-Fetch current month + next month to always have ~2-4 weeks ahead:
-```
-from = first day of current month (UTC)
-to   = last day of next month (UTC)
-```
-
-### Response shape (per event)
-
-```json
-{
-  "id": "c719ab7f-...",
-  "eventId": "40055871-...",
-  "dateUtc": "2026-03-11T13:30:00Z",
-  "name": "Consumer Price Index (MoM)",
-  "countryCode": "US",
-  "currencyCode": "USD",
-  "volatility": "HIGH",
-  "actual": null,
-  "consensus": 0.2,
-  "previous": 0.2,
-  "isBetterThanExpected": null,
-  "isSpeech": false,
-  "isPreliminary": false
-}
-```
-
-### Filtering
-
-Filter server-side: `countryCode === 'US' || currencyCode === 'USD'`
-
-### Confirmed stats (March 2026 test)
-
-- 1187 total events → 242 US events (177 upcoming, 65 past)
-- Impact breakdown: HIGH=31, MEDIUM=94, LOW=116
-- Includes FOMC, CPI, NFP, GDP, PCE, jobless claims, Fed speeches, auctions, etc.
-- Has actuals + beat/miss indicators for past events
+- `countryCode === 'US' || currencyCode === 'USD'`
+- `volatility === 'HIGH' || volatility === 'MEDIUM'` (low-impact events excluded)
 
 ### Caching
 
-Backend should cache 4 hours (events don't change often, and we don't want to hammer the endpoint).
+Backend caches results for 4 hours. Frontend also caches in-memory with 4h TTL + in-flight dedup.
 
 ### Failed alternatives (for reference)
 
@@ -78,106 +37,120 @@ Backend should cache 4 hours (events don't change often, and we don't want to ha
 
 ---
 
-## Frontend (Ready to Build)
-
-The frontend implementation was prototyped and works. Key decisions from the prototype:
-
-### Visual Design
-- **Marker**: Purple (#9b59b6) circled lightning bolt icon, rendered via LWC `ISeriesPrimitive` canvas
-- **Position**: Bottom of chart pane, just above time scale (BOTTOM_OFFSET = 14px)
-- **Circle**: radius 10px, purple stroke + translucent purple fill, lightning bolt with glow
-- **Tooltip**: bg-black, border #2a2e39, border-radius 6px
-  - Title: 11px, #d1d4dc, font-weight 600
-  - Impact: colored label (high=#ef5350, medium=#f0a830, low=#787b86)
-  - Date: `M/D/YYYY @ HH:MM am/pm ET` format
-- **Toggle**: Newspaper icon in chart toolbar (active: #f0a830, inactive: #787b86)
-
-### LWC v5 Primitive Notes (from prototype)
-- Renderer must use `CanvasRenderingTarget2D` from `fancy-canvas` with `target.useMediaCoordinateSpace()`
-- Pane height = `chartEl.clientHeight - timeScale().height()` (not just clientHeight)
-- Cursor override needs injected `<style>` with `!important` to beat LWC inline styles
-- Hide tooltip on scroll via `subscribeVisibleLogicalRangeChange` (not in `updateAllViews`)
-
-### NewsEvent Interface
-
-```ts
-interface NewsEvent {
-  id: string;
-  title: string;
-  description: string;
-  date: string;          // ISO 8601 UTC
-  category: 'fed' | 'inflation' | 'employment' | 'other';
-  impact: 'high' | 'medium' | 'low';
-  feedKey: string;
-  source: string;
-  link: string;
-}
-```
-
-### Architecture (once data source is resolved)
+## Architecture
 
 ```
-Calendar API / Data Source
+FXStreet Calendar API
        |
        v  (HTTPS fetch, server-side)
 +-----------------------------------------+
 |  Backend: GET /news/economic            |
-|  Cache 4 hours, filter USD, normalize   |
+|  Cache 4h, filter US + HIGH/MEDIUM      |
 +-----------------------------------------+
        |  JSON
        v
 +-----------------------------------------+
 |  Frontend: newsService.ts               |
-|  In-memory cache + in-flight dedup      |
+|  In-memory cache (4h) + in-flight dedup |
 +-----------------------------------------+
        |
        v
 +-----------------------------------------+
 |  Zustand: NewsState slice               |
-|  newsEvents, newsVisible, filters       |
-|  Persisted: newsVisible, disabledFeeds, |
-|             hiddenKeywords              |
+|  newsEvents[], newsVisible (persisted)  |
 +-----------------------------------------+
        |
        v
 +-----------------------------------------+
 |  Chart: NewsEventsPrimitive             |
-|  Canvas markers + HTML tooltip overlay  |
+|  Canvas markers + click-to-show tooltip |
 +-----------------------------------------+
 ```
 
-### Files (when implemented)
+---
+
+## Visual Design
+
+- **Marker**: Purple (#9b59b6) circled lightning bolt icon, rendered via LWC `ISeriesPrimitive` canvas
+- **Position**: Bottom of chart pane, just above time scale (BOTTOM_OFFSET = 14px)
+- **Circle**: radius 10px, purple stroke + translucent purple fill
+- **Lightning bolt**: colored by highest impact in group (high=#ef5350, medium=#f0a830)
+- **Hover**: brighter circle + cursor override to pointer + glow on bolt
+- **Click**: toggles tooltip (click marker to show, click again or click elsewhere to dismiss)
+- **Nearby markers**: merged when within 2*MARKER_RADIUS px to avoid overlap
+- **Tooltip**: bg-black, border #2a2e39, border-radius 6px, positioned above marker
+  - Title: 11px, #d1d4dc, font-weight 600
+  - Impact: colored uppercase label (high=#ef5350, medium=#f0a830)
+  - Date: `M/D/YYYY @ HH:MM am/pm ET` format
+  - Data: Est/Prev/Act values, beat/miss coloring (#26a69a green / #ef5350 red)
+  - Multiple events per marker separated by dividers (capped at 5, shows "+N more")
+  - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
+- **Toggle**: Calendar icon in chart toolbar (active: #f0a830, inactive: #787b86)
+
+---
+
+## NewsEvent Interface
+
+```ts
+interface NewsEvent {
+  id: string;
+  title: string;
+  date: string;          // ISO 8601 UTC
+  impact: 'high' | 'medium' | 'low';
+  category: 'fed' | 'inflation' | 'employment' | 'other';
+  actual: number | null;
+  consensus: number | null;
+  previous: number | null;
+  isBetterThanExpected: boolean | null;
+  country: string;
+  currency: string;
+}
+```
+
+---
+
+## Files
 
 | File | Purpose |
 |------|---------|
 | `backend/src/routes/newsRoutes.ts` | Express route — `GET /news/economic` |
-| `backend/src/services/newsService.ts` | Calendar fetch, cache, normalize |
+| `backend/src/services/newsService.ts` | FXStreet fetch, 4h cache, filter US HIGH/MEDIUM, categorise |
 | `frontend/src/types/news.ts` | `NewsEvent` interface |
-| `frontend/src/services/newsService.ts` | HTTP client + in-memory cache |
-| `frontend/src/components/chart/primitives/NewsEventsPrimitive.ts` | Chart primitive — markers + tooltip |
-| `frontend/src/components/chart/hooks/useNewsEvents.ts` | Fetch on mount, push to store + primitive |
-| `frontend/src/store/useStore.ts` | `NewsState` slice additions |
-| `frontend/src/components/chart/CandlestickChart.tsx` | Attach primitive |
-| `frontend/src/components/chart/ChartToolbar.tsx` | Toggle button |
+| `frontend/src/services/newsService.ts` | HTTP client + 4h in-memory cache + in-flight dedup |
+| `frontend/src/components/chart/primitives/NewsEventsPrimitive.ts` | ISeriesPrimitive — canvas markers + HTML tooltip |
+| `frontend/src/components/chart/hooks/useNewsEvents.ts` | Fetch on mount, store sync, mouse/click event wiring |
+| `frontend/src/store/useStore.ts` | `NewsState` slice (`newsEvents[]`, `newsVisible`) |
+| `frontend/src/components/chart/CandlestickChart.tsx` | Attach primitive + call hook |
+| `frontend/src/components/chart/ChartToolbar.tsx` | `NewsToggle` button |
 
 ### Primitive Attachment Order
 
 ```
-1. VolumeProfilePrimitive
-2. TradeZonePrimitive
+1. CountdownPrimitive
+2. VolumeProfilePrimitive
 3. NewsEventsPrimitive       <-- this feature
-4. CountdownPrimitive
+4. TradeZonePrimitive
 5. DrawingsPrimitive
 ```
 
 ---
 
-## Phase 2: News Settings Panel
+## LWC v5 Primitive Notes
 
-Filter by source/keyword. UI mockup and Zustand state designed but not yet built. Will implement after the core calendar works.
+- Renderer uses `CanvasRenderingTarget2D` from `fancy-canvas` with `target.useMediaCoordinateSpace()`
+- Pane height = `chartEl.clientHeight - timeScale().height()` (not just clientHeight)
+- Cursor override injects `<style>` with `!important` to beat LWC inline styles
+- Tooltip dismissed on scroll via `subscribeVisibleLogicalRangeChange`
+- Event times mapped to time-axis coordinates via `timeScale().timeToCoordinate()`
 
 ---
 
 ## No New Frontend Dependencies
 
-All rendering is canvas-based (LWC primitive) + vanilla DOM (tooltip). No new packages needed on frontend. Backend may need a dependency depending on the chosen data source.
+All rendering is canvas-based (LWC primitive) + vanilla DOM (tooltip). No new packages needed.
+
+---
+
+## Phase 2: News Settings Panel
+
+Filter by impact/category. Not yet built.

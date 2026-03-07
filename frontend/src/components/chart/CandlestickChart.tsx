@@ -12,6 +12,7 @@ import { CrosshairLabelPrimitive } from './CrosshairLabelPrimitive';
 import { registerChart, unregisterChart } from './screenshot/chartRegistry';
 import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { VolumeProfilePrimitive } from './VolumeProfilePrimitive';
+import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
 import type { PriceLevelLine } from './PriceLevelLine';
 import { useChartWidgets } from './hooks/useChartWidgets';
 import { useChartBars } from './hooks/useChartBars';
@@ -19,6 +20,7 @@ import { useChartDrawings } from './hooks/useChartDrawings';
 import { useQuickOrder } from './hooks/useQuickOrder';
 import { useOrderLines } from './hooks/useOrderLines';
 import { useOverlayLabels } from './hooks/useOverlayLabels';
+import { useNewsEvents } from './hooks/useNewsEvents';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, QoPreviewLines, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
@@ -56,6 +58,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const whitespaceSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const tradeZonePrimitiveRef = useRef<TradeZonePrimitive | null>(null);
   const vpPrimitiveRef = useRef<VolumeProfilePrimitive | null>(null);
+  const newsEventsPrimitiveRef = useRef<NewsEventsPrimitive | null>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
   const instrumentLabelRef = useRef<HTMLDivElement>(null);
   const quickOrderRef = useRef<HTMLDivElement>(null);
@@ -120,6 +123,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     whitespaceSeries: whitespaceSeriesRef,
     tradeZonePrimitive: tradeZonePrimitiveRef,
     vpPrimitive: vpPrimitiveRef,
+    newsEventsPrimitive: newsEventsPrimitiveRef,
     ohlc: ohlcRef,
     instrumentLabel: instrumentLabelRef,
     quickOrder: quickOrderRef,
@@ -193,6 +197,12 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     series.attachPrimitive(vpPrimitive);
     vpPrimitiveRef.current = vpPrimitive;
 
+    // Attach news events primitive — calendar markers at bottom of chart
+    const newsEventsPrimitive = new NewsEventsPrimitive();
+    series.attachPrimitive(newsEventsPrimitive);
+    newsEventsPrimitive.setOverlay(overlayRef.current!, containerRef.current!, chart);
+    newsEventsPrimitiveRef.current = newsEventsPrimitive;
+
     // Attach trade zone primitive — renders entry/exit rectangles behind everything
     const tradeZonePrimitive = new TradeZonePrimitive();
     series.attachPrimitive(tradeZonePrimitive);
@@ -238,6 +248,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       crosshairLabelRef.current = null;
       tradeZonePrimitiveRef.current = null;
       vpPrimitiveRef.current = null;
+      newsEventsPrimitiveRef.current = null;
       el.removeEventListener('mousedown', onSelectClick);
     };
   }, [chartId]);
@@ -247,6 +258,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const { loading, error } = useChartBars(refs, chartId, contract, timeframe);
 
   useChartDrawings(refs, contract);
+  useNewsEvents(refs);
 
   // -- Order panel contract (overlays show on whichever chart matches) --
   const orderContract = useStore((s) => s.orderContract);

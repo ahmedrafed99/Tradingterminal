@@ -373,7 +373,7 @@ Search for half-turn trades (fills) within a time range. Used to calculate daily
 ### News — `/news/*`
 
 #### `GET /news/economic`
-Returns upcoming and recent US economic calendar events from FXStreet. No authentication required (does not depend on TopstepX connection).
+Returns upcoming and recent US economic calendar events (HIGH and MEDIUM impact only) from FXStreet. No authentication required (does not depend on TopstepX connection).
 
 **Response:**
 ```json
@@ -396,7 +396,7 @@ Returns upcoming and recent US economic calendar events from FXStreet. No authen
 
 | Field | Description |
 |-------|-------------|
-| `impact` | `high`, `medium`, or `low` |
+| `impact` | `high` or `medium` (low-impact events are filtered out) |
 | `category` | `fed`, `inflation`, `employment`, or `other` (keyword-based) |
 | `actual` | `null` for upcoming events, number after release |
 | `isBetterThanExpected` | `null` before release, `true`/`false` after |

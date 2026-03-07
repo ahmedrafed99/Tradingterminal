@@ -91,7 +91,7 @@ async function fetchFromFXStreet(): Promise<NewsEvent[]> {
 
   return data
     .filter(e => e.countryCode === 'US' || e.currencyCode === 'USD')
-    .filter(e => e.volatility !== 'NONE')
+    .filter(e => e.volatility === 'HIGH' || e.volatility === 'MEDIUM')
     .map(e => ({
       id: e.id,
       title: e.name,

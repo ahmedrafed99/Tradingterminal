@@ -8,6 +8,7 @@ import type { Trade } from '../services/tradeService';
 import type { BracketPreset } from '../types/bracket';
 import type { Drawing, DrawingTool, HLineTemplate } from '../types/drawing';
 import { OrderSide } from '../types/enums';
+import type { NewsEvent } from '../types/news';
 
 // ---------------------------------------------------------------------------
 // Auth slice
@@ -264,10 +265,20 @@ interface ToastState {
 }
 
 // ---------------------------------------------------------------------------
+// News slice
+// ---------------------------------------------------------------------------
+interface NewsState {
+  newsEvents: NewsEvent[];
+  newsVisible: boolean;
+  setNewsEvents: (events: NewsEvent[]) => void;
+  setNewsVisible: (visible: boolean) => void;
+}
+
+// ---------------------------------------------------------------------------
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = AuthState & AccountsState & InstrumentState & OrdersState
-  & PositionsState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState;
+  & PositionsState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState & NewsState;
 
 export const useStore = create<Store>()(
   persist(
@@ -645,6 +656,12 @@ export const useStore = create<Store>()(
       removeCustomColor: (index) =>
         set((s) => ({ customColors: s.customColors.filter((_, i) => i !== index) })),
 
+      // News
+      newsEvents: [] as NewsEvent[],
+      newsVisible: true,
+      setNewsEvents: (newsEvents) => set({ newsEvents }),
+      setNewsVisible: (newsVisible) => set({ newsVisible }),
+
       // Toasts (not persisted — live state only)
       toasts: [] as ToastItem[],
       addToast: (toast) =>
@@ -692,6 +709,7 @@ export const useStore = create<Store>()(
         contract: s.contract,
         secondContract: s.secondContract,
         orderContract: s.orderContract,
+        newsVisible: s.newsVisible,
       }),
     },
   ),

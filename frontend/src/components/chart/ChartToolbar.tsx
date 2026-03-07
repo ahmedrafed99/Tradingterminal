@@ -260,6 +260,28 @@ function IndicatorsDropdown() {
   );
 }
 
+function NewsToggle() {
+  const newsVisible = useStore((s) => s.newsVisible);
+  const setNewsVisible = useStore((s) => s.setNewsVisible);
+
+  return (
+    <button
+      onClick={() => setNewsVisible(!newsVisible)}
+      className={`self-stretch flex items-center rounded hover:bg-[#1e222d] transition-colors ${
+        newsVisible ? 'text-[#f0a830]' : 'text-[#787b86] hover:text-[#d1d4dc]'
+      }`}
+      style={{ paddingLeft: 10, paddingRight: 10 }}
+      title={newsVisible ? 'Hide economic calendar' : 'Show economic calendar'}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+        <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" />
+        <path d="M3 9h18" />
+        <path d="M9 21V9" />
+      </svg>
+    </button>
+  );
+}
+
 export function ChartToolbar() {
   const pinnedTimeframes = useStore((s) => s.pinnedTimeframes);
   const pinTimeframe = useStore((s) => s.pinTimeframe);
@@ -557,6 +579,9 @@ export function ChartToolbar() {
 
       {/* Indicators */}
       <IndicatorsDropdown />
+
+      {/* News calendar toggle */}
+      <NewsToggle />
 
       {/* Spacer */}
       <div className="flex-1" />
