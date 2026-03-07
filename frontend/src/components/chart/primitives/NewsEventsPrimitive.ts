@@ -283,16 +283,38 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     const ts = this._chart?.timeScale();
     if (!ts || !this._series) return [];
 
-    // Build a linear interpolation function from two known data points
-    const toX = this._buildTimeToX();
-    if (!toX) return [];
+    // Get last candle time + pixel for future-event extrapolation
+    let lastCandleTime = 0;
+    let lastCandleX: number | null = null;
+    let pxPerSec = 0;
+    try {
+      const data = (this._series as any).data() as { time: number }[];
+      if (data && data.length >= 2) {
+        const d1 = data[data.length - 2];
+        const d2 = data[data.length - 1];
+        lastCandleTime = Number(d2.time);
+        const x1 = ts.timeToCoordinate(d1.time as unknown as Time);
+        lastCandleX = ts.timeToCoordinate(d2.time as unknown as Time);
+        if (x1 !== null && lastCandleX !== null) {
+          pxPerSec = (lastCandleX - x1) / (Number(d2.time) - Number(d1.time));
+        }
+      }
+    } catch { /* ignore */ }
 
     // Group events by their time-axis coordinate (rounded to nearest px)
     const byX = new Map<number, NewsEvent[]>();
 
     for (const event of this._events) {
       const eventSec = Math.floor(new Date(event.date).getTime() / 1000);
-      const x = toX(eventSec);
+
+      // Use timeToCoordinate for events within data range (accurate)
+      let x = ts.timeToCoordinate(eventSec as unknown as Time);
+
+      // Fall back to linear extrapolation for future events beyond last candle
+      if (x === null && lastCandleX !== null && eventSec > lastCandleTime && pxPerSec !== 0) {
+        x = (lastCandleX + (eventSec - lastCandleTime) * pxPerSec) as typeof lastCandleX;
+      }
+
       if (x === null) continue;
 
       const rx = Math.round(x);
@@ -321,39 +343,6 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     }
 
     return merged;
-  }
-
-  /**
-   * Build a time→pixel mapping function using linear interpolation.
-   * Finds two candle times with known pixel coordinates and extrapolates.
-   */
-  private _buildTimeToX(): ((timeSec: number) => number | null) | null {
-    const ts = this._chart?.timeScale();
-    if (!ts || !this._series) return null;
-
-    // Get candle data to find two reference points
-    let data: { time: number }[];
-    try {
-      data = (this._series as any).data() as { time: number }[];
-    } catch { return null; }
-    if (!data || data.length < 2) return null;
-
-    // Pick two well-separated candles for accurate interpolation
-    const d1 = data[0];
-    const d2 = data[data.length - 1];
-    const t1 = Number(d1.time);
-    const t2 = Number(d2.time);
-    if (t1 === t2) return null;
-
-    const x1 = ts.timeToCoordinate(d1.time as unknown as Time);
-    const x2 = ts.timeToCoordinate(d2.time as unknown as Time);
-    if (x1 === null || x2 === null) return null;
-
-    const pxPerSec = (x2 - x1) / (t2 - t1);
-
-    return (timeSec: number) => {
-      return x1 + (timeSec - t1) * pxPerSec;
-    };
   }
 
   // -- Tooltip --

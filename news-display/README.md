@@ -79,7 +79,7 @@ FXStreet Calendar API
 - **Hover**: brighter circle (#b07cc6) + cursor override to pointer + glow on bolt
 - **Click**: toggles tooltip (click marker to show, click again or click elsewhere to dismiss)
 - **Nearby markers**: merged when within 2*MARKER_RADIUS px to avoid overlap
-- **Future events**: uses linear interpolation from candle data to place markers beyond the last candle (timeToCoordinate returns null for future times, so we extrapolate from two known reference points)
+- **Future events**: uses `timeToCoordinate` for events within data range (accurate, respects gap compression); falls back to linear extrapolation from last two candles only for future events beyond the last candle
 - **Tooltip**: bg-black, border #2a2e39, border-radius 6px, positioned above marker
   - Title: 11px, #d1d4dc, font-weight 600
   - Impact: colored uppercase label (high=#ef5350, low=#787b86)
@@ -142,7 +142,7 @@ interface NewsEvent {
 - Pane height = `chartEl.clientHeight - timeScale().height()` (not just clientHeight)
 - Cursor override injects `<style>` with `!important` to beat LWC inline styles
 - Tooltip dismissed on scroll via `subscribeVisibleLogicalRangeChange`
-- Event times mapped via linear interpolation (`_buildTimeToX`): picks first/last candle as reference points, computes px-per-second, then extrapolates any timestamp. This is needed because `timeToCoordinate()` returns null for future times beyond the candle data range
+- Event positioning uses `timeToCoordinate()` directly for events within the data range (accurate with gap compression). For future events beyond the last candle (where `timeToCoordinate` returns null), falls back to linear extrapolation from the last two candles
 
 ---
 
