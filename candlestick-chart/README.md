@@ -152,7 +152,7 @@ interface ChartState {
   crosshair time label remains visible when hovering past the latest candle.
   The whitespace lives on its own series (not the candlestick series) so that
   real-time `series.update()` calls are unaffected. Additionally,
-  `timeScale.rightOffset: 200` reserves 200 bar-widths of scrollable empty
+  `timeScale.rightOffset: 15` reserves a small buffer of scrollable empty
   space beyond the last whitespace point, and `shiftVisibleRangeOnNewBar`
   keeps the view auto-scrolling as new candles arrive.
 - **Dual-chart crosshair sync** uses a `master` variable (`'left' | 'right' | null`)
