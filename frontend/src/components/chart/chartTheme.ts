@@ -72,6 +72,8 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
     timeVisible: true,
     secondsVisible: false,
     tickMarkFormatter: nyTickMarkFormatter,
+    rightOffset: 200,
+    shiftVisibleRangeOnNewBar: true,
   },
 };
 

@@ -75,7 +75,7 @@ export function useChartBars(
         const periodSec = getCandlePeriodSeconds(timeframe);
         const lastTime = candles.length > 0 ? (candles[candles.length - 1].time as number) : 0;
         if (lastTime > 0 && refs.whitespaceSeries.current) {
-          refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, 100));
+          refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, 500));
         }
 
         // Populate data map for crosshair sync
