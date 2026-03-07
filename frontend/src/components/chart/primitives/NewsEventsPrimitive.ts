@@ -49,7 +49,6 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
       for (let i = 0; i < this._markers.length; i++) {
         const m = this._markers[i];
         const isHovered = i === this._hoveredIdx;
-        const highestImpact = this._getHighestImpact(m.events);
 
         // Circle
         ctx.beginPath();
@@ -60,23 +59,23 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
-        // Lightning bolt
+        // Lightning bolt — simple ⚡ shape, always purple
         ctx.save();
         ctx.translate(m.x, y);
         ctx.beginPath();
-        ctx.moveTo(-3, -6);
-        ctx.lineTo(1, -1);
-        ctx.lineTo(-1, 0);
-        ctx.lineTo(3, 6);
-        ctx.lineTo(-1, 1);
-        ctx.lineTo(1, 0);
+        ctx.moveTo(1, -7);
+        ctx.lineTo(-3, 1);
+        ctx.lineTo(0, 1);
+        ctx.lineTo(-1, 7);
+        ctx.lineTo(3, -1);
+        ctx.lineTo(0, -1);
         ctx.closePath();
-        ctx.fillStyle = IMPACT_COLORS[highestImpact] || MARKER_COLOR;
+        ctx.fillStyle = isHovered ? '#b07cc6' : MARKER_COLOR;
         ctx.fill();
 
         if (isHovered) {
-          ctx.shadowColor = IMPACT_COLORS[highestImpact] || MARKER_COLOR;
-          ctx.shadowBlur = 6;
+          ctx.shadowColor = MARKER_COLOR;
+          ctx.shadowBlur = 8;
           ctx.fill();
           ctx.shadowBlur = 0;
         }
@@ -85,11 +84,6 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
     });
   }
 
-  private _getHighestImpact(events: NewsEvent[]): string {
-    if (events.some((e) => e.impact === 'high')) return 'high';
-    if (events.some((e) => e.impact === 'medium')) return 'medium';
-    return 'low';
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -286,16 +280,19 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   private _buildMarkers(): MarkerData[] {
-    const chart = this._chart;
-    const ts = chart?.timeScale();
-    if (!ts) return [];
+    const ts = this._chart?.timeScale();
+    if (!ts || !this._series) return [];
+
+    // Build a linear interpolation function from two known data points
+    const toX = this._buildTimeToX();
+    if (!toX) return [];
 
     // Group events by their time-axis coordinate (rounded to nearest px)
     const byX = new Map<number, NewsEvent[]>();
 
     for (const event of this._events) {
-      const eventTime = Math.floor(new Date(event.date).getTime() / 1000) as unknown as Time;
-      const x = ts.timeToCoordinate(eventTime);
+      const eventSec = Math.floor(new Date(event.date).getTime() / 1000);
+      const x = toX(eventSec);
       if (x === null) continue;
 
       const rx = Math.round(x);
@@ -324,6 +321,39 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     }
 
     return merged;
+  }
+
+  /**
+   * Build a time→pixel mapping function using linear interpolation.
+   * Finds two candle times with known pixel coordinates and extrapolates.
+   */
+  private _buildTimeToX(): ((timeSec: number) => number | null) | null {
+    const ts = this._chart?.timeScale();
+    if (!ts || !this._series) return null;
+
+    // Get candle data to find two reference points
+    let data: { time: number }[];
+    try {
+      data = (this._series as any).data() as { time: number }[];
+    } catch { return null; }
+    if (!data || data.length < 2) return null;
+
+    // Pick two well-separated candles for accurate interpolation
+    const d1 = data[0];
+    const d2 = data[data.length - 1];
+    const t1 = Number(d1.time);
+    const t2 = Number(d2.time);
+    if (t1 === t2) return null;
+
+    const x1 = ts.timeToCoordinate(d1.time as unknown as Time);
+    const x2 = ts.timeToCoordinate(d2.time as unknown as Time);
+    if (x1 === null || x2 === null) return null;
+
+    const pxPerSec = (x2 - x1) / (t2 - t1);
+
+    return (timeSec: number) => {
+      return x1 + (timeSec - t1) * pxPerSec;
+    };
   }
 
   // -- Tooltip --
@@ -360,25 +390,13 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       if (i > 0) html += '<div style="border-top:1px solid #2a2e39; margin:5px 0"></div>';
 
       const impactColor = IMPACT_COLORS[ev.impact] || '#787b86';
-      const dateStr = this._formatDate(ev.date);
+      const timeStr = this._formatTime(ev.date);
 
       html += `<div style="font-size:11px; color:#d1d4dc; font-weight:600; line-height:1.3">${this._escapeHtml(ev.title)}</div>`;
       html += `<div style="display:flex; align-items:center; gap:6px; margin-top:3px">`;
       html += `<span style="font-size:10px; color:${impactColor}; font-weight:600; text-transform:uppercase">${ev.impact}</span>`;
-      html += `<span style="font-size:10px; color:#787b86">${dateStr}</span>`;
+      html += `<span style="font-size:10px; color:#787b86">${timeStr}</span>`;
       html += `</div>`;
-
-      // Consensus / Previous / Actual
-      const parts: string[] = [];
-      if (ev.consensus !== null) parts.push(`Est: ${ev.consensus}`);
-      if (ev.previous !== null) parts.push(`Prev: ${ev.previous}`);
-      if (ev.actual !== null) {
-        const beatColor = ev.isBetterThanExpected === true ? '#26a69a' : ev.isBetterThanExpected === false ? '#ef5350' : '#d1d4dc';
-        parts.push(`<span style="color:${beatColor}">Act: ${ev.actual}</span>`);
-      }
-      if (parts.length > 0) {
-        html += `<div style="font-size:10px; color:#787b86; margin-top:2px">${parts.join(' · ')}</div>`;
-      }
     }
 
     if (marker.events.length > 5) {
@@ -425,19 +443,10 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     }
   }
 
-  private _formatDate(iso: string): string {
+  private _formatTime(iso: string): string {
     const d = new Date(iso);
-    const month = d.getMonth() + 1;
-    const day = d.getDate();
-    const year = d.getFullYear();
-    let hours = d.getHours();
-    const minutes = d.getMinutes().toString().padStart(2, '0');
-    const ampm = hours >= 12 ? 'pm' : 'am';
-    hours = hours % 12 || 12;
-
-    // Convert to ET display
     const etStr = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-    return `${month}/${day}/${year} @ ${etStr} ET`;
+    return `${etStr} ET`;
   }
 
   private _escapeHtml(str: string): string {

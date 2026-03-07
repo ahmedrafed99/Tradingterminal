@@ -74,15 +74,15 @@ FXStreet Calendar API
 - **Marker**: Purple (#9b59b6) circled lightning bolt icon, rendered via LWC `ISeriesPrimitive` canvas
 - **Position**: Bottom of chart pane, just above time scale (BOTTOM_OFFSET = 14px)
 - **Circle**: radius 10px, purple stroke + translucent purple fill
-- **Lightning bolt**: colored by highest impact in group (high=#ef5350, medium=#f0a830)
-- **Hover**: brighter circle + cursor override to pointer + glow on bolt
+- **Lightning bolt**: always purple (#9b59b6), simple ⚡ polygon shape
+- **Hover**: brighter circle (#b07cc6) + cursor override to pointer + glow on bolt
 - **Click**: toggles tooltip (click marker to show, click again or click elsewhere to dismiss)
 - **Nearby markers**: merged when within 2*MARKER_RADIUS px to avoid overlap
+- **Future events**: uses linear interpolation from candle data to place markers beyond the last candle (timeToCoordinate returns null for future times, so we extrapolate from two known reference points)
 - **Tooltip**: bg-black, border #2a2e39, border-radius 6px, positioned above marker
   - Title: 11px, #d1d4dc, font-weight 600
   - Impact: colored uppercase label (high=#ef5350, medium=#f0a830)
-  - Date: `M/D/YYYY @ HH:MM am/pm ET` format
-  - Data: Est/Prev/Act values, beat/miss coloring (#26a69a green / #ef5350 red)
+  - Time: `HH:MM am/pm ET` format (time only, no date)
   - Multiple events per marker separated by dividers (capped at 5, shows "+N more")
   - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
 - **Toggle**: Calendar icon in chart toolbar (active: #f0a830, inactive: #787b86)
@@ -141,7 +141,7 @@ interface NewsEvent {
 - Pane height = `chartEl.clientHeight - timeScale().height()` (not just clientHeight)
 - Cursor override injects `<style>` with `!important` to beat LWC inline styles
 - Tooltip dismissed on scroll via `subscribeVisibleLogicalRangeChange`
-- Event times mapped to time-axis coordinates via `timeScale().timeToCoordinate()`
+- Event times mapped via linear interpolation (`_buildTimeToX`): picks first/last candle as reference points, computes px-per-second, then extrapolates any timestamp. This is needed because `timeToCoordinate()` returns null for future times beyond the candle data range
 
 ---
 
