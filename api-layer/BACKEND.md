@@ -25,12 +25,15 @@ backend/
 ├── src/
 │   ├── index.ts                  ← Express app, SignalR WS proxy, server start
 │   ├── auth.ts                   ← in-memory token store + connect/disconnect
-│   └── routes/
-│       ├── authRoutes.ts         ← /auth/*
-│       ├── accountRoutes.ts      ← /accounts
-│       ├── marketDataRoutes.ts   ← /market/*
-│       ├── orderRoutes.ts        ← /orders/*
-│       └── tradeRoutes.ts        ← /trades/*
+│   ├── routes/
+│   │   ├── authRoutes.ts         ← /auth/*
+│   │   ├── accountRoutes.ts      ← /accounts
+│   │   ├── marketDataRoutes.ts   ← /market/*
+│   │   ├── orderRoutes.ts        ← /orders/*
+│   │   ├── tradeRoutes.ts        ← /trades/*
+│   │   └── newsRoutes.ts         ← /news/*
+│   └── services/
+│       └── newsService.ts        ← FXStreet calendar fetch + 4h cache
 ├── scripts/
 │   ├── test-gateway-trade.ts    ← SignalR GatewayTrade event tester
 │   └── test-gateway-depth.ts    ← SignalR GatewayDepth event tester
@@ -364,6 +367,43 @@ Search for half-turn trades (fills) within a time range. Used to calculate daily
 - `Net RP&L = sum(profitAndLoss) - sum(fees)` for all non-voided trades
 - `profitAndLoss` values are already in dollar amounts (no tick-value multiplication needed)
 - Skip trades where `profitAndLoss` is `null` (opening half-turns) or `voided` is `true`
+
+---
+
+### News — `/news/*`
+
+#### `GET /news/economic`
+Returns upcoming and recent US economic calendar events from FXStreet. No authentication required (does not depend on TopstepX connection).
+
+**Response:**
+```json
+[
+  {
+    "id": "835b3265-...",
+    "title": "Consumer Price Index (MoM)",
+    "date": "2026-03-11T13:30:00Z",
+    "impact": "high",
+    "category": "inflation",
+    "actual": null,
+    "consensus": 0.2,
+    "previous": 0.2,
+    "isBetterThanExpected": null,
+    "country": "US",
+    "currency": "USD"
+  }
+]
+```
+
+| Field | Description |
+|-------|-------------|
+| `impact` | `high`, `medium`, or `low` |
+| `category` | `fed`, `inflation`, `employment`, or `other` (keyword-based) |
+| `actual` | `null` for upcoming events, number after release |
+| `isBetterThanExpected` | `null` before release, `true`/`false` after |
+
+**Caching:** Results are cached server-side for 4 hours. The date range covers current month through end of next month.
+
+**Upstream:** `GET https://calendar-api.fxstreet.com/en/api/v1/eventDates/{from}/{to}` — no API key needed, requires `Origin`/`Referer` headers.
 
 ---
 

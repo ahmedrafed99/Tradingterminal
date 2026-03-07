@@ -9,6 +9,7 @@ import marketDataRoutes from './routes/marketDataRoutes';
 import orderRoutes from './routes/orderRoutes';
 import tradeRoutes from './routes/tradeRoutes';
 import settingsRoutes from './routes/settingsRoutes';
+import newsRoutes from './routes/newsRoutes';
 
 const PORT = 3001;
 const app = express();
@@ -28,6 +29,7 @@ app.use('/market', marketDataRoutes);
 app.use('/orders', orderRoutes);
 app.use('/trades', tradeRoutes);
 app.use('/settings', settingsRoutes);
+app.use('/news', newsRoutes);
 
 // Health check — useful for smoke testing
 app.get('/health', (_req, res) => {
@@ -76,4 +78,5 @@ server.listen(PORT, () => {
   console.log(`  POST /market/bars`);
   console.log(`  GET  /orders/open?accountId=`);
   console.log(`  GET  /trades/search?accountId=&startTimestamp=`);
+  console.log(`  GET  /news/economic`);
 });
