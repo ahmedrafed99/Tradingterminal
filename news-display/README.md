@@ -86,7 +86,7 @@ FXStreet Calendar API
   - Time: `HH:MM am/pm ET` format (time only, no date)
   - Multiple events per marker separated by dividers, scrollable (max-height 260px)
   - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
-- **Toggle**: Calendar icon in chart toolbar (active: #f0a830, inactive: #787b86)
+- **Toggle**: Newspaper icon + "News" text label in chart toolbar (active: #f0a830, inactive: #787b86), matches Indicators button style
 
 ---
 

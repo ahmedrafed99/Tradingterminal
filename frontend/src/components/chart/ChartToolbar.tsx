@@ -136,6 +136,10 @@ function IndicatorsDropdown() {
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title="Indicators"
       >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
+          <path d="M3 3v18h18" />
+          <path d="M7 16l4-8 4 4 5-10" />
+        </svg>
         Indicators
         <ChevronDown />
       </button>
@@ -267,17 +271,19 @@ function NewsToggle() {
   return (
     <button
       onClick={() => setNewsVisible(!newsVisible)}
-      className={`self-stretch flex items-center rounded hover:bg-[#1e222d] transition-colors ${
+      className={`self-stretch flex items-center gap-1.5 text-xs font-medium rounded hover:bg-[#1e222d] transition-colors ${
         newsVisible ? 'text-[#f0a830]' : 'text-[#787b86] hover:text-[#d1d4dc]'
       }`}
-      style={{ paddingLeft: 10, paddingRight: 10 }}
+      style={{ paddingLeft: 12, paddingRight: 12 }}
       title={newsVisible ? 'Hide economic calendar' : 'Show economic calendar'}
     >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z" />
-        <path d="M3 9h18" />
-        <path d="M9 21V9" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
+        <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9h4" />
+        <path d="M10 7h6" />
+        <path d="M10 11h6" />
+        <path d="M10 15h4" />
       </svg>
+      News
     </button>
   );
 }
