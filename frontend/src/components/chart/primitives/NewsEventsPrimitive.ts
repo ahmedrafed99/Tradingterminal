@@ -365,7 +365,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       this._tooltipEl = document.createElement('div');
       this._tooltipEl.style.cssText = `
         position: absolute;
-        pointer-events: none;
+        pointer-events: auto;
         z-index: 40;
         background: #000;
         border: 1px solid #2a2e39;
@@ -373,8 +373,12 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
         padding: 8px 10px;
         font-family: ${FONT_FAMILY};
         max-width: 280px;
+        max-height: 260px;
+        overflow-y: auto;
         box-shadow: 0 4px 16px rgba(0,0,0,0.5);
       `;
+      this._tooltipEl.addEventListener('click', (e) => e.stopPropagation());
+      this._tooltipEl.addEventListener('mousedown', (e) => e.stopPropagation());
       this._overlayEl.appendChild(this._tooltipEl);
     }
 
@@ -383,10 +387,8 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
     // Build tooltip content
     let html = '';
-    const eventsToShow = marker.events.slice(0, 5); // cap at 5
-
-    for (let i = 0; i < eventsToShow.length; i++) {
-      const ev = eventsToShow[i];
+    for (let i = 0; i < marker.events.length; i++) {
+      const ev = marker.events[i];
       if (i > 0) html += '<div style="border-top:1px solid #2a2e39; margin:5px 0"></div>';
 
       const impactColor = IMPACT_COLORS[ev.impact] || '#787b86';
@@ -397,10 +399,6 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       html += `<span style="font-size:10px; color:${impactColor}; font-weight:600; text-transform:uppercase">${ev.impact}</span>`;
       html += `<span style="font-size:10px; color:#787b86">${timeStr}</span>`;
       html += `</div>`;
-    }
-
-    if (marker.events.length > 5) {
-      html += `<div style="font-size:10px; color:#787b86; margin-top:4px">+${marker.events.length - 5} more</div>`;
     }
 
     this._tooltipEl.innerHTML = html;

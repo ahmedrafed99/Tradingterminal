@@ -21,7 +21,7 @@ export function useNewsEvents(refs: ChartRefs): void {
     function sync() {
       const { newsEvents, newsVisible } = useStore.getState();
       primitive!.setEnabled(newsVisible);
-      primitive!.setEvents(newsEvents);
+      primitive!.setEvents(newsEvents.filter(e => e.impact !== 'medium'));
     }
 
     sync();

@@ -21,7 +21,8 @@ GET https://calendar-api.fxstreet.com/en/api/v1/eventDates/{from}/{to}
 ### Filtering (server-side)
 
 - `countryCode === 'US' || currencyCode === 'USD'`
-- `volatility === 'HIGH' || volatility === 'MEDIUM'` (low-impact events excluded)
+- `volatility === 'HIGH' || volatility === 'MEDIUM'` (low-impact events excluded server-side)
+- Medium-impact events are filtered out on the frontend (only HIGH shown on chart)
 
 ### Caching
 
@@ -81,9 +82,9 @@ FXStreet Calendar API
 - **Future events**: uses linear interpolation from candle data to place markers beyond the last candle (timeToCoordinate returns null for future times, so we extrapolate from two known reference points)
 - **Tooltip**: bg-black, border #2a2e39, border-radius 6px, positioned above marker
   - Title: 11px, #d1d4dc, font-weight 600
-  - Impact: colored uppercase label (high=#ef5350, medium=#f0a830)
+  - Impact: colored uppercase label (high=#ef5350, low=#787b86)
   - Time: `HH:MM am/pm ET` format (time only, no date)
-  - Multiple events per marker separated by dividers (capped at 5, shows "+N more")
+  - Multiple events per marker separated by dividers, scrollable (max-height 260px)
   - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
 - **Toggle**: Calendar icon in chart toolbar (active: #f0a830, inactive: #787b86)
 
