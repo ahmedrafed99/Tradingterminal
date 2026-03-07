@@ -81,14 +81,6 @@ interface PositionsState {
 }
 
 // ---------------------------------------------------------------------------
-// Trades / Realized P&L slice
-// ---------------------------------------------------------------------------
-interface TradesState {
-  realizedPnl: number;
-  realizedFees: number;
-  setRealizedPnl: (pnl: number, fees: number) => void;
-}
-
 // ---------------------------------------------------------------------------
 // Order Panel slice
 // ---------------------------------------------------------------------------
@@ -273,7 +265,7 @@ interface ToastState {
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = AuthState & AccountsState & InstrumentState & OrdersState
-  & PositionsState & TradesState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState;
+  & PositionsState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState;
 
 export const useStore = create<Store>()(
   persist(
@@ -358,11 +350,6 @@ export const useStore = create<Store>()(
           return { positions: updated };
         }),
       clearPositions: () => set({ positions: [] }),
-
-      // Trades / Realized P&L
-      realizedPnl: 0,
-      realizedFees: 0,
-      setRealizedPnl: (realizedPnl, realizedFees) => set({ realizedPnl, realizedFees }),
 
       // Order Panel
       orderContract: null,

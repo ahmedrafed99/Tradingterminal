@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
 import { PositionType } from '../types/enums';
 import { calcPnl } from '../utils/instrument';
-import { tradeService } from '../services/tradeService';
 import type { Trade } from '../services/tradeService';
-import { getCmeSessionStart } from '../utils/cmeSession';
 import { useStore } from '../store/useStore';
 
 function EyeIcon() {
@@ -70,9 +68,7 @@ export function TopBar() {
     positions,
     lastPrice,
     orderContract,
-    realizedPnl,
-    realizedFees,
-    setRealizedPnl,
+    sessionTrades,
   } = useStore(useShallow((s) => ({
     connected: s.connected,
     accounts: s.accounts,
@@ -84,10 +80,10 @@ export function TopBar() {
     positions: s.positions,
     lastPrice: s.lastPrice,
     orderContract: s.orderContract,
-    realizedPnl: s.realizedPnl,
-    realizedFees: s.realizedFees,
-    setRealizedPnl: s.setRealizedPnl,
+    sessionTrades: s.sessionTrades,
   })));
+
+  const { pnl: realizedPnl, fees: realizedFees } = useMemo(() => aggregatePnl(sessionTrades), [sessionTrades]);
 
   // Auto-select first account when accounts load, or if persisted ID is stale
   useEffect(() => {
@@ -106,53 +102,6 @@ export function TopBar() {
     }
   }, [connected]);
 
-  // Fetch daily realized P&L when account changes
-  useEffect(() => {
-    if (!connected || activeAccountId == null) {
-      setRealizedPnl(0, 0);
-      return;
-    }
-
-    let cancelled = false;
-    const startTimestamp = getCmeSessionStart();
-
-    tradeService.searchTrades(activeAccountId, startTimestamp)
-      .then((trades) => {
-        if (cancelled) return;
-        const { pnl, fees } = aggregatePnl(trades);
-        setRealizedPnl(pnl, fees);
-      })
-      .catch(() => {});
-
-    return () => { cancelled = true; };
-  }, [connected, activeAccountId, setRealizedPnl]);
-
-  // Re-fetch realized P&L when a new trade comes in via SignalR
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!connected) return;
-
-    const handler = () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        const acctId = useStore.getState().activeAccountId;
-        if (acctId == null) return;
-
-        tradeService.searchTrades(acctId, getCmeSessionStart())
-          .then((trades) => {
-            const { pnl, fees } = aggregatePnl(trades);
-            useStore.getState().setRealizedPnl(pnl, fees);
-          })
-          .catch(() => {});
-      }, 500);
-    };
-
-    realtimeService.onTrade(handler);
-    return () => {
-      realtimeService.offTrade(handler);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [connected]);
 
   // Live balance updates via SignalR
   useEffect(() => {
