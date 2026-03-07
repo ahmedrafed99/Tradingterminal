@@ -1,6 +1,6 @@
 # Feature: Economic Calendar on Chart
 
-**Status**: Blocked — need a reliable calendar data source (see Data Source below)
+**Status**: Ready to build — data source confirmed (FXStreet Calendar API)
 
 Display upcoming economic events (CPI, FOMC, jobless claims, etc.) as markers on the chart. This is a **forward-looking calendar**, not a historical news feed. The primary value is seeing what events are coming up so the trader can plan around them.
 
@@ -8,43 +8,73 @@ Display upcoming economic events (CPI, FOMC, jobless claims, etc.) as markers on
 
 ## Key Requirement
 
-**We need upcoming/future events, not just past articles.** RSS feeds from government sites (Fed, BLS) only publish after the fact — they are news, not a calendar. We need a source that provides scheduled event dates before they happen.
+**We need upcoming/future events, not just past articles.** The FXStreet Calendar API provides exactly this — scheduled event dates with impact levels, consensus, and previous values, weeks in advance.
 
 ---
 
-## Data Source (Unresolved)
+## Data Source: FXStreet Calendar API (Confirmed Working)
 
-We tried two approaches that didn't work well:
+### Endpoint
 
-### Attempt 1: Government RSS Feeds
-- Fed (`federalreserve.gov/feeds/press_monetary.xml`), BLS (`bls.gov/feed/cpi.rss`, `bls.gov/feed/bls_latest.rss`)
-- **Problem**: These are historical — they publish articles *after* events happen. No future event dates.
+```
+GET https://calendar-api.fxstreet.com/en/api/v1/eventDates/{from}/{to}
+```
 
-### Attempt 2: Forex Factory Calendar Mirror
-- `https://nfs.faireconomy.media/ff_calendar_thisweek.json`
-- **Problem**: Only has current week data (no `nextweek` endpoint). Aggressive rate limiting (429s). Unofficial mirror that could disappear.
+- **No API key required**
+- Requires headers: `Origin: https://www.fxstreet.com` and `Referer: https://www.fxstreet.com/`
+- Returns full JSON array of events for the date range
+- Supports arbitrary date ranges (full month, multi-month, etc.)
 
-### What We Need
-A data source that provides:
-- **Scheduled future economic events** (at least 1-2 weeks ahead)
-- **Event title** (e.g. "US Initial Jobless Claims")
-- **Date + time** (UTC or with timezone)
-- **Impact level** (high / medium / low)
-- **Country filter** (USD only for now)
-- Free or low-cost, reliable, JSON-friendly
+### Date range strategy
 
-### Attempt 3: Finnhub Free Tier
-- `GET /api/v1/calendar/economic?from=...&to=...`
-- **Problem**: Returns 403 on the free plan. Economic calendar is a paid-only endpoint. API key works fine for other endpoints (e.g. `/quote`), so this is a tier restriction, not a key issue.
+Fetch current month + next month to always have ~2-4 weeks ahead:
+```
+from = first day of current month (UTC)
+to   = last day of next month (UTC)
+```
 
-### Candidates to Investigate
-- ~~**Finnhub API**~~ — economic calendar is paid-only (confirmed)
-- **Trading Economics API** — has a calendar, but paid
-- **Investing.com calendar** — no official API, scraping is fragile
-- **FXStreet calendar** — no official API
-- **Myfxbook calendar** — has an unofficial JSON endpoint, reliability unknown
-- **Self-hosted scraper** — scrape a calendar page on a schedule, store in our own DB
-- **Manual JSON file** — maintain a static `calendar.json` updated weekly (low-tech but reliable)
+### Response shape (per event)
+
+```json
+{
+  "id": "c719ab7f-...",
+  "eventId": "40055871-...",
+  "dateUtc": "2026-03-11T13:30:00Z",
+  "name": "Consumer Price Index (MoM)",
+  "countryCode": "US",
+  "currencyCode": "USD",
+  "volatility": "HIGH",
+  "actual": null,
+  "consensus": 0.2,
+  "previous": 0.2,
+  "isBetterThanExpected": null,
+  "isSpeech": false,
+  "isPreliminary": false
+}
+```
+
+### Filtering
+
+Filter server-side: `countryCode === 'US' || currencyCode === 'USD'`
+
+### Confirmed stats (March 2026 test)
+
+- 1187 total events → 242 US events (177 upcoming, 65 past)
+- Impact breakdown: HIGH=31, MEDIUM=94, LOW=116
+- Includes FOMC, CPI, NFP, GDP, PCE, jobless claims, Fed speeches, auctions, etc.
+- Has actuals + beat/miss indicators for past events
+
+### Caching
+
+Backend should cache 4 hours (events don't change often, and we don't want to hammer the endpoint).
+
+### Failed alternatives (for reference)
+
+| Source | Problem |
+|--------|---------|
+| Government RSS (Fed, BLS) | Historical only — publishes after events, not a calendar |
+| Forex Factory mirror (`nfs.faireconomy.media`) | Current week only, aggressive 429 rate limiting, unofficial |
+| Finnhub `/calendar/economic` | Returns 403 on free plan (paid-only endpoint) |
 
 ---
 
