@@ -21,6 +21,7 @@ export function OrderPanel() {
   const {
     orderContract, activeAccountId, setLastPrice, upsertPosition, upsertOrder, removeOrder,
     suspendPreset, restorePreset, editingPresetId,
+    orderLinkedToChart, setOrderLinkedToChart, setOrderContract,
   } = useStore(useShallow((s) => ({
     orderContract: s.orderContract,
     activeAccountId: s.activeAccountId,
@@ -31,7 +32,22 @@ export function OrderPanel() {
     suspendPreset: s.suspendPreset,
     restorePreset: s.restorePreset,
     editingPresetId: s.editingPresetId,
+    orderLinkedToChart: s.orderLinkedToChart,
+    setOrderLinkedToChart: s.setOrderLinkedToChart,
+    setOrderContract: s.setOrderContract,
   })));
+
+  // Sync order panel instrument to the specifically linked chart
+  const linkedContract = useStore((s) =>
+    s.orderLinkedToChart === 'left' ? s.contract
+      : s.orderLinkedToChart === 'right' ? s.secondContract
+      : null,
+  );
+  useEffect(() => {
+    if (orderLinkedToChart && linkedContract) {
+      setOrderContract(linkedContract);
+    }
+  }, [orderLinkedToChart, linkedContract, setOrderContract]);
 
   const subscribedAccountRef = useRef<number | null>(null);
 
@@ -205,7 +221,10 @@ export function OrderPanel() {
       <div className="flex flex-col" style={{ gap: 20 }}>
         {/* Instrument */}
         <div>
-          <div className="text-[10px] text-[#787b86] uppercase tracking-wider mb-1 text-center">Instrument</div>
+          <div className="flex items-center mb-1">
+            <div className="flex-1 text-[10px] text-[#787b86] uppercase tracking-wider text-center">Instrument</div>
+            <LinkChartButton linked={orderLinkedToChart} onToggle={setOrderLinkedToChart} />
+          </div>
           <div className="bg-[#111] rounded">
             <InstrumentSelector fixed />
           </div>
@@ -236,6 +255,31 @@ export function OrderPanel() {
         </Suspense>
       )}
     </div>
+  );
+}
+
+function LinkChartButton({ linked, onToggle }: {
+  linked: 'left' | 'right' | null;
+  onToggle: (v: 'left' | 'right' | null) => void;
+}) {
+  const selectedChart = useStore((s) => s.selectedChart);
+  const isActiveForSelected = linked === selectedChart;
+  const label = isActiveForSelected ? `Linked to ${linked} chart` : 'Link to chart';
+  return (
+    <button
+      onClick={() => onToggle(isActiveForSelected ? null : selectedChart)}
+      title={label}
+      className="transition-colors"
+      style={{ padding: '0 2px' }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke={isActiveForSelected ? '#f0a830' : '#787b86'}
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      >
+        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+      </svg>
+    </button>
   );
 }
 

@@ -88,6 +88,8 @@ interface PositionsState {
 interface OrderPanelState {
   orderContract: Contract | null;
   setOrderContract: (contract: Contract) => void;
+  orderLinkedToChart: 'left' | 'right' | null;
+  setOrderLinkedToChart: (linked: 'left' | 'right' | null) => void;
   orderType: 'market' | 'limit';
   limitPrice: number | null;
   orderSize: number;
@@ -367,6 +369,8 @@ export const useStore = create<Store>()(
       // Order Panel
       orderContract: null,
       setOrderContract: (orderContract) => set({ orderContract }),
+      orderLinkedToChart: null as 'left' | 'right' | null,
+      setOrderLinkedToChart: (orderLinkedToChart) => set({ orderLinkedToChart }),
       orderType: 'market',
       limitPrice: null,
       orderSize: 1,
@@ -709,6 +713,7 @@ export const useStore = create<Store>()(
         contract: s.contract,
         secondContract: s.secondContract,
         orderContract: s.orderContract,
+        orderLinkedToChart: s.orderLinkedToChart,
         newsVisible: s.newsVisible,
       }),
     },

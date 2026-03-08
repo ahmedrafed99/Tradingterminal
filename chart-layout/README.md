@@ -10,7 +10,7 @@ Side-by-side chart layout with independent instruments, timeframes, draggable se
 
 Toggling "dual chart" mode splits the chart area into two independent candlestick charts separated by a draggable divider. Each chart has its own instrument and timeframe. The toolbar (instrument selector + timeframe picker) routes to whichever chart is selected (blue border).
 
-**Order panel** stays tied to its own instrument (`orderContract` in store) — independent of chart selection. The order panel's instrument only changes via its own `InstrumentSelector` (`fixed` prop).
+**Order panel** has its own instrument (`orderContract` in store). A **link toggle** (chain-link icon next to the "Instrument" label) can bind it to a specific chart (`'left'` or `'right'`). When linked, changing the chart instrument updates the order panel and vice versa. The link is per-chart — linking to the left chart does not affect the right chart. The icon reflects whether the *currently selected* chart is the linked one (orange `#f0a830` when active, dim `#787b86` otherwise).
 
 ---
 

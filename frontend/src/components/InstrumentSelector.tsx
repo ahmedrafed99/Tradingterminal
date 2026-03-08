@@ -24,6 +24,13 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
     fixed ? s.setOrderContract
       : s.selectedChart === 'left' ? s.setContract : s.setSecondContract,
   );
+  // When order panel is linked to a chart, also update that chart's contract on selection
+  const setLinkedChartContract = useStore((s) =>
+    !fixed ? null
+      : s.orderLinkedToChart === 'left' ? s.setContract
+      : s.orderLinkedToChart === 'right' ? s.setSecondContract
+      : null,
+  );
   const pinnedInstruments = useStore((s) => s.pinnedInstruments);
   const pinInstrument = useStore((s) => s.pinInstrument);
   const unpinInstrument = useStore((s) => s.unpinInstrument);
@@ -89,6 +96,7 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
 
   function handleSelect(c: Contract) {
     setContract(c);
+    if (setLinkedChartContract) setLinkedChartContract(c);
     setQuery('');
     setOpen(false);
   }

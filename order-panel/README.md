@@ -51,9 +51,17 @@ and the preview toggle that overlays ghost lines on the chart.
 - Searchable dropdown backed by `/api/Contract/search`
 - Typing debounces 300 ms then fetches matching contracts
 - Shows contract name + description in options
-- Uses `fixed` prop to bind to `orderContract` (independent of chart selection)
+- Uses `fixed` prop to bind to `orderContract`
+- When linked to a chart, selecting an instrument here also updates the linked chart's contract
 - Selection is persisted across refreshes (both localStorage and backend file)
 - On change: chart reloads bars for the new contract
+
+### `LinkChartButton`
+- Chain-link icon next to the "Instrument" section label
+- Toggles `orderLinkedToChart` between `null` and the currently selected chart (`'left'` | `'right'`)
+- When active for the selected chart: orange (`#f0a830`); otherwise dim (`#787b86`)
+- Same SVG icon for both states — color-only toggle
+- Bidirectional sync: chart→order panel (via `useEffect`) and order panel→chart (via `setLinkedChartContract` in `InstrumentSelector`)
 
 ### `OrderTypeTabs`
 - Two tabs: **Market** | **Limit**
@@ -102,7 +110,8 @@ and the preview toggle that overlays ghost lines on the chart.
 
 ```ts
 interface OrderPanelState {
-  orderContract: Contract | null      // independent from chart contract
+  orderContract: Contract | null
+  orderLinkedToChart: 'left' | 'right' | null  // which chart is linked (null = independent)
   orderType: 'market' | 'limit'
   limitPrice: number | null
   orderSize: number                   // contracts
