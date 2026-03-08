@@ -189,8 +189,10 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     if (this._countdownText) {
       this._countdownEl!.style.display = '';
       this._countdownEl!.textContent = this._countdownText;
+      this._priceEl!.style.padding = '3px 0 0';
     } else {
       this._countdownEl!.style.display = 'none';
+      this._priceEl!.style.padding = '3px 0 3px';
     }
   }
 

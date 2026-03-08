@@ -157,11 +157,25 @@ export function useChartBars(
 
     startRealtime();
 
+    function isFuturesMarketOpen(): boolean {
+      const now = new Date();
+      const day = now.getUTCDay();   // 0=Sun … 6=Sat
+      const h = now.getUTCHours();
+      // Closed: Friday 22:00 UTC (17:00 ET) → Sunday 23:00 UTC (18:00 ET)
+      if (day === 6) return false;                        // all Saturday
+      if (day === 5 && h >= 22) return false;             // Friday after 22:00 UTC
+      if (day === 0 && h < 23) return false;              // Sunday before 23:00 UTC
+      return true;
+    }
+
     function handleQuote(quoteContractId: string, data: GatewayQuote) {
       if (quoteContractId !== contractId || !refs.series.current) return;
 
       const price = data.lastPrice;
       if (price == null || !isFinite(price)) return;
+
+      // Skip quotes while futures market is closed (Fri 17:00 ET → Sun 18:00 ET)
+      if (!isFuturesMarketOpen()) return;
 
       const lastBar = refs.lastBar.current;
       // Don't process quotes until historical data has loaded
