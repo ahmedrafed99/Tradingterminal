@@ -1,5 +1,4 @@
 import { useStore } from '../../store/useStore';
-import { DatePresetSelector } from './DatePresetSelector';
 import { OrdersTab } from './OrdersTab';
 import { TradesTab } from './TradesTab';
 import { ConditionsTab } from './ConditionsTab';
@@ -99,12 +98,6 @@ export function BottomPanel() {
                 Preview
               </span>
             </label>
-          </>
-        )}
-        {tab === 'trades' && (
-          <>
-            <Separator />
-            <DatePresetSelector />
           </>
         )}
       </div>

@@ -6,6 +6,7 @@ import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
 import { getDateRange } from '../../utils/cmeSession';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
+import { DatePresetSelector } from './DatePresetSelector';
 
 type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'net' | 'duration';
 type SortDir = 'asc' | 'desc';
@@ -267,8 +268,15 @@ export function TradesTab() {
 
   if (closingTrades.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-[#434651] text-xs">
-        {emptyLabels[tradesDatePreset]}
+      <div className="flex flex-col h-full">
+        <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
+          <div className="ml-auto" style={{ paddingRight: 16 }}>
+            <DatePresetSelector />
+          </div>
+        </div>
+        <div className="flex items-center justify-center flex-1 text-[#434651] text-xs">
+          {emptyLabels[tradesDatePreset]}
+        </div>
       </div>
     );
   }
@@ -281,33 +289,38 @@ export function TradesTab() {
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
       <div className="sticky top-0 z-10 bg-black border-b border-[#2a2e39]">
-        <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '70%' }}>
-          {([
-            ['Time', 'time'],
-            ['Side', 'side'],
-            ['Symbol', 'symbol'],
-            ['Qty', 'qty'],
-            ['Entry', 'entry'],
-            ['Exit', 'exit'],
-            ['Duration', 'duration'],
-            ['P&L', 'pnl'],
-            ['Fees', 'fees'],
-            ['Net', 'net'],
-          ] as const).map(([label, col]) => {
-            const active = sortCol === col;
-            return (
-              <div
-                key={col}
-                className={`px-3 text-center cursor-pointer select-none hover:text-[#d1d4dc] transition-colors ${active ? 'text-[#d1d4dc]' : ''}`}
-                onClick={() => toggleSort(col)}
-              >
-                {label}
-                {active && (
-                  <span className="ml-0.5 text-[10px]">{sortDir === 'asc' ? ' \u25B2' : ' \u25BC'}</span>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex items-center h-8">
+          <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '70%' }}>
+            {([
+              ['Time', 'time'],
+              ['Side', 'side'],
+              ['Symbol', 'symbol'],
+              ['Qty', 'qty'],
+              ['Entry', 'entry'],
+              ['Exit', 'exit'],
+              ['Duration', 'duration'],
+              ['P&L', 'pnl'],
+              ['Fees', 'fees'],
+              ['Net', 'net'],
+            ] as const).map(([label, col]) => {
+              const active = sortCol === col;
+              return (
+                <div
+                  key={col}
+                  className={`px-3 text-center cursor-pointer select-none hover:text-[#d1d4dc] transition-colors ${active ? 'text-[#d1d4dc]' : ''}`}
+                  onClick={() => toggleSort(col)}
+                >
+                  {label}
+                  {active && (
+                    <span className="ml-0.5 text-[10px]">{sortDir === 'asc' ? ' \u25B2' : ' \u25BC'}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="ml-auto" style={{ paddingRight: 16 }}>
+            <DatePresetSelector />
+          </div>
         </div>
       </div>
 
