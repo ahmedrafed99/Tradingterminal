@@ -26,7 +26,10 @@ GET https://calendar-api.fxstreet.com/en/api/v1/eventDates/{from}/{to}
 
 ### Caching
 
-Backend caches results for 4 hours. Frontend also caches in-memory with 4h TTL + in-flight dedup.
+- **Disk cache**: Backend persists results to `backend/data/news-calendar.json` so data survives server restarts without re-fetching
+- **Memory cache**: Backend + frontend both hold in-memory cache with 4h TTL
+- **Month rollover**: Cache auto-invalidates when the calendar month changes (new date range)
+- **Frontend dedup**: In-flight request deduplication prevents duplicate API calls
 
 ### Failed alternatives (for reference)
 
@@ -46,7 +49,8 @@ FXStreet Calendar API
        v  (HTTPS fetch, server-side)
 +-----------------------------------------+
 |  Backend: GET /news/economic            |
-|  Cache 4h, filter US + HIGH/MEDIUM      |
+|  Disk cache (news-calendar.json, 4h)    |
+|  + memory cache, filter US + HIGH/MED   |
 +-----------------------------------------+
        |  JSON
        v
@@ -115,7 +119,8 @@ interface NewsEvent {
 | File | Purpose |
 |------|---------|
 | `backend/src/routes/newsRoutes.ts` | Express route — `GET /news/economic` |
-| `backend/src/services/newsService.ts` | FXStreet fetch, 4h cache, filter US HIGH/MEDIUM, categorise |
+| `backend/src/services/newsService.ts` | FXStreet fetch, disk + memory cache (4h), filter US HIGH/MEDIUM, categorise |
+| `backend/data/news-calendar.json` | Disk cache for economic events (auto-generated, survives restarts) |
 | `frontend/src/types/news.ts` | `NewsEvent` interface |
 | `frontend/src/services/newsService.ts` | HTTP client + 4h in-memory cache + in-flight dedup |
 | `frontend/src/components/chart/primitives/NewsEventsPrimitive.ts` | ISeriesPrimitive — canvas markers + HTML tooltip |

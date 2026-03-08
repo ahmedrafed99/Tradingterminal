@@ -1,4 +1,6 @@
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -35,13 +37,39 @@ export interface NewsEvent {
 }
 
 // ---------------------------------------------------------------------------
-// Cache
+// Disk cache
 // ---------------------------------------------------------------------------
 
-const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+interface DiskCache {
+  fetchedAt: number;
+  dateRange: string; // "YYYY-MM" of the `from` month, used to detect month rollover
+  events: NewsEvent[];
+}
 
-let cachedEvents: NewsEvent[] | null = null;
-let cacheTimestamp = 0;
+const CACHE_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+const CACHE_FILE = path.join(__dirname, '..', '..', 'data', 'news-calendar.json');
+
+let memCache: DiskCache | null = null;
+
+function loadDiskCache(): DiskCache | null {
+  try {
+    if (!fs.existsSync(CACHE_FILE)) return null;
+    const raw = fs.readFileSync(CACHE_FILE, 'utf-8');
+    return JSON.parse(raw) as DiskCache;
+  } catch {
+    return null;
+  }
+}
+
+function saveDiskCache(cache: DiskCache): void {
+  try {
+    const dir = path.dirname(CACHE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
+  } catch {
+    // Non-critical — in-memory cache still works
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Categorisation
@@ -63,13 +91,15 @@ function categorise(name: string): NewsEvent['category'] {
 // Date helpers
 // ---------------------------------------------------------------------------
 
-function getDateRange(): { from: string; to: string } {
+function getDateRange(): { from: string; to: string; rangeKey: string } {
   const now = new Date();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0)); // last day of next month
+  const rangeKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   return {
     from: from.toISOString().slice(0, 19),
     to: to.toISOString().slice(0, 19),
+    rangeKey,
   };
 }
 
@@ -113,12 +143,26 @@ async function fetchFromFXStreet(): Promise<NewsEvent[]> {
 
 export async function getEconomicEvents(): Promise<NewsEvent[]> {
   const now = Date.now();
-  if (cachedEvents && now - cacheTimestamp < CACHE_TTL_MS) {
-    return cachedEvents;
+  const { rangeKey } = getDateRange();
+
+  // 1. Try in-memory cache
+  if (memCache && memCache.dateRange === rangeKey && now - memCache.fetchedAt < CACHE_TTL_MS) {
+    return memCache.events;
   }
 
+  // 2. Try disk cache (survives server restarts & page refreshes)
+  if (!memCache) {
+    const disk = loadDiskCache();
+    if (disk && disk.dateRange === rangeKey && now - disk.fetchedAt < CACHE_TTL_MS) {
+      memCache = disk;
+      return disk.events;
+    }
+  }
+
+  // 3. Fetch fresh from API
   const events = await fetchFromFXStreet();
-  cachedEvents = events;
-  cacheTimestamp = Date.now();
+  const cache: DiskCache = { fetchedAt: Date.now(), dateRange: rangeKey, events };
+  memCache = cache;
+  saveDiskCache(cache);
   return events;
 }

@@ -75,7 +75,10 @@ export function useChartBars(
         const periodSec = getCandlePeriodSeconds(timeframe);
         const lastTime = candles.length > 0 ? (candles[candles.length - 1].time as number) : 0;
         if (lastTime > 0 && refs.whitespaceSeries.current) {
-          refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, 500));
+          // Scale whitespace count so every timeframe extends ~90 days into the future
+          const TARGET_FUTURE_SECS = 90 * 86400;
+          const wsCount = Math.max(50, Math.ceil(TARGET_FUTURE_SECS / periodSec));
+          refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, wsCount));
         }
 
         // Populate data map for crosshair sync
