@@ -133,7 +133,7 @@ No auth guard — the backend is local-only (CORS locked to `localhost:5173`).
 2. `useSettingsSync` hook fires `GET /settings` (async, deduped — concurrent calls from StrictMode share one request)
 3. If file has data → shallow-compares each key by value (`JSON.stringify`) and only patches keys that actually changed (avoids re-triggering effects with identical data)
 4. If file is empty (first run) → seeds the file with current store state (backs up localStorage data)
-5. Sets `settingsHydrated: true` in store — chart bars loading is gated on this flag to prevent wasted requests on stale localStorage contract data
+5. Sets `settingsHydrated: true` in store — used by the order-contract auto-load effect (App.tsx) to wait for the correct contract before firing
 6. Enables save subscription via `requestAnimationFrame` delay — prevents the hydration `setState` from triggering an immediate save-back of the same data
 
 ### Runtime (ongoing saves)

@@ -29,13 +29,12 @@ export function useChartBars(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const settingsHydrated = useStore((s) => s.settingsHydrated);
   const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
   const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
 
   // -- Historical bars loading --
   useEffect(() => {
-    if (!settingsHydrated || !contract || !refs.series.current) return;
+    if (!contract || !refs.series.current) return;
 
     const series = refs.series.current;
     let cancelled = false;
@@ -134,7 +133,7 @@ export function useChartBars(
 
     loadBars();
     return () => { cancelled = true; };
-  }, [settingsHydrated, contract, timeframe]);
+  }, [contract, timeframe]);
 
   // -- Real-time quote subscription --
   useEffect(() => {
