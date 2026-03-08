@@ -9,25 +9,36 @@ A localhost web app for trading on a candlestick chart using the
 
 ### Folder Map
 
+All feature documentation lives in `docs/`. Each subfolder has a `README.md`.
+
 ```
-chart/
+docs/
 ├── api-layer/            — REST + SignalR services, backend exchange adapter
 ├── api-settings/         — Settings modal, API credentials
 ├── top-bar/              — Account selector, balance, UP&L, RP&L, latency
 ├── candlestick-chart/    — Chart core: bars, toolbar, crosshair, primitive z-order
 │   ├── ohlc-tooltip/     — OHLC hover tooltip
 │   ├── bar-countdown/    — Current bar time remaining
+│   ├── go-to-now/        — Floating scroll-to-latest button
 │   ├── symbol-display/   — Instrument label overlay
 │   └── indicators/
 │       └── volume-profile/ — Session volume profile (GatewayDepth)
+├── chart-settings-menu/  — Gear button, quick popover, full settings modal
 ├── chart-trading/        — + button, order lines, preview overlay, drag, labels
 ├── chart-screenshot/     — Screenshot capture + clipboard
 ├── chart-layout/         — Dual chart + crosshair sync
 ├── drawing-tools/        — HLine, oval, arrow path, renderers, templates
+│   └── undo/             — Ctrl+Z undo stack for drawings
 ├── order-panel/          — Order entry sidebar, market/limit, buy/sell
 │   └── bracket-settings/ — Preset UI: SL, multi-TP, conditions
 ├── bracket-engine/       — Runtime SL/TP placement after fill, condition evaluation
 ├── bottom-panel/         — Orders + Trades tabs, trade zone visualization
+├── chat-bot/             — AI chat panel with tool use
+├── conditional-orders/   — Candle-close triggered orders
+├── database/             — Local SQLite for 1-min candles
+├── instrument-selector/  — Popover instrument picker with filters
+├── journal/              — Trade journaling with screenshots
+├── news-display/         — Economic calendar + chart markers
 ├── settings-persistence/ — File-based settings backup (survives cache clears)
 └── frontend/             — Full index: all components, services, store slices, types
 ```
@@ -36,28 +47,29 @@ chart/
 
 | I want to understand...                     | Go to |
 |---------------------------------------------|-------|
-| The + button on the price scale             | `chart-trading/` → Plus Button |
-| How order lines appear on the chart         | `chart-trading/` → Live Order & Position Lines |
-| Preview ghost lines (SL/TP/Entry)           | `chart-trading/` → Preview Overlay |
-| Drag-to-modify order prices                 | `chart-trading/` → Drag-to-Modify |
-| Overlay labels (P&L, size, cancel)          | `chart-trading/` → Overlay Label System |
-| How SL/TP are placed after entry fill       | `bracket-engine/` |
-| Bracket preset configuration UI             | `order-panel/bracket-settings/` |
-| How realized P&L is calculated              | `top-bar/` → Centre — Realized P&L |
-| How unrealized P&L is calculated            | `top-bar/` → Centre — Balance + UP&L |
-| Drawing renderers and hit testing           | `drawing-tools/` |
-| Volume profile data source (GatewayDepth)   | `candlestick-chart/indicators/volume-profile/` |
-| Chart screenshot / clipboard                | `chart-screenshot/` |
-| Dual chart layout + crosshair sync          | `chart-layout/` |
-| Crosshair price label + primitive z-order   | `candlestick-chart/` → Price Scale Primitives |
-| Orders and Trades tabs                      | `bottom-panel/` |
-| Trade zone visualization (FIFO matching)    | `bottom-panel/` (chart primitive in `frontend/`) |
-| Settings persistence / file backup          | `settings-persistence/` |
-| All Zustand store slices                    | `frontend/` → Zustand Store |
-| All service API signatures                  | `frontend/` → Service Layer |
-| Realtime adapter interface + hub events      | `frontend/` → realtimeService.ts / adapters/ |
-| Ad-hoc brackets (+SL/+TP, no preset)       | `chart-trading/` → Ad-Hoc Brackets |
-| Position drag-to-create SL/TP              | `chart-trading/` → Position Drag-to-Create |
+| The + button on the price scale             | `docs/chart-trading/` → Plus Button |
+| How order lines appear on the chart         | `docs/chart-trading/` → Live Order & Position Lines |
+| Preview ghost lines (SL/TP/Entry)           | `docs/chart-trading/` → Preview Overlay |
+| Drag-to-modify order prices                 | `docs/chart-trading/` → Drag-to-Modify |
+| Overlay labels (P&L, size, cancel)          | `docs/chart-trading/` → Overlay Label System |
+| How SL/TP are placed after entry fill       | `docs/bracket-engine/` |
+| Bracket preset configuration UI             | `docs/order-panel/bracket-settings/` |
+| How realized P&L is calculated              | `docs/top-bar/` → Centre — Realized P&L |
+| How unrealized P&L is calculated            | `docs/top-bar/` → Centre — Balance + UP&L |
+| Drawing renderers and hit testing           | `docs/drawing-tools/` |
+| Volume profile data source (GatewayDepth)   | `docs/candlestick-chart/indicators/volume-profile/` |
+| Chart screenshot / clipboard                | `docs/chart-screenshot/` |
+| Dual chart layout + crosshair sync          | `docs/chart-layout/` |
+| Crosshair price label + primitive z-order   | `docs/candlestick-chart/` → Price Scale Primitives |
+| Orders and Trades tabs                      | `docs/bottom-panel/` |
+| Trade zone visualization (FIFO matching)    | `docs/bottom-panel/` (chart primitive in `frontend/`) |
+| Chart settings gear + modal                 | `docs/chart-settings-menu/` |
+| Settings persistence / file backup          | `docs/settings-persistence/` |
+| All Zustand store slices                    | `docs/frontend/` → Zustand Store |
+| All service API signatures                  | `docs/frontend/` → Service Layer |
+| Realtime adapter interface + hub events      | `docs/frontend/` → realtimeService.ts / adapters/ |
+| Ad-hoc brackets (+SL/+TP, no preset)       | `docs/chart-trading/` → Ad-Hoc Brackets |
+| Position drag-to-create SL/TP              | `docs/chart-trading/` → Position Drag-to-Create |
 
 ---
 
@@ -221,7 +233,7 @@ The app uses a **dual-path** bracket strategy depending on the number of take-pr
 - **0-1 TPs**: Uses **gateway-native brackets** — SL and TP are attached atomically to the entry order (zero latency gap). Requires "Auto OCO Brackets" enabled on the account. Gateway handles OCO auto-cancel.
 - **2+ TPs**: **SL is still native** (attached to entry order), but TPs are placed by the **client-side bracket engine** after fill (detected via SignalR). The engine discovers the gateway-created SL order to manage it (resize on TP fills, move on conditions). Conditions (e.g. "move SL to breakeven when TP 1 hits") are evaluated client-side.
 
-See `bracket-engine/README.md` for the full runtime lifecycle.
+See `docs/bracket-engine/README.md` for the full runtime lifecycle.
 
 ---
 

@@ -221,7 +221,7 @@ All routes call the active `ExchangeAdapter` via `getAdapter()` from the adapter
 | GET | /settings | — | Read persisted settings from `backend/data/user-settings.json` (returns `{}` if file doesn't exist) |
 | PUT | /settings | full settings object | Write settings to disk (no auth guard — local-only) |
 
-No adapter call — these endpoints read/write directly to the local filesystem. See `settings-persistence/README.md` for full details.
+No adapter call — these endpoints read/write directly to the local filesystem. See `../settings-persistence/README.md` for full details.
 
 ### WebSocket / SignalR
 

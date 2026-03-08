@@ -2,22 +2,22 @@
 
 ## Documentation-First Workflow
 
-This project uses feature-folder READMEs as the primary source of context. Before modifying or discussing any feature, **read `README.md` (root)** first — it contains a folder map and quick lookup table that points to the correct feature folder.
+All feature documentation lives in `docs/`. Before modifying or discussing any feature, **read `README.md` (root)** first — it contains a folder map and quick lookup table that points to the correct doc.
 
 ### When the user asks about a feature
 
 1. Open `README.md` at the project root
-2. Use the **Quick Lookup** table to find the relevant feature folder
+2. Use the **Quick Lookup** table to find the relevant `docs/` subfolder
 3. Read that folder's `README.md` for full context
-4. For frontend implementation details (store slices, service signatures, component internals), also read `frontend/README.md`
+4. For frontend implementation details (store slices, service signatures, component internals), also read `docs/frontend/README.md`
 
 ### After making code changes
 
-If a code change affects behavior documented in any feature README, prompt the user:
+If a code change affects behavior documented in any feature doc, prompt the user:
 
-> "This change affects [feature]. Want me to update `[folder]/README.md` to reflect the new behavior?"
+> "This change affects [feature]. Want me to update `docs/[feature]/README.md` to reflect the new behavior?"
 
-Do not silently skip documentation updates — the READMEs are how future sessions recover context.
+Do not silently skip documentation updates — the docs are how future sessions recover context.
 
 ## Visual Design System
 
