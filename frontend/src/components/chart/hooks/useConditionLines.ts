@@ -46,6 +46,7 @@ export function useConditionLines(
     lineIdx: number;
     originalPrice: number;
     startY: number;
+    field: 'triggerPrice' | 'orderPrice';
   } | null>(null);
 
   // -- Refs for preview lines --
@@ -90,7 +91,9 @@ export function useConditionLines(
     for (const cond of relevant) {
       const isAbove = cond.conditionType === 'closes_above';
       const lineColor = isAbove ? CLR_ABOVE : CLR_BELOW;
+      const condId = cond.id;
 
+      // --- Trigger line ---
       const line = new PriceLevelLine({
         price: cond.triggerPrice,
         series,
@@ -104,27 +107,24 @@ export function useConditionLines(
       });
 
       const typeLabel = isAbove ? '\u25B2 Above' : '\u25BC Below';
-      const sideLabel = cond.orderSide === 'buy' ? 'Buy' : 'Sell';
-      const sideBg = cond.orderSide === 'buy' ? CLR_BUY : CLR_SELL;
 
       line.setLabel([
         { text: `${typeLabel} ${cond.timeframe}`, bg: lineColor, color: '#fff' },
-        { text: `${sideLabel} ${cond.orderSize}`, bg: sideBg, color: '#d1d4dc' },
         { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
       ]);
 
       const labelEl = line.getLabelEl();
       const cells = line.getCells();
-      const condId = cond.id;
       const lineIdx = linesRef.current.length;
 
       if (labelEl) {
         labelEl.style.pointerEvents = 'auto';
         labelEl.style.cursor = 'grab';
 
-        if (cells[2]) {
-          cells[2].style.cursor = 'pointer';
-          cells[2].addEventListener('mousedown', (e) => {
+        const xCell = cells[cells.length - 1];
+        if (xCell) {
+          xCell.style.cursor = 'pointer';
+          xCell.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             e.preventDefault();
             const url = useStore.getState().conditionServerUrl;
@@ -138,13 +138,14 @@ export function useConditionLines(
         }
 
         labelEl.addEventListener('mousedown', (e) => {
-          if (e.target === cells[2] || cells[2]?.contains(e.target as Node)) return;
+          if (e.target === xCell || xCell?.contains(e.target as Node)) return;
           e.preventDefault();
           dragRef.current = {
             condId,
             lineIdx,
             originalPrice: cond.triggerPrice,
             startY: e.clientY,
+            field: 'triggerPrice',
           };
           labelEl.style.cursor = 'grabbing';
           if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
@@ -154,6 +155,73 @@ export function useConditionLines(
 
       linesRef.current.push(line);
       condIdsRef.current.push(condId);
+
+      // --- Order price line (limit orders only) ---
+      if (cond.orderType === 'limit' && cond.orderPrice != null) {
+        const sideLabel = cond.orderSide === 'buy' ? 'Buy Limit' : 'Sell Limit';
+        const sideBg = cond.orderSide === 'buy' ? CLR_BUY : CLR_SELL;
+
+        const orderLine = new PriceLevelLine({
+          price: cond.orderPrice,
+          series,
+          overlay,
+          chartApi: chart,
+          lineColor: sideBg,
+          lineStyle: 'dashed',
+          lineWidth: 1,
+          axisLabelVisible: true,
+          tickSize,
+        });
+
+        orderLine.setLabel([
+          { text: sideLabel, bg: sideBg, color: '#d1d4dc' },
+          { text: String(cond.orderSize), bg: sideBg, color: '#d1d4dc' },
+          { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+        ]);
+
+        const orderLabelEl = orderLine.getLabelEl();
+        const orderCells = orderLine.getCells();
+        const orderLineIdx = linesRef.current.length;
+        if (orderLabelEl) {
+          orderLabelEl.style.pointerEvents = 'auto';
+          orderLabelEl.style.cursor = 'grab';
+
+          const orderXCell = orderCells[orderCells.length - 1];
+          if (orderXCell) {
+            orderXCell.style.cursor = 'pointer';
+            orderXCell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const url = useStore.getState().conditionServerUrl;
+              if (!url) return;
+              conditionService.update(url, condId, { orderType: 'market', orderPrice: undefined })
+                .then((updated) => { useStore.getState().upsertCondition(updated); })
+                .catch((err) => {
+                  showToast('error', 'Failed to update', errorMessage(err));
+                });
+            });
+          }
+
+          // Drag to modify order price
+          orderLabelEl.addEventListener('mousedown', (e) => {
+            if (e.target === orderXCell || orderXCell?.contains(e.target as Node)) return;
+            e.preventDefault();
+            dragRef.current = {
+              condId,
+              lineIdx: orderLineIdx,
+              originalPrice: cond.orderPrice!,
+              startY: e.clientY,
+              field: 'orderPrice',
+            };
+            orderLabelEl.style.cursor = 'grabbing';
+            if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+            if (chart) chart.applyOptions({ handleScroll: false, handleScale: false });
+          });
+        }
+
+        linesRef.current.push(orderLine);
+        condIdsRef.current.push(condId);
+      }
     }
 
     return () => {
@@ -199,7 +267,9 @@ export function useConditionLines(
       const dy = Math.abs(e.clientY - drag.startY);
       if (dy < 4) {
         if (line) { line.setPrice(drag.originalPrice); line.syncPosition(); }
-        useStore.getState().openConditionModal(drag.condId);
+        if (drag.field === 'triggerPrice') {
+          useStore.getState().openConditionModal(drag.condId);
+        }
         return;
       }
 
@@ -207,7 +277,7 @@ export function useConditionLines(
       if (newPrice === drag.originalPrice) return;
       const url = useStore.getState().conditionServerUrl;
       if (!url) return;
-      conditionService.update(url, drag.condId, { triggerPrice: newPrice })
+      conditionService.update(url, drag.condId, { [drag.field]: newPrice })
         .then((updated) => { useStore.getState().upsertCondition(updated); })
         .catch((err) => {
           if (line) { line.setPrice(drag.originalPrice); line.syncPosition(); }
@@ -287,12 +357,8 @@ export function useConditionLines(
     // Check if preset is active — if so, auto-arm
     const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
 
-    // Build labels
+    // Build labels (also wires up interaction handlers)
     updatePreviewLabels();
-
-    // Make labels interactive
-    setupPreviewInteraction(condLine, 'cond');
-    setupPreviewInteraction(orderLine, 'order');
 
     // If preset selected → auto-arm immediately
     if (activePreset) {
@@ -301,19 +367,21 @@ export function useConditionLines(
 
     function updatePreviewLabels() {
       const p = previewRef.current;
-      if (!p || !p.condLine || !p.orderLine) return;
+      if (!p || !p.condLine) return;
 
-      const isAbove = p.condPrice > p.orderPrice;
+      const isAbove = p.orderLine
+        ? p.condPrice > p.orderPrice
+        : p.isAbove;
       const wasAbove = p.isAbove;
 
       // Auto-switch if relative position changed
       if (isAbove !== wasAbove) {
         p.isAbove = isAbove;
-        // Update condition line color
         p.condLine.setLineColor(isAbove ? CLR_ABOVE : CLR_BELOW);
-        // Update order line color
-        const orderBg = isAbove ? CLR_BUY : CLR_SELL;
-        p.orderLine.setLineColor(orderBg);
+        if (p.orderLine) {
+          const orderBg = isAbove ? CLR_BUY : CLR_SELL;
+          p.orderLine.setLineColor(orderBg);
+        }
       }
 
       p.isAbove = isAbove;
@@ -322,33 +390,38 @@ export function useConditionLines(
       const sideText = isAbove ? 'Buy Limit' : 'Sell Limit';
       const sideBg = isAbove ? CLR_BUY : CLR_SELL;
 
-      // Condition label: [type] [ARM]
+      // Condition label: [type] [ARM] [✕]
       p.condLine.setLabel([
         { text: `${typeText} ${timeframe.label}`, bg: condColor, color: '#fff' },
         { text: 'ARM', bg: '#2962ff', color: '#fff' },
+        { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
       ]);
 
-      // Order label: [side] [size] [+SL] [+TP]  (no preset only)
-      const st2 = useStore.getState();
-      const hasPreset = st2.bracketPresets.find((pr) => pr.id === st2.activePresetId);
-      if (hasPreset) {
-        p.orderLine.setLabel([
-          { text: sideText, bg: sideBg, color: '#d1d4dc' },
-          { text: String(p.size), bg: sideBg, color: '#d1d4dc' },
-        ]);
-      } else {
-        const sections = [
-          { text: sideText, bg: sideBg, color: '#d1d4dc' },
-          { text: String(p.size), bg: sideBg, color: '#d1d4dc' },
-        ];
-        if (!p.slLine) sections.push({ text: '+SL', bg: CLR_BTN, color: '#d1d4dc' });
-        if (!p.tpLine) sections.push({ text: '+TP', bg: CLR_BTN, color: '#d1d4dc' });
-        p.orderLine.setLabel(sections);
+      // Order label (only if order line still exists)
+      if (p.orderLine) {
+        const st2 = useStore.getState();
+        const hasPreset = st2.bracketPresets.find((pr) => pr.id === st2.activePresetId);
+        if (hasPreset) {
+          p.orderLine.setLabel([
+            { text: sideText, bg: sideBg, color: '#d1d4dc' },
+            { text: String(p.size), bg: sideBg, color: '#d1d4dc' },
+            { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+          ]);
+        } else {
+          const sections = [
+            { text: sideText, bg: sideBg, color: '#d1d4dc' },
+            { text: String(p.size), bg: sideBg, color: '#d1d4dc' },
+          ];
+          if (!p.slLine) sections.push({ text: '+SL', bg: CLR_BTN, color: '#d1d4dc' });
+          if (!p.tpLine) sections.push({ text: '+TP', bg: CLR_BTN, color: '#d1d4dc' });
+          sections.push({ text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' });
+          p.orderLine.setLabel(sections);
+        }
       }
 
       // Rewire interaction after label rebuild
       setupPreviewInteraction(p.condLine, 'cond');
-      setupPreviewInteraction(p.orderLine, 'order');
+      if (p.orderLine) setupPreviewInteraction(p.orderLine, 'order');
     }
 
     function setupPreviewInteraction(line: PriceLevelLine, target: 'cond' | 'order') {
@@ -360,15 +433,25 @@ export function useConditionLines(
       labelEl.style.cursor = 'grab';
 
       if (target === 'cond') {
-        // ARM button — last cell
-        const armCell = cells[cells.length - 1];
-        if (armCell && armCell.textContent === 'ARM') {
-          armCell.style.cursor = 'pointer';
-          armCell.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            armCondition();
-          });
+        // ARM button
+        for (const cell of cells) {
+          if (cell.textContent === 'ARM') {
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              armCondition();
+            });
+          }
+          // ✕ button — close preview
+          if (cell.textContent === '\u2715') {
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              useStore.getState().setConditionPreview(false);
+            });
+          }
         }
       }
 
@@ -382,7 +465,7 @@ export function useConditionLines(
           setupSizeButtons(sizeCell);
         }
 
-        // +SL button
+        // +SL / +TP / ✕ buttons
         for (const cell of cells) {
           if (cell.textContent === '+SL') {
             cell.style.cursor = 'pointer';
@@ -400,6 +483,23 @@ export function useConditionLines(
               addTpLine();
             });
           }
+          if (cell.textContent === '\u2715') {
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              // Remove order line — convert to market order
+              p.orderLine?.destroy();
+              p.orderLine = null;
+              // Also remove SL/TP since they're relative to order price
+              p.slLine?.destroy();
+              p.slLine = null;
+              p.slPrice = null;
+              p.tpLine?.destroy();
+              p.tpLine = null;
+              p.tpPrice = null;
+            });
+          }
         }
       }
 
@@ -407,7 +507,7 @@ export function useConditionLines(
       labelEl.addEventListener('mousedown', (e) => {
         // Skip button clicks
         const t = e.target as HTMLElement;
-        if (t.textContent === 'ARM' || t.textContent === '+SL' || t.textContent === '+TP') return;
+        if (t.textContent === 'ARM' || t.textContent === '+SL' || t.textContent === '+TP' || t.textContent === '\u2715') return;
         if (t.textContent === '+' || t.textContent === '\u2212') return;
 
         e.preventDefault();
@@ -608,7 +708,10 @@ export function useConditionLines(
       const url = st.conditionServerUrl;
       if (!url || !st.activeAccountId || !contract) return;
 
-      const isAbove = p.condPrice > p.orderPrice;
+      const hasOrderLine = p.orderLine != null;
+      const isAbove = hasOrderLine
+        ? p.condPrice > p.orderPrice
+        : p.isAbove;
       const conditionType = isAbove ? 'closes_above' : 'closes_below';
       const orderSide = isAbove ? 'buy' : 'sell';
 
@@ -622,7 +725,7 @@ export function useConditionLines(
           sl: bc.stopLoss.points > 0 ? { points: bc.stopLoss.points } : undefined,
           tp: bc.takeProfits.length > 0 ? [{ points: bc.takeProfits[0].points }] : undefined,
         };
-      } else if (p.slPrice != null || p.tpPrice != null) {
+      } else if (hasOrderLine && (p.slPrice != null || p.tpPrice != null)) {
         const slPoints = p.slPrice != null
           ? Math.abs(p.orderPrice - p.slPrice) / contract.tickSize * contract.tickSize
           : undefined;
@@ -643,8 +746,8 @@ export function useConditionLines(
         triggerPrice: p.condPrice,
         timeframe: timeframe.label,
         orderSide,
-        orderType: 'limit',
-        orderPrice: p.orderPrice,
+        orderType: hasOrderLine ? 'limit' : 'market',
+        orderPrice: hasOrderLine ? p.orderPrice : undefined,
         orderSize: p.size,
         accountId: st.activeAccountId,
         bracket,
@@ -719,26 +822,27 @@ export function useConditionLines(
 
     function rebuildPreviewLabels() {
       const p = previewRef.current;
-      if (!p || !p.condLine || !p.orderLine) return;
+      if (!p || !p.condLine) return;
 
-      const isAbove = p.condPrice > p.orderPrice;
+      const isAbove = p.orderLine
+        ? p.condPrice > p.orderPrice
+        : p.isAbove;
       p.isAbove = isAbove;
 
       const condColor = isAbove ? CLR_ABOVE : CLR_BELOW;
       const typeText = isAbove ? '\u25B2 Close Above' : '\u25BC Close Below';
-      const sideText = isAbove ? 'Buy Limit' : 'Sell Limit';
-      const sideBg = isAbove ? CLR_BUY : CLR_SELL;
 
       p.condLine.setLineColor(condColor);
-      p.orderLine.setLineColor(sideBg);
-
-      // Update condition label text in-place
       p.condLine.updateSection(0, `${typeText} ${timeframe.label}`, condColor);
 
-      // Update order label text in-place
-      p.orderLine.updateSection(0, sideText, sideBg);
-      if (p.orderLine.getCells()[1]) {
-        p.orderLine.getCells()[1].style.background = sideBg;
+      if (p.orderLine) {
+        const sideText = isAbove ? 'Buy Limit' : 'Sell Limit';
+        const sideBg = isAbove ? CLR_BUY : CLR_SELL;
+        p.orderLine.setLineColor(sideBg);
+        p.orderLine.updateSection(0, sideText, sideBg);
+        if (p.orderLine.getCells()[1]) {
+          p.orderLine.getCells()[1].style.background = sideBg;
+        }
       }
     }
 
