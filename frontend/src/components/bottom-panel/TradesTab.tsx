@@ -4,7 +4,7 @@ import type { Trade } from '../../services/tradeService';
 import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
-import { getCmeSessionStart } from '../../utils/cmeSession';
+import { getCmeSessionStart, getDateRange } from '../../utils/cmeSession';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 
 type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'net' | 'duration';
@@ -34,8 +34,18 @@ function shortSymbol(contractId: string): string {
   return contractId;
 }
 
-function formatTime(iso: string): string {
+function formatTime(iso: string, showDate = false): string {
   const d = new Date(iso);
+  if (showDate) {
+    return d.toLocaleString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/New_York',
+    });
+  }
   return d.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
@@ -60,27 +70,60 @@ function formatDuration(ms: number): string {
   return `${s}s`;
 }
 
+// In-memory cache for filtered presets, keyed by `accountId:preset`
+const tradesCache = new Map<string, Trade[]>();
+
 export function TradesTab() {
   const connected = useStore((s) => s.connected);
   const activeAccountId = useStore((s) => s.activeAccountId);
-  const sessionTrades = useStore((s) => s.sessionTrades);
   const setSessionTrades = useStore((s) => s.setSessionTrades);
   const visibleTradeIds = useStore((s) => s.visibleTradeIds);
   const toggleTradeVisibility = useStore((s) => s.toggleTradeVisibility);
   const toggleTradeVisibilityBulk = useStore((s) => s.toggleTradeVisibilityBulk);
+  const tradesDatePreset = useStore((s) => s.tradesDatePreset);
 
-  // Fetch trades on mount / account change
+  // Local state for display trades (decoupled from sessionTrades used for RPNL)
+  const [displayTrades, setDisplayTrades] = useState<Trade[]>([]);
+
+  const showDate = tradesDatePreset === 'week' || tradesDatePreset === 'month';
+
+  // Always fetch session trades into store (for TopBar RPNL) — independent of filter
   useEffect(() => {
     if (!connected || activeAccountId == null) return;
     let cancelled = false;
+    const startTimestamp = getCmeSessionStart();
     tradeService
-      .searchTrades(activeAccountId, getCmeSessionStart())
+      .searchTrades(activeAccountId, startTimestamp)
       .then((trades) => {
         if (!cancelled) setSessionTrades(trades);
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [connected, activeAccountId, setSessionTrades]);
+
+  // Fetch filtered trades for display (with cache)
+  useEffect(() => {
+    if (!connected || activeAccountId == null) return;
+    let cancelled = false;
+
+    const cacheKey = `${activeAccountId}:${tradesDatePreset}`;
+    const cached = tradesCache.get(cacheKey);
+    if (cached) {
+      setDisplayTrades(cached);
+      return;
+    }
+
+    const { startTimestamp, endTimestamp } = getDateRange(tradesDatePreset);
+    tradeService
+      .searchTrades(activeAccountId, startTimestamp, endTimestamp)
+      .then((trades) => {
+        if (cancelled) return;
+        tradesCache.set(cacheKey, trades);
+        setDisplayTrades(trades);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [connected, activeAccountId, tradesDatePreset]);
 
   // Re-fetch on SignalR trade events (debounced 500ms)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -89,11 +132,25 @@ export function TradesTab() {
     const handler = () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
-        const acctId = useStore.getState().activeAccountId;
-        if (acctId == null) return;
+        const state = useStore.getState();
+        if (state.activeAccountId == null) return;
+        // Refresh session trades (for RPNL)
+        const sessionStart = getCmeSessionStart();
         tradeService
-          .searchTrades(acctId, getCmeSessionStart())
-          .then((trades) => useStore.getState().setSessionTrades(trades))
+          .searchTrades(state.activeAccountId, sessionStart)
+          .then((trades) => state.setSessionTrades(trades))
+          .catch(() => {});
+        // Invalidate cache & refresh display trades
+        for (const key of tradesCache.keys()) {
+          if (key.startsWith(`${state.activeAccountId}:`)) tradesCache.delete(key);
+        }
+        const { startTimestamp, endTimestamp } = getDateRange(state.tradesDatePreset);
+        tradeService
+          .searchTrades(state.activeAccountId, startTimestamp, endTimestamp)
+          .then((trades) => {
+            tradesCache.set(`${state.activeAccountId}:${state.tradesDatePreset}`, trades);
+            setDisplayTrades(trades);
+          })
           .catch(() => {});
       }, 500);
     };
@@ -127,10 +184,10 @@ export function TradesTab() {
   }, []);
 
   // Build entry map and filter to closing trades
-  const entryMap = useMemo(() => buildEntryMap(sessionTrades), [sessionTrades]);
+  const entryMap = useMemo(() => buildEntryMap(displayTrades), [displayTrades]);
   const closingTrades = useMemo(
-    () => [...sessionTrades].filter((t) => t.profitAndLoss != null && !t.voided).reverse(),
-    [sessionTrades],
+    () => [...displayTrades].filter((t) => t.profitAndLoss != null && !t.voided).reverse(),
+    [displayTrades],
   );
 
   // Group closing trades by their matched entry
@@ -223,10 +280,16 @@ export function TradesTab() {
     return arr;
   }, [groups, sortCol, sortDir]);
 
+  const emptyLabels: Record<string, string> = {
+    today: 'No trades today',
+    week: 'No trades this week',
+    month: 'No trades this month',
+  };
+
   if (closingTrades.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-[#434651] text-xs">
-        No trades this session
+        {emptyLabels[tradesDatePreset]}
       </div>
     );
   }
@@ -293,7 +356,7 @@ export function TradesTab() {
             >
               <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
                 <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
-                  {trade.creationTimestamp ? formatTime(trade.creationTimestamp) : '\u2014'}
+                  {trade.creationTimestamp ? formatTime(trade.creationTimestamp, showDate) : '\u2014'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
                   <span className={group.isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
@@ -342,7 +405,7 @@ export function TradesTab() {
             >
               <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
                 <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
-                  {group.entry ? formatTime(group.entry.creationTimestamp) : formatTime(group.earliestTime)}
+                  {group.entry ? formatTime(group.entry.creationTimestamp, showDate) : formatTime(group.earliestTime, showDate)}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
                   <span className={group.isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
@@ -396,7 +459,7 @@ export function TradesTab() {
                 >
                   <div className={`grid ${cols} items-center h-7`} style={{ width: '70%', paddingLeft: 'calc(1rem + 20px)' }}>
                     <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
-                      {formatTime(trade.creationTimestamp)}
+                      {formatTime(trade.creationTimestamp, showDate)}
                     </div>
                     <div className="px-3 text-center" />
                     <div className="px-3 text-center" />

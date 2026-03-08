@@ -9,6 +9,7 @@ import type { BracketPreset } from '../types/bracket';
 import type { Drawing, DrawingTool, HLineTemplate } from '../types/drawing';
 import { OrderSide } from '../types/enums';
 import type { NewsEvent } from '../types/news';
+import type { DatePreset } from '../utils/cmeSession';
 
 // ---------------------------------------------------------------------------
 // Auth slice
@@ -219,11 +220,13 @@ interface BottomPanelState {
   bottomPanelOpen: boolean;
   bottomPanelRatio: number;
   bottomPanelTab: 'orders' | 'trades';
+  tradesDatePreset: DatePreset;
   sessionTrades: Trade[];
   visibleTradeIds: number[];
   setBottomPanelOpen: (open: boolean) => void;
   setBottomPanelRatio: (ratio: number) => void;
   setBottomPanelTab: (tab: 'orders' | 'trades') => void;
+  setTradesDatePreset: (preset: DatePreset) => void;
   setSessionTrades: (trades: Trade[]) => void;
   toggleTradeVisibility: (tradeId: number) => void;
   toggleTradeVisibilityBulk: (tradeIds: number[]) => void;
@@ -481,11 +484,13 @@ export const useStore = create<Store>()(
       bottomPanelOpen: false,
       bottomPanelRatio: 0,
       bottomPanelTab: 'orders' as 'orders' | 'trades',
+      tradesDatePreset: 'today' as DatePreset,
       sessionTrades: [] as Trade[],
       visibleTradeIds: [] as number[],
       setBottomPanelOpen: (bottomPanelOpen) => set({ bottomPanelOpen }),
       setBottomPanelRatio: (ratio) => set({ bottomPanelRatio: Math.max(0, Math.min(0.6, ratio)) }),
       setBottomPanelTab: (bottomPanelTab) => set({ bottomPanelTab }),
+      setTradesDatePreset: (tradesDatePreset) => set({ tradesDatePreset }),
       setSessionTrades: (sessionTrades) => set({ sessionTrades }),
       toggleTradeVisibility: (tradeId) =>
         set((s) => ({
@@ -710,6 +715,7 @@ export const useStore = create<Store>()(
         bottomPanelOpen: s.bottomPanelOpen,
         bottomPanelRatio: s.bottomPanelRatio,
         bottomPanelTab: s.bottomPanelTab,
+        tradesDatePreset: s.tradesDatePreset === 'session' ? 'today' : s.tradesDatePreset,
         contract: s.contract,
         secondContract: s.secondContract,
         orderContract: s.orderContract,

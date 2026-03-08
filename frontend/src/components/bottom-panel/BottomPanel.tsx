@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore';
+import { DatePresetSelector } from './DatePresetSelector';
 import { OrdersTab } from './OrdersTab';
 import { TradesTab } from './TradesTab';
 
@@ -60,6 +61,12 @@ export function BottomPanel() {
           count={sessionTrades.filter((t) => t.profitAndLoss != null && !t.voided).length}
           onClick={() => setTab('trades')}
         />
+        {tab === 'trades' && (
+          <>
+            <Separator />
+            <DatePresetSelector />
+          </>
+        )}
       </div>
 
       {/* Content */}

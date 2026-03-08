@@ -14,7 +14,8 @@ Collapsible, resizable panel below the chart displaying **Orders** and **Trades*
 |------|---------|
 | `BottomPanel.tsx` | Container with tab bar, tab switching, collapse/expand toggle |
 | `OrdersTab.tsx` | Table of open orders with cancel buttons |
-| `TradesTab.tsx` | Grid of session trades with click-to-show-on-chart |
+| `TradesTab.tsx` | Grid of trades with date preset selector and click-to-show-on-chart |
+| `DatePresetSelector.tsx` | Dropdown for choosing trade date range (Today, This Week, This Month) |
 
 ## Store (Zustand)
 
@@ -25,10 +26,11 @@ State lives in the `BottomPanelState` slice of `useStore`:
 | `bottomPanelOpen` | `boolean` | `false` | Yes |
 | `bottomPanelRatio` | `number` | `0.3` | Yes |
 | `bottomPanelTab` | `'orders' \| 'trades'` | `'orders'` | Yes |
+| `tradesDatePreset` | `DatePreset` | `'today'` | Yes |
 | `sessionTrades` | `Trade[]` | `[]` | No |
 | `visibleTradeIds` | `number[]` | `[]` | No |
 
-Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setSessionTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
+Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setTradesDatePreset`, `setSessionTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
 
 ## Orders Tab
 
@@ -39,8 +41,11 @@ Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setS
 
 ## Trades Tab
 
-- Fetches trades on mount via `tradeService.searchTrades(accountId, getCmeSessionStart())`.
-- Re-fetches on SignalR trade events (debounced 500ms).
+- **Date preset selector**: Dropdown in the tab bar (next to "Trades" tab) lets the user choose between Today (default), This Week, and This Month. The selected preset determines the `startTimestamp` passed to `tradeService.searchTrades()`. Preset is persisted to localStorage. Results are cached in memory per `accountId:preset` key.
+- **Decoupled from RPNL**: Display trades (local state) are independent of `sessionTrades` in the store. The top bar RPNL always reflects the current CME session regardless of which filter is selected.
+- Fetches trades on mount and whenever account or preset changes via `tradeService.searchTrades(accountId, startTimestamp, endTimestamp?)`.
+- Re-fetches on SignalR trade events (debounced 500ms) — refreshes both session trades (for RPNL) and display trades. Cache is invalidated on new trade events.
+- Time column shows `MM/DD HH:MM` format for week/month presets, `HH:MM:SS` for session/today.
 - Columns: Time, Side, Symbol, Qty, Entry, Exit, Duration, P&L, Fees, Net.
 - All columns are center-aligned. Data grid is constrained to 70% width while row backgrounds (stripes, hover, selection) extend full width.
 - **Sortable columns**: Click any column header to sort by that column (descending by default). Click the same column again to toggle between ascending and descending. Active sort column is highlighted in white with a ▲/▼ indicator. Default sort: Time descending (most recent first).
@@ -65,7 +70,11 @@ When a trade ID is in `visibleTradeIds`, `CandlestickChart.tsx` renders a series
 
 ## Shared Utility
 
-`frontend/src/utils/cmeSession.ts` exports `getCmeSessionStart()` — returns the UTC ISO timestamp for the current CME session start (6 PM New York time). Used by both `TradesTab` and `TopBar` for trade search queries.
+`frontend/src/utils/cmeSession.ts` exports:
+- `getCmeSessionStart()` — UTC ISO timestamp for the current CME session start (6 PM New York time). Used by `TopBar` for trade search queries.
+- `DatePreset` type — `'today' | 'week' | 'month'`.
+- `DATE_PRESET_LABELS` — display labels for each preset.
+- `getDateRange(preset)` — returns `{ startTimestamp, endTimestamp? }` for the given preset. Used by `TradesTab` and `DatePresetSelector`.
 
 ## Styling
 

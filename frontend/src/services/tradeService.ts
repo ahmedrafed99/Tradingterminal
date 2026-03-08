@@ -16,10 +16,10 @@ export interface Trade {
 }
 
 export const tradeService = {
-  async searchTrades(accountId: number, startTimestamp: string): Promise<Trade[]> {
-    const res = await api.get<{ trades: Trade[]; success: boolean }>(
-      `/trades/search?accountId=${accountId}&startTimestamp=${encodeURIComponent(startTimestamp)}`,
-    );
+  async searchTrades(accountId: number, startTimestamp: string, endTimestamp?: string): Promise<Trade[]> {
+    let url = `/trades/search?accountId=${accountId}&startTimestamp=${encodeURIComponent(startTimestamp)}`;
+    if (endTimestamp) url += `&endTimestamp=${encodeURIComponent(endTimestamp)}`;
+    const res = await api.get<{ trades: Trade[]; success: boolean }>(url);
     return res.data.trades ?? [];
   },
 };
