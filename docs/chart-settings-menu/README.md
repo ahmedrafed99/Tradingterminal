@@ -76,7 +76,7 @@ Opened via "More Settings..." from the quick popover. Category sidebar on the le
 │  ● Symbol      │  CANDLES                                │
 │    Scales      │                                         │
 │    Canvas      │  ☑ Body     [■ up] [■ down]             │
-│    Trading     │  ☑ Wick     [■ up] [■ down]             │
+│                │  ☑ Wick     [■ up] [■ down]             │
 │                │                                         │
 │                │                                         │
 │                │                                         │
@@ -118,18 +118,11 @@ Chart background and text.
 | Setting | Control | Default | Store key |
 |---------|---------|---------|-----------|
 | Background colour | Colour swatch | `#000000` | `chartSettings.bgColor` |
+| Background gradient | Checkbox | `false` | `chartSettings.bgGradient` |
+| Gradient top colour | Colour swatch (disabled when gradient off) | `#1e222d` | `chartSettings.gradientTopColor` |
+| Gradient bottom colour | Colour swatch (disabled when gradient off) | `#000000` | `chartSettings.gradientBottomColor` |
 | Text colour | Colour swatch | `#d1d4dc` | `chartSettings.textColor` |
 | Font size | Number input (10–16) | `12` | `chartSettings.fontSize` |
-
-#### 4. Trading
-
-Visibility of chart-trading elements.
-
-| Setting | Control | Default | Store key |
-|---------|---------|---------|-----------|
-| Show order lines | Checkbox | `true` | `chartSettings.showOrderLines` |
-| Show quick-order button (+) | Checkbox | `true` | `chartSettings.showQuickOrder` |
-| Show P&L on position line | Checkbox | `true` | `chartSettings.showPnlLabel` |
 
 ---
 
@@ -176,13 +169,11 @@ chartSettings: {
 
   // Canvas
   bgColor: string;          // '#000000'
+  bgGradient: boolean;      // false
+  gradientTopColor: string; // '#1e222d'
+  gradientBottomColor: string; // '#000000'
   textColor: string;        // '#d1d4dc'
   fontSize: number;         // 12
-
-  // Trading
-  showOrderLines: boolean;  // true
-  showQuickOrder: boolean;  // true
-  showPnlLabel: boolean;    // true
 
   // Quick popover
   invertScale: boolean;     // false
@@ -210,8 +201,8 @@ Default values match the current hardcoded values in `chartTheme.ts` so nothing 
 When `chartSettings` values change in the store:
 
 1. **Candle options** — call `series.applyOptions()` with updated colours/visibility
-2. **Grid / scales** — call `chart.applyOptions()` with updated layout, grid, timeScale, priceScale
-3. **Trading visibility** — conditionally render/hide order lines, + button, P&L labels (read from store in respective hooks)
+2. **Background** — if `bgGradient` is true, use `{ type: ColorType.VerticalGradient, topColor: gradientTopColor, bottomColor: gradientBottomColor }`; otherwise use `{ type: ColorType.Solid, color: bgColor }` via `chart.applyOptions({ layout: { background } })`
+3. **Grid / scales** — call `chart.applyOptions()` with updated layout, grid, timeScale, priceScale
 4. **Invert scale** — call `chart.priceScale('right').applyOptions({ invertScale })` immediately on toggle
 
 All Lightweight Charts options are hot-updatable — no chart recreation needed.
@@ -223,7 +214,7 @@ All Lightweight Charts options are hot-updatable — no chart recreation needed.
 ### Phase 1 (this feature)
 - Gear button in the scale corner
 - Quick popover with Invert Scale + More Settings
-- Full modal with Symbol, Scales, Canvas, Trading categories
+- Full modal with Symbol, Scales, Canvas categories
 - Persist all settings to `user-settings.json`
 - Apply settings to chart in real time
 
