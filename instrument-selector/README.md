@@ -10,20 +10,21 @@ A popover-based instrument picker with hierarchical filtering by **category** an
 
 - Single exchange: **ProjectX**
 - Single category: **Futures**
-- Selector is an inline `<input>` with a dropdown list showing contract name, description, and a bookmark star
-- Used in two contexts: chart toolbar (selection-aware) and order panel (`fixed` mode)
+- **Chart toolbar**: Uses `InstrumentSelectorPopover` — popover with search, category/exchange filters, and instrument metadata rows
+- **Order panel**: Uses `InstrumentSelector` (original inline `<input>` + dropdown, `fixed` mode)
 
 ### Key Files
 
 | File | Role |
 |------|------|
-| `frontend/src/components/InstrumentSelector.tsx` | Current selector component |
+| `frontend/src/components/InstrumentSelectorPopover.tsx` | Popover selector (chart toolbar) |
+| `frontend/src/components/InstrumentSelector.tsx` | Inline selector (order panel, `fixed` mode) |
 | `frontend/src/services/marketDataService.ts` | `Contract` interface, `searchContracts()` API |
 | `frontend/src/utils/instrument.ts` | Tick/point/P&L helpers |
 
 ---
 
-## Target Design
+## Implemented Design (Chart Toolbar)
 
 ### Popover Layout
 
@@ -80,16 +81,6 @@ Each row in the results list shows:
 - **Description** (e.g. `E-mini Nasdaq 100 Futures`)
 - **Category + Exchange tag** (e.g. `Futures · ProjectX`) — small muted text
 
-### Chart Symbol Display
-
-The on-chart instrument label (symbol-display overlay) gains the exchange name:
-
-```
-NQM6 · ProjectX
-```
-
-Displayed in muted `text-[#787b86]` after the instrument name.
-
 ---
 
 ## Styling Rules
@@ -114,14 +105,15 @@ All styles follow the project design tokens (see root `README.md`):
 
 ## Scope
 
-### In scope
-- Popover with search + two-row category/exchange filters
+### Done
+- Popover with search + two-row category/exchange filters (chart toolbar)
 - Instrument rows with category + exchange metadata
 - Disabled "Coming soon" state for unavailable categories
-- Exchange name on chart symbol display overlay
 - Bookmark (pin) functionality carried over
+- Order panel keeps original inline selector
 
 ### Out of scope (future)
 - Dynamic category/exchange data from API
 - Multi-exchange adapters (Rithmic, etc.)
 - Changes to the `Contract` data model
+- Exchange name on chart symbol display overlay

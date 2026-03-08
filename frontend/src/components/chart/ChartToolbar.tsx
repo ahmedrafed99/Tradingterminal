@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useStore, MORE_TIMEFRAMES, type Timeframe } from '../../store/useStore';
-import { InstrumentSelector } from '../InstrumentSelector';
+import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
 import { COLOR_PALETTE } from './ColorPopover';
@@ -478,7 +478,7 @@ export function ChartToolbar() {
 
   return (
     <div className="flex items-center gap-2 px-4 bg-black border-b border-[#2a2e39]" style={{ paddingTop: '7px', paddingBottom: '7px' }}>
-      <InstrumentSelector />
+      <InstrumentSelectorPopover />
       <div className="w-px h-4 bg-[#2a2e39] mx-1" />
 
       {/* Pinned timeframe buttons */}
