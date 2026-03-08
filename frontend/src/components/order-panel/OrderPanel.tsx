@@ -220,12 +220,14 @@ export function OrderPanel() {
     >
       <div className="flex flex-col" style={{ gap: 20 }}>
         {/* Instrument */}
-        <div>
+        <div className="relative">
           <div className="flex items-center mb-1">
             <div className="flex-1 text-[10px] text-[#787b86] uppercase tracking-wider text-center">Instrument</div>
+          </div>
+          <div className="absolute" style={{ top: -2, right: -4 }}>
             <LinkChartButton linked={orderLinkedToChart} onToggle={setOrderLinkedToChart} />
           </div>
-          <div className="bg-[#111] rounded">
+          <div className="bg-[#111] rounded" style={{ marginTop: 6 }}>
             <InstrumentSelector fixed />
           </div>
         </div>
@@ -275,6 +277,7 @@ function LinkChartButton({ linked, onToggle }: {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
         stroke={isActiveForSelected ? '#f0a830' : '#787b86'}
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        style={{ transition: 'stroke 0.2s ease' }}
       >
         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />

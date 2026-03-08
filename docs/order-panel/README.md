@@ -57,9 +57,10 @@ and the preview toggle that overlays ghost lines on the chart.
 - On change: chart reloads bars for the new contract
 
 ### `LinkChartButton`
-- Chain-link icon next to the "Instrument" section label
+- Chain-link icon positioned absolutely in the upper-right corner of the Instrument section (`top: -2, right: -4`)
 - Toggles `orderLinkedToChart` between `null` and the currently selected chart (`'left'` | `'right'`)
 - When active for the selected chart: orange (`#f0a830`); otherwise dim (`#787b86`)
+- Smooth stroke color transition (`transition: stroke 0.2s ease`) for a polished toggle effect
 - Same SVG icon for both states — color-only toggle
 - Bidirectional sync: chart→order panel (via `useEffect`) and order panel→chart (via `setLinkedChartContract` in `InstrumentSelector`)
 
