@@ -3,13 +3,17 @@ import { TopBar } from './components/TopBar';
 import { ToastContainer } from './components/Toast';
 
 const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+const ConditionModal = lazy(() => import('./components/bottom-panel/ConditionModal').then(m => ({ default: m.ConditionModal })));
 import { ChartArea, ChartToolbar } from './components/chart';
 import { BottomPanel } from './components/bottom-panel/BottomPanel';
 import { OrderPanel } from './components/order-panel';
 import { authService } from './services/authService';
 import { marketDataService } from './services/marketDataService';
+import { tradeService } from './services/tradeService';
+import { realtimeService } from './services/realtimeService';
 import { useStore } from './store/useStore';
 import { useSettingsSync } from './hooks/useSettingsSync';
+import { getCmeSessionStart } from './utils/cmeSession';
 
 function VerticalSeparator({
   containerRef,
@@ -54,6 +58,7 @@ export default function App() {
   const contract = useStore((s) => s.contract);
   const orderContract = useStore((s) => s.orderContract);
   const settingsOpen = useStore((s) => s.settingsOpen);
+  const conditionModalOpen = useStore((s) => s.conditionModalOpen);
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
@@ -97,6 +102,44 @@ export default function App() {
       })
       .catch(() => {});
   }, [connected, settingsHydrated, orderContract]);
+
+  // Fetch session trades on connect (for TopBar RPNL) — runs regardless of bottom panel tab
+  const activeAccountId = useStore((s) => s.activeAccountId);
+  useEffect(() => {
+    if (!connected || activeAccountId == null) return;
+    let cancelled = false;
+    const startTimestamp = getCmeSessionStart();
+    tradeService
+      .searchTrades(activeAccountId, startTimestamp)
+      .then((trades) => {
+        if (!cancelled) useStore.getState().setSessionTrades(trades);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [connected, activeAccountId]);
+
+  // Re-fetch session trades on SignalR trade events (debounced 500ms)
+  const tradeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!connected) return;
+    const handler = () => {
+      if (tradeDebounceRef.current) clearTimeout(tradeDebounceRef.current);
+      tradeDebounceRef.current = setTimeout(() => {
+        const state = useStore.getState();
+        if (state.activeAccountId == null) return;
+        const sessionStart = getCmeSessionStart();
+        tradeService
+          .searchTrades(state.activeAccountId, sessionStart)
+          .then((trades) => state.setSessionTrades(trades))
+          .catch(() => {});
+      }, 500);
+    };
+    realtimeService.onTrade(handler);
+    return () => {
+      realtimeService.offTrade(handler);
+      if (tradeDebounceRef.current) clearTimeout(tradeDebounceRef.current);
+    };
+  }, [connected]);
 
   return (
     <div className="flex flex-col h-screen bg-[#131722] text-[#d1d4dc]">
@@ -149,6 +192,11 @@ export default function App() {
       {settingsOpen && (
         <Suspense fallback={null}>
           <SettingsModal />
+        </Suspense>
+      )}
+      {conditionModalOpen && (
+        <Suspense fallback={null}>
+          <ConditionModal />
         </Suspense>
       )}
       <ToastContainer />

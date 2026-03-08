@@ -4,7 +4,7 @@ import type { Trade } from '../../services/tradeService';
 import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
-import { getCmeSessionStart, getDateRange } from '../../utils/cmeSession';
+import { getDateRange } from '../../utils/cmeSession';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 
 type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'net' | 'duration';
@@ -76,7 +76,6 @@ const tradesCache = new Map<string, Trade[]>();
 export function TradesTab() {
   const connected = useStore((s) => s.connected);
   const activeAccountId = useStore((s) => s.activeAccountId);
-  const setSessionTrades = useStore((s) => s.setSessionTrades);
   const visibleTradeIds = useStore((s) => s.visibleTradeIds);
   const toggleTradeVisibility = useStore((s) => s.toggleTradeVisibility);
   const toggleTradeVisibilityBulk = useStore((s) => s.toggleTradeVisibilityBulk);
@@ -86,20 +85,6 @@ export function TradesTab() {
   const [displayTrades, setDisplayTrades] = useState<Trade[]>([]);
 
   const showDate = tradesDatePreset === 'week' || tradesDatePreset === 'month';
-
-  // Always fetch session trades into store (for TopBar RPNL) — independent of filter
-  useEffect(() => {
-    if (!connected || activeAccountId == null) return;
-    let cancelled = false;
-    const startTimestamp = getCmeSessionStart();
-    tradeService
-      .searchTrades(activeAccountId, startTimestamp)
-      .then((trades) => {
-        if (!cancelled) setSessionTrades(trades);
-      })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [connected, activeAccountId, setSessionTrades]);
 
   // Fetch filtered trades for display (with cache)
   useEffect(() => {
@@ -125,7 +110,7 @@ export function TradesTab() {
     return () => { cancelled = true; };
   }, [connected, activeAccountId, tradesDatePreset]);
 
-  // Re-fetch on SignalR trade events (debounced 500ms)
+  // Re-fetch display trades on SignalR trade events (debounced 500ms)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!connected) return;
@@ -134,12 +119,6 @@ export function TradesTab() {
       debounceRef.current = setTimeout(() => {
         const state = useStore.getState();
         if (state.activeAccountId == null) return;
-        // Refresh session trades (for RPNL)
-        const sessionStart = getCmeSessionStart();
-        tradeService
-          .searchTrades(state.activeAccountId, sessionStart)
-          .then((trades) => state.setSessionTrades(trades))
-          .catch(() => {});
         // Invalidate cache & refresh display trades
         for (const key of tradesCache.keys()) {
           if (key.startsWith(`${state.activeAccountId}:`)) tradesCache.delete(key);

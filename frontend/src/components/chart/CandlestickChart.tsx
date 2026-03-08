@@ -20,6 +20,7 @@ import { useChartDrawings } from './hooks/useChartDrawings';
 import { useQuickOrder } from './hooks/useQuickOrder';
 import { useOrderLines } from './hooks/useOrderLines';
 import { useOverlayLabels } from './hooks/useOverlayLabels';
+import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, QoPreviewLines, PosDragState } from './hooks/types';
 
@@ -267,6 +268,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   useQuickOrder(refs, contract, timeframe, isOrderChart);
   useOrderLines(refs, contract, isOrderChart);
   useOverlayLabels(refs, contract, isOrderChart);
+  useConditionLines(refs, contract, timeframe);
 
   return (
     <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden">

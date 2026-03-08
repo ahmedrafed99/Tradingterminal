@@ -6,16 +6,18 @@ import { useStore } from '../store/useStore';
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
 export function SettingsModal() {
-  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts } = useStore();
+  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();
 
   const [userName, setUserName] = useState('');
   const [apiKey, setApiKey]     = useState('');
   const [url, setUrl]           = useState(baseUrl || DEFAULT_BASE_URL);
+  const [condUrl, setCondUrl]    = useState(conditionServerUrl);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
-  // Sync url field when store baseUrl changes
+  // Sync url fields when store values change
   useEffect(() => { setUrl(baseUrl || DEFAULT_BASE_URL); }, [baseUrl]);
+  useEffect(() => { setCondUrl(conditionServerUrl); }, [conditionServerUrl]);
 
   if (!settingsOpen) return null;
 
@@ -115,6 +117,23 @@ export function SettingsModal() {
                 className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
                 style={{ padding: '10px 14px' }}
               />
+            </label>
+          </div>
+
+          {/* Condition Server — always editable */}
+          <div className="space-y-3 border-t border-[#2a2e39]" style={{ paddingTop: 16 }}>
+            <label className="block">
+              <span className="block text-xs text-[#787b86] mb-1">Condition Server URL</span>
+              <input
+                type="text"
+                value={condUrl}
+                onChange={(e) => setCondUrl(e.target.value)}
+                onBlur={() => setConditionServerUrl(condUrl.trim())}
+                placeholder="http://localhost:3002"
+                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff]"
+                style={{ padding: '10px 14px' }}
+              />
+              <span className="block text-[10px] text-[#434651] mt-1">Leave empty to disable conditional orders</span>
             </label>
           </div>
 

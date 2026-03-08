@@ -2,7 +2,8 @@ import * as http from 'http';
 import cors from 'cors';
 import express from 'express';
 
-import { getAdapter, isConnected } from './adapters/registry';
+import { getAdapter, setAdapter, isConnected } from './adapters/registry';
+import { createProjectXAdapter } from './adapters/projectx';
 import authRoutes from './routes/authRoutes';
 import accountRoutes from './routes/accountRoutes';
 import marketDataRoutes from './routes/marketDataRoutes';
@@ -10,14 +11,16 @@ import orderRoutes from './routes/orderRoutes';
 import tradeRoutes from './routes/tradeRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import newsRoutes from './routes/newsRoutes';
+import conditionRoutes from './routes/conditionRoutes';
+import * as conditionEngine from './services/conditionEngine';
 
-const PORT = 3001;
+const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 const app = express();
 
 // ---------------------------------------------------------------------------
 // Middleware
 // ---------------------------------------------------------------------------
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ origin: true }));
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
@@ -30,6 +33,7 @@ app.use('/orders', orderRoutes);
 app.use('/trades', tradeRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/news', newsRoutes);
+app.use('/conditions', conditionRoutes);
 
 // Health check — useful for smoke testing
 app.get('/health', (_req, res) => {
@@ -68,7 +72,32 @@ server.on('upgrade', (req, socket, head) => {
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-server.listen(PORT, () => {
+// ---------------------------------------------------------------------------
+// Auto-connect from env vars (for headless / remote deployment)
+// ---------------------------------------------------------------------------
+
+async function autoConnect(): Promise<void> {
+  const username = process.env.TOPSTEP_USERNAME;
+  const apiKey = process.env.TOPSTEP_PASSWORD;
+  if (!username || !apiKey) return;
+
+  console.log(`[auto-connect] Connecting as ${username}...`);
+  try {
+    const adapter = createProjectXAdapter();
+    await adapter.auth.connect({ username, apiKey });
+    setAdapter(adapter);
+    console.log('[auto-connect] Connected successfully');
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[auto-connect] Failed:', msg);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Start
+// ---------------------------------------------------------------------------
+
+server.listen(PORT, async () => {
   console.log(`✓ Proxy running  →  http://localhost:${PORT}`);
   console.log(`  GET  /health`);
   console.log(`  GET  /auth/status`);
@@ -79,4 +108,18 @@ server.listen(PORT, () => {
   console.log(`  GET  /orders/open?accountId=`);
   console.log(`  GET  /trades/search?accountId=&startTimestamp=`);
   console.log(`  GET  /news/economic`);
+  console.log(`  *    /conditions/*`);
+
+  await autoConnect();
+  conditionEngine.start();
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  conditionEngine.stop();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  conditionEngine.stop();
+  process.exit(0);
 });

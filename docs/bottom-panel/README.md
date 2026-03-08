@@ -25,7 +25,7 @@ State lives in the `BottomPanelState` slice of `useStore`:
 |-------|------|---------|-----------|
 | `bottomPanelOpen` | `boolean` | `false` | Yes |
 | `bottomPanelRatio` | `number` | `0.3` | Yes |
-| `bottomPanelTab` | `'orders' \| 'trades'` | `'orders'` | Yes |
+| `bottomPanelTab` | `'orders' \| 'trades' \| 'conditions'` | `'orders'` | Yes |
 | `tradesDatePreset` | `DatePreset` | `'today'` | Yes |
 | `sessionTrades` | `Trade[]` | `[]` | No |
 | `visibleTradeIds` | `number[]` | `[]` | No |
@@ -42,9 +42,9 @@ Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setT
 ## Trades Tab
 
 - **Date preset selector**: Dropdown in the tab bar (next to "Trades" tab) lets the user choose between Today (default), This Week, and This Month. The selected preset determines the `startTimestamp` passed to `tradeService.searchTrades()`. Preset is persisted to localStorage. Results are cached in memory per `accountId:preset` key.
-- **Decoupled from RPNL**: Display trades (local state) are independent of `sessionTrades` in the store. The top bar RPNL always reflects the current CME session regardless of which filter is selected.
-- Fetches trades on mount and whenever account or preset changes via `tradeService.searchTrades(accountId, startTimestamp, endTimestamp?)`.
-- Re-fetches on SignalR trade events (debounced 500ms) — refreshes both session trades (for RPNL) and display trades. Cache is invalidated on new trade events.
+- **Decoupled from RPNL**: Display trades (local state) are independent of `sessionTrades` in the store. Session trades (for TopBar RPNL) are fetched in `App.tsx` on connect and refreshed via SignalR — runs regardless of which bottom panel tab is active.
+- Fetches filtered display trades on mount and whenever account or preset changes via `tradeService.searchTrades(accountId, startTimestamp, endTimestamp?)`.
+- Re-fetches display trades on SignalR trade events (debounced 500ms). Cache is invalidated on new trade events.
 - Time column shows `MM/DD HH:MM` format for week/month presets, `HH:MM:SS` for session/today.
 - Columns: Time, Side, Symbol, Qty, Entry, Exit, Duration, P&L, Fees, Net.
 - All columns are center-aligned. Data grid is constrained to 70% width while row backgrounds (stripes, hover, selection) extend full width.
@@ -71,7 +71,7 @@ When a trade ID is in `visibleTradeIds`, `CandlestickChart.tsx` renders a series
 ## Shared Utility
 
 `frontend/src/utils/cmeSession.ts` exports:
-- `getCmeSessionStart()` — UTC ISO timestamp for the current CME session start (6 PM New York time). Used by `TopBar` for trade search queries.
+- `getCmeSessionStart()` — UTC ISO timestamp for the current CME session start (6 PM New York time). Used by `App.tsx` for session trade fetching (RPNL).
 - `DatePreset` type — `'today' | 'week' | 'month'`.
 - `DATE_PRESET_LABELS` — display labels for each preset.
 - `getDateRange(preset)` — returns `{ startTimestamp, endTimestamp? }` for the given preset. Used by `TradesTab` and `DatePresetSelector`.

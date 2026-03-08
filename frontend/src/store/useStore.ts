@@ -219,7 +219,7 @@ interface CustomColorsState {
 interface BottomPanelState {
   bottomPanelOpen: boolean;
   bottomPanelRatio: number;
-  bottomPanelTab: 'orders' | 'trades';
+  bottomPanelTab: 'orders' | 'trades' | 'conditions';
   tradesDatePreset: DatePreset;
   sessionTrades: Trade[];
   visibleTradeIds: number[];
@@ -280,10 +280,30 @@ interface NewsState {
 }
 
 // ---------------------------------------------------------------------------
+// Conditions slice
+// ---------------------------------------------------------------------------
+import type { Condition } from '../services/conditionService';
+
+interface ConditionsState {
+  conditionServerUrl: string;
+  conditions: Condition[];
+  conditionModalOpen: boolean;
+  editingConditionId: string | null;
+  conditionPreview: boolean;
+  setConditionServerUrl: (url: string) => void;
+  setConditions: (conditions: Condition[]) => void;
+  upsertCondition: (condition: Condition) => void;
+  removeCondition: (id: string) => void;
+  openConditionModal: (editId?: string) => void;
+  closeConditionModal: () => void;
+  setConditionPreview: (on: boolean) => void;
+}
+
+// ---------------------------------------------------------------------------
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = AuthState & AccountsState & InstrumentState & OrdersState
-  & PositionsState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState & NewsState;
+  & PositionsState & OrderPanelState & UiState & DrawingsState & HLineTemplatesState & CustomColorsState & DualChartState & BottomPanelState & VolumeProfileState & ToastState & NewsState & ConditionsState;
 
 export const useStore = create<Store>()(
   persist(
@@ -483,7 +503,7 @@ export const useStore = create<Store>()(
       // Bottom Panel
       bottomPanelOpen: false,
       bottomPanelRatio: 0,
-      bottomPanelTab: 'orders' as 'orders' | 'trades',
+      bottomPanelTab: 'orders' as 'orders' | 'trades' | 'conditions',
       tradesDatePreset: 'today' as DatePreset,
       sessionTrades: [] as Trade[],
       visibleTradeIds: [] as number[],
@@ -687,6 +707,28 @@ export const useStore = create<Store>()(
       dismissToast: (id) =>
         set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
       clearToasts: () => set({ toasts: [] }),
+
+      // Conditions
+      conditionServerUrl: '',
+      conditions: [] as Condition[],
+      conditionModalOpen: false,
+      editingConditionId: null,
+      conditionPreview: false,
+      setConditionServerUrl: (conditionServerUrl) => set({ conditionServerUrl }),
+      setConditionPreview: (conditionPreview) => set({ conditionPreview }),
+      openConditionModal: (editId) => set({ conditionModalOpen: true, editingConditionId: editId ?? null }),
+      closeConditionModal: () => set({ conditionModalOpen: false, editingConditionId: null }),
+      setConditions: (conditions) => set({ conditions }),
+      upsertCondition: (condition) =>
+        set((s) => {
+          const idx = s.conditions.findIndex((c) => c.id === condition.id);
+          if (idx === -1) return { conditions: [...s.conditions, condition] };
+          const next = [...s.conditions];
+          next[idx] = condition;
+          return { conditions: next };
+        }),
+      removeCondition: (id) =>
+        set((s) => ({ conditions: s.conditions.filter((c) => c.id !== id) })),
     }),
     {
       name: 'chart-store',
@@ -721,6 +763,7 @@ export const useStore = create<Store>()(
         orderContract: s.orderContract,
         orderLinkedToChart: s.orderLinkedToChart,
         newsVisible: s.newsVisible,
+        conditionServerUrl: s.conditionServerUrl,
       }),
     },
   ),
