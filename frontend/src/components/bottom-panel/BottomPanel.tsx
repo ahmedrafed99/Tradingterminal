@@ -45,9 +45,6 @@ export function BottomPanel() {
   const sessionTrades = useStore((s) => s.sessionTrades);
   const conditionServerUrl = useStore((s) => s.conditionServerUrl);
   const conditions = useStore((s) => s.conditions);
-  const openConditionModal = useStore((s) => s.openConditionModal);
-  const conditionPreview = useStore((s) => s.conditionPreview);
-  const setConditionPreview = useStore((s) => s.setConditionPreview);
 
   return (
     <div className="flex flex-col h-full bg-black">
@@ -75,29 +72,6 @@ export function BottomPanel() {
               count={conditions.filter((c) => c.status === 'armed').length}
               onClick={() => setTab('conditions')}
             />
-          </>
-        )}
-        {conditionServerUrl && tab === 'conditions' && (
-          <>
-            <Separator />
-            <button
-              onClick={() => openConditionModal()}
-              className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer"
-            >
-              +
-            </button>
-            <Separator />
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={conditionPreview}
-                onChange={(e) => setConditionPreview(e.target.checked)}
-                className="accent-[#2962ff] w-3 h-3 cursor-pointer"
-              />
-              <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-[#d1d4dc]' : 'text-[#787b86]'}`}>
-                Preview
-              </span>
-            </label>
           </>
         )}
       </div>

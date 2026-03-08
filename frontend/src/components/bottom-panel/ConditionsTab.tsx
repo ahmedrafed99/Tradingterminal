@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import { conditionService } from '../../services/conditionService';
 import type { Condition } from '../../services/conditionService';
@@ -13,12 +13,23 @@ function shortSymbol(contractId: string): string {
   return contractId;
 }
 
+const ALL_STATUSES = ['armed', 'paused', 'triggered', 'failed', 'expired'] as const;
+type ConditionStatus = (typeof ALL_STATUSES)[number];
+
 const STATUS_COLORS: Record<string, string> = {
   armed: 'text-[#26a69a]',
   paused: 'text-[#787b86]',
   triggered: 'text-[#2962ff]',
   failed: 'text-[#ef5350]',
   expired: 'text-[#787b86]',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  armed: 'Armed',
+  paused: 'Paused',
+  triggered: 'Triggered',
+  failed: 'Failed',
+  expired: 'Expired',
 };
 
 const cols = 'grid-cols-[0.8fr_1fr_0.8fr_0.6fr_0.8fr_0.6fr_0.6fr_0.4fr]';
@@ -30,9 +41,43 @@ export function ConditionsTab() {
   const upsertCondition = useStore((s) => s.upsertCondition);
   const removeCondition = useStore((s) => s.removeCondition);
   const addToast = useStore((s) => s.addToast);
+  const openConditionModal = useStore((s) => s.openConditionModal);
+  const conditionPreview = useStore((s) => s.conditionPreview);
+  const setConditionPreview = useStore((s) => s.setConditionPreview);
 
   const [actionId, setActionId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<Set<ConditionStatus>>(new Set(['armed', 'paused']));
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
+
+  // Close filter dropdown on outside click
+  useEffect(() => {
+    if (!filterOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [filterOpen]);
+
+  const filteredConditions = useMemo(
+    () => conditions.filter((c) => statusFilter.has(c.status as ConditionStatus)),
+    [conditions, statusFilter],
+  );
+
+  function toggleStatus(s: ConditionStatus) {
+    setStatusFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(s)) {
+        if (next.size === 1) return prev; // keep at least one
+        next.delete(s);
+      } else {
+        next.add(s);
+      }
+      return next;
+    });
+  }
 
   // SSE connection
   useEffect(() => {
@@ -93,6 +138,31 @@ export function ConditionsTab() {
     }
   }
 
+  const toolbar = (
+    <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
+      <div className="ml-auto flex items-center gap-3" style={{ paddingRight: 16 }}>
+        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={conditionPreview}
+            onChange={(e) => setConditionPreview(e.target.checked)}
+            className="accent-[#2962ff] w-3 h-3 cursor-pointer"
+          />
+          <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-[#d1d4dc]' : 'text-[#787b86]'}`}>
+            Preview
+          </span>
+        </label>
+        <button
+          onClick={() => openConditionModal()}
+          className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer select-none"
+          style={{ padding: '2px 8px' }}
+        >
+          + New
+        </button>
+      </div>
+    </div>
+  );
+
   if (!serverUrl) {
     return (
       <div className="flex items-center justify-center h-full text-[#434651] text-xs">
@@ -101,10 +171,58 @@ export function ConditionsTab() {
     );
   }
 
+  const isFilterAll = statusFilter.size === ALL_STATUSES.length;
+  const filterLabel = isFilterAll
+    ? 'Status'
+    : [...statusFilter].map((s) => STATUS_LABELS[s]).join(', ');
+
+  const statusHeaderEl = (
+    <div className="px-3 text-center relative" ref={filterRef}>
+      <button
+        onClick={() => setFilterOpen(!filterOpen)}
+        className="cursor-pointer select-none hover:text-[#d1d4dc] transition-colors inline-flex items-center gap-1"
+      >
+        {filterLabel}
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style={{ opacity: 0.6 }}>
+          <path d="M1.5 3L4 5.5L6.5 3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+      </button>
+      {filterOpen && (
+        <div
+          className="absolute left-1/2 top-full mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50"
+          style={{ background: '#000', minWidth: 120, transform: 'translateX(-50%)' }}
+        >
+          {ALL_STATUSES.map((s) => {
+            const active = statusFilter.has(s);
+            return (
+              <button
+                key={s}
+                onClick={() => toggleStatus(s)}
+                className={`flex items-center gap-2 w-full text-left text-xs hover:bg-[#2a2e39] transition-colors cursor-pointer ${
+                  active ? 'text-[#d1d4dc]' : 'text-[#787b86]'
+                }`}
+                style={{ padding: '6px 12px' }}
+              >
+                <span
+                  className="inline-block w-3 h-3 rounded-sm border border-[#2a2e39] shrink-0"
+                  style={{ background: active ? '#2962ff' : 'transparent' }}
+                />
+                <span className={STATUS_COLORS[s]}>{STATUS_LABELS[s]}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   if (conditions.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-[#434651] text-xs">
-        No conditions
+      <div className="flex flex-col h-full">
+        {toolbar}
+        <div className="flex items-center justify-center flex-1 text-[#434651] text-xs">
+          No conditions
+        </div>
       </div>
     );
   }
@@ -113,20 +231,47 @@ export function ConditionsTab() {
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
       <div className="sticky top-0 z-10 bg-black border-b border-[#2a2e39]">
-        <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '85%' }}>
-          <div className="px-3 text-center">Status</div>
-          <div className="px-3 text-center">Condition</div>
-          <div className="px-3 text-center">Trigger</div>
-          <div className="px-3 text-center">TF</div>
-          <div className="px-3 text-center">Order</div>
-          <div className="px-3 text-center">Symbol</div>
-          <div className="px-3 text-center">Bracket</div>
-          <div className="px-3 text-center"></div>
+        <div className="flex items-center h-8">
+          <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '85%' }}>
+            {statusHeaderEl}
+            <div className="px-3 text-center">Condition</div>
+            <div className="px-3 text-center">Trigger</div>
+            <div className="px-3 text-center">TF</div>
+            <div className="px-3 text-center">Order</div>
+            <div className="px-3 text-center">Symbol</div>
+            <div className="px-3 text-center">Bracket</div>
+            <div className="px-3 text-center"></div>
+          </div>
+          <div className="ml-auto flex items-center gap-3" style={{ paddingRight: 16 }}>
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={conditionPreview}
+                onChange={(e) => setConditionPreview(e.target.checked)}
+                className="accent-[#2962ff] w-3 h-3 cursor-pointer"
+              />
+              <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-[#d1d4dc]' : 'text-[#787b86]'}`}>
+                Preview
+              </span>
+            </label>
+            <button
+              onClick={() => openConditionModal()}
+              className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer select-none"
+              style={{ padding: '2px 8px' }}
+            >
+              + New
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Rows */}
-      {conditions.map((c, i) => {
+      {filteredConditions.length === 0 && (
+        <div className="flex items-center justify-center text-[#434651] text-xs" style={{ height: 60 }}>
+          No conditions match filter
+        </div>
+      )}
+      {filteredConditions.map((c, i) => {
         const stripe = i % 2 === 1 ? 'bg-[#0d1117]/40' : '';
         const isBuy = c.orderSide === 'buy';
         const condLabel = c.conditionType === 'closes_above' ? 'Close Above' : 'Close Below';
