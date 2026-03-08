@@ -65,6 +65,57 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
       ctx.fillStyle = `rgba(${rr}, ${rg}, ${rb}, 0.25)`;
       ctx.fillRect(left, top, w, h);
 
+      // Crossing single-direction arrows inside rectangle (touching edges)
+      const arrowColor = `rgba(${rr}, ${rg}, ${rb}, 0.5)`;
+      const headSize = Math.round(5 * vpr);
+      const cx = left + w / 2;
+      const cy = top + h / 2;
+
+      ctx.strokeStyle = arrowColor;
+      ctx.fillStyle = arrowColor;
+      ctx.lineWidth = Math.round(1.5 * vpr);
+
+      // Vertical arrow: up for positive, down for negative
+      if (h > headSize * 3) {
+        ctx.beginPath();
+        ctx.moveTo(cx, top);
+        ctx.lineTo(cx, top + h);
+        ctx.stroke();
+        // Arrowhead at tip
+        if (isNegative) {
+          // Points down (bottom edge)
+          ctx.beginPath();
+          ctx.moveTo(cx, top + h);
+          ctx.lineTo(cx - headSize, top + h - headSize);
+          ctx.lineTo(cx + headSize, top + h - headSize);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // Points up (top edge)
+          ctx.beginPath();
+          ctx.moveTo(cx, top);
+          ctx.lineTo(cx - headSize, top + headSize);
+          ctx.lineTo(cx + headSize, top + headSize);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Horizontal arrow: always left to right (time direction)
+      if (w > headSize * 3) {
+        ctx.beginPath();
+        ctx.moveTo(left, cy);
+        ctx.lineTo(left + w, cy);
+        ctx.stroke();
+        // Arrowhead at right edge
+        ctx.beginPath();
+        ctx.moveTo(left + w, cy);
+        ctx.lineTo(left + w - headSize, cy - headSize);
+        ctx.lineTo(left + w - headSize, cy + headSize);
+        ctx.closePath();
+        ctx.fill();
+      }
+
       // Selection handles at 4 corners
       if (this._selected) {
         const hr = Math.round(4 * vpr);

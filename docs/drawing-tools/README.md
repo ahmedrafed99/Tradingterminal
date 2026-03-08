@@ -286,6 +286,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Mouse move shows live preview: semi-transparent rectangle fill + metrics label (price change, %, bar count, time span, volume)
 - Second click finalizes — preview stays visible, tool switches to select
 - **Ephemeral**: ruler is NOT persisted to the store. Next left-click or Escape dismisses the overlay
+- **Directional arrows**: two single-direction crossing arrows rendered inside the rectangle at 0.5 alpha (lighter than the 0.25 fill). Vertical arrow points up for positive (price increase) or down for negative (price decrease). Horizontal arrow always points right (time direction). Arrows span the full rectangle edges. Only drawn when the rectangle is large enough (>15px per axis).
 - Negative rulers (price went down): stronger red rectangle (`#d32f2f` at 0.25 alpha), darker red label (`#8b2232` at 0.85 alpha)
 - Positive rulers: blue rectangle and label (`#2962ff`)
 - Metrics computed via `computeRulerMetrics(bars, p1, p2)` from `rulerMetrics.ts`
