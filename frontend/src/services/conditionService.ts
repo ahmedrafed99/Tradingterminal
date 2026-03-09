@@ -61,10 +61,17 @@ function getApi(baseUrl: string) {
   return api;
 }
 
+// In-flight dedup for getAll — prevents StrictMode double-calls
+let getAllInflight: Promise<Condition[]> | null = null;
+
 export const conditionService = {
   async getAll(baseUrl: string): Promise<Condition[]> {
-    const { data } = await getApi(baseUrl).get('/conditions');
-    return data;
+    if (getAllInflight) return getAllInflight;
+    getAllInflight = getApi(baseUrl)
+      .get('/conditions')
+      .then(({ data }) => data)
+      .finally(() => { getAllInflight = null; });
+    return getAllInflight;
   },
 
   async create(baseUrl: string, input: CreateConditionInput): Promise<Condition> {

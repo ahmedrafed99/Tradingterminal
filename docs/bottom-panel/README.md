@@ -12,7 +12,7 @@ Collapsible, resizable panel below the chart displaying **Orders** and **Trades*
 
 | File | Purpose |
 |------|---------|
-| `BottomPanel.tsx` | Container with tab bar, tab switching, collapse/expand toggle |
+| `BottomPanel.tsx` | Container with tab bar, tab switching, collapse/expand toggle. ConditionsTab stays mounted (hidden) to keep SSE alive |
 | `OrdersTab.tsx` | Table of open orders with cancel buttons |
 | `TradesTab.tsx` | Grid of trades with date preset selector and click-to-show-on-chart |
 | `DatePresetSelector.tsx` | Dropdown for choosing trade date range (Today, This Week, This Month) |

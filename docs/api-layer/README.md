@@ -90,7 +90,7 @@ Chart renders instantly on page refresh from sessionStorage cache.
 1. In-memory `Map` → 2. In-flight dedup → 3. Network fetch.
 Prevents duplicate requests when multiple components (chart toolbars, order panel) resolve the same pinned instruments concurrently.
 
-**`getStatus` / `loadSettings` dedup**: Both use in-flight promise dedup — concurrent calls (e.g. from React StrictMode double-mounting) share a single network request.
+**`getStatus` / `loadSettings` / `searchTrades` / `conditionService.getAll` dedup**: All use in-flight promise dedup — concurrent calls (e.g. from React StrictMode double-mounting) share a single network request. `searchTrades` dedup is keyed by the full URL (account + timestamps).
 
 ### `orderService.ts`
 

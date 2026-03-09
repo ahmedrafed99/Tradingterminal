@@ -78,7 +78,14 @@ export function BottomPanel() {
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-auto border-t border-[#2a2e39]">
-        {tab === 'orders' ? <OrdersTab /> : tab === 'conditions' ? <ConditionsTab /> : <TradesTab />}
+        {tab === 'orders' && <OrdersTab />}
+        {tab === 'trades' && <TradesTab />}
+        {/* Keep ConditionsTab mounted (SSE connection alive) but hidden when inactive */}
+        {conditionServerUrl && (
+          <div className={tab === 'conditions' ? undefined : 'hidden'}>
+            <ConditionsTab />
+          </div>
+        )}
       </div>
     </div>
   );
