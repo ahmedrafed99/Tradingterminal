@@ -209,13 +209,44 @@ export async function start(): Promise<void> {
 }
 
 /** Cancel the current timer and recompute the next boundary.
- *  Call this when a new condition is armed so we don't miss the next candle. */
+ *  Call this when a new condition is armed so we don't miss the next candle.
+ *
+ *  Also does an immediate poll for any timeframes whose candle boundary
+ *  already passed (within the last POLL_BUFFER_MS + slack window).
+ *  This prevents the race where reschedule() fires between candle close
+ *  and the pending poll — cancelling the timer that would have checked it. */
 export function reschedule(): void {
   if (!running) return;
   if (scheduledTimer) {
     clearTimeout(scheduledTimer);
     scheduledTimer = null;
   }
+
+  // Check if any candle boundaries recently passed that we haven't polled yet
+  const armed = store.getArmed();
+  const now = Date.now();
+  const recentlyClosedTfs = new Set<string>();
+
+  for (const c of armed) {
+    const tf = TIMEFRAME_MAP[c.timeframe];
+    if (!tf) continue;
+    const nowSec = now / 1000;
+    const currentCandleStart = Math.floor(nowSec / tf.periodSec) * tf.periodSec;
+    const prevCandleClose = currentCandleStart; // = when the previous candle ended
+    const msSincePrevClose = now - prevCandleClose * 1000;
+    // If the previous candle closed within the last 10s, poll it now
+    if (msSincePrevClose < 10_000) {
+      recentlyClosedTfs.add(c.timeframe);
+    }
+  }
+
+  if (recentlyClosedTfs.size > 0) {
+    console.log(`[barAggregator] Reschedule: immediate poll for recently closed [${[...recentlyClosedTfs].join(', ')}]`);
+    pollTimeframes(recentlyClosedTfs).catch((err) => {
+      console.error('[barAggregator] Immediate poll error:', err instanceof Error ? err.message : err);
+    });
+  }
+
   scheduleNext();
 }
 
