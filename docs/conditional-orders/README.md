@@ -13,7 +13,7 @@ Place orders automatically when a candle closes above or below a price. Runs 24/
 
 1. **You create a condition** via the frontend (e.g. "if 15m candle closes above 21500 -> buy 1 MNQ at market")
 2. The condition is sent to the **remote backend** via REST and saved to `data/conditions.json`
-3. The **bar aggregator** polls the exchange REST API (`/api/History/retrieveBars` with `includePartialBar: false`) aligned to candle boundaries — not on a fixed interval, but waking up exactly when each timeframe's candle closes (+ 3s buffer)
+3. The **bar aggregator** polls the exchange REST API (`/api/History/retrieveBars` with `includePartialBar: false`) aligned to candle boundaries — not on a fixed interval, but waking up exactly when each timeframe's candle closes (+ 3s buffer). When a new condition is armed, `reschedule()` also does an **immediate poll** for any timeframes whose candle closed within the last 10s, preventing a race where the reschedule cancels the pending poll timer
 4. When a completed bar is detected, the engine evaluates all armed conditions for that contract+timeframe
 5. If the bar's close price meets the condition, it **places the order** via the exchange adapter and validates the response (`success` field)
 6. The frontend receives a **live SSE event** (triggered/failed) and shows a toast
@@ -81,13 +81,13 @@ The primary way to create conditions is directly on the chart via **Preview mode
    - **Order line** (green): `[Buy Limit] [1] [+SL] [+TP] [✕]` — the limit order to place
 4. The **timeframe** is automatically set to whatever the chart is showing (e.g. 1m, 15m)
 
-### Direction toggle (▲/▼ arrow)
+### Direction (auto-derived from line positions)
 
-The arrow cell on the condition line is **clickable** — click it to toggle between Close Above and Close Below:
-- **▲** (blue `#4a7dff`) → Close Above + Buy Limit
-- **▼** (red `#d32f2f`) → Close Below + Sell Limit
+The condition direction is **automatically determined** by the relative position of the two lines — no manual toggle needed:
+- **Condition line above order line** → Close Above + Buy Limit (▲ blue `#4a7dff`)
+- **Condition line below order line** → Close Below + Sell Limit (▼ red `#d32f2f`)
 
-Toggling flips the arrow, condition text, line colors, and order side all at once. Dragging lines does **not** auto-switch direction — use the arrow button.
+When dragging either line past the other, the direction **flips in real-time**: arrow, condition text, line colors, order side, and SL/TP PnL labels all update instantly. This prevents accidental mis-configuration (e.g. a Close Above with a Sell).
 
 ### Order type toggle (limit/market)
 
@@ -97,7 +97,7 @@ The `limit` / `market` cell on the condition line toggles the order type:
 
 Both states share the same greyish-white bg (`#cac9cb`). Click to toggle.
 
-All clickable cells (arrow, limit/market, ARM, ✕, +SL, +TP) darken on hover (`brightness(0.75)`) with a 0.15s transition.
+All clickable cells (limit/market, ARM, ✕, +SL, +TP) brighten on hover (`brightness(1.25)`) with a 0.15s transition. The arrow cell is not interactive — direction is controlled by line positions.
 
 ### Size adjustment (+/- buttons)
 
@@ -200,7 +200,7 @@ bracket?: {
 ## Key design decisions
 
 - **Chart-first UX**: Creating and adjusting conditions happens directly on the chart via draggable `PriceLevelLine` instances — same interaction model as existing order lines. The modal form is a secondary path for precision or bulk editing.
-- **Candle-boundary polling**: The bar aggregator uses REST polling aligned to candle close times — for a 1m condition it wakes at :00, :01, :02; for 15m at :00, :15, :30, :45; for 4h at 00:00, 04:00, 08:00, etc. A 3s buffer is added after each boundary to let the API finalize the bar. This avoids needing a second WebSocket connection (exchanges like TopStepX limit one per user). When a new condition is armed or resumed, the scheduler immediately reschedules to the next boundary.
+- **Candle-boundary polling**: The bar aggregator uses REST polling aligned to candle close times — for a 1m condition it wakes at :00, :01, :02; for 15m at :00, :15, :30, :45; for 4h at 00:00, 04:00, 08:00, etc. A 3s buffer is added after each boundary to let the API finalize the bar. This avoids needing a second WebSocket connection (exchanges like TopStepX limit one per user). When a new condition is armed or resumed, the scheduler reschedules to the next boundary **and** does an immediate poll for any timeframes whose candle closed within the last 10s (prevents the race where `reschedule()` cancels the pending poll timer right after a candle close, which would skip that bar).
 - **Optional bracket**: Each condition can optionally carry SL/TP config. On fill, the backend places bracket orders using the same adapter pattern. This is a toggle, not mandatory.
 - **Exchange-agnostic**: Only calls through the generic `ExchangeAdapter` interface. Only auto-connect env vars are exchange-specific.
 - **JSON file persistence**: `data/conditions.json` with in-memory array and debounced disk writes (500ms). Simple, no database needed.

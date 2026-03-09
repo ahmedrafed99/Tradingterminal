@@ -450,18 +450,6 @@ export function useConditionLines(
 
       if (target === 'cond') {
         for (const cell of cells) {
-          // Arrow toggle button — click to switch above/below
-          if (cell.textContent === '\u25B2' || cell.textContent === '\u25BC') {
-            makeClickable(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              const p = previewRef.current;
-              if (!p) return;
-              p.isAbove = !p.isAbove;
-              updatePreviewLabels();
-            });
-          }
           // limit/market toggle button
           if (cell.textContent === 'limit' || cell.textContent === 'market') {
             makeClickable(cell);
@@ -561,7 +549,6 @@ export function useConditionLines(
         const t = e.target as HTMLElement;
         if (t.textContent === 'ARM' || t.textContent === 'limit' || t.textContent === 'market' || t.textContent === '+SL' || t.textContent === '+TP' || t.textContent === '\u2715') return;
         if (t.textContent === '+' || t.textContent === '\u2212') return;
-        if (t.textContent === '\u25B2' || t.textContent === '\u25BC') return;
 
         e.preventDefault();
         const p = previewRef.current;
@@ -931,7 +918,39 @@ export function useConditionLines(
         p.orderPrice = snapped;
         p.orderLine.setPrice(snapped);
         p.orderLine.syncPosition();
-      } else if (drag.target === 'sl' && p.slLine) {
+      }
+
+      // Flip condition type when order/cond lines cross each other
+      if (drag.target === 'cond' || drag.target === 'order') {
+        const shouldBeAbove = p.condPrice > p.orderPrice;
+        if (shouldBeAbove !== p.isAbove) {
+          p.isAbove = shouldBeAbove;
+          // Update condition line visuals
+          const armBg = p.isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
+          p.condLine?.setLineColor(p.isAbove ? CLR_ABOVE : CLR_BELOW);
+          p.condLine?.updateSection(0, p.isAbove ? '\u25B2' : '\u25BC', armBg, '#fff');
+          p.condLine?.updateSection(1, `If Close ${p.isAbove ? 'Above' : 'Below'} ${timeframe.label}`, '#cac9cb', '#000');
+          p.condLine?.updateSection(3, 'ARM', armBg, '#fff');
+          // Update order line visuals (bg only on size cell to preserve +/- buttons)
+          const sideBg = p.isAbove ? CLR_BUY : CLR_SELL;
+          p.orderLine?.setLineColor(sideBg);
+          p.orderLine?.updateSection(0, `${p.isAbove ? 'Buy' : 'Sell'} Limit`, '#cac9cb', '#000');
+          p.orderLine?.updateSection(1, undefined, sideBg);
+          // Update SL/TP PnL since direction flipped
+          if (p.slLine && p.slPrice != null) {
+            const slDiff = p.isAbove ? p.slPrice - p.orderPrice : p.orderPrice - p.slPrice;
+            const slPnl = calcPnl(slDiff, contract!, p.size);
+            p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, '#000');
+          }
+          for (const tp of p.tpLines) {
+            const tpDiff = p.isAbove ? tp.price - p.orderPrice : p.orderPrice - tp.price;
+            const tpPnl = calcPnl(tpDiff, contract!, tp.size);
+            tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, '#000');
+          }
+        }
+      }
+
+      if (drag.target === 'sl' && p.slLine) {
         p.slPrice = snapped;
         p.slLine.setPrice(snapped);
         p.slLine.syncPosition();
