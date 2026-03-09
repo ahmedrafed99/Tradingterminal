@@ -18,6 +18,9 @@ export function DatabaseTab() {
   const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [backupDir, setBackupDir] = useState('');
+  const [backupMsg, setBackupMsg] = useState<string | null>(null);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -165,6 +168,23 @@ export function DatabaseTab() {
 
   function formatNumber(n: number): string {
     return n.toLocaleString();
+  }
+
+  async function handleBackup() {
+    setBackupMsg(null);
+    setBackupLoading(true);
+    try {
+      const result = await databaseService.backupTo(backupDir || undefined);
+      setBackupMsg(`Saved to ${result.path}`);
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : 'Backup failed');
+    } finally {
+      setBackupLoading(false);
+    }
+  }
+
+  function handleDownload() {
+    databaseService.downloadBackup();
   }
 
   const selectedName = uniqueContracts.find((c) => c.id === selectedContract)?.name;
@@ -388,6 +408,68 @@ export function DatabaseTab() {
           )}
         </div>
       )}
+
+      {/* BACKUP */}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ borderTop: '1px solid #2a2e39', marginBottom: 16 }} />
+
+        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+          <span className="text-[10px] uppercase tracking-wider text-[#787b86]">
+            Backup
+          </span>
+          <span className="text-[10px] text-[#434651]">
+            Auto-backup daily · last 7 kept
+          </span>
+        </div>
+
+        {/* Save to directory */}
+        <div style={{ marginBottom: 10 }}>
+          <span className="text-[10px] text-[#787b86]" style={{ display: 'block', marginBottom: 4 }}>
+            Save to directory (leave empty for default)
+          </span>
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <input
+              type="text"
+              value={backupDir}
+              onChange={(e) => setBackupDir(e.target.value)}
+              placeholder="C:\Users\Ahmed\Backups"
+              className="flex-1 bg-[#111] text-xs text-[#d1d4dc] rounded-lg focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+              style={{ padding: '8px 12px', border: '1px solid #2a2e39' }}
+            />
+            <button
+              onClick={handleBackup}
+              disabled={backupLoading || !(status?.contracts?.length)}
+              className="text-[11px] font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50"
+              style={{ padding: '7px 16px', whiteSpace: 'nowrap' }}
+            >
+              {backupLoading ? 'Saving…' : 'Save Backup'}
+            </button>
+          </div>
+        </div>
+
+        {/* Download link */}
+        <button
+          onClick={handleDownload}
+          disabled={!(status?.contracts?.length)}
+          className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors disabled:opacity-50"
+        >
+          Or download to browser →
+        </button>
+
+        {backupMsg && (
+          <div
+            className="text-[10px] rounded-lg"
+            style={{
+              marginTop: 8,
+              padding: '6px 10px',
+              backgroundColor: backupMsg.startsWith('Saved') ? 'rgba(38,166,154,0.1)' : 'rgba(239,83,80,0.1)',
+              color: backupMsg.startsWith('Saved') ? '#26a69a' : '#ef5350',
+            }}
+          >
+            {backupMsg}
+          </div>
+        )}
+      </div>
 
       {/* Error */}
       {error && (

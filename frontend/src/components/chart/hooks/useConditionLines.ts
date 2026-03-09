@@ -362,16 +362,8 @@ export function useConditionLines(
       size, isAbove: true, isMarket: false,
     };
 
-    // Check if preset is active — if so, auto-arm
-    const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
-
     // Build labels (also wires up interaction handlers)
     updatePreviewLabels();
-
-    // If preset selected → auto-arm immediately
-    if (activePreset) {
-      armCondition();
-    }
 
     function updatePreviewLabels() {
       const p = previewRef.current;
@@ -413,25 +405,15 @@ export function useConditionLines(
 
       // Order / market label
       if (p.orderLine) {
-        const st2 = useStore.getState();
-        const hasPreset = st2.bracketPresets.find((pr) => pr.id === st2.activePresetId);
-        if (hasPreset && !p.isMarket) {
-          p.orderLine.setLabel([
-            { text: sideText, bg: '#cac9cb', color: '#000' },
-            { text: String(p.size), bg: sideBg, color: '#000' },
-            { text: '\u2715', bg: '#e0e0e0', color: '#000' },
-          ]);
-        } else {
-          const sections = [
-            { text: sideText, bg: '#cac9cb', color: '#000' },
-            { text: String(p.size), bg: sideBg, color: '#000' },
-          ];
-          if (!p.slLine) sections.push({ text: '+SL', bg: CLR_SL, color: '#000' });
-          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-          if (totalTpSize < p.size) sections.push({ text: '+TP', bg: '#00c805', color: '#000' });
-          sections.push({ text: '\u2715', bg: '#e0e0e0', color: '#000' });
-          p.orderLine.setLabel(sections);
-        }
+        const sections = [
+          { text: sideText, bg: '#cac9cb', color: '#000' },
+          { text: String(p.size), bg: sideBg, color: '#000' },
+        ];
+        if (!p.slLine) sections.push({ text: '+SL', bg: CLR_SL, color: '#000' });
+        const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+        if (totalTpSize < p.size) sections.push({ text: '+TP', bg: '#00c805', color: '#000' });
+        sections.push({ text: '\u2715', bg: '#e0e0e0', color: '#000' });
+        p.orderLine.setLabel(sections);
       }
 
       // Rewire interaction after label rebuild

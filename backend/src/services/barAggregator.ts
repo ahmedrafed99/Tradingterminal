@@ -74,8 +74,12 @@ async function pollTimeframes(timeframes: Set<string>): Promise<void> {
     }
   }
 
-  if (pairs.size === 0) return;
+  if (pairs.size === 0) {
+    console.log(`[barAggregator] No contract/timeframe pairs to poll (armed=${armed.length}, timeframes=${[...timeframes].join(',')})`);
+    return;
+  }
 
+  console.log(`[barAggregator] Polling ${pairs.size} pair(s): ${[...pairs.keys()].join(', ')}`);
   const adapter = getAdapter();
 
   for (const [key, { contractId, timeframe }] of pairs) {
@@ -99,7 +103,10 @@ async function pollTimeframes(timeframes: Set<string>): Promise<void> {
       }) as { bars?: Array<{ t: string; o: number; h: number; l: number; c: number }> };
 
       const bars = result?.bars;
-      if (!bars || bars.length === 0) continue;
+      if (!bars || bars.length === 0) {
+        console.log(`[barAggregator] No bars returned for ${contractId} ${timeframe}`, JSON.stringify(result).slice(0, 200));
+        continue;
+      }
 
       const lastBar = bars[bars.length - 1];
       const barTime = new Date(lastBar.t).getTime();

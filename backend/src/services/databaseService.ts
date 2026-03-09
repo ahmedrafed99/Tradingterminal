@@ -232,10 +232,89 @@ export function deleteContract(contractId: string): number {
 }
 
 // ---------------------------------------------------------------------------
+// Backup
+// ---------------------------------------------------------------------------
+
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
+const MAX_BACKUPS = 7; // keep last 7 auto-backups
+
+/** Create a backup at the given destination path using SQLite online backup API. */
+export async function backup(destPath: string): Promise<void> {
+  await db.backup(destPath);
+}
+
+/** Auto-backup: saves a dated snapshot to data/backups/, rotates old ones. */
+export async function autoBackup(): Promise<string | null> {
+  // Skip if no data exists
+  const { contracts } = getStatus();
+  if (contracts.length === 0) return null;
+
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const filename = `candles-${date}.db`;
+  const destPath = path.join(BACKUP_DIR, filename);
+
+  // Skip if today's backup already exists
+  if (fs.existsSync(destPath)) return destPath;
+
+  await db.backup(destPath);
+  console.log(`[database] Auto-backup → ${destPath}`);
+
+  // Rotate: delete oldest backups beyond MAX_BACKUPS
+  const files = fs.readdirSync(BACKUP_DIR)
+    .filter((f) => f.startsWith('candles-') && f.endsWith('.db'))
+    .sort()
+    .reverse();
+
+  for (const file of files.slice(MAX_BACKUPS)) {
+    fs.unlinkSync(path.join(BACKUP_DIR, file));
+    console.log(`[database] Rotated old backup: ${file}`);
+  }
+
+  return destPath;
+}
+
+/** Get the backup dir path (for manual backup destination). */
+export function getBackupDir(): string {
+  return BACKUP_DIR;
+}
+
+export function getDbPath(): string {
+  return DB_PATH;
+}
+
+// ---------------------------------------------------------------------------
+// Auto-backup scheduler
+// ---------------------------------------------------------------------------
+
+const AUTO_BACKUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+let autoBackupTimer: ReturnType<typeof setInterval> | null = null;
+
+export function startAutoBackup(): void {
+  // Run once on startup (after a short delay)
+  setTimeout(() => { autoBackup().catch(() => {}); }, 5000);
+
+  autoBackupTimer = setInterval(() => {
+    autoBackup().catch(() => {});
+  }, AUTO_BACKUP_INTERVAL);
+
+  console.log('[database] Auto-backup enabled (daily, keep last 7)');
+}
+
+export function stopAutoBackup(): void {
+  if (autoBackupTimer) {
+    clearInterval(autoBackupTimer);
+    autoBackupTimer = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Close
 // ---------------------------------------------------------------------------
 
 export function close(): void {
+  stopAutoBackup();
   if (db) {
     db.close();
     console.log('[database] SQLite closed');

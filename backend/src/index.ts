@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import * as http from 'http';
 import cors from 'cors';
 import express from 'express';
@@ -115,6 +116,7 @@ server.listen(PORT, async () => {
   console.log(`  *    /database/*`);
 
   databaseService.init();
+  databaseService.startAutoBackup();
   await autoConnect();
   conditionEngine.start();
 });

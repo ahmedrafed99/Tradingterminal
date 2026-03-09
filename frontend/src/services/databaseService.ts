@@ -71,4 +71,23 @@ export const databaseService = {
   async deleteContract(contractId: string): Promise<void> {
     await api.delete(`/database/contracts/${encodeURIComponent(contractId)}`);
   },
+
+  async backupTo(directory?: string): Promise<{ success: boolean; path: string; filename: string }> {
+    const res = await api.post<{ success: boolean; path: string; filename: string }>(
+      '/database/backup',
+      directory ? { directory } : {},
+    );
+    return res.data;
+  },
+
+  downloadBackup(): void {
+    window.open('/database/backup/download', '_blank');
+  },
+
+  async listBackups(): Promise<{ filename: string; sizeBytes: number; created: string }[]> {
+    const res = await api.get<{ backups: { filename: string; sizeBytes: number; created: string }[] }>(
+      '/database/backups',
+    );
+    return res.data.backups;
+  },
 };
