@@ -48,6 +48,7 @@ export function ConditionModal() {
     lastPrice,
     bracketPresets,
     addToast,
+    timeframe: activeTimeframe,
   } = useStore();
 
   const [conditionType, setConditionType] = useState<'closes_above' | 'closes_below'>('closes_above');
@@ -94,7 +95,7 @@ export function ConditionModal() {
     } else {
       setConditionType('closes_above');
       setTriggerPrice(lastPrice != null ? String(lastPrice) : '');
-      setTimeframe('15m');
+      setTimeframe(activeTimeframe.label);
       setOrderSide('buy');
       setOrderType('market');
       setOrderPrice('');

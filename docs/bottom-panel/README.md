@@ -74,7 +74,7 @@ When a trade ID is in `visibleTradeIds`, `CandlestickChart.tsx` renders a series
 - `getCmeSessionStart()` — UTC ISO timestamp for the current CME session start (6 PM New York time). Used by `App.tsx` for session trade fetching (RPNL).
 - `DatePreset` type — `'today' | 'week' | 'month'`.
 - `DATE_PRESET_LABELS` — display labels for each preset.
-- `getDateRange(preset)` — returns `{ startTimestamp, endTimestamp? }` for the given preset. Used by `TradesTab` and `DatePresetSelector`.
+- `getDateRange(preset)` — returns `{ startTimestamp, endTimestamp? }` for the given preset. Used by `TradesTab` and `DatePresetSelector`. The "week" preset uses the **futures trading week** boundary: Sunday 6 PM New York time (when CME futures reopen). If the current time is Sunday before 6 PM, it rolls back to the previous Sunday 6 PM.
 
 ## Styling
 

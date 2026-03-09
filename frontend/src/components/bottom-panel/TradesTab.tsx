@@ -268,8 +268,9 @@ export function TradesTab() {
 
   if (closingTrades.length === 0) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full" style={{ width: '100%' }}>
         <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
+          <div style={{ width: '70%' }} />
           <div className="ml-auto" style={{ paddingRight: 16 }}>
             <DatePresetSelector />
           </div>

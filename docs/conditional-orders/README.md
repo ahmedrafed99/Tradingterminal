@@ -157,7 +157,7 @@ The **ConditionModal** is still available for:
 - Editing conditions via clicking an armed condition's label on the chart
 - Editing conditions via the Conditions tab row
 
-The modal provides full fields: condition type, trigger price, timeframe, side, order type (market/limit), size, bracket config (with preset support), label, and expiry.
+The modal provides full fields: condition type, trigger price, timeframe, side, order type (market/limit), size, bracket config (with preset support), label, and expiry. The timeframe defaults to the **currently active chart timeframe** (instead of a hardcoded 15m).
 
 ## Bracket orders
 

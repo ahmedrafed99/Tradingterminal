@@ -140,6 +140,7 @@ export function ConditionsTab() {
 
   const toolbar = (
     <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
+      <div style={{ width: '70%' }} />
       <div className="ml-auto flex items-center gap-3" style={{ paddingRight: 16 }}>
         <label className="flex items-center gap-1.5 cursor-pointer select-none">
           <input

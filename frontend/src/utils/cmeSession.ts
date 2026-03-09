@@ -46,9 +46,12 @@ function getWeekStart(): string {
   const now = new Date();
   const nyNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
   const day = nyNow.getDay(); // 0=Sun
-  const diff = day === 0 ? 6 : day - 1; // Monday = start of week
+  const hour = nyNow.getHours();
+  // Futures week starts Sunday 6pm NY. If it's Sunday before 6pm, go back to previous Sunday.
+  let diff = day === 0 ? 0 : day;
+  if (day === 0 && hour < 18) diff = 7;
   nyNow.setDate(nyNow.getDate() - diff);
-  nyNow.setHours(0, 0, 0, 0);
+  nyNow.setHours(18, 0, 0, 0);
   return nyToUtcIso(nyNow);
 }
 
