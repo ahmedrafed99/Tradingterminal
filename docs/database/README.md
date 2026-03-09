@@ -2,6 +2,8 @@
 
 Local SQLite database storing 1-minute candle data for offline analysis, backtesting, and AI-powered tools (chat bot, strategy evaluation).
 
+**Status**: Steps 1–4 implemented and working. Chat bot integration (step 5) pending.
+
 ---
 
 ## Why
@@ -14,12 +16,13 @@ The ProjectX API serves bars on-demand with a 20K bar limit per request and no p
 
 ### Technology
 
-**SQLite** via `better-sqlite3` (synchronous, fast, zero-config).
+**SQLite** via `better-sqlite3` (synchronous, fast, zero-config). Runs embedded inside the Express backend — no separate server or process.
 
 - Single file: `backend/data/candles.db`
 - No separate server process
 - Handles millions of rows comfortably
 - `better-sqlite3` is synchronous but non-blocking for the event loop on reads; bulk inserts use transactions for speed
+- WAL mode + NORMAL synchronous for performance
 
 ### Schema
 
@@ -59,27 +62,29 @@ Per contract. Negligible disk usage.
 
 ### Manual Fetch (Primary)
 
-All fetches are triggered manually from the Database Settings tab. Two modes:
+All fetches are triggered manually from the Database tab in Settings. Two modes:
 
 1. **Quick Sync** — Fetches from the latest stored timestamp to now. One click to stay current.
 2. **Custom Range** — User picks a start and end date. Fetches all 1-min bars in that window.
 
-Both modes paginate internally: the backend splits the range into chunks, fetches up to 20K bars per ProjectX API call, and inserts into SQLite. Progress is reported to the frontend via polling or SSE.
+Both modes paginate internally: the backend splits the range into chunks, fetches up to 20K bars per ProjectX API call, and inserts into SQLite. Progress is reported to the frontend via polling (1.5s interval).
 
 ### Pagination Strategy
 
-```
-User requests: 2025-01-01 to 2025-03-01 (59 days, ~81K bars)
+The ProjectX API returns bars in **descending order** (newest first). Pagination works backward from the end date:
 
-Backend splits into pages:
-  Page 1: 2025-01-01 → fetch 20K bars → insert → last bar timestamp = 2025-01-15T03:22:00Z
-  Page 2: 2025-01-15T03:23:00Z → fetch 20K bars → insert → ...
-  Page 3: ...
-  Page 4: ... → reaches 2025-03-01 → done
+```
+User requests: 2026-01-01 to 2026-03-09 (~56K bars)
+
+Backend paginates backward:
+  Page 1: startTime=Jan 1, endTime=Mar 9 → 20K newest bars → insert → oldest = Feb 16
+  Page 2: startTime=Jan 1, endTime=Feb 15 → 20K bars → insert → oldest = Jan 25
+  Page 3: startTime=Jan 1, endTime=Jan 24 → 16K bars (< 20K limit) → insert → done
 
 Each page: POST /api/History/retrieveBars with limit=20000
 Insert: BEGIN TRANSACTION → INSERT OR IGNORE batch → COMMIT
 Delay between pages: ~500ms (avoid API rate limiting)
+End cursor moves backward by 1 minute after each page.
 ```
 
 ### Real-Time Capture (Future)
@@ -90,7 +95,7 @@ Hook into the existing SignalR market hub to insert each completed 1-min bar as 
 
 ## Backend API
 
-All endpoints are behind the existing auth check (must be connected).
+All endpoints are under `/database`. Fetch operations require an active exchange connection.
 
 ### `GET /database/status`
 
@@ -101,17 +106,16 @@ Returns the current state of stored data.
   "contracts": [
     {
       "contractId": "CON.F.US.ENQ.H26",
-      "label": "MNQ Mar 2026",
-      "oldestBar": "2025-09-15T08:30:00Z",
-      "newestBar": "2026-03-06T20:59:00Z",
-      "totalBars": 182400,
-      "gaps": 2
+      "oldestBar": 1767884100,
+      "newestBar": 1773014340,
+      "totalBars": 56638
     }
   ],
-  "dbSizeBytes": 12582912,
-  "fetching": false
+  "dbSizeBytes": 6828032
 }
 ```
+
+Timestamps are Unix epoch seconds. Frontend formats them for display.
 
 ### `POST /database/fetch`
 
@@ -122,13 +126,13 @@ Start a fetch job. Runs in the background on the backend — returns immediately
 { "contractId": "CON.F.US.ENQ.H26", "mode": "sync" }
 
 // Custom Range
-{ "contractId": "CON.F.US.ENQ.H26", "mode": "range", "startTime": "2025-01-01T00:00:00Z", "endTime": "2025-03-01T00:00:00Z" }
+{ "contractId": "CON.F.US.ENQ.H26", "mode": "range", "startTime": "2026-01-01T00:00:00Z", "endTime": "2026-03-09T00:00:00Z" }
 ```
 
 Response:
 
 ```json
-{ "jobId": "abc123", "estimatedPages": 5 }
+{ "jobId": "fetch_1773067836999_1", "estimatedPages": 3 }
 ```
 
 ### `GET /database/fetch/progress`
@@ -137,16 +141,17 @@ Poll for active fetch job status.
 
 ```json
 {
-  "jobId": "abc123",
+  "jobId": "fetch_1773067836999_1",
   "status": "running",
-  "pagesCompleted": 3,
-  "pagesTotal": 5,
-  "barsInserted": 58200,
-  "currentTimestamp": "2025-02-12T14:30:00Z"
+  "pagesCompleted": 2,
+  "pagesTotal": 3,
+  "barsInserted": 40000,
+  "currentTimestamp": "2026-01-25T12:00:00+00:00",
+  "errorMessage": null
 }
 ```
 
-Status values: `running` | `completed` | `failed` | `idle`
+Status values: `running` | `completed` | `failed` | `cancelled` | `idle`
 
 ### `POST /database/fetch/cancel`
 
@@ -157,7 +162,7 @@ Cancel a running fetch job. The job stops after the current page completes.
 Query stored candles. Used by chat bot, backtesting, and any future analysis feature.
 
 ```
-GET /database/candles?contractId=CON.F.US.ENQ.H26&from=2025-02-01T00:00:00Z&to=2025-02-07T00:00:00Z&timeframe=1m
+GET /database/candles?contractId=CON.F.US.ENQ.H26&from=2026-02-01T00:00:00Z&to=2026-02-07T00:00:00Z&timeframe=1m
 ```
 
 | Param        | Required | Description |
@@ -167,75 +172,76 @@ GET /database/candles?contractId=CON.F.US.ENQ.H26&from=2025-02-01T00:00:00Z&to=2
 | `to`         | Yes      | End of range (ISO 8601) |
 | `timeframe`  | No       | `1m` (default), `5m`, `15m`, `1h`, `4h`, `1d` |
 
-For timeframes above 1m, the backend aggregates on-the-fly:
+For timeframes above 1m, the backend aggregates on-the-fly using subqueries for correct first-open/last-close:
 
 ```sql
--- Example: 5m aggregation
 SELECT
-  (timestamp / 300) * 300 AS t,
-  MIN(open) AS open,   -- first open in group (use subquery for actual first)
+  (timestamp / @secs) * @secs AS t,
+  (SELECT c2.open FROM candles c2
+   WHERE c2.contract_id = @cid
+     AND (c2.timestamp / @secs) * @secs = (c.timestamp / @secs) * @secs
+   ORDER BY c2.timestamp ASC LIMIT 1) AS open,
   MAX(high) AS high,
-  MIN(low)  AS low,
-  MAX(close) AS close,  -- last close in group (use subquery for actual last)
+  MIN(low) AS low,
+  (SELECT c3.close FROM candles c3
+   WHERE c3.contract_id = @cid
+     AND (c3.timestamp / @secs) * @secs = (c.timestamp / @secs) * @secs
+   ORDER BY c3.timestamp DESC LIMIT 1) AS close,
   SUM(volume) AS volume
-FROM candles
-WHERE contract_id = ? AND timestamp BETWEEN ? AND ?
-GROUP BY t
-ORDER BY t;
+FROM candles c
+WHERE contract_id = @cid AND timestamp BETWEEN @from AND @to
+GROUP BY t ORDER BY t;
 ```
 
-(Actual implementation uses window functions or subqueries for correct first-open/last-close.)
+### `DELETE /database/contracts/:id`
+
+Delete all stored data for a contract. Returns `{ "deleted": <row count> }`.
 
 ---
 
 ## Frontend — Database Settings Tab
 
-A new tab in the Settings modal (alongside the existing API credentials tab).
+A tab in the Settings modal alongside the API credentials tab.
 
 ### Layout
 
 ```
 +---------------------------------------------------------------+
-|  Settings                                              [X]     |
-|  [ API ]  [ Database ]                                         |
+|  [ API ]  [ Database ]                                  [X]    |
 +---------------------------------------------------------------+
 |                                                                 |
-|  DATABASE STATUS                                                |
-|  Size: 12.4 MB                                                  |
+|  STORED DATA                                        6.5 MB     |
+|  ┌─────────────────────────────────────────────────────────┐   |
+|  │ CON.F.US.ENQ.H26                                    ✕   │   |
+|  │ Jan 8, 2026 — Mar 9, 2026 · 56,638 bars                │   |
+|  └─────────────────────────────────────────────────────────┘   |
 |                                                                 |
-|  +---------------------------------------------------------+   |
-|  | Contract       | From         | To           | Bars     |   |
-|  |----------------|--------------|--------------|----------|   |
-|  | MNQ Mar 2026   | Sep 15, 2025 | Mar 06, 2026 | 182,400  |   |
-|  +---------------------------------------------------------+   |
+|  ─────────────────────────────────────────────────────────     |
 |                                                                 |
-|  QUICK SYNC                                                     |
-|  Contract: [ MNQ Mar 2026  v ]                                  |
-|  [ Sync to Latest ]                                             |
+|  FETCH DATA                                                     |
+|  Contract: [ NQH6                                    v ]        |
+|  From: [ 01/01/2026 ]     To: [ 03/09/2026 ]                   |
+|  [ Fetch Range ]  Sync to Latest                                |
 |                                                                 |
-|  CUSTOM FETCH                                                   |
-|  Contract: [ MNQ Mar 2026  v ]                                  |
-|  From: [ 2025-01-01 ]   To: [ 2025-03-01 ]                     |
-|  [ Fetch ]                                                      |
-|                                                                 |
-|  PROGRESS                              (visible when fetching)  |
-|  [=========>              ] 3 / 5 pages  (58,200 bars)          |
-|  [ Cancel ]                                                     |
+|  PROGRESS                                        Completed     |
+|  [████████████████████████████████████████████████████████]     |
+|  3 / 3 pages                            56,638 bars inserted   |
 |                                                                 |
 +---------------------------------------------------------------+
 ```
 
 ### Contract Selector
 
-Populated from the contracts the user has already loaded in the app (available contracts list). Default: the currently active chart contract.
+Populated from contracts the user has loaded in the app (active chart contract, second chart, order panel). Default: the currently active chart contract.
 
 ### Behavior
 
-- **Sync to Latest**: disabled if no data exists yet for that contract (use Custom Fetch first)
-- **Fetch button**: starts the job, shows progress bar
+- **Sync to Latest**: disabled if no data exists yet for that contract (use Fetch Range first)
+- **Fetch Range**: starts the job, shows progress bar. Frontend polls every 1.5s.
 - **Cancel**: stops after current page
-- **Status table**: auto-refreshes when the tab is open
+- **Status section**: refreshes on mount and after each completed job
 - All buttons disabled while a fetch is in progress
+- Delete button (✕) per contract in the status section
 
 ---
 
@@ -255,20 +261,22 @@ backend/
 frontend/
   src/
     components/
+      SettingsModal.tsx        -- Refactored: API and Database tabs
       settings/
-        DatabaseTab.tsx       -- Settings tab UI
+        DatabaseTab.tsx        -- Database tab UI
     services/
       databaseService.ts      -- Frontend API client for /database/* endpoints
+  vite.config.ts              -- Added /database proxy entry
 ```
 
 ---
 
 ## Implementation Order
 
-1. **SQLite setup** — `better-sqlite3`, schema creation, insert/query functions
-2. **Backfill service** — paginated fetch from ProjectX API, job tracking
-3. **Backend routes** — `/database/status`, `/database/fetch`, `/database/candles`
-4. **Frontend Database tab** — status display, contract selector, fetch controls, progress bar
+1. ~~**SQLite setup** — `better-sqlite3`, schema creation, insert/query functions~~
+2. ~~**Backfill service** — paginated fetch from ProjectX API, job tracking~~
+3. ~~**Backend routes** — `/database/status`, `/database/fetch`, `/database/candles`~~
+4. ~~**Frontend Database tab** — status display, contract selector, fetch controls, progress bar~~
 5. **Wire up chat bot** — update `get_bars` tool to read from database when available
 
 ---

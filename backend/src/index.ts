@@ -12,7 +12,9 @@ import tradeRoutes from './routes/tradeRoutes';
 import settingsRoutes from './routes/settingsRoutes';
 import newsRoutes from './routes/newsRoutes';
 import conditionRoutes from './routes/conditionRoutes';
+import databaseRoutes from './routes/databaseRoutes';
 import * as conditionEngine from './services/conditionEngine';
+import * as databaseService from './services/databaseService';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 const app = express();
@@ -34,6 +36,7 @@ app.use('/trades', tradeRoutes);
 app.use('/settings', settingsRoutes);
 app.use('/news', newsRoutes);
 app.use('/conditions', conditionRoutes);
+app.use('/database', databaseRoutes);
 
 // Health check — useful for smoke testing
 app.get('/health', (_req, res) => {
@@ -109,7 +112,9 @@ server.listen(PORT, async () => {
   console.log(`  GET  /trades/search?accountId=&startTimestamp=`);
   console.log(`  GET  /news/economic`);
   console.log(`  *    /conditions/*`);
+  console.log(`  *    /database/*`);
 
+  databaseService.init();
   await autoConnect();
   conditionEngine.start();
 });
@@ -117,9 +122,11 @@ server.listen(PORT, async () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   conditionEngine.stop();
+  databaseService.close();
   process.exit(0);
 });
 process.on('SIGTERM', () => {
   conditionEngine.stop();
+  databaseService.close();
   process.exit(0);
 });

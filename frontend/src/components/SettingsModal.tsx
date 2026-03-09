@@ -2,12 +2,41 @@ import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { accountService } from '../services/accountService';
 import { useStore } from '../store/useStore';
+import { DatabaseTab } from './settings/DatabaseTab';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
+
+type SettingsTab = 'api' | 'database';
+
+function TabButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-xs font-medium transition-colors relative cursor-pointer ${
+        active ? 'text-[#d1d4dc]' : 'text-[#787b86] hover:text-[#d1d4dc]'
+      }`}
+      style={{ padding: '0 12px', height: '100%' }}
+    >
+      {label}
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2962ff]" />
+      )}
+    </button>
+  );
+}
 
 export function SettingsModal() {
   const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();
 
+  const [tab, setTab] = useState<SettingsTab>('api');
   const [userName, setUserName] = useState('');
   const [apiKey, setApiKey]     = useState('');
   const [url, setUrl]           = useState(baseUrl || DEFAULT_BASE_URL);
@@ -56,8 +85,12 @@ export function SettingsModal() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-[460px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#2a2e39]" style={{ padding: '20px 32px' }}>
-          <h2 className="text-sm font-semibold text-white">API Settings</h2>
+        <div className="flex items-center justify-between border-b border-[#2a2e39]" style={{ padding: '12px 32px 0 32px' }}>
+          <div className="flex items-center" style={{ height: 40 }}>
+            <TabButton label="API" active={tab === 'api'} onClick={() => setTab('api')} />
+            <div className="w-px h-4 bg-[#2a2e39]" style={{ margin: '0 4px' }} />
+            <TabButton label="Database" active={tab === 'database'} onClick={() => setTab('database')} />
+          </div>
           <button
             onClick={() => setSettingsOpen(false)}
             className="text-[#787b86] hover:text-white transition-colors text-lg leading-none"
@@ -67,109 +100,115 @@ export function SettingsModal() {
         </div>
 
         {/* Body */}
-        <div className="space-y-4" style={{ padding: '24px 32px' }}>
-          {/* Status pill */}
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
-            />
-            <span className="text-xs text-[#787b86]">
-              {connected ? `Connected · ${baseUrl}` : 'Disconnected'}
-            </span>
-          </div>
+        {tab === 'api' && (
+          <>
+            <div className="space-y-4" style={{ padding: '24px 32px' }}>
+              {/* Status pill */}
+              <div className="flex items-center gap-2">
+                <span
+                  className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
+                />
+                <span className="text-xs text-[#787b86]">
+                  {connected ? `Connected · ${baseUrl}` : 'Disconnected'}
+                </span>
+              </div>
 
-          {/* Fields — only editable when disconnected */}
-          <div className="space-y-3">
-            <label className="block">
-              <span className="block text-xs text-[#787b86] mb-1">Username</span>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                disabled={connected || loading}
-                placeholder="your-projectx-username"
-                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
-                style={{ padding: '10px 14px' }}
-              />
-            </label>
+              {/* Fields — only editable when disconnected */}
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="block text-xs text-[#787b86] mb-1">Username</span>
+                  <input
+                    type="text"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    disabled={connected || loading}
+                    placeholder="your-projectx-username"
+                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                    style={{ padding: '10px 14px' }}
+                  />
+                </label>
 
-            <label className="block">
-              <span className="block text-xs text-[#787b86] mb-1">API Key</span>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                disabled={connected || loading}
-                placeholder="••••••••••••••••"
-                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
-                style={{ padding: '10px 14px' }}
-              />
-            </label>
+                <label className="block">
+                  <span className="block text-xs text-[#787b86] mb-1">API Key</span>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    disabled={connected || loading}
+                    placeholder="••••••••••••••••"
+                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                    style={{ padding: '10px 14px' }}
+                  />
+                </label>
 
-            <label className="block">
-              <span className="block text-xs text-[#787b86] mb-1">Gateway URL</span>
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={connected || loading}
-                placeholder={DEFAULT_BASE_URL}
-                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
-                style={{ padding: '10px 14px' }}
-              />
-            </label>
-          </div>
+                <label className="block">
+                  <span className="block text-xs text-[#787b86] mb-1">Gateway URL</span>
+                  <input
+                    type="text"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    disabled={connected || loading}
+                    placeholder={DEFAULT_BASE_URL}
+                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                    style={{ padding: '10px 14px' }}
+                  />
+                </label>
+              </div>
 
-          {/* Condition Server — always editable */}
-          <div className="space-y-3 border-t border-[#2a2e39]" style={{ paddingTop: 16 }}>
-            <label className="block">
-              <span className="block text-xs text-[#787b86] mb-1">Condition Server URL</span>
-              <input
-                type="text"
-                value={condUrl}
-                onChange={(e) => setCondUrl(e.target.value)}
-                onBlur={() => setConditionServerUrl(condUrl.trim())}
-                placeholder="http://localhost:3002"
-                className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff]"
-                style={{ padding: '10px 14px' }}
-              />
-              <span className="block text-[10px] text-[#434651] mt-1">Leave empty to disable conditional orders</span>
-            </label>
-          </div>
+              {/* Condition Server — always editable */}
+              <div className="space-y-3 border-t border-[#2a2e39]" style={{ paddingTop: 16 }}>
+                <label className="block">
+                  <span className="block text-xs text-[#787b86] mb-1">Condition Server URL</span>
+                  <input
+                    type="text"
+                    value={condUrl}
+                    onChange={(e) => setCondUrl(e.target.value)}
+                    onBlur={() => setConditionServerUrl(condUrl.trim())}
+                    placeholder="http://localhost:3002"
+                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff]"
+                    style={{ padding: '10px 14px' }}
+                  />
+                  <span className="block text-[10px] text-[#434651] mt-1">Leave empty to disable conditional orders</span>
+                </label>
+              </div>
 
-          {/* Error */}
-          {error && (
-            <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
-          )}
-        </div>
+              {/* Error */}
+              {error && (
+                <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
+              )}
+            </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-[#2a2e39]" style={{ padding: '20px 32px' }}>
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className="text-sm text-[#787b86] hover:text-white transition-colors" style={{ padding: '8px 18px' }}
-          >
-            Cancel
-          </button>
+            {/* Footer */}
+            <div className="flex justify-end gap-2 border-t border-[#2a2e39]" style={{ padding: '20px 32px' }}>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="text-sm text-[#787b86] hover:text-white transition-colors" style={{ padding: '8px 18px' }}
+              >
+                Cancel
+              </button>
 
-          {connected ? (
-            <button
-              onClick={handleDisconnect}
-              disabled={loading}
-              className="text-sm font-medium rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
-            >
-              {loading ? 'Disconnecting…' : 'Disconnect'}
-            </button>
-          ) : (
-            <button
-              onClick={handleConnect}
-              disabled={loading || !userName || !apiKey}
-              className="text-sm font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
-            >
-              {loading ? 'Connecting…' : 'Connect'}
-            </button>
-          )}
-        </div>
+              {connected ? (
+                <button
+                  onClick={handleDisconnect}
+                  disabled={loading}
+                  className="text-sm font-medium rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
+                >
+                  {loading ? 'Disconnecting…' : 'Disconnect'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleConnect}
+                  disabled={loading || !userName || !apiKey}
+                  className="text-sm font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
+                >
+                  {loading ? 'Connecting…' : 'Connect'}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {tab === 'database' && <DatabaseTab />}
       </div>
     </div>
   );

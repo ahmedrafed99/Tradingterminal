@@ -23,6 +23,7 @@ export default defineConfig({
       '/settings':{ target: BACKEND, changeOrigin: true },
       '/health':  { target: BACKEND, changeOrigin: true },
       '/news':    { target: BACKEND, changeOrigin: true },
+      '/database':{ target: BACKEND, changeOrigin: true },
       '/hubs':    { target: BACKEND, changeOrigin: true, ws: true },
     },
   },
