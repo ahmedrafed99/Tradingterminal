@@ -336,7 +336,9 @@ export const useStore = create<Store>()(
       pinTimeframe: (tf) =>
         set((s) => {
           if (s.pinnedTimeframes.some((p) => p.label === tf.label)) return s;
-          return { pinnedTimeframes: [...s.pinnedTimeframes, tf] };
+          const tfWeight = (t: Timeframe) => t.unit * 100000 + t.unitNumber;
+          const next = [...s.pinnedTimeframes, tf].sort((a, b) => tfWeight(a) - tfWeight(b));
+          return { pinnedTimeframes: next };
         }),
       unpinTimeframe: (tf) =>
         set((s) => ({

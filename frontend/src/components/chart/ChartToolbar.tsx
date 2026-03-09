@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
-import { useStore, MORE_TIMEFRAMES, type Timeframe } from '../../store/useStore';
+import { useStore, TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
@@ -516,7 +516,7 @@ export function ChartToolbar() {
             style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }}
           >
             {/* Preset timeframes */}
-            {MORE_TIMEFRAMES.map((tf) => {
+            {TIMEFRAMES.map((tf) => {
               const pinned = isPinned(tf);
               const active = timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber;
               return (

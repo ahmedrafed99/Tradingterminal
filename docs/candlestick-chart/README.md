@@ -28,6 +28,8 @@ Wrapper that:
 - **Left section**: Instrument selector | divider | pinned timeframe buttons | timeframe dropdown
   - Active timeframe: `text-[#f0a830]` (amber-gold), inactive: `text-[#787b86]`
   - Text-only style (no background boxes), `text-xs font-medium`
+  - Dropdown lists all timeframes (`TIMEFRAMES` — 1m, 15m, 3m, 1h, 4h, D) with a star toggle to pin/unpin any of them
+  - Pinned list is auto-sorted by duration (unit × 100 000 + unitNumber) on every pin action
 - **Right section** (after flex spacer): layout toggle | divider | camera (screenshot) | divider | NY clock
   - Dual chart toggle: stroke-only SVG icon in `#787b86` — single rectangle (single mode), rectangle with vertical divider line (dual mode)
   - Camera icon: opens dropdown with "Copy chart image" and "Custom snapshot" options
