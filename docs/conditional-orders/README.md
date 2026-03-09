@@ -32,11 +32,11 @@ Place orders automatically when a candle closes above or below a price. Runs 24/
 
 ```bash
 # Build the image
-docker build -t yourdockerhubuser/trading-conditions:latest .
+docker build -t greenberet9/trading-conditions:latest .
 
 # Push to Docker Hub
 docker login
-docker push yourdockerhubuser/trading-conditions:latest
+docker push greenberet9/trading-conditions:latest
 ```
 
 ### Run (on any machine -- second PC, Synology, VPS)

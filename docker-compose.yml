@@ -1,0 +1,12 @@
+services:
+  conditions:
+    image: greenberet9/trading-conditions:latest
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${PORT:-3001}:${PORT:-3001}"
+    volumes:
+      - conditions-data:/app/data
+
+volumes:
+  conditions-data:
