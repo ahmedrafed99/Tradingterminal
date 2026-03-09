@@ -105,15 +105,23 @@ When dragging either line past the other, the direction **flips in real-time**: 
 
 The `limit` / `market` cell on the condition line toggles the order type:
 - **limit** → order line is visible and draggable, SL/TP can be added
-- **market** → order line and all brackets are removed; condition will place a market order on trigger
+- **market** → a `[Buy Market] [size] [+SL] [+TP] [✕]` label appears to the **right** of the condition label on the same line. The condition label shifts to 30% of chart width and the market label sits at 65%. Both labels share the same Y position (same price). Dragging the condition line moves both labels together.
 
-Both states share the same greyish-white bg (`#cac9cb`). Click to toggle.
+Both states share the same greyish-white bg (`#cac9cb`). Click to toggle. Switching from limit to market destroys existing SL/TP (user can re-add). Switching from market to limit restores the draggable order line at the condition price.
 
-All clickable cells (limit/market, ARM, ✕, +SL, +TP) brighten on hover (`brightness(1.25)`) with a 0.15s transition. The arrow cell is not interactive — direction is controlled by line positions.
+All clickable cells (limit/market, ARM, ✕, +SL, +TP) brighten on hover (`brightness(1.25)`) with a 0.15s transition. The arrow cell is not interactive — direction is controlled by line positions (limit only; direction is locked in market mode).
+
+### Market mode details
+
+- The market label has the same interaction as the limit order label: +/− size buttons, +SL, +TP
+- The market label is **not draggable** (market orders have no target price)
+- The ✕ on the market label **closes the preview**; the ✕ on the limit label switches to market mode
+- SL/TP lines are placed relative to the market label's position; P&L updates in real-time when dragging the condition line
+- At arm time, SL/TP **distances are computed from the current lastPrice** (not the visual label position), since the market order fills at current price
 
 ### Size adjustment (+/- buttons)
 
-When no bracket preset is selected, the order line's size cell has **+/−** buttons (revealed on hover), built via `installSizeButtons()` from `labelUtils.ts` (same shared factory used by quick-order and overlay labels). These adjust `orderSize` directly.
+When no bracket preset is selected, the order line's size cell has **+/−** buttons (revealed on hover), built via `installSizeButtons()` from `labelUtils.ts` (same shared factory used by quick-order and overlay labels). These adjust `orderSize` directly. The **−** button is disabled when the order size equals the total TP contract sum, preventing the user from reducing order size below allocated TP contracts.
 
 ### Adding SL/TP (no preset)
 
@@ -123,6 +131,7 @@ When no bracket preset is selected, the order line label shows **+SL** and **+TP
 - **Multiple TPs**: each TP has an independent size with its own +/− buttons (via `installSizeButtons()`). Click +TP again to add another TP as long as total TP contracts < order size.
 - SL always tracks order size. TP sizes are independent.
 - SL/TP distances are computed as price difference from the order line when arming
+- Dragging the order line (limit) or condition line (market) updates SL/TP P&L labels in real-time
 
 ### Arming
 
@@ -133,7 +142,7 @@ When no bracket preset is selected, the order line label shows **+SL** and **+TP
 ### Armed condition lines
 
 Each armed condition renders **one line** on the chart:
-- Dashed, color-coded: blue (`#2962ff`) for Close Above, orange (`#ff6d00`) for Close Below
+- Dashed, color-coded: blue (`#2962ff`) for Close Above, red (`#d32f2f`) for Close Below
 - Label: `[▲] [Above 1m] [✕]` — arrow cell uses directional color (blue `#4a7dff` / red `#d32f2f`)
 - **Drag** → adjust trigger price on the server (PATCH)
 - **Click** → open edit modal

@@ -15,7 +15,7 @@ import {
 
 // ── Colors ───────────────────────────────────────────────
 const CLR_ABOVE = '#2962ff';
-const CLR_BELOW = '#ff6d00';
+const CLR_BELOW = '#d32f2f';
 const CLR_BUY = '#00c805';
 const CLR_SELL = '#ff0000';
 const CLR_ARM_ABOVE = '#4a7dff';
@@ -66,6 +66,7 @@ export function useConditionLines(
     slPrice: number | null;
     size: number;
     isAbove: boolean;
+    isMarket: boolean;
   } | null>(null);
   const previewDragRef = useRef<{
     target: 'cond' | 'order' | 'sl' | 'tp';
@@ -358,7 +359,7 @@ export function useConditionLines(
       slLine: null, tpLines: [],
       condPrice, orderPrice,
       slPrice: null,
-      size, isAbove: true,
+      size, isAbove: true, isMarket: false,
     };
 
     // Check if preset is active — if so, auto-arm
@@ -381,34 +382,40 @@ export function useConditionLines(
       // Always sync line colors to match current direction
       p.condLine.setLineColor(isAbove ? CLR_ABOVE : CLR_BELOW);
       if (p.orderLine) {
-        p.orderLine.setLineColor(isAbove ? CLR_BUY : CLR_SELL);
+        if (p.isMarket) {
+          // Market mode: hide the horizontal line and axis label
+          p.orderLine.setLineWidth(0);
+          p.orderLine.setAxisLabelVisible(false);
+        } else {
+          p.orderLine.setLineColor(isAbove ? CLR_BUY : CLR_SELL);
+          p.orderLine.setLineWidth(1);
+          p.orderLine.setAxisLabelVisible(true);
+        }
       }
 
       const arrowChar = isAbove ? '\u25B2' : '\u25BC';
       const condText = isAbove ? 'If Close Above' : 'If Close Below';
-      const sideText = isAbove ? 'Buy Limit' : 'Sell Limit';
+      const orderWord = p.isMarket ? 'Market' : 'Limit';
+      const sideText = isAbove ? `Buy ${orderWord}` : `Sell ${orderWord}`;
       const sideBg = isAbove ? CLR_BUY : CLR_SELL;
 
       // Condition label: [▲] [If Close Above 5m] [limit/market] [ARM] [✕]
       const armBg = isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
-      const isLimit = p.orderLine != null;
-      const orderTypeText = isLimit ? 'limit' : 'market';
-      const orderTypeBg = '#cac9cb';
-      const orderTypeColor = '#000';
+      const orderTypeText = p.isMarket ? 'market' : 'limit';
 
       p.condLine.setLabel([
         { text: arrowChar, bg: armBg, color: '#fff' },
         { text: `${condText} ${timeframe.label}`, bg: '#cac9cb', color: '#000' },
-        { text: orderTypeText, bg: orderTypeBg, color: orderTypeColor },
+        { text: orderTypeText, bg: '#cac9cb', color: '#000' },
         { text: 'ARM', bg: armBg, color: '#fff' },
         { text: '\u2715', bg: '#e0e0e0', color: '#000' },
       ]);
 
-      // Order label (only if order line still exists)
+      // Order / market label
       if (p.orderLine) {
         const st2 = useStore.getState();
         const hasPreset = st2.bracketPresets.find((pr) => pr.id === st2.activePresetId);
-        if (hasPreset) {
+        if (hasPreset && !p.isMarket) {
           p.orderLine.setLabel([
             { text: sideText, bg: '#cac9cb', color: '#000' },
             { text: String(p.size), bg: sideBg, color: '#000' },
@@ -430,6 +437,25 @@ export function useConditionLines(
       // Rewire interaction after label rebuild
       setupPreviewInteraction(p.condLine, 'cond');
       if (p.orderLine) setupPreviewInteraction(p.orderLine, 'order');
+
+      // In market mode, position labels side by side; in limit mode, reset to centered
+      if (p.isMarket) {
+        positionMarketLabel();
+      } else {
+        p.condLine.setLabelLeft(0.5);
+      }
+    }
+
+    /** Position the market order label immediately to the right of the condition label */
+    function positionMarketLabel() {
+      const p = previewRef.current;
+      if (!p || !p.isMarket || !p.condLine || !p.orderLine) return;
+      const condLabelEl = p.condLine.getLabelEl();
+      const orderLabelEl = p.orderLine.getLabelEl();
+      if (!condLabelEl || !orderLabelEl) return;
+      // Shift condition label left, keep market label to the right
+      p.condLine.setLabelLeft(0.30);
+      p.orderLine.setLabelLeft(0.65);
     }
 
     /** Make a cell look & feel clickable: pointer cursor, brighten on hover */
@@ -457,19 +483,22 @@ export function useConditionLines(
               e.stopPropagation();
               e.preventDefault();
               const p = previewRef.current;
-              if (!p) return;
-              if (p.orderLine) {
-                // Switch to market: destroy order line and brackets
-                p.orderLine.destroy();
-                p.orderLine = null;
+              if (!p || !p.orderLine) return;
+              if (!p.isMarket) {
+                // Switch to market: move order label next to condition label
+                p.isMarket = true;
+                p.isAbove = p.condPrice > p.orderPrice;
+                p.orderPrice = p.condPrice;
+                p.orderLine.setPrice(p.condPrice);
+                // Destroy SL/TP (user can re-add relative to market label)
                 p.slLine?.destroy();
                 p.slLine = null;
                 p.slPrice = null;
                 for (const tp of p.tpLines) tp.line.destroy();
                 p.tpLines = [];
               } else {
-                // Switch to limit: recreate order line
-                recreateOrderLine();
+                // Switch to limit: show line again
+                p.isMarket = false;
               }
               updatePreviewLabels();
             });
@@ -498,6 +527,11 @@ export function useConditionLines(
       if (target === 'order') {
         const p = previewRef.current;
         if (!p) return;
+
+        // Market order label: not draggable
+        if (p.isMarket) {
+          labelEl.style.cursor = 'default';
+        }
 
         // Size cell (index 1) — add +/- buttons
         const sizeCell = cells[1];
@@ -528,27 +562,35 @@ export function useConditionLines(
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
-              // Remove order line — convert to market order
-              p.orderLine?.destroy();
-              p.orderLine = null;
-              // Also remove SL/TP since they're relative to order price
-              p.slLine?.destroy();
-              p.slLine = null;
-              p.slPrice = null;
-              for (const tp of p.tpLines) tp.line.destroy();
-              p.tpLines = [];
-              updatePreviewLabels();
+              if (p.isMarket) {
+                // Market mode: close preview
+                useStore.getState().setConditionPreview(false);
+              } else {
+                // Limit mode: switch to market
+                p.isMarket = true;
+                p.isAbove = p.condPrice > p.orderPrice;
+                p.orderPrice = p.condPrice;
+                p.orderLine?.setPrice(p.condPrice);
+                p.slLine?.destroy();
+                p.slLine = null;
+                p.slPrice = null;
+                for (const tp of p.tpLines) tp.line.destroy();
+                p.tpLines = [];
+                updatePreviewLabels();
+              }
             });
           }
         }
       }
 
-      // Drag start
+      // Drag start (market order label is not draggable)
       labelEl.addEventListener('mousedown', (e) => {
         // Skip button clicks
         const t = e.target as HTMLElement;
         if (t.textContent === 'ARM' || t.textContent === 'limit' || t.textContent === 'market' || t.textContent === '+SL' || t.textContent === '+TP' || t.textContent === '\u2715') return;
         if (t.textContent === '+' || t.textContent === '\u2212') return;
+        // Market order tracks last price — not draggable
+        if (target === 'order' && previewRef.current?.isMarket) return;
 
         e.preventDefault();
         const p = previewRef.current;
@@ -586,19 +628,6 @@ export function useConditionLines(
       updatePreviewLabels();
     }
 
-    function recreateOrderLine() {
-      const p = previewRef.current;
-      if (!p || p.orderLine || !series || !overlay || !chart) return;
-      const isAbove = p.isAbove;
-      const sideBg = isAbove ? CLR_BUY : CLR_SELL;
-      const newLine = new PriceLevelLine({
-        price: p.orderPrice, series, overlay, chartApi: chart,
-        lineColor: sideBg, lineStyle: 'dashed', lineWidth: 1,
-        axisLabelVisible: true, tickSize,
-      });
-      p.orderLine = newLine;
-    }
-
     function setupOrderSizeButtons(sizeCell: HTMLDivElement) {
       const p = previewRef.current;
       if (!p) return;
@@ -608,7 +637,8 @@ export function useConditionLines(
         normalBg: p.isAbove ? CLR_BUY : CLR_SELL,
         hoverBg: p.isAbove ? BUY_HOVER : SELL_HOVER,
         onMinus: () => {
-          if (p.size <= 1) return;
+          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+          if (p.size <= 1 || p.size <= totalTpSize) return;
           p.size--;
           kit.setCount(p.size);
           syncBracketSizes();
@@ -618,7 +648,10 @@ export function useConditionLines(
           kit.setCount(p.size);
           syncBracketSizes();
         },
-        isMinDisabled: () => p.size <= 1,
+        isMinDisabled: () => {
+          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+          return p.size <= 1 || p.size <= totalTpSize;
+        },
       });
     }
 
@@ -632,7 +665,8 @@ export function useConditionLines(
         normalBg: CLR_SL,
         hoverBg: SELL_HOVER,
         onMinus: () => {
-          if (p.size <= 1) return;
+          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+          if (p.size <= 1 || p.size <= totalTpSize) return;
           p.size--;
           kit.setCount(p.size);
           syncBracketSizes();
@@ -642,7 +676,10 @@ export function useConditionLines(
           kit.setCount(p.size);
           syncBracketSizes();
         },
-        isMinDisabled: () => p.size <= 1,
+        isMinDisabled: () => {
+          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+          return p.size <= 1 || p.size <= totalTpSize;
+        },
       });
     }
 
@@ -824,7 +861,6 @@ export function useConditionLines(
       const url = st.conditionServerUrl;
       if (!url || !st.activeAccountId || !contract) return;
 
-      const hasOrderLine = p.orderLine != null;
       const isAbove = p.isAbove;
       const conditionType = isAbove ? 'closes_above' : 'closes_below';
       const orderSide = isAbove ? 'buy' : 'sell';
@@ -839,14 +875,15 @@ export function useConditionLines(
           sl: bc.stopLoss.points > 0 ? { points: bc.stopLoss.points } : undefined,
           tp: bc.takeProfits.length > 0 ? [{ points: bc.takeProfits[0].points }] : undefined,
         };
-      } else if (hasOrderLine && (p.slPrice != null || p.tpLines.length > 0)) {
+      } else if (p.slPrice != null || p.tpLines.length > 0) {
+        const refPrice = p.isMarket ? (st.lastPrice ?? p.orderPrice) : p.orderPrice;
         const slPoints = p.slPrice != null
-          ? Math.abs(p.orderPrice - p.slPrice) / contract.tickSize * contract.tickSize
+          ? Math.abs(refPrice - p.slPrice) / contract.tickSize * contract.tickSize
           : undefined;
         const tpArr = p.tpLines
           .filter((t) => t.size > 0)
           .map((t) => ({
-            points: Math.abs(t.price - p.orderPrice) / contract.tickSize * contract.tickSize,
+            points: Math.abs(t.price - refPrice) / contract.tickSize * contract.tickSize,
             size: t.size,
           }))
           .filter((t) => t.points > 0);
@@ -864,8 +901,8 @@ export function useConditionLines(
         triggerPrice: p.condPrice,
         timeframe: timeframe.label,
         orderSide,
-        orderType: hasOrderLine ? 'limit' : 'market',
-        orderPrice: hasOrderLine ? p.orderPrice : undefined,
+        orderType: p.isMarket ? 'market' : 'limit',
+        orderPrice: p.isMarket ? undefined : p.orderPrice,
         orderSize: p.size,
         accountId: st.activeAccountId,
         bracket,
@@ -914,14 +951,42 @@ export function useConditionLines(
         p.condPrice = snapped;
         p.condLine.setPrice(snapped);
         p.condLine.syncPosition();
+        // In market mode, order label rides alongside the condition label
+        if (p.isMarket && p.orderLine) {
+          p.orderPrice = snapped;
+          p.orderLine.setPrice(snapped);
+          p.orderLine.syncPosition();
+          // Update SL/TP PnL since reference price moved
+          if (p.slLine && p.slPrice != null && contract) {
+            const slDiff = p.isAbove ? p.slPrice - snapped : snapped - p.slPrice;
+            const slPnl = calcPnl(slDiff, contract, p.size);
+            p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, '#000');
+          }
+          for (const tp of p.tpLines) {
+            const tpDiff = p.isAbove ? tp.price - snapped : snapped - tp.price;
+            const tpPnl = calcPnl(tpDiff, contract!, tp.size);
+            tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, '#000');
+          }
+        }
       } else if (drag.target === 'order' && p.orderLine) {
         p.orderPrice = snapped;
         p.orderLine.setPrice(snapped);
         p.orderLine.syncPosition();
+        // Update SL/TP PnL since reference price moved
+        if (p.slLine && p.slPrice != null && contract) {
+          const slDiff = p.isAbove ? p.slPrice - snapped : snapped - p.slPrice;
+          const slPnl = calcPnl(slDiff, contract, p.size);
+          p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, '#000');
+        }
+        for (const tp of p.tpLines) {
+          const tpDiff = p.isAbove ? tp.price - snapped : snapped - tp.price;
+          const tpPnl = calcPnl(tpDiff, contract!, tp.size);
+          tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, '#000');
+        }
       }
 
-      // Flip condition type when order/cond lines cross each other
-      if (drag.target === 'cond' || drag.target === 'order') {
+      // Flip condition type when order/cond lines cross each other (limit only)
+      if ((drag.target === 'cond' || drag.target === 'order') && !p.isMarket) {
         const shouldBeAbove = p.condPrice > p.orderPrice;
         if (shouldBeAbove !== p.isAbove) {
           p.isAbove = shouldBeAbove;
@@ -933,8 +998,9 @@ export function useConditionLines(
           p.condLine?.updateSection(3, 'ARM', armBg, '#fff');
           // Update order line visuals (bg only on size cell to preserve +/- buttons)
           const sideBg = p.isAbove ? CLR_BUY : CLR_SELL;
-          p.orderLine?.setLineColor(sideBg);
-          p.orderLine?.updateSection(0, `${p.isAbove ? 'Buy' : 'Sell'} Limit`, '#cac9cb', '#000');
+          if (!p.isMarket) p.orderLine?.setLineColor(sideBg);
+          const orderWord = p.isMarket ? 'Market' : 'Limit';
+          p.orderLine?.updateSection(0, `${p.isAbove ? 'Buy' : 'Sell'} ${orderWord}`, '#cac9cb', '#000');
           p.orderLine?.updateSection(1, undefined, sideBg);
           // Update SL/TP PnL since direction flipped
           if (p.slLine && p.slPrice != null) {
