@@ -70,6 +70,8 @@ docs/
 | Realtime adapter interface + hub events      | `docs/frontend/` → realtimeService.ts / adapters/ |
 | Ad-hoc brackets (+SL/+TP, no preset)       | `docs/chart-trading/` → Ad-Hoc Brackets |
 | Position drag-to-create SL/TP              | `docs/chart-trading/` → Position Drag-to-Create |
+| Conditional orders (candle-close triggers)  | `docs/conditional-orders/` |
+| Condition deployment (Render / Docker)      | `docs/conditional-orders/` → Deployment |
 
 ---
 
@@ -106,6 +108,7 @@ docs/
 │  │  │  Bottom Panel                                        │   │   │
 │  │  │  • Orders tab (open orders table)                    │   │   │
 │  │  │  • Trades tab (session fills + trade zone overlay)   │   │   │
+│  │  │  • Conditions tab (candle-close conditional orders)  │   │   │
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
@@ -118,6 +121,7 @@ docs/
 │  │  │  authService · marketDataService · orderService      │   │   │
 │  │  │  accountService · realtimeService (adapter facade)   │   │   │
 │  │  │  bracketEngine (client-side SL/TP management)        │   │   │
+│  │  │  conditionService (remote condition server client)   │   │   │
 │  │  └──────────────┬───────────────────────────────────────┘   │   │
 │  └─────────────────┼───────────────────────────────────────────┘   │
 └────────────────────┼────────────────────────────────────────────────┘

@@ -47,7 +47,18 @@ export type PatchConditionInput = Partial<CreateConditionInput>;
 // ---------------------------------------------------------------------------
 
 function getApi(baseUrl: string) {
-  return axios.create({ baseURL: baseUrl, timeout: 10_000 });
+  const api = axios.create({ baseURL: baseUrl.replace(/\/+$/, ''), timeout: 30_000 });
+  // Retry once on network error (Render cold-start returns no CORS headers)
+  api.interceptors.response.use(undefined, async (err) => {
+    const cfg = err.config;
+    if (!cfg._retried && (!err.response || err.message === 'Network Error')) {
+      cfg._retried = true;
+      await new Promise((r) => setTimeout(r, 2000));
+      return api.request(cfg);
+    }
+    return Promise.reject(err);
+  });
+  return api;
 }
 
 export const conditionService = {

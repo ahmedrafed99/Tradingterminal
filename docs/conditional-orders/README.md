@@ -28,10 +28,14 @@ Place orders automatically when a candle closes above or below a price. Runs 24/
 
 ## Deployment
 
-### Build and push (from your dev PC)
+The backend is containerized and deployed to **Render** (free tier). It runs 24/7 independently of the frontend.
+
+**Live URL**: `https://trading-conditions.onrender.com`
+
+### Docker image
 
 ```bash
-# Build the image
+# Build (from project root)
 docker build -t greenberet9/trading-conditions:latest .
 
 # Push to Docker Hub
@@ -39,7 +43,18 @@ docker login
 docker push greenberet9/trading-conditions:latest
 ```
 
-### Run (on any machine -- second PC, Synology, VPS)
+### Render (current production)
+
+1. Create a **Web Service** on [render.com](https://render.com)
+2. Deploy from existing Docker Hub image: `greenberet9/trading-conditions:latest`
+3. Set environment variables: `TOPSTEP_USERNAME`, `TOPSTEP_PASSWORD`
+4. Render assigns a public HTTPS URL automatically — no port config needed
+
+Render free tier spins down after inactivity. The frontend's axios client has a built-in retry (2s delay) to handle cold-start CORS errors transparently.
+
+### Self-hosted alternative (Docker Compose)
+
+For a second PC, Synology NAS, or VPS:
 
 ```bash
 # 1. Copy .env.example -> .env and fill in credentials
@@ -49,16 +64,13 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The `.env` file provides auto-connect credentials so the container authenticates on startup without needing the frontend open.
-
 The `docker-compose.yml` references the Docker Hub image, so the target machine only needs Docker -- no Node.js, no source code.
 
-### Testing
+### Frontend setup
 
-1. Build and push from your dev PC
-2. On second PC: `docker compose up -d` (pulls image from Docker Hub)
-3. In frontend Settings, set "Conditional Orders Server" to `http://<other-pc-ip>:3001`
-4. Once confirmed working, repeat on Synology/VPS
+In Settings, set **"Conditional Orders Server"** to the backend URL:
+- Render: `https://trading-conditions.onrender.com`
+- Self-hosted: `http://<machine-ip>:3001`
 
 ## Condition types
 
@@ -181,7 +193,7 @@ bracket?: {
 | `frontend/src/components/bottom-panel/ConditionModal.tsx` | Create/edit condition form (modal) |
 | `frontend/src/components/chart/hooks/useConditionLines.ts` | Condition line rendering, dragging, creation mode, preview with SL/TP |
 | `frontend/src/components/chart/hooks/labelUtils.ts` | Shared label utilities (size buttons, PnL formatting, colors) used by condition, overlay, and quick-order hooks |
-| `Dockerfile` | Multi-stage build for the backend |
+| `Dockerfile` | Multi-stage build for the backend (Node 20 Alpine, two-stage) |
 | `docker-compose.yml` | Container orchestration (references Docker Hub image) |
 | `.env.example` | Auto-connect credential template |
 
@@ -206,3 +218,5 @@ bracket?: {
 - **JSON file persistence**: `data/conditions.json` with in-memory array and debounced disk writes (500ms). Simple, no database needed.
 - **SSE for live updates**: Frontend opens an EventSource to the condition server. Events: `triggered`, `failed`, `expired`, `deleted`, `updated`.
 - **CORS `origin: true`**: Required so the frontend on your PC can talk to the remote backend.
+- **Axios retry interceptor**: Render free tier cold-starts return error pages without CORS headers. The frontend's `getApi()` retries once after 2s on network errors, making cold-starts transparent to the user.
+- **Render deployment**: Dockerized backend deployed to Render free tier via Docker Hub image. No VPC/firewall config needed — just set env vars and deploy. Timeout bumped to 30s to accommodate cold-start wake-up.
