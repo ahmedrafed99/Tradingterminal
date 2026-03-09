@@ -10,6 +10,38 @@ const PAGE_LIMIT = 20000;
 const PAGE_DELAY_MS = 500;
 
 // ---------------------------------------------------------------------------
+// Contract → symbol mapping (continuous futures)
+// Maps specific contract IDs to a base symbol for unified storage.
+// e.g. CON.F.US.ENQ.H26, CON.F.US.ENQ.Z25 → "NQ"
+// ---------------------------------------------------------------------------
+
+const PRODUCT_TO_SYMBOL: Record<string, string> = {
+  ENQ: 'NQ',
+  EP: 'ES',
+  MNQ: 'MNQ',
+  MES: 'MES',
+  // Add more as needed
+};
+
+// Reverse map: symbol → product code (for auto-sync contract discovery)
+const SYMBOL_TO_PRODUCT: Record<string, string> = Object.fromEntries(
+  Object.entries(PRODUCT_TO_SYMBOL).map(([product, symbol]) => [symbol, product]),
+);
+
+const AUTO_SYNC_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
+/** Extract base symbol from a contract ID. Returns the ID unchanged if no mapping. */
+export function contractToSymbol(contractId: string): string {
+  // CON.F.US.<PRODUCT>.<MONTH_YEAR> → extract product
+  const match = contractId.match(/^CON\.F\.US\.([^.]+)\./);
+  if (match) {
+    const product = match[1];
+    if (PRODUCT_TO_SYMBOL[product]) return PRODUCT_TO_SYMBOL[product];
+  }
+  return contractId;
+}
+
+// ---------------------------------------------------------------------------
 // Job state
 // ---------------------------------------------------------------------------
 
@@ -60,15 +92,16 @@ export async function startFetch(params: {
   }
 
   const { contractId, mode } = params;
+  const storageSymbol = contractToSymbol(contractId);
   let startEpoch: number;
   let endEpoch: number;
 
   const now = Date.now();
 
   if (mode === 'sync') {
-    // Find newest stored bar and fetch from there
+    // Find newest stored bar — look up by storage symbol (e.g. "NQ"), not raw contract ID
     const status = databaseService.getStatus();
-    const contract = status.contracts.find((c) => c.contractId === contractId);
+    const contract = status.contracts.find((c) => c.contractId === storageSymbol);
     if (!contract) {
       throw new Error(
         'No existing data for this contract. Use "range" mode for initial fetch.',
@@ -104,7 +137,7 @@ export async function startFetch(params: {
   cancelRequested = false;
 
   // Run in background — don't await
-  runFetch(contractId, startEpoch, endEpoch).catch((err) => {
+  runFetch(contractId, storageSymbol, startEpoch, endEpoch).catch((err) => {
     if (currentJob && currentJob.jobId === jobId) {
       currentJob.status = 'failed';
       currentJob.errorMessage =
@@ -121,6 +154,7 @@ export async function startFetch(params: {
 
 async function runFetch(
   contractId: string,
+  storageSymbol: string,
   startMs: number,
   endMs: number,
 ): Promise<void> {
@@ -171,9 +205,9 @@ async function runFetch(
       return;
     }
 
-    // Convert API bars to DB rows
+    // Convert API bars to DB rows — store under base symbol (e.g. "NQ")
     const rows: CandleRow[] = bars.map((bar) => ({
-      contract_id: contractId,
+      contract_id: storageSymbol,
       timestamp: Math.floor(new Date(bar.t).getTime() / 1000),
       open: bar.o,
       high: bar.h,
@@ -217,5 +251,92 @@ async function runFetch(
 
     // Delay between pages to avoid rate limiting
     await new Promise((resolve) => setTimeout(resolve, PAGE_DELAY_MS));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-sync — periodically syncs all known symbols in the database
+// ---------------------------------------------------------------------------
+
+let autoSyncTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Find the active contract ID for a symbol by searching the API. */
+async function resolveActiveContract(symbol: string): Promise<string | null> {
+  const product = SYMBOL_TO_PRODUCT[symbol];
+  if (!product) return null;
+
+  try {
+    const adapter = getAdapter();
+    const result = (await adapter.marketData.searchContracts(product, false)) as {
+      contracts?: Array<{ id: string; activeContract?: boolean }>;
+    };
+
+    const contracts = result.contracts ?? [];
+    // Find the active contract matching our product
+    const active = contracts.find(
+      (c) => c.activeContract && c.id.startsWith(`CON.F.US.${product}.`),
+    );
+    return active?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function autoSyncAll(): Promise<void> {
+  if (!isConnected()) return;
+  if (currentJob?.status === 'running') return; // don't interfere with manual fetch
+
+  const { contracts } = databaseService.getStatus();
+  if (contracts.length === 0) return;
+
+  for (const entry of contracts) {
+    // Only auto-sync symbols we know how to map (NQ, ES, etc.)
+    if (!SYMBOL_TO_PRODUCT[entry.contractId]) continue;
+
+    const activeContractId = await resolveActiveContract(entry.contractId);
+    if (!activeContractId) {
+      console.log(`[auto-sync] No active contract found for ${entry.contractId}, skipping`);
+      continue;
+    }
+
+    // Skip if another job started while we were resolving
+    if (currentJob?.status === 'running') break;
+
+    try {
+      console.log(`[auto-sync] Syncing ${entry.contractId} via ${activeContractId}`);
+      await startFetch({ contractId: activeContractId, mode: 'sync' });
+
+      // Wait for the job to finish before syncing the next symbol
+      while (currentJob?.status === 'running') {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      if (currentJob?.status === 'completed') {
+        console.log(`[auto-sync] ${entry.contractId}: +${currentJob.barsInserted} bars`);
+      } else if (currentJob?.status === 'failed') {
+        console.log(`[auto-sync] ${entry.contractId} failed: ${currentJob.errorMessage}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`[auto-sync] ${entry.contractId} error: ${msg}`);
+    }
+  }
+}
+
+export function startAutoSync(): void {
+  // Initial sync after a short delay (let auth settle)
+  setTimeout(() => { autoSyncAll().catch(() => {}); }, 10_000);
+
+  autoSyncTimer = setInterval(() => {
+    autoSyncAll().catch(() => {});
+  }, AUTO_SYNC_INTERVAL);
+
+  console.log('[auto-sync] Enabled (every 30 minutes)');
+}
+
+export function stopAutoSync(): void {
+  if (autoSyncTimer) {
+    clearInterval(autoSyncTimer);
+    autoSyncTimer = null;
   }
 }

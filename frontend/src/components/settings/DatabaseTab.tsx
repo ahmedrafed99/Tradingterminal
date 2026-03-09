@@ -9,13 +9,10 @@ import {
 const POLL_INTERVAL = 1500;
 
 export function DatabaseTab() {
-  const { contract, secondContract, orderContract } = useStore();
+  const { contract } = useStore();
 
   const [status, setStatus] = useState<DatabaseStatus | null>(null);
   const [progress, setProgress] = useState<FetchProgress | null>(null);
-  const [selectedContract, setSelectedContract] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [backupDir, setBackupDir] = useState('');
@@ -23,20 +20,6 @@ export function DatabaseTab() {
   const [backupLoading, setBackupLoading] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Available contracts from the app
-  const contracts = [contract, secondContract, orderContract].filter(
-    (c): c is NonNullable<typeof c> => c !== null,
-  );
-  const uniqueContracts = contracts.filter(
-    (c, i, arr) => arr.findIndex((x) => x.id === c.id) === i,
-  );
-
-  useEffect(() => {
-    if (!selectedContract && uniqueContracts.length > 0) {
-      setSelectedContract(uniqueContracts[0].id);
-    }
-  }, [uniqueContracts, selectedContract]);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -98,11 +81,11 @@ export function DatabaseTab() {
   const isFetching = progress?.status === 'running';
 
   async function handleSync() {
-    if (!selectedContract) return;
+    if (!contract) return;
     setError(null);
     setLoading(true);
     try {
-      await databaseService.startFetch({ contractId: selectedContract, mode: 'sync' });
+      await databaseService.startFetch({ contractId: contract.id, mode: 'sync' });
       startPolling();
       setProgress({
         jobId: '', status: 'running', pagesCompleted: 0, pagesTotal: 1,
@@ -110,29 +93,6 @@ export function DatabaseTab() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start sync');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleFetch() {
-    if (!selectedContract || !startDate || !endDate) return;
-    setError(null);
-    setLoading(true);
-    try {
-      await databaseService.startFetch({
-        contractId: selectedContract,
-        mode: 'range',
-        startTime: new Date(startDate).toISOString(),
-        endTime: new Date(endDate).toISOString(),
-      });
-      startPolling();
-      setProgress({
-        jobId: '', status: 'running', pagesCompleted: 0, pagesTotal: 1,
-        barsInserted: 0, currentTimestamp: null, errorMessage: null,
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start fetch');
     } finally {
       setLoading(false);
     }
@@ -148,10 +108,6 @@ export function DatabaseTab() {
       refreshStatus();
     } catch { /* silent */ }
   }
-
-  const hasExistingData = status?.contracts?.some(
-    (c) => c.contractId === selectedContract,
-  ) ?? false;
 
   function formatBytes(bytes: number): string {
     if (!bytes || isNaN(bytes)) return '0 B';
@@ -187,7 +143,7 @@ export function DatabaseTab() {
     databaseService.downloadBackup();
   }
 
-  const selectedName = uniqueContracts.find((c) => c.id === selectedContract)?.name;
+  const hasData = (status?.contracts?.length ?? 0) > 0;
 
   return (
     <div style={{ padding: '20px 32px 24px' }}>
@@ -240,7 +196,7 @@ export function DatabaseTab() {
             className="text-xs text-[#434651] text-center rounded-lg"
             style={{ padding: '16px 12px', border: '1px solid #2a2e39' }}
           >
-            No data stored yet — use Custom Fetch below to get started
+            No data stored yet
           </div>
         )}
       </div>
@@ -248,95 +204,31 @@ export function DatabaseTab() {
       {/* DIVIDER */}
       <div style={{ borderTop: '1px solid #2a2e39', marginBottom: 20 }} />
 
-      {/* FETCH CONTROLS */}
+      {/* SYNC CONTROLS */}
       <div>
-        <span className="text-[10px] uppercase tracking-wider text-[#787b86]" style={{ display: 'block', marginBottom: 10 }}>
-          Fetch Data
-        </span>
-
-        {/* Contract selector */}
-        <div style={{ marginBottom: 14 }}>
-          <span className="text-[10px] text-[#787b86]" style={{ display: 'block', marginBottom: 4 }}>
-            Contract
+        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
+          <span className="text-[10px] uppercase tracking-wider text-[#787b86]">
+            Sync
           </span>
-          <select
-            value={selectedContract}
-            onChange={(e) => setSelectedContract(e.target.value)}
-            disabled={isFetching}
-            className="w-full bg-[#111] text-xs text-[#d1d4dc] rounded-lg focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #2a2e39',
-              appearance: 'none',
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23787b86' fill='none' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E")`,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'right 12px center',
-              paddingRight: 32,
-            }}
-          >
-            {uniqueContracts.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-            {uniqueContracts.length === 0 && (
-              <option value="">No contracts loaded</option>
-            )}
-          </select>
+          <span className="text-[10px] text-[#434651]">
+            Auto-sync every 30 min
+          </span>
         </div>
 
-        {/* Date range */}
-        <div className="flex items-end" style={{ gap: 10, marginBottom: 14 }}>
-          <div style={{ flex: 1 }}>
-            <span className="text-[10px] text-[#787b86]" style={{ display: 'block', marginBottom: 4 }}>
-              From
-            </span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              disabled={isFetching}
-              className="w-full bg-[#111] text-xs text-[#d1d4dc] rounded-lg focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
-              style={{ padding: '8px 12px', border: '1px solid #2a2e39', colorScheme: 'dark' }}
-            />
-          </div>
-          <div style={{ flex: 1 }}>
-            <span className="text-[10px] text-[#787b86]" style={{ display: 'block', marginBottom: 4 }}>
-              To
-            </span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={isFetching}
-              className="w-full bg-[#111] text-xs text-[#d1d4dc] rounded-lg focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
-              style={{ padding: '8px 12px', border: '1px solid #2a2e39', colorScheme: 'dark' }}
-            />
-          </div>
-        </div>
+        <button
+          onClick={handleSync}
+          disabled={isFetching || loading || !contract || !hasData}
+          className="text-[11px] font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50"
+          style={{ padding: '7px 16px' }}
+        >
+          {isFetching ? 'Syncing…' : 'Sync Now'}
+        </button>
 
-        {/* Action buttons */}
-        <div className="flex items-center" style={{ gap: 8 }}>
-          <button
-            onClick={handleFetch}
-            disabled={isFetching || loading || !selectedContract || !startDate || !endDate}
-            className="text-[11px] font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50"
-            style={{ padding: '7px 16px' }}
-          >
-            Fetch Range
-          </button>
-          <button
-            onClick={handleSync}
-            disabled={isFetching || loading || !selectedContract || !hasExistingData}
-            className="text-[11px] font-medium rounded-lg text-[#d1d4dc] hover:bg-[#363a45] transition-colors disabled:opacity-50"
-            style={{ padding: '7px 16px', border: '1px solid #2a2e39' }}
-          >
-            Sync to Latest
-          </button>
-          {!hasExistingData && selectedContract && (
-            <span className="text-[10px] text-[#434651]">
-              Fetch first to enable sync
-            </span>
-          )}
-        </div>
+        {!hasData && (
+          <span className="text-[10px] text-[#434651]" style={{ marginLeft: 8 }}>
+            No data to sync
+          </span>
+        )}
       </div>
 
       {/* PROGRESS */}
@@ -350,7 +242,7 @@ export function DatabaseTab() {
             </span>
             <span className="text-[10px]">
               {progress.status === 'running' && (
-                <span className="text-[#787b86]">Fetching{selectedName ? ` ${selectedName}` : ''}…</span>
+                <span className="text-[#787b86]">Syncing…</span>
               )}
               {progress.status === 'completed' && (
                 <span className="text-[#26a69a]">Completed</span>
@@ -438,7 +330,7 @@ export function DatabaseTab() {
             />
             <button
               onClick={handleBackup}
-              disabled={backupLoading || !(status?.contracts?.length)}
+              disabled={backupLoading || !hasData}
               className="text-[11px] font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50"
               style={{ padding: '7px 16px', whiteSpace: 'nowrap' }}
             >
@@ -450,7 +342,7 @@ export function DatabaseTab() {
         {/* Download link */}
         <button
           onClick={handleDownload}
-          disabled={!(status?.contracts?.length)}
+          disabled={!hasData}
           className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors disabled:opacity-50"
         >
           Or download to browser →

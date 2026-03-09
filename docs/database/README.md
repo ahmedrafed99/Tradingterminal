@@ -2,7 +2,7 @@
 
 Local SQLite database storing 1-minute candle data for offline analysis, backtesting, and AI-powered tools (chat bot, strategy evaluation).
 
-**Status**: Steps 1–4 implemented and working. Chat bot integration (step 5) pending.
+**Status**: Steps 1–5 implemented and working. Chat bot integration (step 6) pending.
 
 ---
 
@@ -46,6 +46,23 @@ CREATE INDEX idx_candles_time ON candles (contract_id, timestamp);
 - `WITHOUT ROWID` — clustered on the primary key for fast range scans.
 - `INSERT OR IGNORE` for all writes — idempotent, safe to re-fetch overlapping ranges.
 
+### Contract Rollover — Continuous Symbol Storage
+
+Data is stored under **base symbols** (`NQ`, `ES`) rather than specific contract IDs (`CON.F.US.ENQ.H26`). This solves the quarterly rollover problem — all contract months merge into one continuous series.
+
+**Mapping** (in `backfillService.ts`):
+
+| Product Code | Base Symbol |
+|-------------|-------------|
+| `ENQ` | `NQ` |
+| `EP` | `ES` |
+| `MNQ` | `MNQ` |
+| `MES` | `MES` |
+
+When the backfill service fetches bars from `CON.F.US.ENQ.H26`, it stores them under `contract_id = 'NQ'`. When H26 expires and the user rolls to M26, new fetches continue appending to `NQ` seamlessly.
+
+**Key finding**: The ProjectX API does **not** serve bars for expired contracts. Data must be captured while the contract is still active. Historical data was backfilled from a purchased CSV (FirstRate Data / BacktestMarket).
+
 ### Approximate Storage
 
 | Duration | Bars (~1,380/day) | DB Size |
@@ -53,43 +70,62 @@ CREATE INDEX idx_candles_time ON candles (contract_id, timestamp);
 | 1 month  | ~30K              | ~2 MB   |
 | 6 months | ~180K             | ~12 MB  |
 | 1 year   | ~360K             | ~24 MB  |
-
-Per contract. Negligible disk usage.
+| 17 years | ~5.8M             | ~400 MB |
 
 ---
 
 ## Data Ingestion
 
-### Manual Fetch (Primary)
+### CSV Import (Historical Backfill)
 
-All fetches are triggered manually from the Database tab in Settings. Two modes:
+For bulk historical data, use the import script:
 
-1. **Quick Sync** — Fetches from the latest stored timestamp to now. One click to stay current.
-2. **Custom Range** — User picks a start and end date. Fetches all 1-min bars in that window.
+```bash
+cd backend
+npx tsx scripts/import-csv.ts NQ ../nq-1m_bk.csv
+```
 
-Both modes paginate internally: the backend splits the range into chunks, fetches up to 20K bars per ProjectX API call, and inserts into SQLite. Progress is reported to the frontend via polling (1.5s interval).
+CSV format (semicolon-delimited, no header):
+```
+DD/MM/YYYY;HH:MM;Open;High;Low;Close;Volume
+```
+
+The script streams the file, batch-inserts 50K rows at a time in transactions, and reports progress.
+
+### Auto-Sync (Primary)
+
+The backend automatically syncs every **30 minutes**:
+
+1. Checks which symbols exist in the database (e.g. `NQ`)
+2. Reverse-maps to product code (`NQ` → `ENQ`)
+3. Searches the API for the active contract (`CON.F.US.ENQ.H26`)
+4. Fetches bars from the newest stored timestamp to now
+5. Stores under the base symbol (`NQ`)
+
+Logs: `[auto-sync] Syncing NQ via CON.F.US.ENQ.H26` / `[auto-sync] NQ: +45 bars`
+
+Auto-sync starts on backend boot (10s delay for auth) and runs every 30 minutes. It skips if:
+- Not connected to the exchange
+- A manual sync/fetch is already running
+
+### Manual Sync
+
+A "Sync Now" button in the Database settings tab triggers an immediate sync. Uses the same logic as auto-sync.
 
 ### Pagination Strategy
 
 The ProjectX API returns bars in **descending order** (newest first). Pagination works backward from the end date:
 
 ```
-User requests: 2026-01-01 to 2026-03-09 (~56K bars)
-
 Backend paginates backward:
-  Page 1: startTime=Jan 1, endTime=Mar 9 → 20K newest bars → insert → oldest = Feb 16
-  Page 2: startTime=Jan 1, endTime=Feb 15 → 20K bars → insert → oldest = Jan 25
-  Page 3: startTime=Jan 1, endTime=Jan 24 → 16K bars (< 20K limit) → insert → done
+  Page 1: startTime=last_stored, endTime=now → up to 20K bars → insert
+  Page 2: (if needed) → continue backward → insert
+  ...
 
 Each page: POST /api/History/retrieveBars with limit=20000
 Insert: BEGIN TRANSACTION → INSERT OR IGNORE batch → COMMIT
 Delay between pages: ~500ms (avoid API rate limiting)
-End cursor moves backward by 1 minute after each page.
 ```
-
-### Real-Time Capture (Future)
-
-Hook into the existing SignalR market hub to insert each completed 1-min bar as it closes. This keeps the database current without manual syncing. Not in scope for the initial build — Quick Sync covers this gap easily.
 
 ---
 
@@ -105,13 +141,13 @@ Returns the current state of stored data.
 {
   "contracts": [
     {
-      "contractId": "CON.F.US.ENQ.H26",
-      "oldestBar": 1767884100,
-      "newestBar": 1773014340,
-      "totalBars": 56638
+      "contractId": "NQ",
+      "oldestBar": 1228959480,
+      "newestBar": 1773075420,
+      "totalBars": 5778958
     }
   ],
-  "dbSizeBytes": 6828032
+  "dbSizeBytes": 418697216
 }
 ```
 
@@ -122,17 +158,16 @@ Timestamps are Unix epoch seconds. Frontend formats them for display.
 Start a fetch job. Runs in the background on the backend — returns immediately.
 
 ```json
-// Quick Sync (from latest stored bar to now)
+// Sync (from latest stored bar to now)
 { "contractId": "CON.F.US.ENQ.H26", "mode": "sync" }
-
-// Custom Range
-{ "contractId": "CON.F.US.ENQ.H26", "mode": "range", "startTime": "2026-01-01T00:00:00Z", "endTime": "2026-03-09T00:00:00Z" }
 ```
+
+The backfill service maps `CON.F.US.ENQ.H26` → `NQ` for storage automatically.
 
 Response:
 
 ```json
-{ "jobId": "fetch_1773067836999_1", "estimatedPages": 3 }
+{ "jobId": "fetch_1773067836999_1", "estimatedPages": 1 }
 ```
 
 ### `GET /database/fetch/progress`
@@ -143,10 +178,10 @@ Poll for active fetch job status.
 {
   "jobId": "fetch_1773067836999_1",
   "status": "running",
-  "pagesCompleted": 2,
-  "pagesTotal": 3,
-  "barsInserted": 40000,
-  "currentTimestamp": "2026-01-25T12:00:00+00:00",
+  "pagesCompleted": 1,
+  "pagesTotal": 1,
+  "barsInserted": 45,
+  "currentTimestamp": "2026-03-09T12:00:00+00:00",
   "errorMessage": null
 }
 ```
@@ -162,40 +197,21 @@ Cancel a running fetch job. The job stops after the current page completes.
 Query stored candles. Used by chat bot, backtesting, and any future analysis feature.
 
 ```
-GET /database/candles?contractId=CON.F.US.ENQ.H26&from=2026-02-01T00:00:00Z&to=2026-02-07T00:00:00Z&timeframe=1m
+GET /database/candles?contractId=NQ&from=2025-12-01T00:00:00Z&to=2025-12-31T00:00:00Z&timeframe=1m
 ```
 
 | Param        | Required | Description |
 |--------------|----------|-------------|
-| `contractId` | Yes      | Contract to query |
+| `contractId` | Yes      | Symbol to query (e.g. `NQ`) |
 | `from`       | Yes      | Start of range (ISO 8601) |
 | `to`         | Yes      | End of range (ISO 8601) |
 | `timeframe`  | No       | `1m` (default), `5m`, `15m`, `1h`, `4h`, `1d` |
 
-For timeframes above 1m, the backend aggregates on-the-fly using subqueries for correct first-open/last-close:
-
-```sql
-SELECT
-  (timestamp / @secs) * @secs AS t,
-  (SELECT c2.open FROM candles c2
-   WHERE c2.contract_id = @cid
-     AND (c2.timestamp / @secs) * @secs = (c.timestamp / @secs) * @secs
-   ORDER BY c2.timestamp ASC LIMIT 1) AS open,
-  MAX(high) AS high,
-  MIN(low) AS low,
-  (SELECT c3.close FROM candles c3
-   WHERE c3.contract_id = @cid
-     AND (c3.timestamp / @secs) * @secs = (c.timestamp / @secs) * @secs
-   ORDER BY c3.timestamp DESC LIMIT 1) AS close,
-  SUM(volume) AS volume
-FROM candles c
-WHERE contract_id = @cid AND timestamp BETWEEN @from AND @to
-GROUP BY t ORDER BY t;
-```
+For timeframes above 1m, the backend aggregates on-the-fly using subqueries for correct first-open/last-close.
 
 ### `DELETE /database/contracts/:id`
 
-Delete all stored data for a contract. Returns `{ "deleted": <row count> }`.
+Delete all stored data for a symbol. Returns `{ "deleted": <row count> }`.
 
 ---
 
@@ -210,38 +226,33 @@ A tab in the Settings modal alongside the API credentials tab.
 |  [ API ]  [ Database ]                                  [X]    |
 +---------------------------------------------------------------+
 |                                                                 |
-|  STORED DATA                                        6.5 MB     |
+|  STORED DATA                                      399.3 MB     |
 |  ┌─────────────────────────────────────────────────────────┐   |
-|  │ CON.F.US.ENQ.H26                                    ✕   │   |
-|  │ Jan 8, 2026 — Mar 9, 2026 · 56,638 bars                │   |
+|  │ NQ                                                  ✕   │   |
+|  │ Dec 11, 2008 — Mar 9, 2026 · 5,778,958 bars            │   |
 |  └─────────────────────────────────────────────────────────┘   |
 |                                                                 |
 |  ─────────────────────────────────────────────────────────     |
 |                                                                 |
-|  FETCH DATA                                                     |
-|  Contract: [ NQH6                                    v ]        |
-|  From: [ 01/01/2026 ]     To: [ 03/09/2026 ]                   |
-|  [ Fetch Range ]  Sync to Latest                                |
+|  SYNC                                  Auto-sync every 30 min  |
+|  [ Sync Now ]                                                   |
 |                                                                 |
-|  PROGRESS                                        Completed     |
-|  [████████████████████████████████████████████████████████]     |
-|  3 / 3 pages                            56,638 bars inserted   |
+|  ─────────────────────────────────────────────────────────     |
+|                                                                 |
+|  BACKUP                          Auto-backup daily · last 7    |
+|  Save to directory: [________________________]  [Save Backup]   |
+|  Or download to browser →                                       |
 |                                                                 |
 +---------------------------------------------------------------+
 ```
 
-### Contract Selector
-
-Populated from contracts the user has loaded in the app (active chart contract, second chart, order panel). Default: the currently active chart contract.
-
 ### Behavior
 
-- **Sync to Latest**: disabled if no data exists yet for that contract (use Fetch Range first)
-- **Fetch Range**: starts the job, shows progress bar. Frontend polls every 1.5s.
-- **Cancel**: stops after current page
+- **Sync Now**: triggers an immediate sync using the current active contract
+- **Auto-sync**: runs every 30 minutes in the background, no user action needed
+- **Cancel**: stops after current page (only visible during sync)
 - **Status section**: refreshes on mount and after each completed job
-- All buttons disabled while a fetch is in progress
-- Delete button (✕) per contract in the status section
+- Delete button (✕) per symbol in the status section
 
 ---
 
@@ -254,7 +265,10 @@ backend/
       databaseRoutes.ts       -- Express routes for /database/*
     services/
       databaseService.ts      -- SQLite init, insert, query, aggregation
-      backfillService.ts      -- Pagination logic, job management, progress tracking
+      backfillService.ts      -- Pagination, job management, auto-sync, symbol mapping
+  scripts/
+    import-csv.ts             -- Bulk CSV import for historical data
+    merge-contract.ts         -- Merge per-contract data into base symbol
   data/
     candles.db                -- SQLite file (gitignored)
 
@@ -263,7 +277,7 @@ frontend/
     components/
       SettingsModal.tsx        -- Refactored: API and Database tabs
       settings/
-        DatabaseTab.tsx        -- Database tab UI
+        DatabaseTab.tsx        -- Database tab UI (sync + backup)
     services/
       databaseService.ts      -- Frontend API client for /database/* endpoints
   vite.config.ts              -- Added /database proxy entry
@@ -276,38 +290,9 @@ frontend/
 1. ~~**SQLite setup** — `better-sqlite3`, schema creation, insert/query functions~~
 2. ~~**Backfill service** — paginated fetch from ProjectX API, job tracking~~
 3. ~~**Backend routes** — `/database/status`, `/database/fetch`, `/database/candles`~~
-4. ~~**Frontend Database tab** — status display, contract selector, fetch controls, progress bar~~
-5. **Wire up chat bot** — update `get_bars` tool to read from database when available
-
----
-
-## Contract Rollover Strategy (Future)
-
-Not in v1 scope, but the schema should not paint us into a corner.
-
-### Problem
-
-Futures contracts expire quarterly. Data stored under `CON.F.US.ENQ.H26` becomes historical after March 2026. When the user rolls to `ENQ.M26` (June), they start with zero history for the new contract and can't view a continuous price series across rollovers.
-
-### Planned Approach
-
-Introduce a **symbol layer** that maps a continuous symbol (e.g. `MNQ`) to whichever contract was the front-month at any point in time:
-
-```
-symbols table (future)
-  symbol        TEXT  -- "MNQ", "ES", "NQ"
-  contract_id   TEXT  -- "CON.F.US.ENQ.H26"
-  active_from   TEXT  -- "2025-12-19" (rollover date)
-  active_to     TEXT  -- "2026-03-20"
-```
-
-Query flow: `SELECT contract_id FROM symbols WHERE symbol = ? AND date BETWEEN active_from AND active_to`, then join against `candles`. This lets analysis tools query "6 months of MNQ" spanning multiple contracts seamlessly.
-
-The current `candles` table schema (keyed on `contract_id + timestamp`) already supports this — no migration needed. The symbol mapping is purely additive.
-
-### When to Build
-
-When the first contract the user has data for expires and they roll to the next front-month. Until then, single-contract storage works fine.
+4. ~~**Frontend Database tab** — status display, fetch controls, progress bar~~
+5. ~~**Contract rollover** — continuous symbol storage, auto-sync, CSV import~~
+6. **Wire up chat bot** — update `get_bars` tool to read from database when available
 
 ---
 

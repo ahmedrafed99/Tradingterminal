@@ -16,6 +16,7 @@ import conditionRoutes from './routes/conditionRoutes';
 import databaseRoutes from './routes/databaseRoutes';
 import * as conditionEngine from './services/conditionEngine';
 import * as databaseService from './services/databaseService';
+import * as backfillService from './services/backfillService';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 const app = express();
@@ -119,15 +120,18 @@ server.listen(PORT, async () => {
   databaseService.startAutoBackup();
   await autoConnect();
   conditionEngine.start();
+  backfillService.startAutoSync();
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
+  backfillService.stopAutoSync();
   conditionEngine.stop();
   databaseService.close();
   process.exit(0);
 });
 process.on('SIGTERM', () => {
+  backfillService.stopAutoSync();
   conditionEngine.stop();
   databaseService.close();
   process.exit(0);
