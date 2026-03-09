@@ -7,13 +7,19 @@ import type { CreateConditionInput } from '../../../services/conditionService';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
+import { calcPnl } from '../../../utils/instrument';
+import {
+  installSizeButtons, formatSlPnl, formatTpPnl,
+  updateSizeCellCount, BUY_HOVER, SELL_HOVER,
+} from './labelUtils';
 
 // ── Colors ───────────────────────────────────────────────
 const CLR_ABOVE = '#2962ff';
 const CLR_BELOW = '#ff6d00';
-const CLR_BUY = '#1b6b4a';
-const CLR_SELL = '#8b2232';
-const CLR_BTN = '#363a45';
+const CLR_BUY = '#00c805';
+const CLR_SELL = '#ff0000';
+const CLR_ARM_ABOVE = '#4a7dff';
+const CLR_ARM_BELOW = '#d32f2f';
 const CLR_SL = '#ff0000';
 const CLR_TP = '#00c805';
 
@@ -23,7 +29,7 @@ const CLR_TP = '#00c805';
  *
  * Preview mode (conditionPreview === true):
  *  - 2 draggable lines appear mid-chart: condition trigger + order (limit)
- *  - Dragging condition line above/below order line auto-switches type & side
+ *  - Arrow button on condition line toggles between Close Above / Close Below
  *  - +/- buttons on order line for size (when no preset)
  *  - +SL / +TP buttons add bracket lines (when no preset)
  *  - ARM button on condition line sends the condition to the server
@@ -54,11 +60,10 @@ export function useConditionLines(
     condLine: PriceLevelLine | null;
     orderLine: PriceLevelLine | null;
     slLine: PriceLevelLine | null;
-    tpLine: PriceLevelLine | null;
+    tpLines: { line: PriceLevelLine; price: number; size: number }[];
     condPrice: number;
     orderPrice: number;
     slPrice: number | null;
-    tpPrice: number | null;
     size: number;
     isAbove: boolean;
   } | null>(null);
@@ -66,6 +71,7 @@ export function useConditionLines(
     target: 'cond' | 'order' | 'sl' | 'tp';
     startY: number;
     originalPrice: number;
+    tpIndex?: number;
   } | null>(null);
 
   // =====================================================================
@@ -106,11 +112,12 @@ export function useConditionLines(
         tickSize,
       });
 
-      const typeLabel = isAbove ? '\u25B2 Above' : '\u25BC Below';
+      const arrowChar = isAbove ? '\u25B2' : '\u25BC';
 
       line.setLabel([
-        { text: `${typeLabel} ${cond.timeframe}`, bg: lineColor, color: '#fff' },
-        { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+        { text: arrowChar, bg: isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW, color: '#fff' },
+        { text: `${isAbove ? 'Above' : 'Below'} ${cond.timeframe}`, bg: '#cac9cb', color: '#000' },
+        { text: '\u2715', bg: '#e0e0e0', color: '#000' },
       ]);
 
       const labelEl = line.getLabelEl();
@@ -174,9 +181,9 @@ export function useConditionLines(
         });
 
         orderLine.setLabel([
-          { text: sideLabel, bg: sideBg, color: '#d1d4dc' },
-          { text: String(cond.orderSize), bg: sideBg, color: '#d1d4dc' },
-          { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+          { text: sideLabel, bg: '#cac9cb', color: '#000' },
+          { text: String(cond.orderSize), bg: sideBg, color: '#000' },
+          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
         ]);
 
         const orderLabelEl = orderLine.getLabelEl();
@@ -309,7 +316,7 @@ export function useConditionLines(
       p.condLine?.destroy();
       p.orderLine?.destroy();
       p.slLine?.destroy();
-      p.tpLine?.destroy();
+      for (const tp of p.tpLines) tp.line.destroy();
       previewRef.current = null;
     }
 
@@ -348,9 +355,9 @@ export function useConditionLines(
 
     previewRef.current = {
       condLine, orderLine,
-      slLine: null, tpLine: null,
+      slLine: null, tpLines: [],
       condPrice, orderPrice,
-      slPrice: null, tpPrice: null,
+      slPrice: null,
       size, isAbove: true,
     };
 
@@ -369,32 +376,32 @@ export function useConditionLines(
       const p = previewRef.current;
       if (!p || !p.condLine) return;
 
-      const isAbove = p.orderLine
-        ? p.condPrice > p.orderPrice
-        : p.isAbove;
-      const wasAbove = p.isAbove;
+      const isAbove = p.isAbove;
 
-      // Auto-switch if relative position changed
-      if (isAbove !== wasAbove) {
-        p.isAbove = isAbove;
-        p.condLine.setLineColor(isAbove ? CLR_ABOVE : CLR_BELOW);
-        if (p.orderLine) {
-          const orderBg = isAbove ? CLR_BUY : CLR_SELL;
-          p.orderLine.setLineColor(orderBg);
-        }
+      // Always sync line colors to match current direction
+      p.condLine.setLineColor(isAbove ? CLR_ABOVE : CLR_BELOW);
+      if (p.orderLine) {
+        p.orderLine.setLineColor(isAbove ? CLR_BUY : CLR_SELL);
       }
 
-      p.isAbove = isAbove;
-      const typeText = isAbove ? '\u25B2 Close Above' : '\u25BC Close Below';
-      const condColor = isAbove ? CLR_ABOVE : CLR_BELOW;
+      const arrowChar = isAbove ? '\u25B2' : '\u25BC';
+      const condText = isAbove ? 'If Close Above' : 'If Close Below';
       const sideText = isAbove ? 'Buy Limit' : 'Sell Limit';
       const sideBg = isAbove ? CLR_BUY : CLR_SELL;
 
-      // Condition label: [type] [ARM] [✕]
+      // Condition label: [▲] [If Close Above 5m] [limit/market] [ARM] [✕]
+      const armBg = isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
+      const isLimit = p.orderLine != null;
+      const orderTypeText = isLimit ? 'limit' : 'market';
+      const orderTypeBg = '#cac9cb';
+      const orderTypeColor = '#000';
+
       p.condLine.setLabel([
-        { text: `${typeText} ${timeframe.label}`, bg: condColor, color: '#fff' },
-        { text: 'ARM', bg: '#2962ff', color: '#fff' },
-        { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+        { text: arrowChar, bg: armBg, color: '#fff' },
+        { text: `${condText} ${timeframe.label}`, bg: '#cac9cb', color: '#000' },
+        { text: orderTypeText, bg: orderTypeBg, color: orderTypeColor },
+        { text: 'ARM', bg: armBg, color: '#fff' },
+        { text: '\u2715', bg: '#e0e0e0', color: '#000' },
       ]);
 
       // Order label (only if order line still exists)
@@ -403,18 +410,19 @@ export function useConditionLines(
         const hasPreset = st2.bracketPresets.find((pr) => pr.id === st2.activePresetId);
         if (hasPreset) {
           p.orderLine.setLabel([
-            { text: sideText, bg: sideBg, color: '#d1d4dc' },
-            { text: String(p.size), bg: sideBg, color: '#d1d4dc' },
-            { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+            { text: sideText, bg: '#cac9cb', color: '#000' },
+            { text: String(p.size), bg: sideBg, color: '#000' },
+            { text: '\u2715', bg: '#e0e0e0', color: '#000' },
           ]);
         } else {
           const sections = [
-            { text: sideText, bg: sideBg, color: '#d1d4dc' },
-            { text: String(p.size), bg: sideBg, color: '#d1d4dc' },
+            { text: sideText, bg: '#cac9cb', color: '#000' },
+            { text: String(p.size), bg: sideBg, color: '#000' },
           ];
-          if (!p.slLine) sections.push({ text: '+SL', bg: CLR_BTN, color: '#d1d4dc' });
-          if (!p.tpLine) sections.push({ text: '+TP', bg: CLR_BTN, color: '#d1d4dc' });
-          sections.push({ text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' });
+          if (!p.slLine) sections.push({ text: '+SL', bg: CLR_SL, color: '#000' });
+          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+          if (totalTpSize < p.size) sections.push({ text: '+TP', bg: '#00c805', color: '#000' });
+          sections.push({ text: '\u2715', bg: '#e0e0e0', color: '#000' });
           p.orderLine.setLabel(sections);
         }
       }
@@ -422,6 +430,14 @@ export function useConditionLines(
       // Rewire interaction after label rebuild
       setupPreviewInteraction(p.condLine, 'cond');
       if (p.orderLine) setupPreviewInteraction(p.orderLine, 'order');
+    }
+
+    /** Make a cell look & feel clickable: pointer cursor, brighten on hover */
+    function makeClickable(cell: HTMLDivElement) {
+      cell.style.cursor = 'pointer';
+      cell.style.transition = 'filter 0.15s';
+      cell.addEventListener('mouseenter', () => { cell.style.filter = 'brightness(1.25)'; });
+      cell.addEventListener('mouseleave', () => { cell.style.filter = 'brightness(1)'; });
     }
 
     function setupPreviewInteraction(line: PriceLevelLine, target: 'cond' | 'order') {
@@ -433,10 +449,46 @@ export function useConditionLines(
       labelEl.style.cursor = 'grab';
 
       if (target === 'cond') {
-        // ARM button
         for (const cell of cells) {
+          // Arrow toggle button — click to switch above/below
+          if (cell.textContent === '\u25B2' || cell.textContent === '\u25BC') {
+            makeClickable(cell);
+            cell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const p = previewRef.current;
+              if (!p) return;
+              p.isAbove = !p.isAbove;
+              updatePreviewLabels();
+            });
+          }
+          // limit/market toggle button
+          if (cell.textContent === 'limit' || cell.textContent === 'market') {
+            makeClickable(cell);
+            cell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const p = previewRef.current;
+              if (!p) return;
+              if (p.orderLine) {
+                // Switch to market: destroy order line and brackets
+                p.orderLine.destroy();
+                p.orderLine = null;
+                p.slLine?.destroy();
+                p.slLine = null;
+                p.slPrice = null;
+                for (const tp of p.tpLines) tp.line.destroy();
+                p.tpLines = [];
+              } else {
+                // Switch to limit: recreate order line
+                recreateOrderLine();
+              }
+              updatePreviewLabels();
+            });
+          }
+          // ARM button
           if (cell.textContent === 'ARM') {
-            cell.style.cursor = 'pointer';
+            makeClickable(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -445,7 +497,7 @@ export function useConditionLines(
           }
           // ✕ button — close preview
           if (cell.textContent === '\u2715') {
-            cell.style.cursor = 'pointer';
+            makeClickable(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -462,13 +514,13 @@ export function useConditionLines(
         // Size cell (index 1) — add +/- buttons
         const sizeCell = cells[1];
         if (sizeCell) {
-          setupSizeButtons(sizeCell);
+          setupOrderSizeButtons(sizeCell);
         }
 
         // +SL / +TP / ✕ buttons
         for (const cell of cells) {
           if (cell.textContent === '+SL') {
-            cell.style.cursor = 'pointer';
+            makeClickable(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -476,7 +528,7 @@ export function useConditionLines(
             });
           }
           if (cell.textContent === '+TP') {
-            cell.style.cursor = 'pointer';
+            makeClickable(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -484,7 +536,7 @@ export function useConditionLines(
             });
           }
           if (cell.textContent === '\u2715') {
-            cell.style.cursor = 'pointer';
+            makeClickable(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -495,9 +547,9 @@ export function useConditionLines(
               p.slLine?.destroy();
               p.slLine = null;
               p.slPrice = null;
-              p.tpLine?.destroy();
-              p.tpLine = null;
-              p.tpPrice = null;
+              for (const tp of p.tpLines) tp.line.destroy();
+              p.tpLines = [];
+              updatePreviewLabels();
             });
           }
         }
@@ -507,8 +559,9 @@ export function useConditionLines(
       labelEl.addEventListener('mousedown', (e) => {
         // Skip button clicks
         const t = e.target as HTMLElement;
-        if (t.textContent === 'ARM' || t.textContent === '+SL' || t.textContent === '+TP' || t.textContent === '\u2715') return;
+        if (t.textContent === 'ARM' || t.textContent === 'limit' || t.textContent === 'market' || t.textContent === '+SL' || t.textContent === '+TP' || t.textContent === '\u2715') return;
         if (t.textContent === '+' || t.textContent === '\u2212') return;
+        if (t.textContent === '\u25B2' || t.textContent === '\u25BC') return;
 
         e.preventDefault();
         const p = previewRef.current;
@@ -517,78 +570,132 @@ export function useConditionLines(
         previewDragRef.current = { target, startY: e.clientY, originalPrice: price };
         labelEl.style.cursor = 'grabbing';
         if (container) container.style.cursor = 'grabbing';
-        chart.applyOptions({ handleScroll: false, handleScale: false });
+        if (chart) chart.applyOptions({ handleScroll: false, handleScale: false });
       });
     }
 
-    function setupSizeButtons(sizeCell: HTMLDivElement) {
+    /** Update the count text inside a size cell without destroying +/- buttons */
+    function updateLineSizeCell(line: PriceLevelLine, cellIdx: number, size: number) {
+      const cells = line.getCells();
+      updateSizeCellCount(cells, cellIdx, size);
+    }
+
+    /** Sync SL/TP after order size changes — SL tracks order size, TPs keep their own sizes */
+    function syncBracketSizes() {
+      const p = previewRef.current;
+      if (!p) return;
+      // SL always matches order size
+      if (p.slLine && p.slPrice != null) {
+        updateLineSizeCell(p.slLine, 1, p.size);
+        const txt = slPnlText(p.orderPrice, p.slPrice, p.size, p.isAbove);
+        p.slLine.updateSection(0, txt, CLR_SL, '#000');
+      }
+      // TPs: only recalc PnL, don't change their individual sizes
+      for (const tp of p.tpLines) {
+        const txt = tpPnlText(p.orderPrice, tp.price, tp.size, p.isAbove);
+        tp.line.updateSection(0, txt, CLR_TP, '#000');
+      }
+      // Rebuild order label to show/hide +TP based on remaining room
+      updatePreviewLabels();
+    }
+
+    function recreateOrderLine() {
+      const p = previewRef.current;
+      if (!p || p.orderLine || !series || !overlay || !chart) return;
+      const isAbove = p.isAbove;
+      const sideBg = isAbove ? CLR_BUY : CLR_SELL;
+      const newLine = new PriceLevelLine({
+        price: p.orderPrice, series, overlay, chartApi: chart,
+        lineColor: sideBg, lineStyle: 'dashed', lineWidth: 1,
+        axisLabelVisible: true, tickSize,
+      });
+      p.orderLine = newLine;
+    }
+
+    function setupOrderSizeButtons(sizeCell: HTMLDivElement) {
       const p = previewRef.current;
       if (!p) return;
 
-      sizeCell.textContent = '';
-      sizeCell.style.display = 'flex';
-      sizeCell.style.alignItems = 'center';
-      sizeCell.style.padding = '0';
-
-      const minusEl = document.createElement('div');
-      minusEl.textContent = '\u2212';
-      minusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
-      minusEl.addEventListener('mouseenter', () => { minusEl.style.transform = 'scale(1.4)'; });
-      minusEl.addEventListener('mouseleave', () => { minusEl.style.transform = ''; });
-      minusEl.addEventListener('mousedown', (e) => {
-        e.stopPropagation(); e.preventDefault();
-        if (p.size <= 1) return;
-        p.size--;
-        countEl.textContent = String(p.size);
-        updateBtnState();
+      const kit = installSizeButtons(sizeCell, {
+        initialCount: p.size,
+        normalBg: p.isAbove ? CLR_BUY : CLR_SELL,
+        hoverBg: p.isAbove ? BUY_HOVER : SELL_HOVER,
+        onMinus: () => {
+          if (p.size <= 1) return;
+          p.size--;
+          kit.setCount(p.size);
+          syncBracketSizes();
+        },
+        onPlus: () => {
+          p.size++;
+          kit.setCount(p.size);
+          syncBracketSizes();
+        },
+        isMinDisabled: () => p.size <= 1,
       });
+    }
 
-      const countEl = document.createElement('div');
-      countEl.textContent = String(p.size);
-      countEl.style.cssText = 'padding:0 4px;';
+    /** Wire +/- size buttons on the SL line's size cell (tracks order size) */
+    function setupSlSizeButtons(sizeCell: HTMLDivElement) {
+      const p = previewRef.current;
+      if (!p) return;
 
-      const plusEl = document.createElement('div');
-      plusEl.textContent = '+';
-      plusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
-      plusEl.addEventListener('mouseenter', () => { plusEl.style.transform = 'scale(1.4)'; });
-      plusEl.addEventListener('mouseleave', () => { plusEl.style.transform = ''; });
-      plusEl.addEventListener('mousedown', (e) => {
-        e.stopPropagation(); e.preventDefault();
-        p.size++;
-        countEl.textContent = String(p.size);
-        updateBtnState();
+      const kit = installSizeButtons(sizeCell, {
+        initialCount: p.size,
+        normalBg: CLR_SL,
+        hoverBg: SELL_HOVER,
+        onMinus: () => {
+          if (p.size <= 1) return;
+          p.size--;
+          kit.setCount(p.size);
+          syncBracketSizes();
+        },
+        onPlus: () => {
+          p.size++;
+          kit.setCount(p.size);
+          syncBracketSizes();
+        },
+        isMinDisabled: () => p.size <= 1,
       });
+    }
 
-      sizeCell.appendChild(minusEl);
-      sizeCell.appendChild(countEl);
-      sizeCell.appendChild(plusEl);
+    /** Wire +/- size buttons on a TP line's size cell (independent TP size) */
+    function setupTpSizeButtons(sizeCell: HTMLDivElement, tpEntry: { line: PriceLevelLine; price: number; size: number }) {
+      const p = previewRef.current;
+      if (!p) return;
 
-      function updateBtnState() {
-        minusEl.style.opacity = p.size <= 1 ? '0.35' : '1';
-        minusEl.style.cursor = p.size <= 1 ? 'default' : 'pointer';
-      }
+      const kit = installSizeButtons(sizeCell, {
+        initialCount: tpEntry.size,
+        normalBg: CLR_TP,
+        hoverBg: BUY_HOVER,
+        onMinus: () => {
+          if (tpEntry.size <= 1) return;
+          tpEntry.size--;
+          kit.setCount(tpEntry.size);
+          const txt = tpPnlText(p.orderPrice, tpEntry.price, tpEntry.size, p.isAbove);
+          tpEntry.line.updateSection(0, txt, CLR_TP, '#000');
+          updatePreviewLabels();
+        },
+        onPlus: () => {
+          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+          if (totalTpSize >= p.size) return;
+          tpEntry.size++;
+          kit.setCount(tpEntry.size);
+          const txt = tpPnlText(p.orderPrice, tpEntry.price, tpEntry.size, p.isAbove);
+          tpEntry.line.updateSection(0, txt, CLR_TP, '#000');
+          updatePreviewLabels();
+        },
+        isMinDisabled: () => tpEntry.size <= 1,
+        isPlusDisabled: () => p.tpLines.reduce((s, t) => s + t.size, 0) >= p.size,
+      });
+    }
 
-      function reveal() {
-        minusEl.style.display = '';
-        plusEl.style.display = '';
-        const sideBg = p.isAbove ? '#00a004' : '#cc0000';
-        sizeCell.style.background = sideBg;
-        requestAnimationFrame(() => {
-          minusEl.style.opacity = p.size <= 1 ? '0.35' : '1';
-          plusEl.style.opacity = '1';
-        });
-      }
-      function hide() {
-        const sideBg = p.isAbove ? CLR_BUY : CLR_SELL;
-        sizeCell.style.background = sideBg;
-        minusEl.style.opacity = '0';
-        plusEl.style.opacity = '0';
-        minusEl.style.display = 'none';
-        plusEl.style.display = 'none';
-      }
+    function slPnlText(orderPrice: number, slPrice: number, size: number, isAbove: boolean): string {
+      return formatSlPnl(orderPrice, slPrice, size, isAbove, contract!);
+    }
 
-      sizeCell.addEventListener('mouseenter', reveal);
-      sizeCell.addEventListener('mouseleave', hide);
+    function tpPnlText(orderPrice: number, tpPrice: number, size: number, isAbove: boolean): string {
+      return formatTpPnl(orderPrice, tpPrice, size, isAbove, contract!);
     }
 
     function addSlLine() {
@@ -602,13 +709,16 @@ export function useConditionLines(
         ? Math.round((p.orderPrice - slOffset) / tickSize) * tickSize
         : Math.round((p.orderPrice + slOffset) / tickSize) * tickSize;
 
+      const pnlTxt = slPnlText(p.orderPrice, slPrice, p.size, isAbove);
+
       const slLine = new PriceLevelLine({
         price: slPrice, series, overlay, chartApi: chart,
         lineColor: CLR_SL, lineStyle: 'dashed', lineWidth: 1,
         axisLabelVisible: true, tickSize,
         label: [
-          { text: 'SL', bg: CLR_SL, color: '#000' },
-          { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+          { text: pnlTxt, bg: CLR_SL, color: '#000' },
+          { text: String(p.size), bg: CLR_SL, color: '#000' },
+          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
         ],
       });
 
@@ -621,10 +731,13 @@ export function useConditionLines(
         slLabel.style.pointerEvents = 'auto';
         slLabel.style.cursor = 'grab';
 
+        // +/- size buttons on size cell
+        if (slCells[1]) setupSlSizeButtons(slCells[1]);
+
         // ✕ to remove
-        if (slCells[1]) {
-          slCells[1].style.cursor = 'pointer';
-          slCells[1].addEventListener('mousedown', (e) => {
+        if (slCells[2]) {
+          slCells[2].style.cursor = 'pointer';
+          slCells[2].addEventListener('mousedown', (e) => {
             e.stopPropagation(); e.preventDefault();
             p.slLine?.destroy();
             p.slLine = null;
@@ -635,7 +748,9 @@ export function useConditionLines(
 
         // Drag
         slLabel.addEventListener('mousedown', (e) => {
-          if (e.target === slCells[1] || slCells[1]?.contains(e.target as Node)) return;
+          const t = e.target as HTMLElement;
+          if (t.textContent === '+' || t.textContent === '\u2212') return;
+          if (e.target === slCells[2] || slCells[2]?.contains(e.target as Node)) return;
           e.preventDefault();
           previewDragRef.current = { target: 'sl', startY: e.clientY, originalPrice: slPrice };
           slLabel.style.cursor = 'grabbing';
@@ -649,27 +764,36 @@ export function useConditionLines(
 
     function addTpLine() {
       const p = previewRef.current;
-      if (!p || p.tpLine || !series || !overlay || !chart) return;
+      if (!p || !series || !overlay || !chart) return;
+
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      const remaining = p.size - totalTpSize;
+      if (remaining <= 0) return;
 
       const isAbove = p.isAbove;
-      // TP on same side as condition from order
-      const tpOffset = tickSize * 30;
+      // Offset each TP further from order price
+      const tpOffset = tickSize * (30 + p.tpLines.length * 15);
       const tpPrice = isAbove
         ? Math.round((p.orderPrice + tpOffset) / tickSize) * tickSize
         : Math.round((p.orderPrice - tpOffset) / tickSize) * tickSize;
+
+      const tpSize = remaining;
+      const pnlTxt = tpPnlText(p.orderPrice, tpPrice, tpSize, isAbove);
 
       const tpLine = new PriceLevelLine({
         price: tpPrice, series, overlay, chartApi: chart,
         lineColor: CLR_TP, lineStyle: 'dashed', lineWidth: 1,
         axisLabelVisible: true, tickSize,
         label: [
-          { text: 'TP', bg: CLR_TP, color: '#000' },
-          { text: '\u2715', bg: CLR_BTN, color: '#d1d4dc' },
+          { text: pnlTxt, bg: CLR_TP, color: '#000' },
+          { text: String(tpSize), bg: CLR_TP, color: '#000' },
+          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
         ],
       });
 
-      p.tpLine = tpLine;
-      p.tpPrice = tpPrice;
+      const tpEntry = { line: tpLine, price: tpPrice, size: tpSize };
+      p.tpLines.push(tpEntry);
+      const tpIndex = p.tpLines.length - 1;
 
       const tpLabel = tpLine.getLabelEl();
       const tpCells = tpLine.getCells();
@@ -677,21 +801,26 @@ export function useConditionLines(
         tpLabel.style.pointerEvents = 'auto';
         tpLabel.style.cursor = 'grab';
 
-        if (tpCells[1]) {
-          tpCells[1].style.cursor = 'pointer';
-          tpCells[1].addEventListener('mousedown', (e) => {
+        // +/- size buttons on size cell
+        if (tpCells[1]) setupTpSizeButtons(tpCells[1], tpEntry);
+
+        if (tpCells[2]) {
+          tpCells[2].style.cursor = 'pointer';
+          tpCells[2].addEventListener('mousedown', (e) => {
             e.stopPropagation(); e.preventDefault();
-            p.tpLine?.destroy();
-            p.tpLine = null;
-            p.tpPrice = null;
+            tpEntry.line.destroy();
+            const idx = p.tpLines.indexOf(tpEntry);
+            if (idx >= 0) p.tpLines.splice(idx, 1);
             updatePreviewLabels();
           });
         }
 
         tpLabel.addEventListener('mousedown', (e) => {
-          if (e.target === tpCells[1] || tpCells[1]?.contains(e.target as Node)) return;
+          const t = e.target as HTMLElement;
+          if (t.textContent === '+' || t.textContent === '\u2212') return;
+          if (e.target === tpCells[2] || tpCells[2]?.contains(e.target as Node)) return;
           e.preventDefault();
-          previewDragRef.current = { target: 'tp', startY: e.clientY, originalPrice: tpPrice };
+          previewDragRef.current = { target: 'tp', startY: e.clientY, originalPrice: tpPrice, tpIndex };
           tpLabel.style.cursor = 'grabbing';
           if (container) container.style.cursor = 'grabbing';
           chart.applyOptions({ handleScroll: false, handleScale: false });
@@ -709,9 +838,7 @@ export function useConditionLines(
       if (!url || !st.activeAccountId || !contract) return;
 
       const hasOrderLine = p.orderLine != null;
-      const isAbove = hasOrderLine
-        ? p.condPrice > p.orderPrice
-        : p.isAbove;
+      const isAbove = p.isAbove;
       const conditionType = isAbove ? 'closes_above' : 'closes_below';
       const orderSide = isAbove ? 'buy' : 'sell';
 
@@ -725,17 +852,21 @@ export function useConditionLines(
           sl: bc.stopLoss.points > 0 ? { points: bc.stopLoss.points } : undefined,
           tp: bc.takeProfits.length > 0 ? [{ points: bc.takeProfits[0].points }] : undefined,
         };
-      } else if (hasOrderLine && (p.slPrice != null || p.tpPrice != null)) {
+      } else if (hasOrderLine && (p.slPrice != null || p.tpLines.length > 0)) {
         const slPoints = p.slPrice != null
           ? Math.abs(p.orderPrice - p.slPrice) / contract.tickSize * contract.tickSize
           : undefined;
-        const tpPoints = p.tpPrice != null
-          ? Math.abs(p.tpPrice - p.orderPrice) / contract.tickSize * contract.tickSize
-          : undefined;
+        const tpArr = p.tpLines
+          .filter((t) => t.size > 0)
+          .map((t) => ({
+            points: Math.abs(t.price - p.orderPrice) / contract.tickSize * contract.tickSize,
+            size: t.size,
+          }))
+          .filter((t) => t.points > 0);
         bracket = {
           enabled: true,
           sl: slPoints != null && slPoints > 0 ? { points: slPoints } : undefined,
-          tp: tpPoints != null && tpPoints > 0 ? [{ points: tpPoints }] : undefined,
+          tp: tpArr.length > 0 ? tpArr : undefined,
         };
       }
 
@@ -796,52 +927,31 @@ export function useConditionLines(
         p.condPrice = snapped;
         p.condLine.setPrice(snapped);
         p.condLine.syncPosition();
-        // Check if type needs to flip
-        const nowAbove = p.condPrice > p.orderPrice;
-        if (nowAbove !== p.isAbove) {
-          rebuildPreviewLabels();
-        }
       } else if (drag.target === 'order' && p.orderLine) {
         p.orderPrice = snapped;
         p.orderLine.setPrice(snapped);
         p.orderLine.syncPosition();
-        const nowAbove = p.condPrice > p.orderPrice;
-        if (nowAbove !== p.isAbove) {
-          rebuildPreviewLabels();
-        }
       } else if (drag.target === 'sl' && p.slLine) {
         p.slPrice = snapped;
         p.slLine.setPrice(snapped);
         p.slLine.syncPosition();
-      } else if (drag.target === 'tp' && p.tpLine) {
-        p.tpPrice = snapped;
-        p.tpLine.setPrice(snapped);
-        p.tpLine.syncPosition();
-      }
-    }
-
-    function rebuildPreviewLabels() {
-      const p = previewRef.current;
-      if (!p || !p.condLine) return;
-
-      const isAbove = p.orderLine
-        ? p.condPrice > p.orderPrice
-        : p.isAbove;
-      p.isAbove = isAbove;
-
-      const condColor = isAbove ? CLR_ABOVE : CLR_BELOW;
-      const typeText = isAbove ? '\u25B2 Close Above' : '\u25BC Close Below';
-
-      p.condLine.setLineColor(condColor);
-      p.condLine.updateSection(0, `${typeText} ${timeframe.label}`, condColor);
-
-      if (p.orderLine) {
-        const sideText = isAbove ? 'Buy Limit' : 'Sell Limit';
-        const sideBg = isAbove ? CLR_BUY : CLR_SELL;
-        p.orderLine.setLineColor(sideBg);
-        p.orderLine.updateSection(0, sideText, sideBg);
-        if (p.orderLine.getCells()[1]) {
-          p.orderLine.getCells()[1].style.background = sideBg;
+        // Update PnL label
+        if (contract) {
+          const diff = p.isAbove ? snapped - p.orderPrice : p.orderPrice - snapped;
+          const pnl = calcPnl(diff, contract, p.size);
+          p.slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, CLR_SL, '#000');
+        }
+      } else if (drag.target === 'tp' && drag.tpIndex != null) {
+        const tpEntry = p.tpLines[drag.tpIndex];
+        if (tpEntry) {
+          tpEntry.price = snapped;
+          tpEntry.line.setPrice(snapped);
+          tpEntry.line.syncPosition();
+          if (contract) {
+            const diff = p.isAbove ? snapped - p.orderPrice : p.orderPrice - snapped;
+            const pnl = calcPnl(diff, contract, tpEntry.size);
+            tpEntry.line.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, CLR_TP, '#000');
+          }
         }
       }
     }
@@ -858,8 +968,13 @@ export function useConditionLines(
       if (!p) return;
 
       // Restore cursor on the dragged line
-      const lineMap = { cond: p.condLine, order: p.orderLine, sl: p.slLine, tp: p.tpLine };
-      const line = lineMap[drag.target];
+      let line: PriceLevelLine | null = null;
+      if (drag.target === 'tp' && drag.tpIndex != null) {
+        line = p.tpLines[drag.tpIndex]?.line ?? null;
+      } else {
+        const lineMap: Record<string, PriceLevelLine | null> = { cond: p.condLine, order: p.orderLine, sl: p.slLine };
+        line = lineMap[drag.target] ?? null;
+      }
       const labelEl = line?.getLabelEl();
       if (labelEl) labelEl.style.cursor = 'grab';
     }
@@ -887,7 +1002,7 @@ export function useConditionLines(
         p.condLine?.syncPosition();
         p.orderLine?.syncPosition();
         p.slLine?.syncPosition();
-        p.tpLine?.syncPosition();
+        for (const tp of p.tpLines) tp.line.syncPosition();
       }
     }
 

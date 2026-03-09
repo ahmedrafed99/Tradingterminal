@@ -160,13 +160,15 @@ export function useChartBars(
     startRealtime();
 
     function isFuturesMarketOpen(): boolean {
-      const now = new Date();
-      const day = now.getUTCDay();   // 0=Sun … 6=Sat
-      const h = now.getUTCHours();
-      // Closed: Friday 22:00 UTC (17:00 ET) → Sunday 23:00 UTC (18:00 ET)
+      // Use America/New_York so DST shifts are handled automatically
+      const etStr = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+      const et = new Date(etStr);
+      const day = et.getDay();   // 0=Sun … 6=Sat
+      const h = et.getHours();
+      // Closed: Friday 17:00 ET → Sunday 18:00 ET
       if (day === 6) return false;                        // all Saturday
-      if (day === 5 && h >= 22) return false;             // Friday after 22:00 UTC
-      if (day === 0 && h < 23) return false;              // Sunday before 23:00 UTC
+      if (day === 5 && h >= 17) return false;             // Friday after 5 PM ET
+      if (day === 0 && h < 18) return false;              // Sunday before 6 PM ET
       return true;
     }
 

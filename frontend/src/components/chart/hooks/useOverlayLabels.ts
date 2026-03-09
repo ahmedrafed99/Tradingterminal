@@ -9,6 +9,10 @@ import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
 import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import type { ChartRefs, PreviewLineRole } from './types';
+import {
+  darken,
+  LABEL_TEXT,
+} from './labelUtils';
 
 /**
  * Configures labels on PriceLevelLine instances, registers hit targets,
@@ -65,16 +69,7 @@ export function useOverlayLabels(
 
     // Text color helper: always black
     function textFor(_bg: string): string {
-      return '#000';
-    }
-
-    // Darken a hex color by a factor (0–1, where 0.85 = 15% darker)
-    function darken(hex: string, factor = 0.82): string {
-      const h = hex.replace('#', '');
-      const r = Math.round(parseInt(h.substring(0, 2), 16) * factor);
-      const g = Math.round(parseInt(h.substring(2, 4), 16) * factor);
-      const b = Math.round(parseInt(h.substring(4, 6), 16) * factor);
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      return LABEL_TEXT;
     }
 
     // --- Position label ---
@@ -305,7 +300,13 @@ export function useOverlayLabels(
       let initPnlBg: string;
       let orderPnlCompute: (() => { text: string; bg: string; color?: string }) | null = null;
 
-      if (pos) {
+      // Determine if this limit order is a same-side entry (adds to position) vs opposite-side TP
+      const isSameSideEntry = pos && oType === OrderType.Limit && (
+        (pos.type === PositionType.Long && oSide === OrderSide.Buy) ||
+        (pos.type === PositionType.Short && oSide === OrderSide.Sell)
+      );
+
+      if (pos && !isSameSideEntry) {
         const isLong = pos.type === PositionType.Long;
         const diff = isLong ? price - pos.averagePrice : pos.averagePrice - price;
         const projPnl = calcPnl(diff, contract!, oSize);
@@ -324,7 +325,7 @@ export function useOverlayLabels(
           };
         };
       } else {
-        // No position — SL/TP labels are meaningless (order is about to be cancelled)
+        // No position, or same-side limit entry — show order type label
         if (oType === OrderType.Stop || oType === OrderType.TrailingStop) continue;
         initPnlText = oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
         initPnlBg = '#cac9cb';

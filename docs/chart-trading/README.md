@@ -217,6 +217,7 @@ Always visible (regardless of preview toggle). Each line is a `PriceLevelLine` i
 
 - **Position entry**: solid grey `#cac8cb` at `averagePrice`
 - **Order colors are profit/loss-based** when a position exists: green `#00c805` if the order price is in profit territory relative to position entry, red `#ff0000` if in loss territory. This means an SL moved above entry (long) turns green, and a TP is always green.
+- **Same-side limit orders** (entries that add to a position, e.g. Buy Limit when Long) use **side-based coloring** (buy=green, sell=red) instead of profit/loss coloring — they are new entries, not take-profits.
 - **Without a position**: stop orders default to red, limit orders use side-based coloring (sell=red, buy=green)
 - **Line color updates during drag**: as an order is dragged across the entry price, `line.setLineColor()` flips between green and red in real-time
 - Each line tracks its `Order` object via `orderLineMetaRef` for drag identification
@@ -299,7 +300,7 @@ Fix: `onHandleHover` in `useChartDrawings` sets a shared `refs.labelHovered` fla
 - Drag-to-create: mousedown on position label starts a drag — dragging in the loss direction creates a stop order (full position size), dragging in the profit direction creates a limit TP order (1 contract per drag)
 
 ### Order labels
-- **P&L cell**: colored by profit/loss relative to position — green if order is in profit territory, red if in loss. Updates dynamically during drag as the price crosses the entry.
+- **P&L cell**: colored by profit/loss relative to position — green if order is in profit territory, red if in loss. Updates dynamically during drag as the price crosses the entry. **Same-side limit orders** (entries that add to a position) show "Buy Limit"/"Sell Limit" in grey (`#cac9cb`) with black text instead of P&L — they are new entries, not exits.
 - **Size cell**: colored by order side — sell = red `#ff0000`, buy = green `#00c805`. Stays constant regardless of order position (reflects that it's a market sell/buy order).
 - When no position exists, label shows "SL"/"Buy Limit"/"Sell Limit" in grey (`#cac9cb`) with black text
 - X to cancel order
@@ -547,6 +548,7 @@ interface OrderPanelState {
 | `frontend/src/components/chart/hooks/useOrderLines.ts` | Creates `PriceLevelLine` instances for preview/order/position lines, handles drag interactions |
 | `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
 | `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: creates PriceLevelLine instances with baked-in labels for hover preview |
+| `frontend/src/components/chart/hooks/labelUtils.ts` | Shared utilities for chart line labels: `installSizeButtons()` (hover-reveal +/- DOM factory), `formatSlPnl()`/`formatTpPnl()` (P&L text), `darken()`, `updateSizeCellCount()`, shared color constants, drag helpers |
 | `frontend/src/components/chart/hooks/resolvePreviewConfig.ts` | `resolvePreviewConfig()` — unified BracketConfig resolver; `fitTpsToOrderSize()` — trims TPs to fit within orderSize |
 | `frontend/src/components/order-panel/OrderPanel.tsx` | SignalR event wiring, limit order cancel cleanup, position close auto-cancel |
 | `frontend/src/components/order-panel/BuySellButtons.tsx` | Bracket arming, draft/ad-hoc merge, order placement |
@@ -593,10 +595,10 @@ Text hover:  [│ Buy Limit ][ − 2 + ][ + ]   (buttons visible, size bg not da
 
 Existing `−` / `+` buttons on live TP order size cells now have:
 - Scale 1.4× on individual `−` / `+` hover (0.15s transition)
-- Size cell bg darkens on hover (0.15s transition via `darken()` helper)
+- Size cell bg darkens on hover (0.15s transition via `darken()` helper from `labelUtils.ts`)
 - Darken persists across label rebuilds when hover is active
 
-**Files**: `useOverlayLabels.ts` (TP size button creation + `onTpSizeHover`)
+**Files**: `useOverlayLabels.ts` (TP size button creation + `onTpSizeHover`), `labelUtils.ts` (`darken()`, `installSizeButtons()`)
 
 ### TODO — future contexts
 

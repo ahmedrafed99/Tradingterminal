@@ -361,8 +361,16 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
         continue;
       }
 
+      // Same-side limit orders (entries) use side-based color, not profit/loss
+      const isSameSideEntry = pos && order.type === OrderType.Limit && (
+        (isLong && order.side === OrderSide.Buy) ||
+        (!isLong && order.side === OrderSide.Sell)
+      );
+
       // Color by profit/loss relative to position; fall back to red SL / side-based limit
-      if (pos && price != null) {
+      if (isSameSideEntry) {
+        color = order.side === OrderSide.Buy ? '#00c805' : '#ff0000';
+      } else if (pos && price != null) {
         const inProfit = isLong ? price >= pos.averagePrice : price <= pos.averagePrice;
         color = inProfit ? '#00c805' : '#ff0000';
       } else if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {

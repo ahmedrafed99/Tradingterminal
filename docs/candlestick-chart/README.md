@@ -144,6 +144,12 @@ interface ChartState {
   historical data. After the visible range is set, `autoScale` is disabled on
   the right price scale so users can drag vertically immediately without first
   stretching the price axis.
+- **Market-hours guard**: `handleQuote()` in `useChartBars` calls
+  `isFuturesMarketOpen()` and silently drops incoming quotes when the futures
+  market is closed (Friday 5 PM ET → Sunday 6 PM ET). The check converts the
+  current time to `America/New_York` via `toLocaleString()` so it automatically
+  handles EST ↔ EDT (daylight-saving) transitions — **do not use hardcoded UTC
+  offsets** for this check.
 - Maximum bars per request: 20,000 (API limit); paginate if needed for longer
   history
 - **Whitespace padding + right offset**: After loading historical bars, 500

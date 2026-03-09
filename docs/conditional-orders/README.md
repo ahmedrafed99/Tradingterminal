@@ -77,27 +77,39 @@ The primary way to create conditions is directly on the chart via **Preview mode
 1. Open the **Conditions tab** in the bottom panel
 2. Check the **Preview** checkbox in the tab bar
 3. Two draggable dashed lines appear mid-chart, offset ~20 ticks above/below last price:
-   - **Condition line** (blue): `[▲ Close Above 1m] [ARM]` — the trigger
-   - **Order line** (green): `[Buy Limit] [1] [+SL] [+TP]` — the limit order to place
+   - **Condition line** (blue): `[▲] [If Close Above 5m] [limit] [ARM] [✕]` — the trigger
+   - **Order line** (green): `[Buy Limit] [1] [+SL] [+TP] [✕]` — the limit order to place
 4. The **timeframe** is automatically set to whatever the chart is showing (e.g. 1m, 15m)
 
-### Auto-switch logic
+### Direction toggle (▲/▼ arrow)
 
-The condition type and order side are determined by the **relative position** of the two lines:
-- Condition line **above** order line → `Close Above` + `Buy Limit` (blue/green)
-- Condition line **below** order line → `Close Below` + `Sell Limit` (orange/red)
+The arrow cell on the condition line is **clickable** — click it to toggle between Close Above and Close Below:
+- **▲** (blue `#4a7dff`) → Close Above + Buy Limit
+- **▼** (red `#d32f2f`) → Close Below + Sell Limit
 
-Simply **drag the condition line past the order line** to flip the direction — labels, colors, and side all update automatically.
+Toggling flips the arrow, condition text, line colors, and order side all at once. Dragging lines does **not** auto-switch direction — use the arrow button.
+
+### Order type toggle (limit/market)
+
+The `limit` / `market` cell on the condition line toggles the order type:
+- **limit** → order line is visible and draggable, SL/TP can be added
+- **market** → order line and all brackets are removed; condition will place a market order on trigger
+
+Both states share the same greyish-white bg (`#cac9cb`). Click to toggle.
+
+All clickable cells (arrow, limit/market, ARM, ✕, +SL, +TP) darken on hover (`brightness(0.75)`) with a 0.15s transition.
 
 ### Size adjustment (+/- buttons)
 
-When no bracket preset is selected, the order line's size cell has **+/−** buttons (revealed on hover), matching the quick-order button pattern. These adjust `orderSize` directly.
+When no bracket preset is selected, the order line's size cell has **+/−** buttons (revealed on hover), built via `installSizeButtons()` from `labelUtils.ts` (same shared factory used by quick-order and overlay labels). These adjust `orderSize` directly.
 
 ### Adding SL/TP (no preset)
 
 When no bracket preset is selected, the order line label shows **+SL** and **+TP** buttons:
-- **+SL** → adds a red SL line (draggable, ✕ to remove), offset 15 ticks from order price
-- **+TP** → adds a green TP line (draggable, ✕ to remove), offset 30 ticks from order price
+- **+SL** → adds a red SL line (draggable, ✕ to remove), offset 15 ticks from order price. Shows projected P&L via `formatSlPnl()`.
+- **+TP** → adds a green TP line (draggable, ✕ to remove), offset 30+ ticks from order price. Shows projected P&L via `formatTpPnl()`.
+- **Multiple TPs**: each TP has an independent size with its own +/− buttons (via `installSizeButtons()`). Click +TP again to add another TP as long as total TP contracts < order size.
+- SL always tracks order size. TP sizes are independent.
 - SL/TP distances are computed as price difference from the order line when arming
 
 ### Arming
@@ -110,7 +122,7 @@ When no bracket preset is selected, the order line label shows **+SL** and **+TP
 
 Each armed condition renders **one line** on the chart:
 - Dashed, color-coded: blue (`#2962ff`) for Close Above, orange (`#ff6d00`) for Close Below
-- Label: `[▲ Above 1m] [Buy 1] [✕]`
+- Label: `[▲] [Above 1m] [✕]` — arrow cell uses directional color (blue `#4a7dff` / red `#d32f2f`)
 - **Drag** → adjust trigger price on the server (PATCH)
 - **Click** → open edit modal
 - **✕** → delete condition
@@ -167,7 +179,8 @@ bracket?: {
 | `frontend/src/services/conditionService.ts` | API client + SSE connection |
 | `frontend/src/components/bottom-panel/ConditionsTab.tsx` | Conditions table in bottom panel |
 | `frontend/src/components/bottom-panel/ConditionModal.tsx` | Create/edit condition form (modal) |
-| `frontend/src/components/chart/hooks/useConditionLines.ts` | Condition line rendering, dragging, creation mode, inline popover |
+| `frontend/src/components/chart/hooks/useConditionLines.ts` | Condition line rendering, dragging, creation mode, preview with SL/TP |
+| `frontend/src/components/chart/hooks/labelUtils.ts` | Shared label utilities (size buttons, PnL formatting, colors) used by condition, overlay, and quick-order hooks |
 | `Dockerfile` | Multi-stage build for the backend |
 | `docker-compose.yml` | Container orchestration (references Docker Hub image) |
 | `.env.example` | Auto-connect credential template |
