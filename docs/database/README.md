@@ -273,8 +273,37 @@ frontend/
 
 ---
 
+## Contract Rollover Strategy (Future)
+
+Not in v1 scope, but the schema should not paint us into a corner.
+
+### Problem
+
+Futures contracts expire quarterly. Data stored under `CON.F.US.ENQ.H26` becomes historical after March 2026. When the user rolls to `ENQ.M26` (June), they start with zero history for the new contract and can't view a continuous price series across rollovers.
+
+### Planned Approach
+
+Introduce a **symbol layer** that maps a continuous symbol (e.g. `MNQ`) to whichever contract was the front-month at any point in time:
+
+```
+symbols table (future)
+  symbol        TEXT  -- "MNQ", "ES", "NQ"
+  contract_id   TEXT  -- "CON.F.US.ENQ.H26"
+  active_from   TEXT  -- "2025-12-19" (rollover date)
+  active_to     TEXT  -- "2026-03-20"
+```
+
+Query flow: `SELECT contract_id FROM symbols WHERE symbol = ? AND date BETWEEN active_from AND active_to`, then join against `candles`. This lets analysis tools query "6 months of MNQ" spanning multiple contracts seamlessly.
+
+The current `candles` table schema (keyed on `contract_id + timestamp`) already supports this — no migration needed. The symbol mapping is purely additive.
+
+### When to Build
+
+When the first contract the user has data for expires and they roll to the next front-month. Until then, single-contract storage works fine.
+
+---
+
 ## Open Questions
 
 - **Rate limiting**: ProjectX API rate limits are undocumented. Start conservative (500ms between pages) and adjust based on observed behavior (429 responses).
-- **Contract rollovers**: Futures contracts expire. Data for `ENQ.H26` becomes useless after March 2026. May need a strategy for continuous contracts later (map old front-month to new).
 - **Gap detection**: Trading hours have natural gaps (weekends, holidays, CME maintenance). These aren't data gaps — need to distinguish from actual missing data. Not critical for v1.
