@@ -35,7 +35,8 @@ The backend is containerized and deployed to **Render** (free tier). It runs 24/
 ### Docker image
 
 ```bash
-# Build (from project root)
+# Build (from backend/)
+cd backend
 docker build -t greenberet9/trading-conditions:latest .
 
 # Push to Docker Hub
@@ -60,11 +61,12 @@ For a second PC, Synology NAS, or VPS:
 # 1. Copy .env.example -> .env and fill in credentials
 cp .env.example .env
 
-# 2. Pull and run
+# 2. Pull and run (from backend/)
+cd backend
 docker compose up -d
 ```
 
-The `docker-compose.yml` references the Docker Hub image, so the target machine only needs Docker -- no Node.js, no source code.
+The `backend/docker-compose.yml` references the Docker Hub image, so the target machine only needs Docker -- no Node.js, no source code.
 
 ### Frontend setup
 
@@ -202,9 +204,9 @@ bracket?: {
 | `frontend/src/components/bottom-panel/ConditionModal.tsx` | Create/edit condition form (modal) |
 | `frontend/src/components/chart/hooks/useConditionLines.ts` | Orchestrator (decomposed into 5 sub-hooks: useArmedConditionLines, useArmedConditionDrag, useConditionPreview, useConditionPreviewDrag, useConditionLinesSync) |
 | `frontend/src/components/chart/hooks/labelUtils.ts` | Shared label utilities (size buttons, PnL formatting, colors) used by condition, overlay, and quick-order hooks |
-| `Dockerfile` | Multi-stage build for the backend (Node 20 Alpine, two-stage) |
-| `docker-compose.yml` | Container orchestration (references Docker Hub image) |
-| `.env.example` | Auto-connect credential template |
+| `backend/Dockerfile` | Multi-stage build for the backend (Node 20 Alpine, two-stage) |
+| `backend/docker-compose.yml` | Container orchestration (references Docker Hub image) |
+| `backend/.env.example` | Auto-connect credential template |
 
 ## Files to modify
 

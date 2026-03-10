@@ -1,9 +1,0 @@
-node_modules
-frontend
-docs
-.git
-.env
-*.md
-backend/node_modules
-backend/dist
-backend/data
