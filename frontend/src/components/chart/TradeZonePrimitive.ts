@@ -117,8 +117,10 @@ export function matchTrades(
 
 // ── Renderer ───────────────────────────────────────────────────────────────
 
-const GREEN = '#26a69a';
-const RED = '#ef5350';
+import { COLOR_BUY, COLOR_SELL } from '../../constants/colors';
+
+const GREEN = COLOR_BUY;
+const RED = COLOR_SELL;
 const MIN_RECT_W = 6; // minimum rectangle width in CSS px
 
 class TradeZoneRenderer implements IPrimitivePaneRenderer {

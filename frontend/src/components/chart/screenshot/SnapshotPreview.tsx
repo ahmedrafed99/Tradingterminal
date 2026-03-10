@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ScreenshotOptions } from './chartRegistry';
 import { addTimeBanner } from './addTimeBanner';
+import { Modal } from '../../shared/Modal';
 
 interface SnapshotPreviewProps {
   captureChartCanvas: (options: ScreenshotOptions) => HTMLCanvasElement | null;
@@ -35,7 +36,6 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const cacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
-  const backdropRef = useRef<HTMLDivElement>(null);
   // Pre-capture all 8 toggle combinations on modal open.
   // All captures run synchronously (single JS task) so the browser
   // paints only once — any chart refresh coincides with the modal appearing.
@@ -84,33 +84,19 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
     }
   }
 
-  // Close on Escape
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   return (
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center animate-backdrop-in"
-      style={{ background: 'rgba(0, 0, 0, 0.6)', backdropFilter: 'blur(4px)' }}
-      onMouseDown={(e) => {
-        if (e.target === backdropRef.current) onClose();
+    <Modal
+      onClose={onClose}
+      backdropClassName="animate-backdrop-in"
+      backdropStyle={{ backdropFilter: 'blur(4px)' }}
+      className="bg-black border border-[#2a2e39]/60 rounded-xl flex flex-col animate-modal-in"
+      style={{
+        maxWidth: '75vw',
+        maxHeight: '82vh',
+        minWidth: 420,
+        boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)',
       }}
     >
-      <div
-        className="bg-black border border-[#2a2e39]/60 rounded-xl flex flex-col animate-modal-in"
-        style={{
-          maxWidth: '75vw',
-          maxHeight: '82vh',
-          minWidth: 420,
-          boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)',
-        }}
-      >
         {/* Header */}
         <div className="flex items-center justify-between" style={{ padding: '14px 20px 10px' }}>
           <div className="flex items-center gap-2.5">
@@ -188,7 +174,6 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
             )}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

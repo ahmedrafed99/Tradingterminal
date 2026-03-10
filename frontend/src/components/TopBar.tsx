@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { ChevronDown } from './icons/ChevronDown';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
@@ -29,13 +30,7 @@ function EyeOffIcon() {
 }
 
 
-function ChevronDown() {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-      <path d="M2.5 3.75L5 6.25L7.5 3.75" />
-    </svg>
-  );
-}
+
 
 function SettingsIcon() {
   return (

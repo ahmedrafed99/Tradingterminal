@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
 import type { Trade } from '../../services/tradeService';
 import { tradeService } from '../../services/tradeService';
@@ -293,7 +294,7 @@ export function TradesTab() {
           const trade = group.exits[0];
           const net = trade.profitAndLoss! - trade.fees;
           const isVisible = visibleTradeIds.includes(trade.id);
-          const stripe = rowIdx++ % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+          const stripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
           const selected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
 
           return (
@@ -341,7 +342,7 @@ export function TradesTab() {
         }
 
         // Multi-exit group
-        const parentStripe = rowIdx++ % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+        const parentStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
         const parentSelected = anyVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
 
         return (
@@ -396,7 +397,7 @@ export function TradesTab() {
             {isExpanded && group.exits.map((trade) => {
               const net = trade.profitAndLoss! - trade.fees;
               const isVisible = visibleTradeIds.includes(trade.id);
-              const subStripe = rowIdx++ % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+              const subStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
               const subSelected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
 
               return (

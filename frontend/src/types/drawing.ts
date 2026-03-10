@@ -97,8 +97,10 @@ export interface HLineTemplate {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-export const DEFAULT_HLINE_COLOR = '#787b86';
+import { COLOR_TEXT_MUTED, COLOR_ACCENT } from '../constants/colors';
+
+export const DEFAULT_HLINE_COLOR = COLOR_TEXT_MUTED;
 export const DEFAULT_OVAL_COLOR = '#ff9800';
 export const DEFAULT_ARROWPATH_COLOR = '#f7c948';
-export const DEFAULT_RULER_COLOR = '#2962ff';
+export const DEFAULT_RULER_COLOR = COLOR_ACCENT;
 export const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4] as const;

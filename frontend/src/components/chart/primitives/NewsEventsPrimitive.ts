@@ -17,10 +17,12 @@ const MARKER_COLOR = '#9b59b6';
 const MARKER_FILL = 'rgba(155, 89, 182, 0.18)';
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
+import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED } from '../../../constants/colors';
+
 const IMPACT_COLORS: Record<string, string> = {
-  high: '#ef5350',
-  medium: '#f0a830',
-  low: '#787b86',
+  high: COLOR_SELL,
+  medium: COLOR_WARNING,
+  low: COLOR_TEXT_MUTED,
 };
 
 interface MarkerData {

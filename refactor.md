@@ -41,17 +41,17 @@ Extracted to `hooks/useInstrumentSearch.ts`. Shared: debounced search, bookmark 
 
 Moved to `components/shared/TabButton.tsx`. Consumers: BottomPanel, SettingsModal.
 
-### 1.7 Shared inline icons → `components/icons/`
+### 1.7 ✅ Shared inline icons → `components/icons/`
 
-`ChevronDown` duplicated in TopBar and BracketSettingsModal. Move all inline SVG icons (Eye, EyeOff, ChevronDown, Settings) to `components/icons/`.
+Extracted `ChevronDown` to `components/icons/ChevronDown.tsx`. Replaced local definitions in TopBar and ChartToolbar. BracketSettingsModal's variant left as-is (different SVG + absolute positioning for select indicators).
 
 ### 1.8 ✅ Backend `withConnection` middleware
 
 Created `backend/src/middleware/withConnection.ts`. Applied to accountRoutes, orderRoutes, marketDataRoutes, tradeRoutes (~80 lines of boilerplate removed).
 
-### 1.9 Missing Zod validation
+### 1.9 ✅ Missing Zod validation
 
-Add schemas for 3 unvalidated routes: contract search, news, settings PUT. The settings PUT writes `req.body` directly to disk with no schema check.
+Added `ContractSearchQuery` schema to marketDataRoutes (validates `q` and `live` params). Added `SettingsBodySchema` to settingsRoutes (validates body is a plain object before writing to disk). News route takes no params — no validation needed.
 
 ---
 
@@ -71,18 +71,13 @@ Created `utils/dedup.ts`. Applied to: authService, persistenceService, databaseS
 
 Switched from raw `fetch()` to shared `api` axios instance + `dedup()` wrapper.
 
-### 2.4 Design token constants
+### 2.4 ✅ Design token constants
 
-Centralize repeated styling values:
+Created `constants/colors.ts` (semantic color tokens for JS contexts) and `constants/styles.ts` (SECTION_LABEL, TABLE_ROW_STRIPE, INPUT_BASE/INPUT_DARK/INPUT_SURFACE). Applied color constants to 8 chart/primitive files (chartTheme, TradeZonePrimitive, CrosshairLabelPrimitive, VolumeProfilePrimitive, NewsEventsPrimitive, addTimeBanner, drawing.ts, buildPositionLabel).
 
-| File | Purpose |
-|------|---------|
-| `constants/colors.ts` | All semantic colors (`#26a69a`, `#ef5350`, `#787b86`, etc.) |
-| `constants/styles.ts` | Section label class, table row stripe, input variants, button variants |
+### 2.5 ✅ Section label + table row constants
 
-### 2.5 Section label + table row constants
-
-`text-[10px] uppercase tracking-wider text-[#787b86]` repeated 6+ times. `bg-[#0d1117]/40` stripe + `hover:bg-[#1e222d]/50` repeated in 3 tab components.
+Replaced 14 section-label class strings with `SECTION_LABEL` across 9 files. Replaced 5 `bg-[#0d1117]/40` stripe literals with `TABLE_ROW_STRIPE` across 3 bottom-panel tabs.
 
 ---
 
@@ -126,17 +121,17 @@ Each PaneView has unique hitTest/renderer logic with only ~10 lines of shared bo
 
 Split into 7 domain slices in `store/slices/`: connectionSlice (48), instrumentSlice (70), tradingSlice (228), drawingsSlice (182), layoutSlice (154), conditionsSlice (44), toastSlice (39). Orchestrator `useStore.ts` reduced to 81 lines. All existing imports unchanged via re-exports.
 
-### 4.2 Shared `<Modal>` component
+### 4.2 ✅ Shared `<Modal>` component
 
-3 modal implementations (SettingsModal, BracketSettingsModal, ConditionModal) repeat the same backdrop + panel + header + body + footer structure (~50-80 lines each).
+Extracted `shared/Modal.tsx` — backdrop overlay + centered panel + Escape key + backdrop click. All 4 modals (SettingsModal, ConditionModal, BracketSettingsModal, SnapshotPreview) now use it, gaining consistent close behavior.
 
-### 4.3 Shared `<Dropdown>` component
+### 4.3 ⏭️ Shared `<Dropdown>` component (deferred)
 
-4 dropdown implementations (account selector, bracket preset, date preset, status filter) with identical toggle + absolute-div + item-list pattern.
+Dropdowns already use `useClickOutside` hook. Remaining boilerplate is ~4 lines per dropdown, and content varies significantly (simple lists vs edit/delete actions vs search). Net savings too small.
 
-### 4.4 Input/button variant system
+### 4.4 ✅ Input variant constants
 
-3 different input styling constants (`#111` vs `#131722` vs `white/[0.05]`) and 3 button variant patterns. Unify into composable constants or components.
+Created `INPUT_DARK` (bg-[#111]) and `INPUT_SURFACE` (bg-[#131722]) in `constants/styles.ts`. Applied to SettingsModal (4 inputs) and ConditionModal (replaced local `inp` constant). BracketSettingsModal's `white/[0.05]` variant left as-is (intentionally different design language).
 
 ---
 

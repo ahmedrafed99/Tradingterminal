@@ -3,6 +3,8 @@ import { useStore, DEFAULT_PINNED, MORE_TIMEFRAMES } from '../../store/useStore'
 import { conditionService } from '../../services/conditionService';
 import type { CreateConditionInput, PatchConditionInput, ConditionBracket } from '../../services/conditionService';
 import type { BracketPreset } from '../../types/bracket';
+import { Modal } from '../shared/Modal';
+import { INPUT_SURFACE } from '../../constants/styles';
 
 const ALL_TIMEFRAMES = [...DEFAULT_PINNED, ...MORE_TIMEFRAMES];
 
@@ -170,13 +172,12 @@ export function ConditionModal() {
     }
   }
 
-  const inp = 'w-full bg-[#131722] border border-[#2a2e39] rounded-lg text-[13px] text-[#d1d4dc] placeholder-[#363a45] focus:outline-none focus:border-[#2962ff] transition-colors';
+  const inp = INPUT_SURFACE;
   const fieldLabel = 'block text-[11px] text-[#9598a1]';
   const sectionLabel = 'text-[10px] uppercase tracking-wider text-[#5d606b] font-medium';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[440px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl max-h-[85vh] flex flex-col">
+    <Modal onClose={closeConditionModal} className="w-[440px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl max-h-[85vh] flex flex-col">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between shrink-0" style={{ padding: '20px 28px 16px' }}>
@@ -426,7 +427,6 @@ export function ConditionModal() {
             {loading ? 'Saving...' : editingConditionId ? 'Update Condition' : 'Arm Condition'}
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

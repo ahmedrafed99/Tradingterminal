@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
 import { orderService } from '../../services/orderService';
 import { marketDataService } from '../../services/marketDataService';
@@ -222,7 +223,7 @@ export function OrderPanel() {
         {/* Instrument */}
         <div className="relative">
           <div className="flex items-center mb-1">
-            <div className="flex-1 text-[10px] text-[#787b86] uppercase tracking-wider text-center">Instrument</div>
+            <div className={`flex-1 ${SECTION_LABEL} text-center`}>Instrument</div>
           </div>
           <div className="absolute" style={{ top: -2, right: -4 }}>
             <LinkChartButton linked={orderLinkedToChart} onToggle={setOrderLinkedToChart} />

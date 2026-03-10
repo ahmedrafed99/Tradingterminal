@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE } from './ColorPopover';
@@ -282,7 +283,7 @@ function TextPopover({
 
       {/* Row 3: Text alignment */}
       <div style={{ marginBottom: 10 }}>
-        <div className="text-[10px] uppercase tracking-wider text-[#787b86]" style={{ marginBottom: 6 }}>
+        <div className={SECTION_LABEL} style={{ marginBottom: 6 }}>
           Text alignment
         </div>
         <div className="flex items-center" style={{ gap: 6 }}>

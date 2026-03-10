@@ -1,4 +1,5 @@
 import type { Contract } from '../../../services/marketDataService';
+import { COLOR_TEXT_MUTED } from '../../../constants/colors';
 import { useStore } from '../../../store/useStore';
 import { orderService } from '../../../services/orderService';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
@@ -51,7 +52,7 @@ export function buildPositionLabel(
     initBg = refs.lastPnlCache.current.bg;
   } else {
     initText = '---';
-    initBg = '#787b86';
+    initBg = COLOR_TEXT_MUTED;
   }
 
   const posIdx = refs.orderLineMeta.current.findIndex((m) => m.kind === 'position');

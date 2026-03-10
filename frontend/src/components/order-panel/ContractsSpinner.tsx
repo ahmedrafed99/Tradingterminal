@@ -1,11 +1,12 @@
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 
 export function ContractsSpinner() {
   const { orderSize, setOrderSize } = useStore();
 
   return (
     <div>
-      <div className="text-[10px] text-[#787b86] uppercase tracking-wider mb-1 text-center">Contracts</div>
+      <div className={`${SECTION_LABEL} mb-1 text-center`}>Contracts</div>
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => setOrderSize(orderSize - 1)}

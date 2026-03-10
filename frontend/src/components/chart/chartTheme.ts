@@ -1,4 +1,5 @@
 import { ColorType, CrosshairMode } from 'lightweight-charts';
+import { COLOR_TEXT, COLOR_BORDER } from '../../constants/colors';
 import type { DeepPartial, ChartOptions, CandlestickSeriesPartialOptions } from 'lightweight-charts';
 
 const NY_TZ = 'America/New_York';
@@ -48,7 +49,7 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   autoSize: true,
   layout: {
     background: { type: ColorType.Solid, color: '#000000' },
-    textColor: '#d1d4dc',
+    textColor: COLOR_TEXT,
     fontSize: 12,
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
   },
@@ -58,17 +59,17 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   },
   crosshair: {
     mode: CrosshairMode.Normal,
-    vertLine: { color: '#434651', labelBackgroundColor: '#2a2e39' },
-    horzLine: { color: '#434651', labelBackgroundColor: '#2a2e39' },
+    vertLine: { color: '#434651', labelBackgroundColor: COLOR_BORDER },
+    horzLine: { color: '#434651', labelBackgroundColor: COLOR_BORDER },
   },
   rightPriceScale: {
-    borderColor: '#2a2e39',
+    borderColor: COLOR_BORDER,
   },
   localization: {
     timeFormatter: nyTimeFormatter,
   },
   timeScale: {
-    borderColor: '#2a2e39',
+    borderColor: COLOR_BORDER,
     timeVisible: true,
     secondsVisible: false,
     tickMarkFormatter: nyTickMarkFormatter,

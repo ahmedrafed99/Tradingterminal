@@ -1,3 +1,5 @@
+import { COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
+
 /**
  * Composites a time-banner strip above the chart canvas.
  * The banner is only added to the copied PNG — the preview stays unchanged.
@@ -35,12 +37,12 @@ export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement
 
   // Time text — top-left
   ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
-  ctx.fillStyle = '#787b86';
+  ctx.fillStyle = COLOR_TEXT_MUTED;
   ctx.textBaseline = 'middle';
   ctx.fillText(timeText, 10, bannerH / 2);
 
   // Separator line
-  ctx.fillStyle = '#2a2e39';
+  ctx.fillStyle = COLOR_BORDER;
   ctx.fillRect(0, bannerH, w, sepH);
 
   // Chart image below

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
+import { Modal } from '../shared/Modal';
 import type {
   BracketConfig,
   StopLossConfig,
@@ -103,8 +104,7 @@ export function BracketSettingsModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-black border border-white/5 shadow-2xl overflow-hidden">
+    <Modal onClose={() => setEditingPresetId(null)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-black border border-white/5 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/5" style={{ padding: '18px 24px' }}>
           <h2 className="text-sm font-semibold text-white">
@@ -246,10 +246,10 @@ export function BracketSettingsModal() {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Stop Loss

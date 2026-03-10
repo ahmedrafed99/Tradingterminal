@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 
 export function OrderTypeTabs() {
   const { orderType, setOrderType, limitPrice, setLimitPrice, orderContract } = useStore();
@@ -6,7 +7,7 @@ export function OrderTypeTabs() {
 
   return (
     <div>
-      <div className="text-[10px] text-[#787b86] uppercase tracking-wider mb-1 text-center">Order Type</div>
+      <div className={`${SECTION_LABEL} mb-1 text-center`}>Order Type</div>
       <div className="flex gap-1">
         <button
           onClick={() => setOrderType('market')}
@@ -32,7 +33,7 @@ export function OrderTypeTabs() {
 
       {orderType === 'limit' && (
         <div style={{ marginTop: 20 }}>
-          <div className="text-[10px] text-[#787b86] uppercase tracking-wider mb-1 text-center">Limit Price</div>
+          <div className={`${SECTION_LABEL} mb-1 text-center`}>Limit Price</div>
           <input
             type="number"
             step={tickSize}

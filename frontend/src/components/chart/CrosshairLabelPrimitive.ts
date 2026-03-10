@@ -1,8 +1,10 @@
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
-const BG_COLOR = '#2a2e39';
-const TEXT_COLOR = '#d1d4dc';
+import { COLOR_BORDER, COLOR_TEXT } from '../../constants/colors';
+
+const BG_COLOR = COLOR_BORDER;
+const TEXT_COLOR = COLOR_TEXT;
 
 /**
  * Crosshair price label rendered as an HTML element in the chart overlay.

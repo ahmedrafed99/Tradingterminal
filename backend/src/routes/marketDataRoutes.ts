@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { validateBody } from '../validate';
+import { validateBody, validateQuery } from '../validate';
 import { withConnection, getAdapter } from '../middleware/withConnection';
 
 const router = Router();
@@ -23,7 +23,12 @@ router.post('/bars', validateBody(RetrieveBarsSchema), withConnection(async (req
 }));
 
 // GET /market/contracts/search?q=NQ
-router.get('/contracts/search', withConnection(async (req, res) => {
+const ContractSearchQuery = z.object({
+  q: z.string().optional().default(''),
+  live: z.enum(['true', 'false']).optional().default('false'),
+});
+
+router.get('/contracts/search', validateQuery(ContractSearchQuery), withConnection(async (req, res) => {
   const live = req.query['live'] === 'true';
   const data = await getAdapter().marketData.searchContracts(
     (req.query['q'] as string) ?? '',

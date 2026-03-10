@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { z } from 'zod';
+import { validateBody } from '../validate';
 
 const router = Router();
 
@@ -29,7 +31,9 @@ router.get('/', async (_req, res) => {
 });
 
 // PUT /settings — save settings to disk
-router.put('/', async (req, res) => {
+const SettingsBodySchema = z.record(z.string(), z.unknown());
+
+router.put('/', validateBody(SettingsBodySchema), async (req, res) => {
   try {
     await ensureDir();
     await fs.writeFile(SETTINGS_FILE, JSON.stringify(req.body, null, 2), 'utf-8');

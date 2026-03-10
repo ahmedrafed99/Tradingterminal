@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { orderService } from '../../services/orderService';
 import { useStore } from '../../store/useStore';
 import { OrderType, OrderSide } from '../../types/enums';
@@ -58,7 +59,7 @@ export function OrdersTab() {
         const price = order.type === OrderType.Stop || order.type === OrderType.TrailingStop
           ? order.stopPrice
           : order.limitPrice;
-        const stripe = i % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+        const stripe = i % 2 === 1 ? TABLE_ROW_STRIPE : '';
 
         return (
           <div

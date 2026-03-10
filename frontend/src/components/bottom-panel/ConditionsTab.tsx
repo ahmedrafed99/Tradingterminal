@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { useStore } from '../../store/useStore';
 import { conditionService } from '../../services/conditionService';
 import type { Condition } from '../../services/conditionService';
@@ -257,7 +258,7 @@ export function ConditionsTab() {
         </div>
       )}
       {filteredConditions.map((c, i) => {
-        const stripe = i % 2 === 1 ? 'bg-[#0d1117]/40' : '';
+        const stripe = i % 2 === 1 ? TABLE_ROW_STRIPE : '';
         const isBuy = c.orderSide === 'buy';
         const condLabel = c.conditionType === 'closes_above' ? 'Close Above' : 'Close Below';
         const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${c.orderSize} ${c.orderType === 'market' ? 'MKT' : `LMT ${c.orderPrice?.toFixed(2) ?? ''}`}`;

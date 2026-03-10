@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
@@ -17,7 +18,7 @@ export function PositionDisplay() {
   if (!orderContract || !hasPos) {
     return (
       <div className="border-t border-[#2a2e39] mt-2 pt-3">
-        <div className="text-[10px] text-[#787b86] uppercase tracking-wider mb-1 text-center">Position</div>
+        <div className={`${SECTION_LABEL} mb-1 text-center`}>Position</div>
         <div className="text-xs text-[#434651] text-center">No position</div>
       </div>
     );
@@ -38,7 +39,7 @@ export function PositionDisplay() {
 
   return (
     <div className="border-t border-[#2a2e39] mt-2 pt-3 space-y-1.5">
-      <div className="text-[10px] text-[#787b86] uppercase tracking-wider text-center">Position</div>
+      <div className={`${SECTION_LABEL} text-center`}>Position</div>
 
       {/* +1 @ 24,905.00 */}
       <div className={`text-sm font-bold text-center ${isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>

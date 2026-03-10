@@ -4,6 +4,8 @@ import { accountService } from '../services/accountService';
 import { useStore } from '../store/useStore';
 import { TabButton } from './shared/TabButton';
 import { DatabaseTab } from './settings/DatabaseTab';
+import { Modal } from './shared/Modal';
+import { INPUT_DARK } from '../constants/styles';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
@@ -58,8 +60,7 @@ export function SettingsModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="w-[460px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl">
+    <Modal onClose={() => setSettingsOpen(false)} className="w-[460px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#2a2e39]" style={{ padding: '12px 32px 0 32px' }}>
           <div className="flex items-center" style={{ height: 40 }}>
@@ -99,7 +100,7 @@ export function SettingsModal() {
                     onChange={(e) => setUserName(e.target.value)}
                     disabled={connected || loading}
                     placeholder="your-projectx-username"
-                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                    className={INPUT_DARK}
                     style={{ padding: '10px 14px' }}
                   />
                 </label>
@@ -112,7 +113,7 @@ export function SettingsModal() {
                     onChange={(e) => setApiKey(e.target.value)}
                     disabled={connected || loading}
                     placeholder="••••••••••••••••"
-                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                    className={INPUT_DARK}
                     style={{ padding: '10px 14px' }}
                   />
                 </label>
@@ -125,7 +126,7 @@ export function SettingsModal() {
                     onChange={(e) => setUrl(e.target.value)}
                     disabled={connected || loading}
                     placeholder={DEFAULT_BASE_URL}
-                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff] disabled:opacity-50"
+                    className={INPUT_DARK}
                     style={{ padding: '10px 14px' }}
                   />
                 </label>
@@ -141,7 +142,7 @@ export function SettingsModal() {
                     onChange={(e) => setCondUrl(e.target.value)}
                     onBlur={() => setConditionServerUrl(condUrl.trim())}
                     placeholder="http://localhost:3002"
-                    className="w-full bg-[#111] border border-[#2a2e39] rounded-lg text-sm text-white placeholder-[#434651] focus:outline-none focus:border-[#2962ff]"
+                    className={INPUT_DARK}
                     style={{ padding: '10px 14px' }}
                   />
                   <span className="block text-[10px] text-[#434651] mt-1">Leave empty to disable conditional orders</span>
@@ -185,7 +186,6 @@ export function SettingsModal() {
         )}
 
         {tab === 'database' && <DatabaseTab />}
-      </div>
-    </div>
+    </Modal>
   );
 }

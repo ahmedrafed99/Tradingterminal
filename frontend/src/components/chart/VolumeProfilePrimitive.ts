@@ -39,7 +39,9 @@ function rgba(r: number, g: number, b: number, a: number): string {
 // ---------------------------------------------------------------------------
 
 const TOOLTIP_BG = 'rgba(19, 23, 34, 0.90)';
-const TOOLTIP_TEXT = '#d1d4dc';
+import { COLOR_TEXT } from '../../constants/colors';
+
+const TOOLTIP_TEXT = COLOR_TEXT;
 const MAX_WIDTH_RATIO = 0.30;
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 

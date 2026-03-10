@@ -5,6 +5,7 @@ import {
   type DatabaseStatus,
   type FetchProgress,
 } from '../../services/databaseService';
+import { SECTION_LABEL } from '../../constants/styles';
 
 const POLL_INTERVAL = 1500;
 
@@ -150,7 +151,7 @@ export function DatabaseTab() {
       {/* STATUS SECTION */}
       <div style={{ marginBottom: 20 }}>
         <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span className="text-[10px] uppercase tracking-wider text-[#787b86]">
+          <span className={SECTION_LABEL}>
             Stored Data
           </span>
           <span className="text-[10px] text-[#434651]">
@@ -207,7 +208,7 @@ export function DatabaseTab() {
       {/* SYNC CONTROLS */}
       <div>
         <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span className="text-[10px] uppercase tracking-wider text-[#787b86]">
+          <span className={SECTION_LABEL}>
             Sync
           </span>
           <span className="text-[10px] text-[#434651]">
@@ -237,7 +238,7 @@ export function DatabaseTab() {
           <div style={{ borderTop: '1px solid #2a2e39', marginBottom: 16 }} />
 
           <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-            <span className="text-[10px] uppercase tracking-wider text-[#787b86]">
+            <span className={SECTION_LABEL}>
               Progress
             </span>
             <span className="text-[10px]">
@@ -306,7 +307,7 @@ export function DatabaseTab() {
         <div style={{ borderTop: '1px solid #2a2e39', marginBottom: 16 }} />
 
         <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span className="text-[10px] uppercase tracking-wider text-[#787b86]">
+          <span className={SECTION_LABEL}>
             Backup
           </span>
           <span className="text-[10px] text-[#434651]">

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 import type { ConditionAction, TakeProfitLevel } from '../../types/bracket';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
@@ -32,7 +33,7 @@ export function BracketSummary() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[10px] text-[#787b86] uppercase tracking-wider text-center flex-1">Bracket</div>
+        <div className={`${SECTION_LABEL} text-center flex-1`}>Bracket</div>
         {/* Add new preset */}
         <button
           onClick={() => setEditingPresetId('new')}

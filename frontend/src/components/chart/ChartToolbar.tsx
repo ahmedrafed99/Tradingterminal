@@ -1,5 +1,7 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useStore, TIMEFRAMES, type Timeframe } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
+import { ChevronDown } from '../icons/ChevronDown';
 import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
@@ -14,13 +16,6 @@ const UNIT_OPTIONS = [
   { value: 4, label: 'Days',    suffix: 'D' },
 ] as const;
 
-function ChevronDown({ className }: { className?: string }) {
-  return (
-    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
-      <path d="M2.5 3.75L5 6.25L7.5 3.75" />
-    </svg>
-  );
-}
 
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
@@ -553,7 +548,7 @@ export function ChartToolbar() {
 
             {/* Custom timeframe */}
             <div style={{ padding: '4px 14px 8px' }}>
-              <div className="text-[10px] text-[#787b86] uppercase tracking-wider" style={{ marginBottom: '8px' }}>Custom</div>
+              <div className={SECTION_LABEL} style={{ marginBottom: '8px' }}>Custom</div>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
