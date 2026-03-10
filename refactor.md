@@ -57,20 +57,19 @@ Add schemas for 3 unvalidated routes: contract search, news, settings PUT. The s
 
 ## Phase 2 — Service & Type Consolidation (Medium Risk, ~200 lines saved)
 
-### 2.1 `createInflightDedup()` utility
+### 2.1 ✅ `dedup()` / `dedupByKey()` utilities
 
-7 services implement the same promise-caching pattern (`if (inflight) return inflight`). Create `utils/dedupRequest.ts` with a generic factory.
+Created `utils/dedup.ts`. Applied to: authService, persistenceService, databaseService, newsService (`dedup`), tradeService (`dedupByKey`). Left marketDataService (cache-interleaved) and conditionService (takes baseUrl arg) as-is.
 
-**Services:** authService, tradeService, conditionService, databaseService, persistenceService, marketDataService (x2), newsService.
+### 2.2 ✅ Fix type name collisions
 
-### 2.2 Fix type name collisions
+- `orderService.Bracket` → `OrderBracket` (gateway bracket with ticks+type)
+- `conditionService.Bracket` → `ConditionBracket` (SL/TP config for conditions)
+- `bracket.ts Condition` → `BracketCondition` (automation rule in bracket config)
 
-- `Bracket` defined differently in orderService.ts vs conditionService.ts → rename to `NativeBracket` and `BracketConfig`
-- `Condition` defined differently in bracket.ts vs conditionService.ts → rename bracket.ts version to `BracketCondition`
+### 2.3 ✅ Switch newsService to axios
 
-### 2.3 Switch newsService to axios
-
-Only service using raw `fetch()` instead of the shared `api` axios instance. Inconsistent error handling.
+Switched from raw `fetch()` to shared `api` axios instance + `dedup()` wrapper.
 
 ### 2.4 Design token constants
 

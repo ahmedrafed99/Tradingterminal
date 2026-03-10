@@ -29,7 +29,7 @@ export type ConditionAction =
   | { kind: 'cancelRemainingTPs' }
   | { kind: 'customOffset'; points: number };
 
-export interface Condition {
+export interface BracketCondition {
   id: string;
   trigger: ConditionTrigger;
   action: ConditionAction;
@@ -41,7 +41,7 @@ export interface Condition {
 export interface BracketConfig {
   stopLoss: StopLossConfig;
   takeProfits: TakeProfitLevel[];
-  conditions: Condition[];
+  conditions: BracketCondition[];
 }
 
 // ---------------------------------------------------------------------------

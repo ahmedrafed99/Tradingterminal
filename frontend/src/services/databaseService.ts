@@ -1,4 +1,5 @@
 import api from './api';
+import { dedup } from '../utils/dedup';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -37,17 +38,11 @@ export type FetchProgressOrIdle = FetchProgress | { status: 'idle' };
 // API client
 // ---------------------------------------------------------------------------
 
-let statusInflight: Promise<DatabaseStatus> | null = null;
-
 export const databaseService = {
-  async getStatus(): Promise<DatabaseStatus> {
-    if (statusInflight) return statusInflight;
-    statusInflight = api
-      .get<DatabaseStatus>('/database/status')
-      .then((res) => res.data)
-      .finally(() => { statusInflight = null; });
-    return statusInflight;
-  },
+  getStatus: dedup(async (): Promise<DatabaseStatus> => {
+    const res = await api.get<DatabaseStatus>('/database/status');
+    return res.data;
+  }),
 
   async startFetch(params: {
     contractId: string;

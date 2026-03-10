@@ -1,12 +1,10 @@
 import api from './api';
+import { dedup } from '../utils/dedup';
 
 export interface AuthStatus {
   connected: boolean;
   baseUrl: string;
 }
-
-// In-flight dedup for getStatus — prevents StrictMode double-calls
-let statusInflight: Promise<AuthStatus> | null = null;
 
 export const authService = {
   async connect(userName: string, apiKey: string, baseUrl?: string): Promise<void> {
@@ -17,12 +15,8 @@ export const authService = {
     await api.post('/auth/disconnect');
   },
 
-  async getStatus(): Promise<AuthStatus> {
-    if (statusInflight) return statusInflight;
-    statusInflight = api
-      .get<AuthStatus>('/auth/status')
-      .then((res) => res.data)
-      .finally(() => { statusInflight = null; });
-    return statusInflight;
-  },
+  getStatus: dedup(async (): Promise<AuthStatus> => {
+    const res = await api.get<AuthStatus>('/auth/status');
+    return res.data;
+  }),
 };

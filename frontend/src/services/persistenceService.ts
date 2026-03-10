@@ -1,17 +1,11 @@
 import api from './api';
-
-// In-flight dedup for loadSettings — prevents StrictMode double-calls
-let loadInflight: Promise<Record<string, unknown>> | null = null;
+import { dedup } from '../utils/dedup';
 
 export const persistenceService = {
-  async loadSettings(): Promise<Record<string, unknown>> {
-    if (loadInflight) return loadInflight;
-    loadInflight = api
-      .get('/settings')
-      .then((res) => res.data.data ?? {})
-      .finally(() => { loadInflight = null; });
-    return loadInflight;
-  },
+  loadSettings: dedup(async (): Promise<Record<string, unknown>> => {
+    const res = await api.get('/settings');
+    return res.data.data ?? {};
+  }),
 
   async saveSettings(data: Record<string, unknown>): Promise<void> {
     await api.put('/settings', data);

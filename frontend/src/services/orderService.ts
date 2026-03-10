@@ -13,7 +13,7 @@ export interface Order {
   status?: OrderStatus;
 }
 
-export interface Bracket {
+export interface OrderBracket {
   ticks: number;
   type: number;
 }
@@ -26,8 +26,8 @@ export interface PlaceOrderParams {
   size: number;
   limitPrice?: number;
   stopPrice?: number;
-  stopLossBracket?: Bracket;
-  takeProfitBracket?: Bracket;
+  stopLossBracket?: OrderBracket;
+  takeProfitBracket?: OrderBracket;
 }
 
 export interface ModifyOrderParams {

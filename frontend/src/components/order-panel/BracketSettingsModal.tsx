@@ -5,7 +5,7 @@ import type {
   StopLossConfig,
   StopLossType,
   TakeProfitLevel,
-  Condition,
+  BracketCondition,
   ConditionAction,
 } from '../../types/bracket';
 import { DEFAULT_BRACKET_CONFIG, MAX_TP_LEVELS } from '../../types/bracket';
@@ -410,11 +410,11 @@ function ConditionList({
   tpCount,
   onChange,
 }: {
-  conditions: Condition[];
+  conditions: BracketCondition[];
   tpCount: number;
-  onChange: (conditions: Condition[]) => void;
+  onChange: (conditions: BracketCondition[]) => void;
 }) {
-  function updateCondition(index: number, updated: Condition) {
+  function updateCondition(index: number, updated: BracketCondition) {
     const next = [...conditions];
     next[index] = updated;
     onChange(next);
@@ -453,9 +453,9 @@ function ConditionRow({
   onChange,
   onRemove,
 }: {
-  condition: Condition;
+  condition: BracketCondition;
   tpCount: number;
-  onChange: (updated: Condition) => void;
+  onChange: (updated: BracketCondition) => void;
   onRemove: () => void;
 }) {
   const actionKind = condition.action.kind;

@@ -7,7 +7,7 @@ import axios from 'axios';
 export type ConditionType = 'closes_above' | 'closes_below';
 export type ConditionStatus = 'armed' | 'triggered' | 'failed' | 'expired' | 'paused';
 
-export interface Bracket {
+export interface ConditionBracket {
   enabled: boolean;
   sl?: { points: number };
   tp?: { points: number; size?: number }[];
@@ -25,7 +25,7 @@ export interface Condition {
   orderPrice?: number;
   orderSize: number;
   accountId: number;
-  bracket?: Bracket;
+  bracket?: ConditionBracket;
   expiresAt?: string;
   label?: string;
   status: ConditionStatus;
@@ -61,7 +61,6 @@ function getApi(baseUrl: string) {
   return api;
 }
 
-// In-flight dedup for getAll — prevents StrictMode double-calls
 let getAllInflight: Promise<Condition[]> | null = null;
 
 export const conditionService = {

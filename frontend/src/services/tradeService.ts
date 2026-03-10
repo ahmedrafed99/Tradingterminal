@@ -1,4 +1,5 @@
 import api from './api';
+import { dedupByKey } from '../utils/dedup';
 import { OrderSide } from '../types/enums';
 
 export interface Trade {
@@ -15,20 +16,15 @@ export interface Trade {
   creationTimestamp: string;
 }
 
-// In-flight dedup for searchTrades — prevents StrictMode double-calls
-const tradesInflight = new Map<string, Promise<Trade[]>>();
+const fetchTrades = dedupByKey(async (url: string): Promise<Trade[]> => {
+  const res = await api.get<{ trades: Trade[]; success: boolean }>(url);
+  return res.data.trades ?? [];
+});
 
 export const tradeService = {
   async searchTrades(accountId: number, startTimestamp: string, endTimestamp?: string): Promise<Trade[]> {
     let url = `/trades/search?accountId=${accountId}&startTimestamp=${encodeURIComponent(startTimestamp)}`;
     if (endTimestamp) url += `&endTimestamp=${encodeURIComponent(endTimestamp)}`;
-    const existing = tradesInflight.get(url);
-    if (existing) return existing;
-    const promise = api
-      .get<{ trades: Trade[]; success: boolean }>(url)
-      .then((res) => res.data.trades ?? [])
-      .finally(() => { tradesInflight.delete(url); });
-    tradesInflight.set(url, promise);
-    return promise;
+    return fetchTrades(url);
   },
 };

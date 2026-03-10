@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore, DEFAULT_PINNED, MORE_TIMEFRAMES } from '../../store/useStore';
 import { conditionService } from '../../services/conditionService';
-import type { CreateConditionInput, PatchConditionInput, Bracket } from '../../services/conditionService';
+import type { CreateConditionInput, PatchConditionInput, ConditionBracket } from '../../services/conditionService';
 import type { BracketPreset } from '../../types/bracket';
 
 const ALL_TIMEFRAMES = [...DEFAULT_PINNED, ...MORE_TIMEFRAMES];
@@ -122,7 +122,7 @@ export function ConditionModal() {
     const sz = parseInt(size, 10);
     if (isNaN(sz) || sz <= 0) { setError('Invalid size'); return; }
 
-    let bracket: Bracket | undefined;
+    let bracket: ConditionBracket | undefined;
     if (bracketEnabled) {
       const sl = parseFloat(slPoints);
       const tpPts = parseFloat(tpPoints);
