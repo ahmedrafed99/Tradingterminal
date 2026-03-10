@@ -19,7 +19,7 @@ Collapsible, resizable panel below the chart displaying **Orders** and **Trades*
 
 ## Store (Zustand)
 
-State lives in the `BottomPanelState` slice of `useStore`:
+State lives in the `layoutSlice` (`store/slices/layoutSlice.ts`). See `docs/frontend/` for the full slice breakdown.
 
 | Field | Type | Default | Persisted |
 |-------|------|---------|-----------|
@@ -84,6 +84,6 @@ Consistent with the app's dark theme:
 - Borders: `border-[#2a2e39]`
 - Tab text: `text-[#787b86]` (inactive), `text-[#d1d4dc]` (active) with blue underline
 - Buy: `text-[#26a69a]`, Sell: `text-[#ef5350]`
-- Row hover: `hover:bg-[#1e222d]/50`
-- Alternating stripes: `bg-[#0d1117]/40`
+- Row hover: `TABLE_ROW_HOVER` from `constants/styles.ts` (`hover:bg-[#1e222d]/50 transition-colors`)
+- Alternating stripes: `TABLE_ROW_STRIPE` from `constants/styles.ts` (`bg-[#0d1117]/40`)
 - Tabular numbers: `fontFeatureSettings: '"tnum"'`

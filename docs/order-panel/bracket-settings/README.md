@@ -50,7 +50,7 @@ Modal dialog for configuring bracket presets — stop loss, multiple take-profit
 |------|---------|
 | `frontend/src/components/order-panel/BracketSettingsModal.tsx` | Modal, StopLossSection, TakeProfitList, TakeProfitRow, ConditionList, ConditionRow |
 | `frontend/src/types/bracket.ts` | BracketConfig, StopLossConfig, TakeProfitLevel, Condition types |
-| `frontend/src/store/useStore.ts` | Bracket presets state, `editingPresetId`, `activePresetId` |
+| `frontend/src/store/slices/tradingSlice.ts` | Bracket presets state, `editingPresetId`, `activePresetId` (in `tradingSlice`) |
 
 ---
 
@@ -100,7 +100,7 @@ interface BracketPreset {
 ## Components
 
 ### `BracketSettingsModal`
-Top-level modal. Opens when `editingPresetId` is set in the store (`'new'` for create, preset ID for edit). Uses draft-based editing — clones config on open, writes back on save.
+Top-level modal. Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Opens when `editingPresetId` is set in the store (`'new'` for create, preset ID for edit). Uses draft-based editing — clones config on open, writes back on save. **Note**: this modal uses its own `bg-white/[0.05]` input style (intentionally different from `INPUT_DARK`) — do not replace with the shared input constants.
 
 - **Header**: title + close button (round `hover:bg-white/5`), `padding: 18px 24px`
 - **Body**: scrollable, `padding: 20px 24px`, sections separated by `gap: 28px`

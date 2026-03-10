@@ -34,7 +34,7 @@ connection to the ProjectX Gateway.
 ## Components
 
 ### `ApiSettingsModal`
-Top-level modal.
+Top-level modal. Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use `INPUT_DARK` from `constants/styles.ts`.
 
 ### `EnvironmentSelector`
 - Radio group: **Demo** (`gateway-api-demo.s2f.projectx.com`) |

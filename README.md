@@ -65,8 +65,12 @@ docs/
 | Trade zone visualization (FIFO matching)    | `docs/bottom-panel/` (chart primitive in `frontend/`) |
 | Chart settings gear + modal                 | `docs/chart-settings-menu/` |
 | Settings persistence / file backup          | `docs/settings-persistence/` |
-| All Zustand store slices                    | `docs/frontend/` → Zustand Store |
+| All Zustand store slices (7 domain slices)  | `docs/frontend/` → Zustand Store |
 | All service API signatures                  | `docs/frontend/` → Service Layer |
+| Shared components (Modal, TabButton, icons) | `docs/frontend/` → Shared Components |
+| Design token constants (colors.ts, styles.ts)| `docs/frontend/` → Constants |
+| Shared hooks (useClickOutside, etc.)        | `docs/frontend/` → Shared Hooks |
+| Shared utilities (formatters, dedup, etc.)  | `docs/frontend/` → Shared Utilities |
 | Realtime adapter interface + hub events      | `docs/frontend/` → realtimeService.ts / adapters/ |
 | Ad-hoc brackets (+SL/+TP, no preset)       | `docs/chart-trading/` → Ad-Hoc Brackets |
 | Position drag-to-create SL/TP              | `docs/chart-trading/` → Position Drag-to-Create |
@@ -112,8 +116,9 @@ docs/
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
-│  │  │  Zustand Store                                        │   │   │
-│  │  │  auth | accounts | orders | positions | settings     │   │   │
+│  │  │  Zustand Store (7 domain slices)                     │   │   │
+│  │  │  connection | instrument | trading | drawings        │   │   │
+│  │  │  layout | conditions | toast                         │   │   │
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
@@ -161,7 +166,7 @@ docs/
 |-------|---------|
 | Frontend | React 18 + TypeScript + Vite |
 | Chart | Lightweight Charts v5 (TradingView OSS) |
-| State | Zustand (persisted to localStorage + backend JSON file) |
+| State | Zustand (7 domain slices, persisted to localStorage + backend JSON file) |
 | Styling | Tailwind CSS |
 | Typography | System font stack: `-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif` |
 | Backend proxy | Node.js + Express |

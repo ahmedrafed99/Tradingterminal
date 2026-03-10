@@ -152,7 +152,7 @@ Lines are only visible when the chart's contract matches the condition's contrac
 
 ### Traditional form (modal)
 
-The **ConditionModal** is still available for:
+The **ConditionModal** uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use `INPUT_SURFACE` from `constants/styles.ts`. It is available for:
 - Creating conditions from the bottom-panel Conditions tab ("+" button)
 - Editing conditions via clicking an armed condition's label on the chart
 - Editing conditions via the Conditions tab row
@@ -200,7 +200,7 @@ bracket?: {
 | `frontend/src/services/conditionService.ts` | API client + SSE connection |
 | `frontend/src/components/bottom-panel/ConditionsTab.tsx` | Conditions table in bottom panel |
 | `frontend/src/components/bottom-panel/ConditionModal.tsx` | Create/edit condition form (modal) |
-| `frontend/src/components/chart/hooks/useConditionLines.ts` | Condition line rendering, dragging, creation mode, preview with SL/TP |
+| `frontend/src/components/chart/hooks/useConditionLines.ts` | Orchestrator (decomposed into 5 sub-hooks: useArmedConditionLines, useArmedConditionDrag, useConditionPreview, useConditionPreviewDrag, useConditionLinesSync) |
 | `frontend/src/components/chart/hooks/labelUtils.ts` | Shared label utilities (size buttons, PnL formatting, colors) used by condition, overlay, and quick-order hooks |
 | `Dockerfile` | Multi-stage build for the backend (Node 20 Alpine, two-stage) |
 | `docker-compose.yml` | Container orchestration (references Docker Hub image) |
@@ -211,7 +211,7 @@ bracket?: {
 | Path | Change |
 |------|--------|
 | `backend/src/index.ts` | Add condition routes, auto-connect from env vars, load conditions on boot, make PORT configurable |
-| `frontend/src/store/useStore.ts` | Add `conditionServerUrl`, `conditions[]`, `editingConditionId`, `conditionPreview`, and related setters |
+| `frontend/src/store/slices/conditionsSlice.ts` | `conditionServerUrl`, `conditions[]`, `editingConditionId`, `conditionPreview`, and related setters (in `conditionsSlice`) |
 | `frontend/src/components/SettingsModal.tsx` | Add "Conditional Orders Server" URL input |
 | `frontend/src/components/bottom-panel/BottomPanel.tsx` | Add "Conditions" tab (visible when server URL is set) |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Wire `useConditionLines` hook into chart refs |

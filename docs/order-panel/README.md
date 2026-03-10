@@ -5,8 +5,8 @@ Controls instrument selection, order type, size, bracket configuration,
 and the preview toggle that overlays ghost lines on the chart.
 
 - **Background**: `bg-black`, border right `border-[#2a2e39]`, width 240px
-- All section titles are centred (`text-center`), `text-[10px] text-[#787b86] uppercase tracking-wider`
-- All input fields use `bg-[#111] border-[#222]`, focus: `border-[#1a3a6e]`
+- All section titles use `SECTION_LABEL` constant from `constants/styles.ts` (`text-[10px] uppercase tracking-wider text-[#787b86]`), centred (`text-center`)
+- All input fields use `bg-[#111] border-[#2a2e39]`, focus: `border-[#1a3a6e]`
 
 ---
 
@@ -108,6 +108,8 @@ and the preview toggle that overlays ghost lines on the chart.
 ---
 
 ## State (Zustand)
+
+State lives in the `tradingSlice` (`store/slices/tradingSlice.ts`). See `docs/frontend/` for the full slice breakdown.
 
 ```ts
 interface OrderPanelState {

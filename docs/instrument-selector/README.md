@@ -19,8 +19,11 @@ A popover-based instrument picker with hierarchical filtering by **category** an
 |------|------|
 | `frontend/src/components/InstrumentSelectorPopover.tsx` | Popover selector (chart toolbar) |
 | `frontend/src/components/InstrumentSelector.tsx` | Inline selector (order panel, `fixed` mode) |
+| `frontend/src/hooks/useInstrumentSearch.ts` | Shared hook: debounced search, bookmark resolution, `isBookmarked`, `toggleBookmark` |
 | `frontend/src/services/marketDataService.ts` | `Contract` interface, `searchContracts()` API |
 | `frontend/src/utils/instrument.ts` | Tick/point/P&L helpers |
+
+Both selectors share `useInstrumentSearch` for data/logic (debounced search, bookmarks) and `useClickOutside` for close-on-blur. Their **UI is intentionally different** — do not merge the visual implementations.
 
 ---
 

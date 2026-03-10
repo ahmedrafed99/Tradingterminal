@@ -19,7 +19,9 @@ frontend/src/services/
 
 backend/src/
 ├── index.ts                ← Express app, mounts routes + adapter realtime handlers
-├── validate.ts             ← Zod validation middleware
+├── validate.ts             ← Zod validation middleware (validateBody, validateQuery)
+├── middleware/
+│   └── withConnection.ts   ← Auth guard: checks adapter is connected, returns 401 if not
 ├── types/enums.ts          ← OrderType, OrderSide enums
 ├── adapters/
 │   ├── types.ts            ← ExchangeAdapter interface (auth, accounts, orders, etc.)
@@ -38,12 +40,13 @@ backend/src/
 │   ├── marketDataRoutes.ts
 │   ├── orderRoutes.ts
 │   ├── tradeRoutes.ts
-│   └── settingsRoutes.ts   ← file-based settings persistence (GET/PUT)
+│   ├── newsRoutes.ts       ← economic calendar proxy (GET /news/economic)
+│   └── settingsRoutes.ts   ← file-based settings persistence (GET/PUT, Zod validated)
 └── data/
     └── user-settings.json  ← persisted settings (gitignored, auto-created)
 ```
 
-Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` (currently hardcoded to ProjectX).
+Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` (currently hardcoded to ProjectX). All authenticated routes use `withConnection()` middleware from `middleware/withConnection.ts` (auth guard — returns 401 if no adapter connected). Input validation uses `validateBody()` / `validateQuery()` from `validate.ts` with Zod schemas.
 
 ---
 

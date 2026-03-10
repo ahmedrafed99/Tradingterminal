@@ -24,6 +24,8 @@ Wrapper that:
 - Unit mapping: `1m → unit=2, unitNumber=1`, `5m → unit=2, unitNumber=5`, etc.
 
 ### `ChartToolbar`
+- Uses shared `ChevronDown` icon from `components/icons/ChevronDown.tsx` for dropdown indicators
+- Uses `SECTION_LABEL` from `constants/styles.ts` for section headers
 - **Background**: `bg-black`, border bottom `border-[#2a2e39]`, padded `px-4` with `7px` vertical padding
 - **Left section**: Instrument selector | divider | pinned timeframe buttons | timeframe dropdown
   - Active timeframe: `text-[#f0a830]` (amber-gold), inactive: `text-[#787b86]`

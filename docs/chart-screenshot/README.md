@@ -78,6 +78,7 @@ This keeps the write within the original user-activation window.
 
 ### Snapshot preview modal (`SnapshotPreview.tsx`)
 
+- Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Passes `backdropClassName="animate-backdrop-in"` and `backdropStyle={{ backdropFilter: 'blur(4px)' }}` for the blur effect.
 - Opens as a full-screen backdrop with blur + a centered panel.
 - **Pre-caches all 8 toggle combinations** (2^3 for Drawings/Trades/Positions) on mount in a single synchronous batch. This avoids calling `takeScreenshot()` on toggle changes, which would force a chart re-render and cause the live price/countdown to visibly jump.
 - When any toggle changes, the cached canvas is looked up by key and converted to a data URL — no chart interaction.
