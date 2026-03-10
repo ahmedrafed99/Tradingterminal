@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { marketDataService, type Contract } from '../services/marketDataService';
+import { useState, useEffect, useRef } from 'react';
+import type { Contract } from '../services/marketDataService';
 import { useStore } from '../store/useStore';
+import { useInstrumentSearch } from '../hooks/useInstrumentSearch';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 const CATEGORIES = [
   { id: 'futures',    label: 'Futures',    exchanges: ['ProjectX'], disabled: false },
@@ -38,21 +40,21 @@ export function InstrumentSelectorPopover() {
   const setContract = useStore((s) =>
     s.selectedChart === 'left' ? s.setContract : s.setSecondContract,
   );
-  const pinnedInstruments = useStore((s) => s.pinnedInstruments);
-  const pinInstrument = useStore((s) => s.pinInstrument);
-  const unpinInstrument = useStore((s) => s.unpinInstrument);
 
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Contract[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [bookmarks, setBookmarks] = useState<Contract[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('futures');
   const [activeExchange, setActiveExchange] = useState<string>('ProjectX');
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    query, setQuery, searching, results,
+    showingSearch, displayList, bookmarks,
+    isBookmarked, toggleBookmark,
+  } = useInstrumentSearch();
+
+  useClickOutside(containerRef, open, () => setOpen(false));
 
   // Focus search input when popover opens
   useEffect(() => {
@@ -60,89 +62,14 @@ export function InstrumentSelectorPopover() {
       setTimeout(() => searchInputRef.current?.focus(), 50);
     } else {
       setQuery('');
-      setResults([]);
     }
-  }, [open]);
-
-  // Resolve pinned instrument symbols to Contract objects
-  useEffect(() => {
-    if (pinnedInstruments.length === 0) {
-      setBookmarks([]);
-      return;
-    }
-    let cancelled = false;
-    Promise.all(
-      pinnedInstruments.map((sym) =>
-        marketDataService.searchContracts(sym).then((res) => res.find((c) => c.activeContract) ?? null),
-      ),
-    ).then((resolved) => {
-      if (!cancelled) setBookmarks(resolved.filter((c): c is Contract => c !== null));
-    });
-    return () => { cancelled = true; };
-  }, [pinnedInstruments]);
-
-  // Debounced search
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    setResults([]);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const contracts = await marketDataService.searchContracts(query);
-        setResults(contracts.filter((c) => c.activeContract));
-      } catch {
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  // Click outside to close
-  useEffect(() => {
-    if (!open) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+  }, [open, setQuery]);
 
   function handleSelect(c: Contract) {
     setContract(c);
     setQuery('');
     setOpen(false);
   }
-
-  const isBookmarked = useCallback(
-    (c: Contract) => pinnedInstruments.some((sym) => c.name.toUpperCase().startsWith(sym.toUpperCase())),
-    [pinnedInstruments],
-  );
-
-  const toggleBookmark = useCallback(
-    (c: Contract, e: React.MouseEvent) => {
-      e.stopPropagation();
-      const name = c.name;
-      const sym = name.replace(/[A-Z]\d+$/i, '');
-      if (pinnedInstruments.includes(sym)) {
-        unpinInstrument(sym);
-      } else {
-        pinInstrument(sym);
-      }
-    },
-    [pinnedInstruments, pinInstrument, unpinInstrument],
-  );
-
-  const showingSearch = query.trim().length > 0;
-  const displayList = showingSearch ? results : bookmarks;
 
   const currentCategory = CATEGORIES.find((c) => c.id === activeCategory);
   const exchanges = currentCategory?.exchanges ?? [];

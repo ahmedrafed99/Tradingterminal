@@ -12,6 +12,7 @@ import {
   installSizeButtons, formatSlPnl, formatTpPnl,
   updateSizeCellCount, BUY_HOVER, SELL_HOVER,
 } from './labelUtils';
+import { snapToTickSize } from '../barUtils';
 
 // ── Colors ───────────────────────────────────────────────
 const CLR_ABOVE = '#2962ff';
@@ -257,7 +258,7 @@ export function useConditionLines(
       const y = e.clientY - rect.top;
       const rawPrice = series!.coordinateToPrice(y);
       if (rawPrice === null) return;
-      const snapped = Math.round(rawPrice / tickSize) * tickSize;
+      const snapped = snapToTickSize(rawPrice, tickSize);
       const line = linesRef.current[drag.lineIdx];
       if (line) { line.setPrice(snapped); line.syncPosition(); }
     }
@@ -336,8 +337,8 @@ export function useConditionLines(
 
     // Offset: ~20 ticks above/below last price
     const offset = tickSize * 20;
-    const condPrice = Math.round((lastP + offset) / tickSize) * tickSize;
-    const orderPrice = Math.round((lastP - offset) / tickSize) * tickSize;
+    const condPrice = snapToTickSize(lastP + offset, tickSize);
+    const orderPrice = snapToTickSize(lastP - offset, tickSize);
     const size = st.orderSize;
 
     // Condition line
@@ -712,8 +713,8 @@ export function useConditionLines(
       // SL on opposite side of order from condition
       const slOffset = tickSize * 15;
       const slPrice = isAbove
-        ? Math.round((p.orderPrice - slOffset) / tickSize) * tickSize
-        : Math.round((p.orderPrice + slOffset) / tickSize) * tickSize;
+        ? snapToTickSize(p.orderPrice - slOffset, tickSize)
+        : snapToTickSize(p.orderPrice + slOffset, tickSize);
 
       const pnlTxt = slPnlText(p.orderPrice, slPrice, p.size, isAbove);
 
@@ -780,8 +781,8 @@ export function useConditionLines(
       // Offset each TP further from order price
       const tpOffset = tickSize * (30 + p.tpLines.length * 15);
       const tpPrice = isAbove
-        ? Math.round((p.orderPrice + tpOffset) / tickSize) * tickSize
-        : Math.round((p.orderPrice - tpOffset) / tickSize) * tickSize;
+        ? snapToTickSize(p.orderPrice + tpOffset, tickSize)
+        : snapToTickSize(p.orderPrice - tpOffset, tickSize);
 
       const tpSize = remaining;
       const pnlTxt = tpPnlText(p.orderPrice, tpPrice, tpSize, isAbove);
@@ -927,7 +928,7 @@ export function useConditionLines(
       const y = e.clientY - rect.top;
       const rawPrice = series!.coordinateToPrice(y);
       if (rawPrice === null) return;
-      const snapped = Math.round(rawPrice / tickSize) * tickSize;
+      const snapped = snapToTickSize(rawPrice, tickSize);
 
       if (drag.target === 'cond' && p.condLine) {
         p.condPrice = snapped;

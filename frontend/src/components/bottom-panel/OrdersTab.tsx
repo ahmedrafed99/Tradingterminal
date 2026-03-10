@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { orderService } from '../../services/orderService';
 import { useStore } from '../../store/useStore';
 import { OrderType, OrderSide } from '../../types/enums';
+import { shortSymbol } from '../../utils/formatters';
 
 const TYPE_LABELS: Record<number, string> = {
   [OrderType.Limit]: 'Limit',
@@ -9,17 +10,6 @@ const TYPE_LABELS: Record<number, string> = {
   [OrderType.Stop]: 'Stop',
   [OrderType.TrailingStop]: 'Trail',
 };
-
-function shortSymbol(contractId: string): string {
-  // "CON.F.US.MNQ.H26" → "MNQH6" (symbol + month + last digit of year)
-  const parts = contractId.split('.');
-  if (parts.length >= 5) {
-    const sym = parts[3];          // MNQ
-    const expiry = parts[4];       // H26
-    return sym + expiry.charAt(0) + expiry.slice(-1); // MNQH6
-  }
-  return contractId;
-}
 
 const cols = 'grid-cols-[0.7fr_0.8fr_1fr_0.5fr_1fr_0.4fr]';
 

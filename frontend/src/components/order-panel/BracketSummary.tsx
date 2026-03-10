@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
 import type { ConditionAction, TakeProfitLevel } from '../../types/bracket';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 function formatAction(action: ConditionAction, tps: TakeProfitLevel[]): string {
   switch (action.kind) {
@@ -23,18 +24,8 @@ export function BracketSummary() {
 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+  const closeDropdown = useCallback(() => setOpen(false), []);
+  useClickOutside(containerRef, open, closeDropdown);
 
   const displayName = activePreset ? activePreset.name : 'None';
 

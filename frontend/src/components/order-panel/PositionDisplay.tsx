@@ -5,10 +5,7 @@ import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { showToast, errorMessage } from '../../utils/toast';
 import { calcPnl } from '../../utils/instrument';
-
-function formatPrice(price: number): string {
-  return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+import { formatPrice, getPnlColorClass } from '../../utils/formatters';
 
 export function PositionDisplay() {
   const { positions, orderContract, lastPrice, activeAccountId } = useStore();
@@ -51,7 +48,7 @@ export function PositionDisplay() {
       {/* UP&L: +12.50 $ */}
       <div className="flex items-center justify-center gap-1">
         <span className="text-[10px] text-[#787b86]">UP&L:</span>
-        <span className={`text-xs font-semibold ${pnl >= 0 ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+        <span className={`text-xs font-semibold ${getPnlColorClass(pnl)}`}>
           {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} $
         </span>
       </div>

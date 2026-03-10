@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { marketDataService, type Contract } from '../services/marketDataService';
+import { useState, useEffect, useRef } from 'react';
+import type { Contract } from '../services/marketDataService';
 import { useStore } from '../store/useStore';
+import { useInstrumentSearch } from '../hooks/useInstrumentSearch';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
@@ -15,7 +17,6 @@ function StarIcon({ filled }: { filled: boolean }) {
 }
 
 export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
-  // fixed=true → order panel's own contract (independent); otherwise selection-aware (chart toolbar)
   const contract = useStore((s) =>
     fixed ? s.orderContract
       : s.selectedChart === 'left' ? s.contract : s.secondContract,
@@ -24,75 +25,23 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
     fixed ? s.setOrderContract
       : s.selectedChart === 'left' ? s.setContract : s.setSecondContract,
   );
-  // When order panel is linked to a chart, also update that chart's contract on selection
   const setLinkedChartContract = useStore((s) =>
     !fixed ? null
       : s.orderLinkedToChart === 'left' ? s.setContract
       : s.orderLinkedToChart === 'right' ? s.setSecondContract
       : null,
   );
-  const pinnedInstruments = useStore((s) => s.pinnedInstruments);
-  const pinInstrument = useStore((s) => s.pinInstrument);
-  const unpinInstrument = useStore((s) => s.unpinInstrument);
 
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Contract[]>([]);
-  const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
-  const [bookmarks, setBookmarks] = useState<Contract[]>([]);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Resolve pinned instrument symbols to Contract objects
-  useEffect(() => {
-    if (pinnedInstruments.length === 0) {
-      setBookmarks([]);
-      return;
-    }
-    let cancelled = false;
-    Promise.all(
-      pinnedInstruments.map((sym) =>
-        marketDataService.searchContracts(sym).then((res) => res.find((c) => c.activeContract) ?? null),
-      ),
-    ).then((resolved) => {
-      if (!cancelled) setBookmarks(resolved.filter((c): c is Contract => c !== null));
-    });
-    return () => { cancelled = true; };
-  }, [pinnedInstruments]);
+  const {
+    query, setQuery, searching, results,
+    showingSearch, displayList, bookmarks,
+    isBookmarked, toggleBookmark,
+  } = useInstrumentSearch();
 
-  // Debounced search
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    setResults([]);
-    clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const contracts = await marketDataService.searchContracts(query);
-        setResults(contracts.filter((c) => c.activeContract));
-      } catch {
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-    return () => clearTimeout(debounceRef.current);
-  }, [query]);
-
-  // Click outside to close
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useClickOutside(containerRef, true, () => setOpen(false));
 
   function handleSelect(c: Contract) {
     setContract(c);
@@ -101,37 +50,12 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
     setOpen(false);
   }
 
-  const isBookmarked = useCallback(
-    (c: Contract) => pinnedInstruments.some((sym) => c.name.toUpperCase().startsWith(sym.toUpperCase())),
-    [pinnedInstruments],
-  );
-
-  const toggleBookmark = useCallback(
-    (c: Contract, e: React.MouseEvent) => {
-      e.stopPropagation();
-      // Extract the base symbol (e.g. "NQM6" → "NQ", "MNQM6" → "MNQ")
-      const name = c.name;
-      // Strip trailing month+year code (1 letter + digits)
-      const sym = name.replace(/[A-Z]\d+$/i, '');
-      if (pinnedInstruments.includes(sym)) {
-        unpinInstrument(sym);
-      } else {
-        pinInstrument(sym);
-      }
-    },
-    [pinnedInstruments, pinInstrument, unpinInstrument],
-  );
-
-  const showingSearch = query.trim().length > 0;
-  const displayList = showingSearch ? results : bookmarks;
-
   // Compute dropdown position to align with the correct parent edge
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   useEffect(() => {
     if (open && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       if (fixed) {
-        // Align with the parent wrapper (bg-[#111] div) edges
         const wrapper = containerRef.current.parentElement;
         if (wrapper) {
           const wrapperRect = wrapper.getBoundingClientRect();
@@ -141,7 +65,6 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
           });
         }
       } else {
-        // Align with toolbar's left edge
         const toolbar = containerRef.current.closest('.flex');
         const toolbarLeft = toolbar ? toolbar.getBoundingClientRect().left : 0;
         setDropdownStyle({ left: `${toolbarLeft - rect.left}px`, width: '256px' });

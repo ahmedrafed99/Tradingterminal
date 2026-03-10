@@ -5,6 +5,7 @@ import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
 import { getDateRange } from '../../utils/cmeSession';
+import { shortSymbol, formatTime, durationMs, formatDuration } from '../../utils/formatters';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 import { DatePresetSelector } from './DatePresetSelector';
 
@@ -23,52 +24,6 @@ interface TradeGroup {
   earliestTime: string;
   latestTime: string;
   isLong: boolean;
-}
-
-function shortSymbol(contractId: string): string {
-  const parts = contractId.split('.');
-  if (parts.length >= 5) {
-    const sym = parts[3];
-    const expiry = parts[4];
-    return sym + expiry.charAt(0) + expiry.slice(-1);
-  }
-  return contractId;
-}
-
-function formatTime(iso: string, showDate = false): string {
-  const d = new Date(iso);
-  if (showDate) {
-    return d.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'America/New_York',
-    });
-  }
-  return d.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: 'America/New_York',
-  });
-}
-
-function durationMs(entryIso: string, exitIso: string): number {
-  return new Date(exitIso).getTime() - new Date(entryIso).getTime();
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 0) return '\u2014';
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
 }
 
 // In-memory cache for filtered presets, keyed by `accountId:preset`

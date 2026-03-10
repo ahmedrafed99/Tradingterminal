@@ -2,36 +2,12 @@ import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { accountService } from '../services/accountService';
 import { useStore } from '../store/useStore';
+import { TabButton } from './shared/TabButton';
 import { DatabaseTab } from './settings/DatabaseTab';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
 type SettingsTab = 'api' | 'database';
-
-function TabButton({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`text-xs font-medium transition-colors relative cursor-pointer ${
-        active ? 'text-[#d1d4dc]' : 'text-[#787b86] hover:text-[#d1d4dc]'
-      }`}
-      style={{ padding: '0 12px', height: '100%' }}
-    >
-      {label}
-      {active && (
-        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2962ff]" />
-      )}
-    </button>
-  );
-}
 
 export function SettingsModal() {
   const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();

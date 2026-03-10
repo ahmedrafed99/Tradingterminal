@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
 import { PositionType } from '../types/enums';
 import { calcPnl } from '../utils/instrument';
+import { getPnlColorClass } from '../utils/formatters';
+import { useClickOutside } from '../hooks/useClickOutside';
 import type { Trade } from '../services/tradeService';
 import { useStore } from '../store/useStore';
 
@@ -117,15 +119,8 @@ export function TopBar() {
   const [privacyOn, setPrivacyOn] = useState(true);
   const [acctOpen, setAcctOpen] = useState(false);
   const acctRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!acctOpen) return;
-    function handler(e: MouseEvent) {
-      if (acctRef.current && !acctRef.current.contains(e.target as Node)) setAcctOpen(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [acctOpen]);
+  const closeAcctDropdown = useCallback(() => setAcctOpen(false), []);
+  useClickOutside(acctRef, acctOpen, closeAcctDropdown);
 
   // Latency ping (every 5s when connected)
   const [latency, setLatency] = useState<number | null>(null);
@@ -223,13 +218,13 @@ export function TopBar() {
           </span>
           <span className="text-xs text-[#787b86]">
             RP&L: {(() => { const net = realizedPnl - realizedFees; return (
-              <span className={net > 0 ? 'text-[#26a69a]' : net < 0 ? 'text-[#ef5350]' : 'text-[#d1d4dc]'}>
+              <span className={getPnlColorClass(net)}>
                 {net > 0 ? '+' : ''}{net.toFixed(2)} $
               </span>
             ); })()}
           </span>
           <span className="text-xs text-[#787b86]">
-            UP&L: <span className={unrealizedPnl > 0 ? 'text-[#26a69a]' : unrealizedPnl < 0 ? 'text-[#ef5350]' : 'text-[#d1d4dc]'}>
+            UP&L: <span className={getPnlColorClass(unrealizedPnl)}>
               {unrealizedPnl > 0 ? '+' : ''}{unrealizedPnl.toFixed(2)} $
             </span>
           </span>

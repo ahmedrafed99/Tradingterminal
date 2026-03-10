@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody, validateQuery } from '../validate';
-import { getAdapter, isConnected } from '../adapters/registry';
+import { withConnection, getAdapter } from '../middleware/withConnection';
 import { OrderType, OrderSide } from '../types/enums';
 
 const router = Router();
@@ -42,69 +42,28 @@ const OpenOrdersQuery = z.object({
 });
 
 // POST /orders/place
-router.post('/place', validateBody(PlaceOrderSchema), async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const data = await getAdapter().orders.place(req.body);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.post('/place', validateBody(PlaceOrderSchema), withConnection(async (req, res) => {
+  const data = await getAdapter().orders.place(req.body);
+  res.json(data);
+}));
 
 // POST /orders/cancel
-router.post('/cancel', validateBody(CancelOrderSchema), async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const data = await getAdapter().orders.cancel(req.body);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.post('/cancel', validateBody(CancelOrderSchema), withConnection(async (req, res) => {
+  const data = await getAdapter().orders.cancel(req.body);
+  res.json(data);
+}));
 
 // PATCH /orders/modify
-router.patch('/modify', validateBody(ModifyOrderSchema), async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const data = await getAdapter().orders.modify(req.body);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.patch('/modify', validateBody(ModifyOrderSchema), withConnection(async (req, res) => {
+  const data = await getAdapter().orders.modify(req.body);
+  res.json(data);
+}));
 
 // GET /orders/open?accountId=12345
-router.get('/open', validateQuery(OpenOrdersQuery), async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
+router.get('/open', validateQuery(OpenOrdersQuery), withConnection(async (req, res) => {
   const accountId = Number(req.query['accountId']);
-
-  try {
-    const data = await getAdapter().orders.searchOpen(accountId);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+  const data = await getAdapter().orders.searchOpen(accountId);
+  res.json(data);
+}));
 
 export default router;

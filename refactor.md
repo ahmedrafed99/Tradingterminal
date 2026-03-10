@@ -1,155 +1,156 @@
-# Multi-Exchange Refactor Plan
+# Codebase Refactoring Plan
 
-Goal: abstract the codebase away from ProjectX/TopstepX so a second exchange (crypto spot/perp) can be added later. **ProjectX remains the only implementation** until the abstraction is validated.
-
----
-
-## Phase 1 — Internal Enums & Types ✅
-
-Replace all raw numeric literals with named enums/constants. No behavior change, just readability and a future translation boundary.
-
-### What changes
-
-| Raw value | Meaning | Used in |
-|---|---|---|
-| `type: 1 \| 2 \| 4 \| 5` | Limit / Market / Stop / TrailingStop | orderService, orderRoutes, bracketEngine, order panel, chart-trading |
-| `side: 0 \| 1` | Buy / Sell | orderService, orderRoutes, bracketEngine, order panel, overlay labels |
-| `status: 6, 2, ...` | Pending / Filled / ... | bracketEngine, realtimeService, order event handlers |
-| `type: 1 \| 2` (position) | Long / Short | realtimeService, position display, overlay labels |
-| `type: 3-8` (depth) | BestAsk / BestBid / VolumeAtPrice / Reset / ... | volume profile, depth handlers |
-| `TICKS_PER_POINT = 4` | Futures-specific tick constant | bracket.ts, bracket settings UI |
-
-### Approach
-
-- Create a shared `enums.ts` (or `types/exchange.ts`) with `OrderType`, `OrderSide`, `OrderStatus`, `PositionType`, `DepthType` enums.
-- Replace every raw literal with the enum value.
-- ProjectX adapter (later) will map these enums to/from the gateway's numeric values.
-- Make `TICKS_PER_POINT` instrument-driven (read from contract metadata) instead of a global constant.
-
-### Validation
-
-App behavior is identical. TypeScript compiler catches any missed spots.
+Audit of 82 frontend files, 28 backend files. ~1,900+ lines of refactorable code identified.
 
 ---
 
-## Phase 2 — Backend Exchange Adapter ✅
+## Phase 1 — Quick Wins (Low Risk, ~400 lines saved)
 
-Extract ProjectX-specific logic behind interfaces so the Express routes become exchange-agnostic.
+Extract duplicated utilities, hooks, and components that already exist in one place but are reimplemented elsewhere.
 
-### What was done
+### 1.1 ✅ Shared utility functions → `utils/formatters.ts`
 
-- Created `backend/src/adapters/types.ts` with `ExchangeAdapter` interface composed of `ExchangeAuth`, `ExchangeAccounts`, `ExchangeMarketData`, `ExchangeOrders`, `ExchangeTrades`, `ExchangeRealtime`.
-- Created `backend/src/adapters/registry.ts` — singleton holder (`getAdapter`/`setAdapter`/`clearAdapter`/`isConnected`).
-- Moved all ProjectX logic into `backend/src/adapters/projectx/` (auth, accounts, marketData, orders, trades, realtime).
-- All routes now call `getAdapter().domain.method()` instead of axios directly.
-- `authRoutes.ts` creates the adapter on connect via `createProjectXAdapter()` and registers it.
-- SignalR negotiate proxy + WS upgrade handler extracted from `index.ts` into the adapter.
-- Deleted `backend/src/auth.ts` — logic lives in `adapters/projectx/auth.ts`.
-- `tsc --noEmit` compiles clean. No route URLs, request shapes, or response shapes changed.
+| Function | Duplicated in | Lines saved |
+|----------|--------------|-------------|
+| `shortSymbol()` (CON.F.US.MNQ.H26 → MNQH6) | OrdersTab, TradesTab, ConditionsTab | 15 |
+| `formatPrice()` | PositionDisplay, TopBar, TradesTab | 10 |
+| `getPnlColorClass(value)` | TopBar, PositionDisplay, TradesTab, overlay hooks | 25 |
+| `formatTime()`, `formatDuration()` | TradesTab (move for reuse) | 10 |
 
----
+### 1.2 ✅ Chart utility functions → `barUtils.ts`
 
-## Phase 3 — Realtime Adapter (Frontend) ✅
+| Function | Duplicated in | Lines saved |
+|----------|--------------|-------------|
+| `snapToTickSize(price, tickSize)` | useOrderLines, useQuickOrder, useConditionLines (8 sites) | 15 |
+| `getPriceScaleWidth(chart)` | useQuickOrder | 20 |
+| `getDecimals(tickSize)` | useChartBars, useChartWidgets, primitives | 10 |
 
-Abstract `realtimeService.ts` so the transport (SignalR vs plain WebSocket) and event shapes are behind an interface.
+### 1.3 ✅ `useClickOutside` hook
 
-### What was done
+Extracted to `hooks/useClickOutside.ts`. Consumers: TopBar, BracketSummary, DatePresetSelector, ConditionsTab.
 
-- Created `frontend/src/adapters/types.ts` with `RealtimeAdapter` interface and canonical data types (`Quote`, `DepthEntry`, `RealtimeOrder`, `RealtimePosition`, `RealtimeAccount`, `RealtimeTrade`) plus handler type aliases.
-- Created `frontend/src/adapters/registry.ts` — singleton holder (`getRealtimeAdapter`/`setRealtimeAdapter`/`clearRealtimeAdapter`).
-- Moved all SignalR logic into `frontend/src/adapters/projectx/realtimeAdapter.ts` as `ProjectXRealtimeAdapter implements RealtimeAdapter`. SignalR-specific helpers (`UserHubItem<T>`, `normalizeUserHubArgs`) are file-private.
-- Created `frontend/src/adapters/projectx/index.ts` — `createProjectXRealtimeAdapter()` factory.
-- Rewrote `frontend/src/services/realtimeService.ts` as a thin delegating facade that proxies all calls to the active adapter and re-exports types for backward compatibility (`GatewayQuote` is a type alias for `Quote`).
-- Zero consumer file changes — all 7 files importing from `realtimeService` work unchanged.
-- `@microsoft/signalr` is now only imported in the ProjectX adapter file.
-- `tsc --noEmit` compiles clean for both frontend and backend.
+### 1.4 ⏭️ Reuse `installSizeButtons` in useQuickOrder (deferred)
 
-### Why this is the hardest piece
+`useQuickOrder.ts` size buttons have additional complexity (dual-hover on text+size cells, store integration, preview rebuilds) that doesn't map cleanly to `installSizeButtons()`. Replacing would require extending the API and risking other consumers.
 
-- SignalR has built-in reconnection, hub multiplexing, and negotiate flow. Plain WebSocket needs all of that manually.
-- The backend SignalR proxy (`index.ts` lines 43-127) is also exchange-specific — it would need a parallel path for crypto WS proxying (or direct browser-to-exchange connections).
+### 1.5 ✅ Extract `useInstrumentSearch` hook
 
----
+Extracted to `hooks/useInstrumentSearch.ts`. Shared: debounced search, bookmark resolution, `isBookmarked`, `toggleBookmark`. Both components also now use `useClickOutside`. UI stays separate.
 
-## Phase 4 — Instrument Model Generalization ✅
+### 1.6 ✅ Shared `TabButton` component
 
-Make the `Contract` type flexible enough for both futures and crypto instruments.
+Moved to `components/shared/TabButton.tsx`. Consumers: BottomPanel, SettingsModal.
 
-### What was done
+### 1.7 Shared inline icons → `components/icons/`
 
-- Extended `Contract` in `marketDataService.ts` with optional computed fields: `ticksPerPoint`, `quantityStep`, `pricePrecision`, `quantityPrecision`. Populated by `normalizeContract()` on search/list responses (defaults match MNQ futures).
-- Created `frontend/src/utils/instrument.ts` with centralized helpers: `getTicksPerPoint()`, `pointsToPrice()`, `priceToPoints()`, `pointsToTicks()`, `calcPnl()`.
-- Removed the hardcoded `TICKS_PER_POINT = 4` constant from `types/bracket.ts`. All conversions now use instrument-derived `contract.ticksPerPoint`.
-- Replaced ~30 inline P&L formulas (`(diff / tickSize) * tickValue * size`) with `calcPnl()` across 5 files: `useOverlayLabels.ts` (12 sites), `useQuickOrder.ts` (4), `useOrderLines.ts` (1), `TopBar.tsx` (1), `PositionDisplay.tsx` (1).
-- Changed `bracketEngine.ts` from `tickSize: number` to `contract: Contract` — uses imported `pointsToPrice()` instead of a local copy.
-- Updated `buildNativeBracketParams()` to accept `contract` as third arg — uses `pointsToTicks()` instead of `points * TICKS_PER_POINT`.
-- Updated all callers: `BuySellButtons.tsx`, `useQuickOrder.ts`, `useOverlayLabels.ts`.
-- Added TODO Phase 6 comments for fractional quantity support in `orderRoutes.ts`, `ContractsSpinner.tsx`, `useStore.ts`.
-- Updated bracket engine tests (`bracketEngine.test.ts`) to pass `contract: mockContract` instead of `tickSize: 0.25`.
-- `tsc --noEmit` clean for both frontend and backend. All previously passing tests still pass.
+`ChevronDown` duplicated in TopBar and BracketSettingsModal. Move all inline SVG icons (Eye, EyeOff, ChevronDown, Settings) to `components/icons/`.
 
-### Key design note
+### 1.8 ✅ Backend `withConnection` middleware
 
-The P&L formula `(priceDiff / tickSize) * tickValue * size` is universal — for crypto, the gateway returns `tickValue == tickSize`, so it naturally simplifies to `priceDiff * size`. No branching needed.
+Created `backend/src/middleware/withConnection.ts`. Applied to accountRoutes, orderRoutes, marketDataRoutes, tradeRoutes (~80 lines of boilerplate removed).
+
+### 1.9 Missing Zod validation
+
+Add schemas for 3 unvalidated routes: contract search, news, settings PUT. The settings PUT writes `req.body` directly to disk with no schema check.
 
 ---
 
-## Phase 5 — UI Flexibility
+## Phase 2 — Service & Type Consolidation (Medium Risk, ~200 lines saved)
 
-Update UI components to handle exchange differences gracefully.
+### 2.1 `createInflightDedup()` utility
 
-### What changes
+7 services implement the same promise-caching pattern (`if (inflight) return inflight`). Create `utils/dedupRequest.ts` with a generic factory.
 
-- **Order panel**: support fractional sizes (step size from instrument metadata), show exchange-specific order types.
-- **Settings modal**: exchange selector + exchange-specific credential fields (username+apiKey for ProjectX, apiKey+secret for crypto).
-- **Pinned instruments**: default set becomes exchange-aware (not hardcoded `['NQ', 'MNQ']`).
-- **Instrument selector**: search/display adapts to exchange naming (futures contracts with expiry vs perpetual pairs).
-- **P&L display**: quote currency label (USD for futures, USDT/USDC for crypto).
-- **Position display**: additional fields for perps (liquidation price, leverage, margin type) — hidden for futures.
+**Services:** authService, tradeService, conditionService, databaseService, persistenceService, marketDataService (x2), newsService.
 
-### Validation
+### 2.2 Fix type name collisions
 
-ProjectX UI unchanged. New fields/options only appear when a crypto exchange is active.
+- `Bracket` defined differently in orderService.ts vs conditionService.ts → rename to `NativeBracket` and `BracketConfig`
+- `Condition` defined differently in bracket.ts vs conditionService.ts → rename bracket.ts version to `BracketCondition`
 
----
+### 2.3 Switch newsService to axios
 
-## Phase 6 — Add Crypto Exchange
+Only service using raw `fetch()` instead of the shared `api` axios instance. Inconsistent error handling.
 
-With the abstraction validated against ProjectX, implement the second adapter.
+### 2.4 Design token constants
 
-### New code
+Centralize repeated styling values:
 
-- `backend/src/adapters/crypto/` — auth (HMAC signing), REST client, WS client.
-- `frontend/src/adapters/crypto/` — `CryptoRealtimeAdapter` (plain WebSocket, normalizes into internal types).
-- Exchange-specific instrument search, order placement, position tracking.
+| File | Purpose |
+|------|---------|
+| `constants/colors.ts` | All semantic colors (`#26a69a`, `#ef5350`, `#787b86`, etc.) |
+| `constants/styles.ts` | Section label class, table row stripe, input variants, button variants |
 
-### Crypto-specific concerns
+### 2.5 Section label + table row constants
 
-- **Spot vs Perp**: spot has no positions (just balances), perp has positions with funding/liquidation.
-- **Rate limits**: crypto APIs have strict rate limits per IP/key — need throttling.
-- **Signing**: every request needs HMAC-SHA256 signature with timestamp and recv_window.
-- **WebSocket keepalive**: most crypto exchanges require periodic pings or the connection drops.
-- **Order acknowledgment**: crypto exchanges return order ID synchronously but fill events come async — similar to current flow, should map cleanly.
+`text-[10px] uppercase tracking-wider text-[#787b86]` repeated 6+ times. `bg-[#0d1117]/40` stripe + `hover:bg-[#1e222d]/50` repeated in 3 tab components.
 
 ---
 
-## What Stays Untouched
+## Phase 3 — Hook Decomposition (Higher Risk, ~800 lines restructured)
 
-These layers are already exchange-agnostic:
+### 3.1 Split `useConditionLines.ts` (1,107 lines → 5 hooks)
 
-- Chart rendering (lightweight-charts)
-- Drawing tools
-- Screenshot system
-- Dual chart layout
-- Toast system
-- Design system / styling
-- Volume profile rendering (just needs data in the right shape)
+| New hook | Responsibility | Est. lines |
+|----------|---------------|------------|
+| `useArmedConditionLines` | Armed condition line lifecycle | 95 |
+| `useArmedConditionDrag` | Armed condition drag handling | 57 |
+| `useConditionPreview` | Preview creation/destruction | 350 |
+| `useConditionPreviewDrag` | Preview drag handling | 142 |
+| `useConditionLinesSync` | Repositioning sync loop | 45 |
+
+### 3.2 Split `useOverlayLabels.ts` (1,041 lines → 5 hooks)
+
+| New hook | Responsibility | Est. lines |
+|----------|---------------|------------|
+| `usePositionLabel` | Position label lifecycle | 95 |
+| `useOrderLabels` | Open order labels | 230 |
+| `usePreviewLabels` | Preview ghost labels | 260 |
+| `useQoPendingLabels` | Quick-order pending labels | 150 |
+| `useOverlaySyncLoop` | Sync loop setup | 54 |
+
+Also: P&L computation duplicated 4 times within this file → extract to shared helper.
+
+### 3.3 Split `useChartDrawings.ts` (963 lines)
+
+Extract coordinate conversion helpers, consolidate 4 drag handlers that repeat `getBoundingClientRect()` → coordinate conversion.
+
+### 3.4 Drawing `GenericPaneView` wrapper
+
+Every drawing renderer needs a paired PaneView class (~15 lines of pure boilerplate each). A generic wrapper would save ~150 lines.
 
 ---
 
-## Open Questions
+## Phase 4 — Structural (Highest Effort)
 
-- Do we support multiple exchanges connected simultaneously, or one at a time?
-- For crypto spot (no positions), do we show a "balances" tab instead of positions?
-- Should bracket engine support crypto-native SL/TP (some exchanges support it natively)?
-- WebSocket: proxy through backend (like SignalR today) or connect directly from browser?
+### 4.1 Split mega-store (772 lines, 16 slices)
+
+`useStore.ts` combines 16 slices with `OrderPanelState` alone having 19 fields + 38 setters. Split into 4-5 domain stores.
+
+### 4.2 Shared `<Modal>` component
+
+3 modal implementations (SettingsModal, BracketSettingsModal, ConditionModal) repeat the same backdrop + panel + header + body + footer structure (~50-80 lines each).
+
+### 4.3 Shared `<Dropdown>` component
+
+4 dropdown implementations (account selector, bracket preset, date preset, status filter) with identical toggle + absolute-div + item-list pattern.
+
+### 4.4 Input/button variant system
+
+3 different input styling constants (`#111` vs `#131722` vs `white/[0.05]`) and 3 button variant patterns. Unify into composable constants or components.
+
+---
+
+## Previous Refactoring (Completed)
+
+### Multi-Exchange Abstraction (Phases 1-4 done)
+
+- **Phase 1 ✅** Internal enums & types — replaced raw numeric literals with named enums
+- **Phase 2 ✅** Backend exchange adapter — `ExchangeAdapter` interface, ProjectX implementation
+- **Phase 3 ✅** Frontend realtime adapter — `RealtimeAdapter` interface, SignalR isolated
+- **Phase 4 ✅** Instrument model generalization — `calcPnl()`, `pointsToPrice()`, removed `TICKS_PER_POINT`
+
+### Future Exchange Work (Phases 5-6 deferred)
+
+- **Phase 5** UI flexibility — fractional sizes, exchange-specific settings, crypto fields
+- **Phase 6** Add crypto exchange — new adapter implementation

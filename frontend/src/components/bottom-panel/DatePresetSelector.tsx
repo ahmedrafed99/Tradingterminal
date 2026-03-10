@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { DATE_PRESET_LABELS, type DatePreset } from '../../utils/cmeSession';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 const PRESETS: DatePreset[] = ['today', 'week', 'month'];
 
@@ -9,16 +10,8 @@ export function DatePresetSelector() {
   const setPreset = useStore((s) => s.setTradesDatePreset);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  const closeDropdown = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, open, closeDropdown);
 
   return (
     <div className="relative" ref={ref}>

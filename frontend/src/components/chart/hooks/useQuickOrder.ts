@@ -8,6 +8,7 @@ import { orderService } from '../../../services/orderService';
 import type { PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { pointsToPrice, calcPnl } from '../../../utils/instrument';
+import { snapToTickSize, getPriceScaleWidth } from '../barUtils';
 import { fitTpsToOrderSize } from './resolvePreviewConfig';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { PriceLevelLine } from '../PriceLevelLine';
@@ -365,15 +366,14 @@ export function useQuickOrder(
       }
 
       const lastP = useStore.getState().lastPrice ?? refs.lastBar.current?.close ?? null;
-      snappedPrice = Math.round((rawPrice as number) / contract.tickSize) * contract.tickSize;
+      snappedPrice = snapToTickSize(rawPrice as number, contract.tickSize);
       lastCrosshairTime = param.time ?? null;
       if (param.time) lastValidTime = param.time;
       if (!isHovered) {
         isBuy = lastP != null ? snappedPrice < lastP : true;
       }
 
-      let psWidth = 56;
-      try { psWidth = chart.priceScale('right').width(); } catch (_) { psWidth = 56; }
+      const psWidth = getPriceScaleWidth(chart);
 
       el.style.display = 'flex';
       el.style.top = `${param.point.y}px`;
@@ -570,7 +570,7 @@ export function useQuickOrder(
         const rawPrice = series.coordinateToPrice(chartY);
         if (rawPrice == null) return;
 
-        snappedPrice = Math.round((rawPrice as number) / contract.tickSize) * contract.tickSize;
+        snappedPrice = snapToTickSize(rawPrice as number, contract.tickSize);
 
         // Reposition + button
         const y = series.priceToCoordinate(snappedPrice);

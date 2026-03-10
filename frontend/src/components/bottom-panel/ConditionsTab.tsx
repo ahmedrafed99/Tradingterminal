@@ -1,17 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
 import { conditionService } from '../../services/conditionService';
 import type { Condition } from '../../services/conditionService';
-
-function shortSymbol(contractId: string): string {
-  const parts = contractId.split('.');
-  if (parts.length >= 5) {
-    const sym = parts[3];
-    const expiry = parts[4];
-    return sym + expiry.charAt(0) + expiry.slice(-1);
-  }
-  return contractId;
-}
+import { shortSymbol } from '../../utils/formatters';
+import { useClickOutside } from '../../hooks/useClickOutside';
 
 const ALL_STATUSES = ['armed', 'paused', 'triggered', 'failed', 'expired'] as const;
 type ConditionStatus = (typeof ALL_STATUSES)[number];
@@ -50,16 +42,8 @@ export function ConditionsTab() {
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
-
-  // Close filter dropdown on outside click
-  useEffect(() => {
-    if (!filterOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setFilterOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [filterOpen]);
+  const closeFilter = useCallback(() => setFilterOpen(false), []);
+  useClickOutside(filterRef, filterOpen, closeFilter);
 
   const filteredConditions = useMemo(
     () => conditions.filter((c) => statusFilter.has(c.status as ConditionStatus)),

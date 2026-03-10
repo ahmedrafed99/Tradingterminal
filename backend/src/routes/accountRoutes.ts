@@ -1,23 +1,12 @@
 import { Router } from 'express';
-import { getAdapter, isConnected } from '../adapters/registry';
+import { withConnection, getAdapter } from '../middleware/withConnection';
 
 const router = Router();
 
 // GET /accounts
-// Returns all accounts for the authenticated user
-router.get('/', async (_req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const data = await getAdapter().accounts.list();
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.get('/', withConnection(async (_req, res) => {
+  const data = await getAdapter().accounts.list();
+  res.json(data);
+}));
 
 export default router;

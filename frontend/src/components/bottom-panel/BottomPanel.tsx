@@ -1,38 +1,8 @@
 import { useStore } from '../../store/useStore';
+import { TabButton } from '../shared/TabButton';
 import { OrdersTab } from './OrdersTab';
 import { TradesTab } from './TradesTab';
 import { ConditionsTab } from './ConditionsTab';
-
-function TabButton({
-  label,
-  active,
-  count,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  count?: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 h-full text-xs font-medium transition-colors relative cursor-pointer ${
-        active
-          ? 'text-[#d1d4dc]'
-          : 'text-[#787b86] hover:text-[#d1d4dc]'
-      }`}
-    >
-      {label}
-      {count != null && count > 0 && (
-        <span className="ml-2 text-[#787b86]">({count})</span>
-      )}
-      {active && (
-        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2962ff]" />
-      )}
-    </button>
-  );
-}
 
 function Separator() {
   return <div className="w-px h-4 bg-[#2a2e39] shrink-0" />;

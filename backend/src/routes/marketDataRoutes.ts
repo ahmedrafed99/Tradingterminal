@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody } from '../validate';
-import { getAdapter, isConnected } from '../adapters/registry';
+import { withConnection, getAdapter } from '../middleware/withConnection';
 
 const router = Router();
 
@@ -17,73 +17,33 @@ const RetrieveBarsSchema = z.object({
 });
 
 // POST /market/bars
-router.post('/bars', validateBody(RetrieveBarsSchema), async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const data = await getAdapter().marketData.retrieveBars(req.body);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.post('/bars', validateBody(RetrieveBarsSchema), withConnection(async (req, res) => {
+  const data = await getAdapter().marketData.retrieveBars(req.body);
+  res.json(data);
+}));
 
 // GET /market/contracts/search?q=NQ
-router.get('/contracts/search', async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const live = req.query['live'] === 'true';
-    const data = await getAdapter().marketData.searchContracts(
-      (req.query['q'] as string) ?? '',
-      live,
-    );
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.get('/contracts/search', withConnection(async (req, res) => {
+  const live = req.query['live'] === 'true';
+  const data = await getAdapter().marketData.searchContracts(
+    (req.query['q'] as string) ?? '',
+    live,
+  );
+  res.json(data);
+}));
 
 // GET /market/contracts/available?live=false
-router.get('/contracts/available', async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const live = req.query['live'] === 'true';
-    const data = await getAdapter().marketData.availableContracts(live);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.get('/contracts/available', withConnection(async (req, res) => {
+  const live = req.query['live'] === 'true';
+  const data = await getAdapter().marketData.availableContracts(live);
+  res.json(data);
+}));
 
 // GET /market/contracts/:id?live=false
-router.get('/contracts/:id', async (req, res) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-
-  try {
-    const live = req.query['live'] === 'true';
-    const data = await getAdapter().marketData.searchContractById(req.params.id, live);
-    res.json(data);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ success: false, errorMessage: msg });
-  }
-});
+router.get('/contracts/:id', withConnection(async (req, res) => {
+  const live = req.query['live'] === 'true';
+  const data = await getAdapter().marketData.searchContractById(req.params.id, live);
+  res.json(data);
+}));
 
 export default router;

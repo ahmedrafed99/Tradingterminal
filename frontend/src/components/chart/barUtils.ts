@@ -57,6 +57,16 @@ export function generateWhitespace(
   return result;
 }
 
+/** Snap a price to the nearest tick size increment */
+export function snapToTickSize(price: number, tickSize: number): number {
+  return Math.round(price / tickSize) * tickSize;
+}
+
+/** Get the price scale width, falling back to 56px if the scale isn't available */
+export function getPriceScaleWidth(chart: { priceScale(id: string): { width(): number } }): number {
+  try { return chart.priceScale('right').width(); } catch { return 56; }
+}
+
 /** Floor a UTC timestamp to the start of its candle period */
 export function floorToCandlePeriod(
   timestampSec: number,
