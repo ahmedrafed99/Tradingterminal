@@ -88,7 +88,7 @@ Centralize repeated styling values:
 
 ## Phase 3 — Hook Decomposition (Higher Risk, ~800 lines restructured)
 
-### 3.1 Split `useConditionLines.ts` (1,107 lines → 5 hooks)
+### 3.1 ✅ Split `useConditionLines.ts` (1,107 lines → 7 files)
 
 | New hook | Responsibility | Est. lines |
 |----------|---------------|------------|
@@ -98,7 +98,7 @@ Centralize repeated styling values:
 | `useConditionPreviewDrag` | Preview drag handling | 142 |
 | `useConditionLinesSync` | Repositioning sync loop | 45 |
 
-### 3.2 Split `useOverlayLabels.ts` (1,041 lines → 5 hooks)
+### 3.2 ✅ Split `useOverlayLabels.ts` (1,041 lines → 5 files)
 
 | New hook | Responsibility | Est. lines |
 |----------|---------------|------------|
@@ -110,21 +110,21 @@ Centralize repeated styling values:
 
 Also: P&L computation duplicated 4 times within this file → extract to shared helper.
 
-### 3.3 Split `useChartDrawings.ts` (963 lines)
+### 3.3 ✅ Split `useChartDrawings.ts` (962 lines → 4 files)
 
-Extract coordinate conversion helpers, consolidate 4 drag handlers that repeat `getBoundingClientRect()` → coordinate conversion.
+Extracted `DrawingState`/`DrawingContext` types + coordinate helpers (`drawingInteraction.ts`), mouse handlers (`drawingHandlers.ts`), input handlers (`drawingInputHandlers.ts`). Orchestrator reduced to 198 lines.
 
-### 3.4 Drawing `GenericPaneView` wrapper
+### 3.4 ⏭️ Drawing `GenericPaneView` wrapper (deferred)
 
-Every drawing renderer needs a paired PaneView class (~15 lines of pure boilerplate each). A generic wrapper would save ~150 lines.
+Each PaneView has unique hitTest/renderer logic with only ~10 lines of shared boilerplate per class. Net savings too small to justify the abstraction.
 
 ---
 
 ## Phase 4 — Structural (Highest Effort)
 
-### 4.1 Split mega-store (772 lines, 16 slices)
+### 4.1 ✅ Split mega-store (772 lines → 8 files)
 
-`useStore.ts` combines 16 slices with `OrderPanelState` alone having 19 fields + 38 setters. Split into 4-5 domain stores.
+Split into 7 domain slices in `store/slices/`: connectionSlice (48), instrumentSlice (70), tradingSlice (228), drawingsSlice (182), layoutSlice (154), conditionsSlice (44), toastSlice (39). Orchestrator `useStore.ts` reduced to 81 lines. All existing imports unchanged via re-exports.
 
 ### 4.2 Shared `<Modal>` component
 
