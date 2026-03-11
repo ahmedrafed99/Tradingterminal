@@ -8,7 +8,6 @@ import { showToast } from '../../utils/toast';
 import type { PlaceOrderParams } from '../../services/orderService';
 import type { BracketConfig } from '../../types/bracket';
 import { buildNativeBracketParams, buildNativeSLOnly } from '../../types/bracket';
-import { isFuturesMarketOpen, useMarketStatus } from '../../utils/marketHours';
 
 export function BuySellButtons() {
   const {
@@ -35,19 +34,13 @@ export function BuySellButtons() {
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const marketOpen = useMarketStatus();
   const canPlace =
     activeAccountId != null &&
     orderContract != null &&
-    marketOpen &&
     (orderType === 'market' || (orderType === 'limit' && limitPrice != null));
 
   async function handlePlace(side: OrderSide) {
     if (!canPlace || !activeAccountId || !orderContract) return;
-    if (!isFuturesMarketOpen()) {
-      showToast('warning', 'Market closed', 'Futures market is closed. Orders cannot be placed.');
-      return;
-    }
     const label = side === OrderSide.Buy ? 'buy' : 'sell';
     setPlacing(label);
     setError(null);
@@ -165,12 +158,6 @@ export function BuySellButtons() {
           {placing === 'sell' ? '...' : `Sell -${orderSize} ${typeLabel}`}
         </button>
       </div>
-      {!marketOpen && (
-        <div className="text-[10px] text-[#ef5350] mt-1 flex items-center gap-1">
-          <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#ef5350', flexShrink: 0 }} />
-          Market closed — reopens Sun 18:00 ET
-        </div>
-      )}
       {error && (
         <div className="text-[10px] text-[#ff4444] mt-1">{error}</div>
       )}

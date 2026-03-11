@@ -173,8 +173,6 @@ orderService.placeOrder({ ...baseParams, ...nativeBrackets });
 
 **On error** — full cleanup: disarms bracket engine if armed (`clearSession()`), clears `qoPendingPreview`, removes preview lines and hover labels, shows error toast.
 
-**Market-closed guard** — `placeQuickOrder()` calls `isFuturesMarketOpen()` before any bracket arming or API call. If closed: shows a warning toast, calls `removePreviewLines()`, clears `qoPendingPreview`, and returns. No preview lines are left lingering.
-
 **No preset selected** — places a naked limit order with no SL/TP.
 
 ### Click and drag-to-adjust
@@ -333,7 +331,6 @@ Size hover:  [│ +$50.00 ][ − 2 + ][ × ]
 
 ### Preview labels
 - Entry shows "Limit Buy"/"Limit Sell" in grey (`#cac9cb`) with black text (clickable to execute), size cell colored by side (green buy / red sell)
-- **Execute button market-closed guard**: the entry label's execute handler (`onExecute` in `buildPreviewLabels.ts`) calls `isFuturesMarketOpen()` before arming the bracket engine or placing the order. If closed, shows a warning toast and returns immediately — no bracket engine arming, no API call.
 - SL/TP show projected P&L relative to entry price
 - Each TP shows its **individual** contract size from the preset or ad-hoc level (not total orderSize). SL shows total size. TPs are trimmed to fit within `orderSize` — if a preset has 2 TPs (1 ct each) but order size is 1, only the first TP is previewed
 - When no preset is active, entry label includes **+SL** and **+TP** buttons to add ad-hoc bracket lines

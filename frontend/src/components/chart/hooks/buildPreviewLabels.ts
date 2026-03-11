@@ -9,7 +9,6 @@ import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig'
 import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT } from './labelUtils';
-import { isFuturesMarketOpen } from '../../../utils/marketHours';
 
 /**
  * Build labels for preview lines (entry, SL, TP).
@@ -53,10 +52,6 @@ export function buildPreviewLabels(
       displaySize = previewTotalSize;
       onCancel = () => useStore.getState().togglePreview();
       onExecute = async () => {
-        if (!isFuturesMarketOpen()) {
-          showToast('warning', 'Market closed', 'Futures market is closed. Orders cannot be placed.');
-          return;
-        }
         const st = useStore.getState();
         if (!st.activeAccountId || !contract) return;
         const side: OrderSide = st.previewSide;

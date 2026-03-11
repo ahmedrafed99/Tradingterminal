@@ -168,8 +168,6 @@ export function useChartWidgets(
     const GAP = 30;       // equal distance from both border lines to button edge
 
     const recompute = () => {
-      // Guard: chart may have been disposed if this fires after unmount cleanup
-      if (!refs.chart.current) return;
       const tsW = chart.timeScale().width();
       if (tsW <= 0) return;
       const P = container.clientWidth - tsW; // price scale width
@@ -187,8 +185,7 @@ export function useChartWidgets(
 
     return () => {
       ro.disconnect();
-      // Chart may already be disposed (init effect cleanup runs before this one)
-      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(recompute); } catch { /* disposed */ }
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(recompute);
     };
   }, []);
 

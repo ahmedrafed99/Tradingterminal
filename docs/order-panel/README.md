@@ -91,8 +91,7 @@ and the preview toggle that overlays ghost lines on the chart.
 - `text-[11px] font-bold text-[#d1d4dc]`, side-by-side layout
 - Both use `activeAccountId`, `activeContractId`, `orderSize`, and the active
   bracket configuration from the store
-- Buttons disabled when: not connected, no instrument selected, **or market is closed**
-- **Market-closed state**: `useMarketStatus()` (1 s reactive hook) drives `canPlace`. When closed, buttons are `disabled:opacity-50` and a red `●` "Market closed — reopens Sun 18:00 ET" hint appears below them. A second `isFuturesMarketOpen()` call inside `handlePlace` guards against the race where the hook value is stale at click time.
+- Buttons disabled when not connected or no instrument selected
 - On placement failure: shows error toast alongside inline error text
 
 ### `PositionDisplay`
@@ -138,7 +137,6 @@ interface OrderPanelState {
 
 ```
 User clicks BUY
-  └─► client-side guard: isFuturesMarketOpen() → toast + return if closed
   └─► build payload:
         { accountId, contractId, type: 2 (market) or 1 (limit),
           side: 0 (Bid), size, limitPrice? }

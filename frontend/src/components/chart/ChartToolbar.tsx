@@ -6,7 +6,6 @@ import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
 import { COLOR_PALETTE } from './ColorPopover';
-import { isFuturesMarketOpen } from '../../utils/marketHours';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -79,7 +78,6 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
 
 function useNYClock() {
   const [time, setTime] = useState('');
-  const [marketOpen, setMarketOpen] = useState(() => isFuturesMarketOpen());
   useEffect(() => {
     function tick() {
       const now = new Date();
@@ -89,13 +87,12 @@ function useNYClock() {
         hour12: false,
       });
       setTime(`${fmt.format(now)} New York`);
-      setMarketOpen(isFuturesMarketOpen());
     }
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-  return { time, marketOpen };
+  return time;
 }
 
 function IndicatorsDropdown() {
@@ -308,7 +305,7 @@ export function ChartToolbar() {
   const [customNumber, setCustomNumber] = useState('1');
   const [customUnit, setCustomUnit] = useState<number>(2); // default: Minutes
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { time: nyClock, marketOpen } = useNYClock();
+  const nyClock = useNYClock();
 
   // Screenshot state
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -679,22 +676,10 @@ export function ChartToolbar() {
 
       <div className="w-px h-4 bg-[#2a2e39] mx-1" />
 
-      {/* NY clock + market status */}
-      <div className="flex items-center gap-1.5" style={{ marginRight: '8px' }}>
-        <span
-          title={marketOpen ? 'Futures market open' : 'Futures market closed'}
-          style={{
-            display: 'inline-block',
-            width: 6, height: 6,
-            borderRadius: '50%',
-            background: marketOpen ? '#26a69a' : '#ef5350',
-            flexShrink: 0,
-          }}
-        />
-        <span className="text-xs text-[#787b86]" style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {nyClock}
-        </span>
-      </div>
+      {/* NY clock */}
+      <span className="text-xs text-[#787b86]" style={{ fontVariantNumeric: 'tabular-nums', marginRight: '8px' }}>
+        {nyClock}
+      </span>
 
       {snapshotOpen && (
         <Suspense fallback={null}>
