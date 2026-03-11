@@ -15,6 +15,7 @@ import {
   generateWhitespace,
 } from '../barUtils';
 import type { ChartRefs } from './types';
+import { isFuturesMarketOpen } from '../../../utils/marketHours';
 
 /**
  * Handles historical bar loading, real-time quote subscription, and volume profile.
@@ -158,19 +159,6 @@ export function useChartBars(
     }
 
     startRealtime();
-
-    function isFuturesMarketOpen(): boolean {
-      // Use America/New_York so DST shifts are handled automatically
-      const etStr = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
-      const et = new Date(etStr);
-      const day = et.getDay();   // 0=Sun … 6=Sat
-      const h = et.getHours();
-      // Closed: Friday 17:00 ET → Sunday 18:00 ET
-      if (day === 6) return false;                        // all Saturday
-      if (day === 5 && h >= 17) return false;             // Friday after 5 PM ET
-      if (day === 0 && h < 18) return false;              // Sunday before 6 PM ET
-      return true;
-    }
 
     function handleQuote(quoteContractId: string, data: GatewayQuote) {
       if (quoteContractId !== contractId || !refs.series.current) return;

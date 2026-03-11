@@ -132,6 +132,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 | `dedup` | `utils/dedup.ts` | `dedup(fn)`, `dedupByKey(fn, keyFn)` — in-flight promise deduplication | authService, persistenceService, databaseService, newsService, tradeService |
 | `instrument` | `utils/instrument.ts` | `calcPnl()`, `pointsToPrice()`, tick/point helpers | PositionDisplay, overlay hooks, chart trading |
 | `cmeSession` | `utils/cmeSession.ts` | `getCmeSessionStart()`, `getDateRange()`, `DatePreset` type | App.tsx, TradesTab, DatePresetSelector |
+| `marketHours` | `utils/marketHours.ts` | `isFuturesMarketOpen()` — pure check; `useMarketStatus()` — reactive hook (1 s interval) | ChartToolbar, BuySellButtons, useQuickOrder, buildPreviewLabels, useChartBars |
 | `toast` | `utils/toast.ts` | `showToast()`, `errorMessage()` | All components that show notifications |
 | `retry` | `utils/retry.ts` | Axios retry interceptor for cold-start handling | conditionService |
 
