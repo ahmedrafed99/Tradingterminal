@@ -135,6 +135,85 @@ Created `INPUT_DARK` (bg-[#111]) and `INPUT_SURFACE` (bg-[#131722]) in `constant
 
 ---
 
+## Phase 5 — Order Lines Decomposition (~826 lines → 4 focused hooks) ✅
+
+`useOrderLines.ts` is 826 lines with 5 `useEffect` blocks covering 4 unrelated concerns: preview line lifecycle, preview price updates, preview drag, live order/position lines, order drag, and position drag-to-create. Split into focused sub-hooks.
+
+### 5.1 ✅ Extract `usePreviewLines` hook
+
+Move the first two effects (preview line creation + preview price-update subscription) into a dedicated hook.
+
+| Source effects | Lines | Responsibility |
+|---------------|-------|----------------|
+| Effect 1 (L39–110) | ~72 | Create/destroy `PriceLevelLine` instances when preview config changes |
+| Effect 2 (L114–178) | ~65 | Update prices in-place via direct Zustand subscription (no re-render) |
+
+**New file:** `hooks/usePreviewLines.ts` (~140 lines)
+
+### 5.2 ✅ Extract `usePreviewDrag` hook
+
+Move the preview drag effect (mousemove/mouseup on window for preview line dragging, including QO pending preview drag).
+
+| Source effect | Lines | Responsibility |
+|--------------|-------|----------------|
+| Effect 3 (L181–314) | ~134 | Handle preview line drag (entry, SL, TP + QO pending SL/TP) |
+
+**New file:** `hooks/usePreviewDrag.ts` (~140 lines)
+
+### 5.3 ✅ Extract `useOrderDrag` hook
+
+Move the live order drag effect (mousemove/mouseup for dragging open order lines to modify prices, including optimistic bracket position updates + server rollback on failure).
+
+| Source effect | Lines | Responsibility |
+|--------------|-------|----------------|
+| Effect 5 (L404–617) | ~214 | Drag open orders → `orderService.modifyOrder()`, revert on error, shift bracket previews |
+
+**New file:** `hooks/useOrderDrag.ts` (~220 lines)
+
+### 5.4 ✅ Extract `usePositionDrag` hook
+
+Move the position drag-to-create effect (drag from position label → place new SL/TP order on mouseup).
+
+| Source effect | Lines | Responsibility |
+|--------------|-------|----------------|
+| Effect 6 (L619–826) | ~208 | Create temp `PriceLevelLine` + label on drag, place SL/TP via `orderService.placeOrder()` on release |
+
+**New file:** `hooks/usePositionDrag.ts` (~210 lines)
+
+### 5.5 ✅ Reduce `useOrderLines` to orchestrator
+
+After extraction, the remaining `useOrderLines.ts` keeps only:
+- Store subscriptions (L17–36)
+- Live order/position line creation effect (L317–401, ~85 lines)
+- Calls to the 4 extracted hooks
+
+**Result:** ~120 lines (down from 826)
+
+### 5.6 ✅ Extract `computeOrderLineColor` utility
+
+Color computation logic (profit/loss relative to position, same-side entry detection) is duplicated between `useOrderLines` (L350–381) and `buildOrderLabels` (L133–141). Extract to a shared pure function in `labelUtils.ts`.
+
+```typescript
+function computeOrderLineColor(order, position): string
+```
+
+**Lines saved:** ~30 (deduplication across 2 files)
+
+### Summary
+
+| Before | After |
+|--------|-------|
+| `useOrderLines.ts` (826 lines, 5 effects) | `useOrderLines.ts` (97 lines, orchestrator + live lines) |
+| | `usePreviewLines.ts` (174 lines) |
+| | `usePreviewDrag.ts` (158 lines) |
+| | `useOrderDrag.ts` (234 lines) |
+| | `usePositionDrag.ts` (235 lines) |
+| | `computeOrderLineColor()` in `labelUtils.ts` (~35 lines) |
+
+**Total:** 826 lines → 898 lines across 5 files + shared utility (net +72 from imports/signatures, but each file is single-purpose and independently testable).
+
+---
+
 ## Previous Refactoring (Completed)
 
 ### Multi-Exchange Abstraction (Phases 1-4 done)

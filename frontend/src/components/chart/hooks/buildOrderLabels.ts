@@ -6,7 +6,7 @@ import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { darken, LABEL_TEXT } from './labelUtils';
+import { darken, LABEL_TEXT, computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
 
 interface Position {
   accountId: number;
@@ -131,14 +131,9 @@ export function buildOrderLabels(
     const oType = order.type;
 
     function profitColor(p: number): string {
-      if (pos) {
-        const isL = pos.type === PositionType.Long;
-        return (isL ? p >= pos.averagePrice : p <= pos.averagePrice) ? '#00c805' : '#ff0000';
-      }
-      return (oType === OrderType.Stop || oType === OrderType.TrailingStop) ? '#ff0000'
-        : oSide === OrderSide.Sell ? '#ff0000' : '#00c805';
+      return computeOrderLineColor(order, p, pos);
     }
-    const sizeBg = oSide === OrderSide.Sell ? '#ff0000' : '#00c805';
+    const sizeBg = oSide === OrderSide.Sell ? SELL_COLOR : BUY_COLOR;
 
     function getOrderRefPrice(): number {
       for (let k = 0; k < refs.orderLineMeta.current.length; k++) {

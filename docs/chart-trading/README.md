@@ -245,8 +245,8 @@ Rendered when `previewEnabled = true` (set from OrderPanel checkbox). Each previ
 - SL/TP lines shown when a bracket preset is active **or** ad-hoc SL/TP have been added
 - Dashed price lines for Entry (grey `#787b86`), SL (red `#ff0000`), each TP (green `#00c805`)
 - `resolvePreviewConfig()` helper unifies preset+draft and ad-hoc state into a single `BracketConfig`, trimming TPs to fit within `orderSize` via `fitTpsToOrderSize()` (first TPs get priority; extras that exceed the order quantity are dropped)
-- Two-effect pattern: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
-- The price-update effect's `doUpdate()` is skipped while a live order drag is active (`orderDragState` ref set) — the drag handler manages preview positions itself, and the store's `limitPrice` is stale until mouseup, so `doUpdate()` would snap SL/TP lines back to pre-drag positions on every market tick
+- Two-effect pattern in `usePreviewLines`: structural effect creates/destroys `PriceLevelLine` instances on config change; price-update effect calls `line.setPrice()` in-place to avoid flicker
+- The price-update effect's `doUpdate()` is skipped while a live order drag is active (`orderDragState` ref set) — the drag handler in `useOrderDrag` manages preview positions itself, and the store's `limitPrice` is stale until mouseup, so `doUpdate()` would snap SL/TP lines back to pre-drag positions on every market tick
 - Initial prices read imperatively via `useStore.getState()` to avoid flash-at-bottom on first toggle
 
 Shows ghost price lines (semi-transparent) for:
@@ -545,10 +545,14 @@ interface OrderPanelState {
 |------|------|
 | `frontend/src/components/chart/PriceLevelLine.ts` | Unified imperative class — owns horizontal line, label pill, and axis label as HTML elements. Used by all price lines (orders, positions, previews, QO hover). |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Orchestrator: declares refs, init effect, delegates to 6 hooks. Exposes `setCrosshairPrice()` for dual-chart sync. |
-| `frontend/src/components/chart/hooks/useOrderLines.ts` | Creates `PriceLevelLine` instances for preview/order/position lines, handles drag interactions |
+| `frontend/src/components/chart/hooks/useOrderLines.ts` | Orchestrator hook — delegates to 4 sub-hooks, directly manages live order/position `PriceLevelLine` creation |
+| `frontend/src/components/chart/hooks/usePreviewLines.ts` | Preview line lifecycle: creates/destroys `PriceLevelLine` instances on config change + Zustand price subscription for flicker-free updates |
+| `frontend/src/components/chart/hooks/usePreviewDrag.ts` | Preview line drag: handles entry/SL/TP drag + QO pending preview drag |
+| `frontend/src/components/chart/hooks/useOrderDrag.ts` | Live order drag: `orderService.modifyOrder()` with bracket preview shift, SL validation, optimistic updates + rollback |
+| `frontend/src/components/chart/hooks/usePositionDrag.ts` | Position drag-to-create: drag from position label to place SL/TP orders via `orderService.placeOrder()` |
 | `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
 | `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: creates PriceLevelLine instances with baked-in labels for hover preview |
-| `frontend/src/components/chart/hooks/labelUtils.ts` | Shared utilities for chart line labels: `installSizeButtons()` (hover-reveal +/- DOM factory), `formatSlPnl()`/`formatTpPnl()` (P&L text), `darken()`, `updateSizeCellCount()`, shared color constants, drag helpers |
+| `frontend/src/components/chart/hooks/labelUtils.ts` | Shared utilities: `computeOrderLineColor()` (profit/loss color logic), `installSizeButtons()` (hover-reveal +/- DOM factory), `formatSlPnl()`/`formatTpPnl()` (P&L text), `darken()`, shared color constants, drag helpers |
 | `frontend/src/components/chart/hooks/resolvePreviewConfig.ts` | `resolvePreviewConfig()` — unified BracketConfig resolver; `fitTpsToOrderSize()` — trims TPs to fit within orderSize |
 | `frontend/src/components/order-panel/OrderPanel.tsx` | SignalR event wiring, limit order cancel cleanup, position close auto-cancel |
 | `frontend/src/components/order-panel/BuySellButtons.tsx` | Bracket arming, draft/ad-hoc merge, order placement |
@@ -598,7 +602,7 @@ Existing `−` / `+` buttons on live TP order size cells now have:
 - Size cell bg darkens on hover (0.15s transition via `darken()` helper from `labelUtils.ts`)
 - Darken persists across label rebuilds when hover is active
 
-**Files**: `useOverlayLabels.ts` (TP size button creation + `onTpSizeHover`), `labelUtils.ts` (`darken()`, `installSizeButtons()`)
+**Files**: `buildOrderLabels.ts` (TP size button creation + `onTpSizeHover`), `labelUtils.ts` (`darken()`, `installSizeButtons()`, `computeOrderLineColor()`)
 
 ### TODO — future contexts
 

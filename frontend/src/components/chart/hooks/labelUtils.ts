@@ -1,4 +1,6 @@
 import type { Contract } from '../../../services/marketDataService';
+import type { Order } from '../../../services/orderService';
+import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 
 // ── Shared colors ──────────────────────────────────────
@@ -9,6 +11,45 @@ export const BUY_COLOR = '#00c805';
 export const SELL_COLOR = '#ff0000';
 export const BUY_HOVER = '#00a004';
 export const SELL_HOVER = '#cc0000';
+
+// ── Order line color ──────────────────────────────────
+
+interface PositionRef {
+  averagePrice: number;
+  type: number; // PositionType enum
+}
+
+/**
+ * Compute the color for an order line based on profit/loss relative to position.
+ * Same-side entries (adding to position) use side-based color.
+ * Orders with a position use green/red based on whether the price is in profit.
+ * Fallback: stops are red, limits use side-based color.
+ */
+export function computeOrderLineColor(
+  order: Order,
+  price: number,
+  pos: PositionRef | undefined,
+): string {
+  const isLong = pos ? pos.type === PositionType.Long : undefined;
+
+  // Same-side limit orders (entries) use side-based color, not profit/loss
+  const isSameSideEntry = pos && order.type === OrderType.Limit && (
+    (isLong && order.side === OrderSide.Buy) ||
+    (!isLong && order.side === OrderSide.Sell)
+  );
+
+  if (isSameSideEntry) {
+    return order.side === OrderSide.Buy ? BUY_COLOR : SELL_COLOR;
+  }
+  if (pos) {
+    const inProfit = isLong ? price >= pos.averagePrice : price <= pos.averagePrice;
+    return inProfit ? BUY_COLOR : SELL_COLOR;
+  }
+  if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
+    return SELL_COLOR;
+  }
+  return order.side === OrderSide.Sell ? SELL_COLOR : BUY_COLOR;
+}
 
 // ── PnL formatting ────────────────────────────────────
 
