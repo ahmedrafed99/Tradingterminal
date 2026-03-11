@@ -30,6 +30,7 @@ backend/
 │   │   ├── accountRoutes.ts      ← /accounts
 │   │   ├── marketDataRoutes.ts   ← /market/*
 │   │   ├── orderRoutes.ts        ← /orders/*
+│   │   ├── positionRoutes.ts     ← /positions/*
 │   │   ├── tradeRoutes.ts        ← /trades/*
 │   │   └── newsRoutes.ts         ← /news/*
 │   └── services/
@@ -320,6 +321,37 @@ Get all open orders for an account.
   "success": true
 }
 ```
+
+---
+
+### Positions — `/positions/*`
+
+#### `GET /positions/open?accountId=12345`
+Get all open positions for an account.
+
+| Query param | Required | Description |
+|-------------|----------|-------------|
+| `accountId` | yes | Account ID |
+
+**Response:**
+```json
+{
+  "positions": [
+    {
+      "id": 593169304,
+      "accountId": 18667281,
+      "contractId": "CON.F.US.MNQ.H26",
+      "creationTimestamp": "2026-02-22T23:54:35Z",
+      "type": 1,
+      "size": 1,
+      "averagePrice": 24958.5
+    }
+  ],
+  "success": true
+}
+```
+
+`type`: `1`=Long, `2`=Short | `size`=number of contracts (0 when closed)
 
 ---
 

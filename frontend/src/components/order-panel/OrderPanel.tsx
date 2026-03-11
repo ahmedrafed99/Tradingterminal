@@ -3,10 +3,13 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
-import { orderService } from '../../services/orderService';
+import { orderService, type Order } from '../../services/orderService';
+import { positionService } from '../../services/positionService';
+import { tradeService } from '../../services/tradeService';
 import { marketDataService } from '../../services/marketDataService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
+import { getCmeSessionStart } from '../../utils/cmeSession';
 import { showToast, errorMessage } from '../../utils/toast';
 import type { GatewayQuote, RealtimeOrder, RealtimePosition } from '../../services/realtimeService';
 import { InstrumentSelector } from '../InstrumentSelector';
@@ -17,6 +20,129 @@ import { BuySellButtons } from './BuySellButtons';
 import { PositionDisplay } from './PositionDisplay';
 
 const BracketSettingsModal = lazy(() => import('./BracketSettingsModal').then(m => ({ default: m.BracketSettingsModal })));
+
+/**
+ * Infer open positions from open orders + recent trades.
+ * If protective orders (SL/TP) exist for a contract but no position is in the
+ * store, we derive the position from the stop loss order (direction, size) and
+ * recent opening trades (entry price).
+ */
+async function inferPositionsFromOrders(accountId: number, orders: Order[]) {
+  // Group protective orders by contractId
+  const contracts = new Map<string, { slOrder?: Order; tpOrders: Order[] }>();
+  for (const o of orders) {
+    if (o.type === OrderType.Stop || o.type === OrderType.TrailingStop) {
+      const entry = contracts.get(o.contractId) ?? { tpOrders: [] };
+      entry.slOrder = o;
+      contracts.set(o.contractId, entry);
+    } else if (o.type === OrderType.Limit) {
+      const entry = contracts.get(o.contractId) ?? { tpOrders: [] };
+      entry.tpOrders.push(o);
+      contracts.set(o.contractId, entry);
+    }
+  }
+
+  const st = useStore.getState();
+  const needsInference: string[] = [];
+  for (const [contractId, group] of contracts) {
+    if (!group.slOrder) continue; // no stop → can't reliably infer
+    const existing = st.positions.find(
+      (p) => p.accountId === accountId && String(p.contractId) === String(contractId) && p.size > 0,
+    );
+    if (!existing) needsInference.push(contractId);
+  }
+
+  if (needsInference.length === 0) return;
+
+  // Fetch session trades to find entry price(s)
+  let trades;
+  try {
+    trades = await tradeService.searchTrades(accountId, getCmeSessionStart());
+  } catch {
+    if (import.meta.env.DEV) console.warn('[OrderPanel] Could not fetch trades for position inference');
+    return;
+  }
+
+  for (const contractId of needsInference) {
+    const group = contracts.get(contractId)!;
+    const slOrder = group.slOrder!;
+
+    // Derive direction: SL sell → position is long, SL buy → position is short
+    const isLong = slOrder.side === OrderSide.Sell;
+    const posType = isLong ? PositionType.Long : PositionType.Short;
+    const posSize = slOrder.size;
+    const entrySide = isLong ? OrderSide.Buy : OrderSide.Sell;
+
+    // Find opening trades for this contract+side (profitAndLoss is null for opening half-turns)
+    const openingTrades = trades.filter(
+      (t) => String(t.contractId) === String(contractId)
+        && t.side === entrySide
+        && !t.voided,
+    );
+
+    if (openingTrades.length === 0) continue;
+
+    // Compute weighted average entry price from opening trades
+    let totalSize = 0;
+    let weightedPrice = 0;
+    for (const t of openingTrades) {
+      // Only use opening half-turns (profitAndLoss === null) or, if all have P&L, use latest
+      if (t.profitAndLoss === null) {
+        weightedPrice += t.price * t.size;
+        totalSize += t.size;
+      }
+    }
+    // Fallback: if no opening half-turns found, use the most recent trade
+    if (totalSize === 0) {
+      const latest = openingTrades.sort(
+        (a, b) => new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime(),
+      )[0];
+      weightedPrice = latest.price * latest.size;
+      totalSize = latest.size;
+    }
+
+    const avgPrice = weightedPrice / totalSize;
+
+    const syntheticPos: import('../../adapters/types').RealtimePosition = {
+      id: -Date.now(), // synthetic ID
+      accountId,
+      contractId,
+      type: posType,
+      size: posSize,
+      averagePrice: avgPrice,
+    };
+
+    if (import.meta.env.DEV) {
+      console.log(`[OrderPanel] Inferred position: ${isLong ? 'LONG' : 'SHORT'} ${posSize}ct @ ${avgPrice} for ${contractId}`);
+    }
+    useStore.getState().upsertPosition(syntheticPos);
+  }
+}
+
+/** Fetch open orders + positions and merge into store. */
+function hydratePositionsAndOrders(accountId: number) {
+  // Try REST position endpoint first (may not exist on all gateways)
+  positionService.searchOpenPositions(accountId).then((positions) => {
+    const st = useStore.getState();
+    for (const pos of positions) st.upsertPosition(pos);
+  }).catch(() => {});
+
+  // Fetch orders, then infer positions if needed
+  orderService.searchOpenOrders(accountId).then(async (orders) => {
+    useStore.getState().setOpenOrders(orders);
+
+    // If no positions loaded yet, infer from orders + trades
+    const st = useStore.getState();
+    const hasAnyPosition = st.positions.some(
+      (p) => p.accountId === accountId && p.size > 0,
+    );
+    if (!hasAnyPosition && orders.length > 0) {
+      await inferPositionsFromOrders(accountId, orders);
+    }
+  }).catch((err) => {
+    if (import.meta.env.DEV) console.warn('[OrderPanel] Order REST fetch failed:', err);
+  });
+}
 
 export function OrderPanel() {
   const {
@@ -53,22 +179,24 @@ export function OrderPanel() {
   const subscribedAccountRef = useRef<number | null>(null);
 
   // Subscribe to user hub events (orders, positions) when account changes
+  // Also fetch current positions + orders via REST (SignalR may not send a snapshot)
   useEffect(() => {
     if (activeAccountId == null) return;
     if (subscribedAccountRef.current === activeAccountId) return;
 
     subscribedAccountRef.current = activeAccountId;
     realtimeService.subscribeUserEvents(activeAccountId);
+
+    // Hydrate positions + orders from REST so we don't depend on SignalR initial batch
+    hydratePositionsAndOrders(activeAccountId);
   }, [activeAccountId]);
 
-  // Re-fetch open orders on user hub reconnect (events may have been missed)
+  // Re-fetch open orders + positions on user hub reconnect (events may have been missed)
   useEffect(() => {
     const handler = () => {
       const acctId = useStore.getState().activeAccountId;
       if (acctId == null) return;
-      orderService.searchOpenOrders(acctId).then((orders) => {
-        useStore.getState().setOpenOrders(orders);
-      }).catch(() => {});
+      hydratePositionsAndOrders(acctId);
     };
     realtimeService.onUserReconnect(handler);
     return () => realtimeService.offUserReconnect(handler);

@@ -46,6 +46,13 @@ export interface ExchangeOrders {
 }
 
 // ---------------------------------------------------------------------------
+// Positions
+// ---------------------------------------------------------------------------
+export interface ExchangePositions {
+  searchOpen(accountId: number): Promise<unknown>;
+}
+
+// ---------------------------------------------------------------------------
 // Trades
 // ---------------------------------------------------------------------------
 export interface ExchangeTrades {
@@ -77,6 +84,7 @@ export interface ExchangeAdapter {
   readonly accounts: ExchangeAccounts;
   readonly marketData: ExchangeMarketData;
   readonly orders: ExchangeOrders;
+  readonly positions: ExchangePositions;
   readonly trades: ExchangeTrades;
   readonly realtime: ExchangeRealtime;
 }

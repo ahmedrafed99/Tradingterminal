@@ -170,7 +170,7 @@ TradeHandler    = (trade: RealtimeTrade, action: number) => void
 ```
 
 Automatically resubscribes all active subscriptions on reconnect.
-Fires `userReconnectHandlers` after user hub reconnect (used by `OrderPanel` to re-fetch open orders).
+Fires `userReconnectHandlers` after user hub reconnect (used by `OrderPanel` to re-fetch open orders and infer positions).
 Null entries in `GatewayDepth` arrays are filtered before dispatching to handlers.
 
 ---
@@ -256,4 +256,4 @@ All REST endpoints use:
 - 401 responses → trigger disconnect flow + prompt user to reconnect
 - SignalR reconnects automatically with exponential backoff (built into
   `@microsoft/signalr` `withAutomaticReconnect()`)
-- On user hub reconnect, `OrderPanel` re-fetches open orders to recover from missed events
+- On user hub reconnect, `OrderPanel` re-fetches open orders and infers positions from orders + trades to recover from missed events

@@ -52,6 +52,7 @@ frontend/
 │   │   ├── accountService.ts   ← searchAccounts (filtered)
 │   │   ├── marketDataService.ts← retrieveBars, searchContracts, listAvailable
 │   │   ├── orderService.ts     ← place / cancel / modify / searchOpen
+│   │   ├── positionService.ts  ← searchOpenPositions (REST attempt, graceful fallback)
 │   │   ├── tradeService.ts     ← searchTrades (session fills)
 │   │   ├── realtimeService.ts  ← thin facade delegating to active RealtimeAdapter (re-exports types)
 │   │   ├── persistenceService.ts ← file-based settings load/save (GET/PUT /settings)
@@ -208,6 +209,14 @@ All methods wrapped with `retryAsync()` (3 attempts, exponential backoff with ji
 
 Order type enum: `1`=Limit, `2`=Market, `4`=Stop, `5`=TrailingStop.
 Order side enum: `0`=Buy, `1`=Sell.
+
+### `positionService.ts`
+
+```ts
+positionService.searchOpenPositions(accountId)        // GET  /positions/open?accountId=...
+```
+
+Attempts to fetch open positions via REST (filters to `size > 0`). Returns empty array gracefully when the gateway doesn't support the endpoint (`success: false`). The ProjectX gateway currently has no REST position endpoint, so `OrderPanel` falls back to **inferring positions from open orders + session trades** (see below).
 
 ### `tradeService.ts`
 
@@ -601,6 +610,7 @@ Main panel component (240px wide sidebar). Handles:
 - Bracket engine integration (forwards order events, clears sessions)
 - Preset suspend/restore on position open/close
 - Ad-hoc bracket cleanup on position fill (clears preview + ad-hoc state when real orders exist)
+- **Position hydration on connect/reconnect**: fetches open orders via REST, then infers positions from stop-loss orders + session trades when no position data exists (the ProjectX gateway has no REST position endpoint and `SubscribePositions` doesn't send snapshots of existing positions). Direction derived from SL side, size from SL size, entry price from weighted average of opening half-turn trades (`profitAndLoss === null`).
 - **Position close cleanup**: when position goes to size 0, fetches fresh open orders from API and cancels all orders for that contract (uses `String()` coercion on `contractId` comparison due to type mismatch between SignalR events and API responses)
 
 Layout (top to bottom):
