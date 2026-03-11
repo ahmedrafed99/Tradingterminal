@@ -32,9 +32,10 @@ Wrapper that:
   - Text-only style (no background boxes), `text-xs font-medium`
   - Dropdown lists all timeframes (`TIMEFRAMES` — 1m, 15m, 3m, 1h, 4h, D) with a star toggle to pin/unpin any of them
   - Pinned list is auto-sorted by duration (unit × 100 000 + unitNumber) on every pin action
-- **Right section** (after flex spacer): layout toggle | divider | camera (screenshot) | divider | NY clock
+- **Right section** (after flex spacer): layout toggle | divider | camera (screenshot) | divider | market status dot + NY clock
   - Dual chart toggle: stroke-only SVG icon in `#787b86` — single rectangle (single mode), rectangle with vertical divider line (dual mode)
   - Camera icon: opens dropdown with "Copy chart image" and "Custom snapshot" options
+  - Market status dot: 6×6px circle rendered immediately left of the NY clock. Green `#26a69a` = open, red `#ef5350` = closed. Tooltip shows "Futures market open/closed". Re-evaluates every second via `useNYClock()`.
   - NY clock: right-aligned with `tabular-nums`
 
 ---
@@ -149,11 +150,14 @@ interface ChartState {
   the right price scale so users can drag vertically immediately without first
   stretching the price axis.
 - **Market-hours guard**: `handleQuote()` in `useChartBars` calls
-  `isFuturesMarketOpen()` and silently drops incoming quotes when the futures
-  market is closed (Friday 5 PM ET → Sunday 6 PM ET). The check converts the
-  current time to `America/New_York` via `toLocaleString()` so it automatically
-  handles EST ↔ EDT (daylight-saving) transitions — **do not use hardcoded UTC
-  offsets** for this check.
+  `isFuturesMarketOpen()` (from `utils/marketHours.ts`) and silently drops
+  incoming quotes when the futures market is closed. Closed windows:
+  daily maintenance 17:00–18:00 ET (Mon–Thu), and the weekend window
+  Friday 17:00 ET → Sunday 18:00 ET. The check converts the current time to
+  `America/New_York` via `toLocaleString()` so it automatically handles
+  EST ↔ EDT transitions — **do not use hardcoded UTC offsets** for this check.
+  The same utility is used for client-side order validation across all placement
+  paths (BuySellButtons, quick order, preview execute button).
 - Maximum bars per request: 20,000 (API limit); paginate if needed for longer
   history
 - **Whitespace padding + right offset**: After loading historical bars, 500
