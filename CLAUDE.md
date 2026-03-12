@@ -21,19 +21,24 @@ Do not silently skip documentation updates — the docs are how future sessions 
 
 ## Visual Design System
 
-This project has a strict set of design tokens. **Do not invent new color values, opacities, or border radii.** Use only the values in the table at `README.md → Design Tokens`. When in doubt, match the nearest existing component.
+All colors are defined in **`frontend/src/styles/tokens.css`** as CSS custom properties. This is the single source of truth. See `docs/color-palette-rules/README.md` for the full token reference and developer rules.
+
+**Never write a hardcoded hex color in a component file.** Use tokens:
+- Tailwind: `bg-(--color-surface)`, `text-(--color-text-muted)`, `border-(--color-border)`
+- Inline: `var(--color-surface)`
+- Canvas: `import { COLOR_SURFACE } from 'constants/colors'` (reads from CSS vars at runtime)
 
 ### Rules
 
-1. **Transitions everywhere** — Every interactive state change (hover, focus, active, open/close) must be animated. Use `transition-colors` (Tailwind) or `transition: background 0.15s, color 0.15s` (inline). Dropdowns and popovers should fade/slide in, never pop instantly.
-2. **Borders are always `#2a2e39`** — No `#222`, no `#333`, no `rgba` border hacks. One border color. Opacity modifiers (e.g. `border-[#2a2e39]/60`) are allowed for subtlety.
+1. **Transitions everywhere** — Every interactive state change (hover, focus, active, open/close) must be animated. Use `transition-colors` (Tailwind) or `transition: background var(--transition-fast)` (inline). Dropdowns and popovers should fade/slide in, never pop instantly.
+2. **Borders are always `--color-border`** — Use `border-(--color-border)`. One border color. Opacity modifiers (e.g. `border-(--color-border)/60`) are allowed for subtlety.
 3. **Disabled state is always `disabled:opacity-50`** — Not 30, not 40. One value.
 4. **Modal backdrop is `bg-black/60`** — Consistent dimming across all modals.
-5. **Modal panel background** — Use `bg-black` or `bg-[#1e222d]` depending on context. `bg-black` for full-bleed modals (e.g. screenshot preview), `bg-[#1e222d]` for floating panels/dialogs.
-6. **Input/control background is `bg-[#111]`** — Not `#0a0a0a`, not `#000`.
-7. **Hover backgrounds** — Use `hover:bg-[#1e222d]` for list rows/dropdowns, `hover:bg-[#363a45]` for toolbar icon buttons. Never use JS `onMouseEnter`/`onMouseLeave` for hover styling — use Tailwind `hover:` classes.
-8. **Section labels** — `text-[10px] uppercase tracking-wider text-[#787b86]` for all panel section headers.
-9. **No new colors** — If a design needs a color not in the token table, ask first. Don't add one-off hex values.
+5. **Modal panel background** — Use `bg-black` or `bg-(--color-surface)` depending on context. `bg-black` for full-bleed modals (e.g. screenshot preview), `bg-(--color-surface)` for floating panels/dialogs.
+6. **Input/control background is `bg-(--color-input)`** — Not `#0a0a0a`, not `#000`.
+7. **Hover backgrounds** — Use `hover:bg-(--color-hover-row)` for list rows/dropdowns, `hover:bg-(--color-hover-toolbar)` for toolbar icon buttons. Never use JS `onMouseEnter`/`onMouseLeave` for hover styling — use Tailwind `hover:` classes.
+8. **Section labels** — Use the `SECTION_LABEL` constant from `constants/styles.ts`, or `text-[10px] uppercase tracking-wider text-(--color-text-muted)`.
+9. **No new colors** — If a design needs a color not in `tokens.css`, add a new token there with a semantic name. Don't add one-off hex values to component files.
 
 ## Tailwind Gotcha
 

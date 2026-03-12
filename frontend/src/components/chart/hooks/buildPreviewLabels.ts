@@ -8,7 +8,8 @@ import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
 import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT } from './labelUtils';
+import { LABEL_TEXT, LABEL_BG, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
+import { COLOR_LINE_BUY, COLOR_LINE_SELL } from '../../../constants/colors';
 import { isFuturesMarketOpen } from '../../../utils/marketHours';
 
 /**
@@ -49,7 +50,7 @@ export function buildPreviewLabels(
     if (role.kind === 'entry') {
       if (snap.previewHideEntry) continue;
       pnlText = pvSide === OrderSide.Buy ? 'Limit Buy' : 'Limit Sell';
-      pnlBg = '#cac9cb';
+      pnlBg = LABEL_BG;
       displaySize = previewTotalSize;
       onCancel = () => useStore.getState().togglePreview();
       onExecute = async () => {
@@ -120,7 +121,7 @@ export function buildPreviewLabels(
       const slDiff = pvSide === OrderSide.Buy ? entryPrice - price : price - entryPrice;
       const slPnl = calcPnl(slDiff, contract, displaySize);
       pnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
-      pnlBg = '#ff0000';
+      pnlBg = SELL_COLOR;
       onCancel = hasPreset
         ? () => useStore.getState().setDraftSlPoints(0)
         : () => useStore.getState().setAdHocSlPoints(null);
@@ -133,7 +134,7 @@ export function buildPreviewLabels(
         const sz = s1.orderSize;
         const diff = s1.previewSide === OrderSide.Buy ? ep - sp : sp - ep;
         const pnl = calcPnl(diff, contract, sz);
-        return { text: `-$${Math.abs(pnl).toFixed(2)}`, bg: '#ff0000' };
+        return { text: `-$${Math.abs(pnl).toFixed(2)}`, bg: SELL_COLOR };
       };
     } else {
       displaySize = previewTpSizes[role.index] ?? previewTotalSize;
@@ -141,7 +142,7 @@ export function buildPreviewLabels(
       const tpDiff = pvSide === OrderSide.Buy ? price - entryPrice : entryPrice - price;
       const tpPnl = calcPnl(tpDiff, contract, displaySize);
       pnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
-      pnlBg = '#00c805';
+      pnlBg = BUY_COLOR;
       onCancel = hasPreset
         ? () => useStore.getState().setDraftTpPoints(role.index, 0)
         : () => useStore.getState().removeAdHocTp(role.index);
@@ -159,17 +160,17 @@ export function buildPreviewLabels(
         const sz = fittedTps[tpIdx]?.size ?? s2.orderSize;
         const diff = s2.previewSide === OrderSide.Buy ? tp - ep : ep - tp;
         const pnl = calcPnl(diff, contract, sz);
-        return { text: `+$${Math.abs(pnl).toFixed(2)}`, bg: '#00c805', color: '#000' };
+        return { text: `+$${Math.abs(pnl).toFixed(2)}`, bg: BUY_COLOR, color: LABEL_TEXT };
       };
     }
 
     const previewIdx = i;
     const isEntry = role.kind === 'entry';
-    const entrySideBg = pvSide === OrderSide.Buy ? '#00c805' : '#ff0000';
-    const sizeBg = isEntry ? entrySideBg : role.kind === 'sl' ? '#ff0000' : '#00c805';
+    const entrySideBg = pvSide === OrderSide.Buy ? BUY_COLOR : SELL_COLOR;
+    const sizeBg = isEntry ? entrySideBg : role.kind === 'sl' ? SELL_COLOR : BUY_COLOR;
 
     const sections: { text: string; bg: string; color: string }[] = [
-      { text: pnlText, bg: pnlBg, color: isEntry ? '#000' : LABEL_TEXT },
+      { text: pnlText, bg: pnlBg, color: LABEL_TEXT },
       { text: String(displaySize), bg: sizeBg, color: LABEL_TEXT },
     ];
 
@@ -183,12 +184,12 @@ export function buildPreviewLabels(
 
       if (curAdHocSl == null) {
         const slBtnIdx = sections.length;
-        sections.push({ text: '+SL', bg: '#ff444480', color: '#000' });
+        sections.push({ text: '+SL', bg: `${COLOR_LINE_SELL}80`, color: LABEL_TEXT });
         buttonCells.push({ index: slBtnIdx, handler: () => useStore.getState().setAdHocSlPoints(10) });
       }
       if (remainingContracts > 0) {
         const tpBtnIdx = sections.length;
-        sections.push({ text: '+TP', bg: '#00c80580', color: '#000' });
+        sections.push({ text: '+TP', bg: `${COLOR_LINE_BUY}80`, color: LABEL_TEXT });
         buttonCells.push({
           index: tpBtnIdx,
           handler: () => {
@@ -202,7 +203,7 @@ export function buildPreviewLabels(
 
     // Close-X button
     const cancelBtnIdx = sections.length;
-    sections.push({ text: '\u2715', bg: '#e0e0e0', color: '#000' });
+    sections.push({ text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT });
     if (onCancel) {
       buttonCells.push({ index: cancelBtnIdx, handler: onCancel });
     }

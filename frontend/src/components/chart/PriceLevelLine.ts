@@ -1,4 +1,5 @@
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
+import { COLOR_BG, COLOR_TEXT_MUTED, COLOR_LABEL_TEXT } from '../../constants/colors';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ function contrastText(hex: string): string {
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
   const b = parseInt(h.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#131722' : '#fff';
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? COLOR_BG : '#fff';
 }
 
 /** Number of decimals needed to display tick-aligned prices. */
@@ -272,8 +273,8 @@ export class PriceLevelLine {
         totalW += w;
         vis.push({
           text: t,
-          bg: cell.style.background || cell.style.backgroundColor || '#787b86',
-          color: cell.style.color || '#000',
+          bg: cell.style.background || cell.style.backgroundColor || COLOR_TEXT_MUTED,
+          color: cell.style.color || COLOR_LABEL_TEXT,
         });
       }
 
@@ -285,7 +286,7 @@ export class PriceLevelLine {
           ctx.fillStyle = v.bg;
           ctx.fillRect(x, y - cellH / 2, w, cellH);
           if (j > 0) {
-            ctx.fillStyle = '#000';
+            ctx.fillStyle = COLOR_LABEL_TEXT;
             ctx.fillRect(x, y - cellH / 2, 1, cellH);
           }
           ctx.fillStyle = v.color;
@@ -346,14 +347,14 @@ export class PriceLevelLine {
         cell.style.cssText =
           `display:flex;align-items:center;gap:0;background:${s.bg};color:${s.color};padding:0 6px 0 4px;` ;
         const bar = document.createElement('div');
-        bar.style.cssText = 'width:1px;height:14px;background:#000;flex-shrink:0;margin-right:4px;';
+        bar.style.cssText = `width:1px;height:14px;background:${COLOR_LABEL_TEXT};flex-shrink:0;margin-right:4px;`;
         cell.appendChild(bar);
         const text = document.createElement('span');
         text.textContent = s.text;
         cell.appendChild(text);
       } else {
         cell.style.cssText =
-          `background:${s.bg};color:${s.color};padding:0 6px;border-left:1px solid #000;`;
+          `background:${s.bg};color:${s.color};padding:0 6px;border-left:1px solid ${COLOR_LABEL_TEXT};`;
         cell.textContent = s.text;
       }
       this._cells.push(cell);

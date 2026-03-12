@@ -45,7 +45,7 @@ function VerticalSeparator({
   return (
     <div
       className={`h-1 cursor-row-resize flex-shrink-0 transition-colors ${
-        dragging ? 'bg-[#2962ff]' : 'bg-black hover:bg-[#434651]'
+        dragging ? 'bg-(--color-accent)' : 'bg-black hover:bg-(--color-text-dim)'
       }`}
       onMouseDown={(e) => { e.preventDefault(); setDragging(true); }}
     />
@@ -142,7 +142,7 @@ export default function App() {
   }, [connected]);
 
   return (
-    <div className="flex flex-col h-screen bg-[#131722] text-[#d1d4dc]">
+    <div className="flex flex-col h-screen bg-(--color-bg) text-(--color-text)">
       <TopBar />
 
       {/* Main content area */}
@@ -177,10 +177,10 @@ export default function App() {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-3">
-              <p className="text-[#434651] text-sm">Not connected</p>
+              <p className="text-(--color-text-dim) text-sm">Not connected</p>
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="text-sm rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors" style={{ padding: '10px 28px' }}
+                className="text-sm rounded-lg bg-(--color-accent) text-white hover:bg-(--color-accent-hover) transition-colors" style={{ padding: '10px 28px' }}
               >
                 Connect to TopstepX
               </button>

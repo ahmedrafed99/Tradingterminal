@@ -8,6 +8,7 @@ import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ArmedDragState } from './conditionLineTypes';
 import { CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL, CLR_ARM_ABOVE, CLR_ARM_BELOW } from './conditionLineTypes';
+import { LABEL_BG, LABEL_TEXT, CLOSE_BG } from './labelUtils';
 
 /**
  * Effect 1: Creates dashed lines on the chart for each armed condition
@@ -61,8 +62,8 @@ export function useArmedConditionLines(
 
       line.setLabel([
         { text: arrowChar, bg: isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW, color: '#fff' },
-        { text: `${isAbove ? 'Above' : 'Below'} ${cond.timeframe}`, bg: '#cac9cb', color: '#000' },
-        { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+        { text: `${isAbove ? 'Above' : 'Below'} ${cond.timeframe}`, bg: LABEL_BG, color: LABEL_TEXT },
+        { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
       ]);
 
       const labelEl = line.getLabelEl();
@@ -126,9 +127,9 @@ export function useArmedConditionLines(
         });
 
         orderLine.setLabel([
-          { text: sideLabel, bg: '#cac9cb', color: '#000' },
-          { text: String(cond.orderSize), bg: sideBg, color: '#000' },
-          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+          { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT },
+          { text: String(cond.orderSize), bg: sideBg, color: LABEL_TEXT },
+          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
         ]);
 
         const orderLabelEl = orderLine.getLabelEl();

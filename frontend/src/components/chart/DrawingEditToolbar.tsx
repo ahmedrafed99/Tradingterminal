@@ -43,9 +43,9 @@ function TextColorGrid({
               height: 20,
               background: c,
               borderRadius: 3,
-              border: c === color ? '2px solid #fff' : '1px solid #2a2e39',
+              border: c === color ? '2px solid #fff' : '1px solid var(--color-border)',
               cursor: 'pointer',
-              boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
+              boxShadow: c === color ? '0 0 0 1px var(--color-surface)' : 'none',
             }}
           />
         ))}
@@ -61,9 +61,9 @@ function TextColorGrid({
                   height: 20,
                   background: c,
                   borderRadius: 3,
-                  border: c === color ? '2px solid #fff' : '1px solid #2a2e39',
+                  border: c === color ? '2px solid #fff' : '1px solid var(--color-border)',
                   cursor: 'pointer',
-                  boxShadow: c === color ? '0 0 0 1px #1e222d' : 'none',
+                  boxShadow: c === color ? '0 0 0 1px var(--color-surface)' : 'none',
                 }}
               />
               <button
@@ -71,8 +71,8 @@ function TextColorGrid({
                 className="absolute opacity-0 group-hover:opacity-100"
                 style={{
                   top: -4, right: -4, width: 12, height: 12,
-                  borderRadius: '50%', background: '#000', border: '1px solid #434651',
-                  color: '#787b86', fontSize: 8, lineHeight: '10px',
+                  borderRadius: '50%', background: '#000', border: '1px solid var(--color-text-dim)',
+                  color: 'var(--color-text-muted)', fontSize: 8, lineHeight: '10px',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'opacity 0.15s',
                 }}
@@ -89,9 +89,9 @@ function TextColorGrid({
           width: 20,
           height: 20,
           borderRadius: 3,
-          border: '1px dashed #787b86',
+          border: '1px dashed var(--color-text-muted)',
           background: 'transparent',
-          color: '#787b86',
+          color: 'var(--color-text-muted)',
           fontSize: 14,
           lineHeight: '18px',
           cursor: 'pointer',
@@ -172,10 +172,10 @@ function TextPopover({
     width: 28,
     height: 28,
     borderRadius: 4,
-    border: active ? '1px solid #434651' : '1px solid transparent',
+    border: active ? '1px solid var(--color-text-dim)' : '1px solid transparent',
     cursor: 'pointer',
-    background: active ? '#111' : 'transparent',
-    color: active ? '#f0a830' : '#787b86',
+    background: active ? 'var(--color-input)' : 'transparent',
+    color: active ? 'var(--color-warning)' : 'var(--color-text-muted)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -185,7 +185,7 @@ function TextPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      className="absolute top-full left-0 mt-1 border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ padding: 12, width: 290, background: '#000' }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -199,7 +199,7 @@ function TextPopover({
             height: 28,
             background: color,
             borderRadius: 4,
-            border: showColorGrid ? '2px solid #fff' : '1px solid #2a2e39',
+            border: showColorGrid ? '2px solid #fff' : '1px solid var(--color-border)',
             cursor: 'pointer',
             flexShrink: 0,
             transition: 'border-color 0.15s',
@@ -211,9 +211,9 @@ function TextPopover({
           value={fontSize}
           onChange={(e) => setFontSize(Number(e.target.value))}
           style={{
-            background: '#111',
-            color: '#d1d4dc',
-            border: '1px solid #2a2e39',
+            background: 'var(--color-input)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
             borderRadius: 4,
             padding: '4px 6px',
             fontSize: 12,
@@ -266,7 +266,7 @@ function TextPopover({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="text"
-        className="w-full text-[#d1d4dc] text-xs rounded outline-none"
+        className="w-full text-(--color-text) text-xs rounded outline-none"
         style={{
           padding: '8px 10px',
           marginBottom: 8,
@@ -275,8 +275,8 @@ function TextPopover({
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
           fontSize: 12,
           lineHeight: '1.4',
-          border: '1px solid #2a2e39',
-          background: '#111',
+          border: '1px solid var(--color-border)',
+          background: 'var(--color-input)',
         }}
         autoFocus
       />
@@ -309,7 +309,7 @@ function TextPopover({
               </button>
             ))}
           </div>
-          <div style={{ width: 1, height: 20, background: '#2a2e39', flexShrink: 0 }} />
+          <div style={{ width: 1, height: 20, background: 'var(--color-border)', flexShrink: 0 }} />
           {/* Horizontal alignment buttons */}
           <div className="flex items-center" style={{ gap: 2, flex: 1 }}>
             {(['left', 'center', 'right'] as TextHAlign[]).map((h) => (
@@ -339,16 +339,16 @@ function TextPopover({
       <div className="flex justify-end" style={{ gap: 6 }}>
         <button
           onClick={cancel}
-          className="text-xs text-[#d1d4dc] rounded"
+          className="text-xs text-(--color-text) rounded"
           style={{
             padding: '5px 16px',
-            background: '#1e222d',
-            border: '1px solid #2a2e39',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
             cursor: 'pointer',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#363a45')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#1e222d')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-hover-toolbar)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface)')}
         >
           Cancel
         </button>
@@ -357,13 +357,13 @@ function TextPopover({
           className="text-xs text-white rounded"
           style={{
             padding: '5px 16px',
-            background: '#1a3a6e',
+            background: 'var(--color-focus-ring)',
             border: '1px solid transparent',
             cursor: 'pointer',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = '#1e4a8a')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = '#1a3a6e')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-focus-ring)')}
         >
           Ok
         </button>
@@ -376,7 +376,7 @@ function TextPopover({
 // Toolbar separator
 // ---------------------------------------------------------------------------
 function Divider() {
-  return <div style={{ width: 1, height: 20, background: '#434651', flexShrink: 0 }} />;
+  return <div style={{ width: 1, height: 20, background: 'var(--color-text-dim)', flexShrink: 0 }} />;
 }
 
 // ---------------------------------------------------------------------------
@@ -404,7 +404,7 @@ function StrokePopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-1/2 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      className="absolute top-full left-1/2 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ transform: 'translateX(-50%)', padding: '6px 4px', width: 120 }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -412,21 +412,21 @@ function StrokePopover({
         <button
           key={w}
           onClick={() => { onChange(w); onClose(); }}
-          className="flex items-center w-full rounded hover:bg-[#363a45]"
+          className="flex items-center w-full rounded hover:bg-(--color-hover-toolbar)"
           style={{
             padding: '6px 10px',
             gap: 10,
             cursor: 'pointer',
-            background: w === current ? '#363a45' : 'transparent',
+            background: w === current ? 'var(--color-hover-toolbar)' : 'transparent',
             border: 'none',
           }}
         >
           {/* Line preview */}
           <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-            <div style={{ width: '100%', height: w, background: '#d1d4dc', borderRadius: w / 2 }} />
+            <div style={{ width: '100%', height: w, background: 'var(--color-text)', borderRadius: w / 2 }} />
           </div>
           {/* Label */}
-          <span style={{ color: '#787b86', fontSize: 11, flexShrink: 0 }}>{w}px</span>
+          <span style={{ color: 'var(--color-text-muted)', fontSize: 11, flexShrink: 0 }}>{w}px</span>
         </button>
       ))}
     </div>
@@ -528,7 +528,7 @@ function TemplatePopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ padding: '4px 0', width: 220, maxHeight: 300, overflowY: 'auto', overflowX: 'hidden' }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -536,23 +536,23 @@ function TemplatePopover({
       {templates.map((t) => (
         <div
           key={t.id}
-          className="flex items-center gap-2 hover:bg-[#363a45] group"
+          className="flex items-center gap-2 hover:bg-(--color-hover-toolbar) group"
           style={{ padding: '6px 10px', cursor: 'pointer' }}
           onClick={() => { onApply(t); onClose(); }}
         >
           <div style={{
             width: 10, height: 10, borderRadius: '50%',
             background: t.color, flexShrink: 0,
-            border: '1px solid #2a2e39',
+            border: '1px solid var(--color-border)',
           }} />
           <div style={{
             width: 16, height: t.strokeWidth, background: t.color,
             borderRadius: t.strokeWidth / 2, flexShrink: 0,
           }} />
-          <span className="text-[#d1d4dc] text-xs truncate" style={{ flex: 1 }}>{t.name}</span>
+          <span className="text-(--color-text) text-xs truncate" style={{ flex: 1 }}>{t.name}</span>
           <button
             onClick={(e) => { e.stopPropagation(); removeTemplate(t.id); }}
-            className="text-[#787b86] hover:text-[#f44336] opacity-0 group-hover:opacity-100"
+            className="text-(--color-text-muted) hover:text-(--color-error) opacity-0 group-hover:opacity-100"
             style={{ fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: 0 }}
           >
             &times;
@@ -561,7 +561,7 @@ function TemplatePopover({
       ))}
 
       {templates.length > 0 && (
-        <div style={{ height: 1, background: '#2a2e39', margin: '2px 0' }} />
+        <div style={{ height: 1, background: 'var(--color-border)', margin: '2px 0' }} />
       )}
 
       {/* Save as... */}
@@ -579,18 +579,18 @@ function TemplatePopover({
               }}
               onFocus={() => setShowSuggestions(true)}
               placeholder="Template name"
-              className="bg-[#131722] text-white text-xs rounded outline-none"
+              className="bg-(--color-bg) text-white text-xs rounded outline-none"
               style={{
                 flex: 1, minWidth: 0, padding: '4px 8px',
-                border: '1px solid #2a2e39',
+                border: '1px solid var(--color-border)',
               }}
             />
             <button
               onClick={handleSave}
               className="text-xs text-white rounded"
-              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: '#1a3a6e', transition: 'background 0.15s' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#1e4a8a')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#1a3a6e')}
+              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: 'var(--color-focus-ring)', transition: 'background 0.15s' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-focus-ring)')}
             >
               Save
             </button>
@@ -598,20 +598,20 @@ function TemplatePopover({
           {/* Suggestions dropdown */}
           {showSuggestions && suggestions.length > 0 && (
             <div
-              className="bg-[#131722] border border-[#2a2e39] rounded"
+              className="bg-(--color-bg) border border-(--color-border) rounded"
               style={{ marginTop: 4, maxHeight: 120, overflowY: 'auto' }}
             >
               {suggestions.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => { setName(t.name); setShowSuggestions(false); nameRef.current?.focus(); }}
-                  className="flex items-center gap-2 w-full text-left text-xs text-[#d1d4dc] hover:bg-[#1e222d]"
+                  className="flex items-center gap-2 w-full text-left text-xs text-(--color-text) hover:bg-(--color-surface)"
                   style={{ padding: '5px 8px', border: 'none', background: 'none', cursor: 'pointer' }}
                 >
                   <div style={{
                     width: 8, height: 8, borderRadius: '50%',
                     background: t.color, flexShrink: 0,
-                    border: '1px solid #2a2e39',
+                    border: '1px solid var(--color-border)',
                   }} />
                   <span className="truncate">{t.name}</span>
                 </button>
@@ -622,7 +622,7 @@ function TemplatePopover({
       ) : (
         <button
           onClick={() => setSaving(true)}
-          className="flex items-center gap-2 w-full text-left text-[#d1d4dc] text-xs hover:bg-[#363a45]"
+          className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs hover:bg-(--color-hover-toolbar)"
           style={{ padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer' }}
         >
           Save as...
@@ -632,20 +632,20 @@ function TemplatePopover({
       {/* Apply defaults */}
       <button
         onClick={handleApplyDefaults}
-        className="flex items-center gap-2 w-full text-left text-[#d1d4dc] text-xs hover:bg-[#363a45]"
+        className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs hover:bg-(--color-hover-toolbar)"
         style={{ padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer' }}
       >
         Apply defaults
       </button>
 
-      <div style={{ height: 1, background: '#2a2e39', margin: '2px 0' }} />
+      <div style={{ height: 1, background: 'var(--color-border)', margin: '2px 0' }} />
 
       {/* Export / Import */}
       <div className="flex items-center" style={{ padding: '4px 10px', gap: 4 }}>
         <button
           onClick={handleExport}
           disabled={templates.length === 0}
-          className="text-xs text-[#d1d4dc] hover:bg-[#363a45] rounded"
+          className="text-xs text-(--color-text) hover:bg-(--color-hover-toolbar) rounded"
           style={{
             flex: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
             opacity: templates.length === 0 ? 0.4 : 1,
@@ -655,7 +655,7 @@ function TemplatePopover({
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          className="text-xs text-[#d1d4dc] hover:bg-[#363a45] rounded"
+          className="text-xs text-(--color-text) hover:bg-(--color-hover-toolbar) rounded"
           style={{ flex: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer' }}
         >
           Import
@@ -693,9 +693,9 @@ export function DrawingEditToolbar({
 
   if (!drawing) return null;
 
-  const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-[#787b86] transition-colors duration-150";
-  const btnHover = "hover:bg-[#363a45] hover:text-[#d1d4dc]";
-  const btnActive = "bg-[#363a45] text-white";
+  const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text-muted) transition-colors duration-150";
+  const btnHover = "hover:bg-(--color-hover-toolbar) hover:text-(--color-text)";
+  const btnActive = "bg-(--color-hover-toolbar) text-white";
 
   return (
     <div
@@ -707,7 +707,7 @@ export function DrawingEditToolbar({
         padding: '4px 6px',
         gap: 4,
         background: '#000000',
-        border: '1px solid #2a2e39',
+        border: '1px solid var(--color-border)',
         borderRadius: 8,
         boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
       }}
@@ -729,7 +729,7 @@ export function DrawingEditToolbar({
           <div style={{
             position: 'absolute', bottom: 4, right: 4,
             width: 8, height: 8, borderRadius: '50%',
-            background: drawing.color, border: '1px solid #2a2e39',
+            background: drawing.color, border: '1px solid var(--color-border)',
           }} />
         </button>
         {showColor && (
@@ -756,7 +756,7 @@ export function DrawingEditToolbar({
           <div style={{
             position: 'absolute', bottom: 4, right: 4,
             width: 8, height: 8, borderRadius: '50%',
-            background: drawing.text?.color ?? '#ffffff', border: '1px solid #2a2e39',
+            background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
           }} />
         </button>
         {showText && (
@@ -844,7 +844,7 @@ export function DrawingEditToolbar({
       {/* Delete */}
       <button
         onClick={() => { removeDrawing(drawing.id); setSelectedDrawingId(null); }}
-        className={`${btnBase} hover:bg-[#363a45] hover:text-[#f44336]`}
+        className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
         title="Delete"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

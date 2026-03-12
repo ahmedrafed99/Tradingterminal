@@ -12,6 +12,7 @@ import type {
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { ISeriesPrimitive } from 'lightweight-charts';
 import type { Drawing, RulerMetrics } from '../../../types/drawing';
+import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT } from '../../../constants/colors';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
@@ -345,13 +346,13 @@ function contrastTextColor(hex: string): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   // Perceived brightness (ITU-R BT.709)
-  return (r * 0.299 + g * 0.587 + b * 0.114) > 150 ? '#000000' : '#ffffff';
+  return (r * 0.299 + g * 0.587 + b * 0.114) > 150 ? COLOR_LABEL_TEXT : '#ffffff';
 }
 
 class DrawingPriceAxisView implements ISeriesPrimitiveAxisView {
   _coordinate = 0;
   _text = '';
-  _color = '#787b86';
+  _color = COLOR_TEXT_MUTED;
   _selected = false;
 
   update(coordinate: number, text: string, color: string, selected: boolean): void {
@@ -407,7 +408,7 @@ class SelectedDrawingAxisRenderer implements IPrimitivePaneRenderer {
 class SelectedDrawingAxisPaneView implements IPrimitivePaneView {
   _text = '';
   _y = 0;
-  _bgColor = '#787b86';
+  _bgColor = COLOR_TEXT_MUTED;
   _textColor = '#ffffff';
 
   update(text: string, y: number, bgColor: string, textColor: string): void {

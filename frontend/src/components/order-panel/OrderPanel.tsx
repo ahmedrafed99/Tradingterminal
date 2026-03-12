@@ -396,7 +396,7 @@ export function OrderPanel() {
 
   return (
     <div
-      className="flex flex-col bg-black border-r border-[#2a2e39] overflow-y-auto"
+      className="flex flex-col bg-black border-r border-(--color-border) overflow-y-auto"
       style={{ width: 240, minWidth: 240, padding: 12 }}
     >
       <div className="flex flex-col" style={{ gap: 20 }}>
@@ -408,7 +408,7 @@ export function OrderPanel() {
           <div className="absolute" style={{ top: -2, right: -4 }}>
             <LinkChartButton linked={orderLinkedToChart} onToggle={setOrderLinkedToChart} />
           </div>
-          <div className="bg-[#111] rounded" style={{ marginTop: 6 }}>
+          <div className="bg-(--color-input) rounded" style={{ marginTop: 6 }}>
             <InstrumentSelector fixed />
           </div>
         </div>
@@ -456,7 +456,7 @@ function LinkChartButton({ linked, onToggle }: {
       style={{ padding: '0 2px' }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-        stroke={isActiveForSelected ? '#f0a830' : '#787b86'}
+        stroke={isActiveForSelected ? 'var(--color-warning)' : 'var(--color-text-muted)'}
         strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
         style={{ transition: 'stroke 0.2s ease' }}
       >
@@ -477,9 +477,9 @@ function PreviewToggle() {
           type="checkbox"
           checked={previewEnabled}
           onChange={togglePreview}
-          className="accent-[#2962ff] w-3.5 h-3.5"
+          className="accent-(--color-accent) w-3.5 h-3.5"
         />
-        <span className="text-xs text-[#787b86]">Preview</span>
+        <span className="text-xs text-(--color-text-muted)">Preview</span>
       </label>
       {previewEnabled && (
         <div className="flex rounded overflow-hidden" style={{ height: 20 }}>
@@ -488,8 +488,8 @@ function PreviewToggle() {
             className="text-[10px] font-medium transition-colors"
             style={{
               padding: '0 6px',
-              background: previewSide === OrderSide.Buy ? '#26a69a' : '#111',
-              color: previewSide === OrderSide.Buy ? '#fff' : '#787b86',
+              background: previewSide === OrderSide.Buy ? 'var(--color-buy)' : 'var(--color-input)',
+              color: previewSide === OrderSide.Buy ? '#fff' : 'var(--color-text-muted)',
             }}
           >
             Long
@@ -499,8 +499,8 @@ function PreviewToggle() {
             className="text-[10px] font-medium transition-colors"
             style={{
               padding: '0 6px',
-              background: previewSide === OrderSide.Sell ? '#ef5350' : '#111',
-              color: previewSide === OrderSide.Sell ? '#fff' : '#787b86',
+              background: previewSide === OrderSide.Sell ? 'var(--color-sell)' : 'var(--color-input)',
+              color: previewSide === OrderSide.Sell ? '#fff' : 'var(--color-text-muted)',
             }}
           >
             Short

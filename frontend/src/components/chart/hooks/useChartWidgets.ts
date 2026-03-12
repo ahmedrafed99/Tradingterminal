@@ -5,6 +5,7 @@ import { useStore } from '../../../store/useStore';
 import { getCandlePeriodSeconds } from '../barUtils';
 import { matchTrades } from '../TradeZonePrimitive';
 import type { ChartRefs } from './types';
+import { COLOR_TEXT_MUTED, COLOR_TEXT_MEDIUM } from '../../../constants/colors';
 
 /**
  * Handles trade zones, OHLC tooltip, crosshair price label, and scroll-to-latest button.
@@ -69,14 +70,14 @@ export function useChartWidgets(
 
     function render(o: number, h: number, l: number, c: number) {
       const bullish = c >= o;
-      const valColor = bullish ? '#9598a1' : '#0097a6';
+      const valColor = bullish ? COLOR_TEXT_MEDIUM : '#0097a6';
       const change = c - o;
       const sign = change >= 0 ? '+' : '';
       el!.innerHTML =
-        `<span style="color:#787b86">O</span><span style="color:${valColor}">${fmt(o)}</span> ` +
-        `<span style="color:#787b86">H</span><span style="color:${valColor}">${fmt(h)}</span> ` +
-        `<span style="color:#787b86">L</span><span style="color:${valColor}">${fmt(l)}</span> ` +
-        `<span style="color:#787b86">C</span><span style="color:${valColor}">${fmt(c)}</span> ` +
+        `<span style="color:${COLOR_TEXT_MUTED}">O</span><span style="color:${valColor}">${fmt(o)}</span> ` +
+        `<span style="color:${COLOR_TEXT_MUTED}">H</span><span style="color:${valColor}">${fmt(h)}</span> ` +
+        `<span style="color:${COLOR_TEXT_MUTED}">L</span><span style="color:${valColor}">${fmt(l)}</span> ` +
+        `<span style="color:${COLOR_TEXT_MUTED}">C</span><span style="color:${valColor}">${fmt(c)}</span> ` +
         `<span style="color:${valColor}">${sign}${fmt(change)}</span>`;
     }
 

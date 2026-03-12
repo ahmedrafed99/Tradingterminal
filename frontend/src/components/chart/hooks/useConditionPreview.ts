@@ -10,6 +10,7 @@ import { showToast, errorMessage } from '../../../utils/toast';
 import {
   installSizeButtons, formatSlPnl, formatTpPnl,
   updateSizeCellCount, BUY_HOVER, SELL_HOVER,
+  LABEL_BG, LABEL_TEXT, CLOSE_BG, BUY_COLOR,
 } from './labelUtils';
 import { snapToTickSize } from '../barUtils';
 import { calcPnl } from '../../../utils/instrument';
@@ -124,22 +125,22 @@ export function useConditionPreview(
 
       p.condLine.setLabel([
         { text: arrowChar, bg: armBg, color: '#fff' },
-        { text: `${condText} ${timeframe.label}`, bg: '#cac9cb', color: '#000' },
-        { text: orderTypeText, bg: '#cac9cb', color: '#000' },
+        { text: `${condText} ${timeframe.label}`, bg: LABEL_BG, color: LABEL_TEXT },
+        { text: orderTypeText, bg: LABEL_BG, color: LABEL_TEXT },
         { text: 'ARM', bg: armBg, color: '#fff' },
-        { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+        { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
       ]);
 
       // Order / market label
       if (p.orderLine) {
         const sections = [
-          { text: sideText, bg: '#cac9cb', color: '#000' },
-          { text: String(p.size), bg: sideBg, color: '#000' },
+          { text: sideText, bg: LABEL_BG, color: LABEL_TEXT },
+          { text: String(p.size), bg: sideBg, color: LABEL_TEXT },
         ];
-        if (!p.slLine) sections.push({ text: '+SL', bg: CLR_SL, color: '#000' });
+        if (!p.slLine) sections.push({ text: '+SL', bg: CLR_SL, color: LABEL_TEXT });
         const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-        if (totalTpSize < p.size) sections.push({ text: '+TP', bg: '#00c805', color: '#000' });
-        sections.push({ text: '\u2715', bg: '#e0e0e0', color: '#000' });
+        if (totalTpSize < p.size) sections.push({ text: '+TP', bg: BUY_COLOR, color: LABEL_TEXT });
+        sections.push({ text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT });
         p.orderLine.setLabel(sections);
       }
 
@@ -304,11 +305,11 @@ export function useConditionPreview(
       if (p.slLine && p.slPrice != null) {
         updateLineSizeCell(p.slLine, 1, p.size);
         const txt = slPnlText(p.orderPrice, p.slPrice, p.size, p.isAbove);
-        p.slLine.updateSection(0, txt, CLR_SL, '#000');
+        p.slLine.updateSection(0, txt, CLR_SL, LABEL_TEXT);
       }
       for (const tp of p.tpLines) {
         const txt = tpPnlText(p.orderPrice, tp.price, tp.size, p.isAbove);
-        tp.line.updateSection(0, txt, CLR_TP, '#000');
+        tp.line.updateSection(0, txt, CLR_TP, LABEL_TEXT);
       }
       updatePreviewLabels();
     }
@@ -380,7 +381,7 @@ export function useConditionPreview(
           tpEntry.size--;
           kit.setCount(tpEntry.size);
           const txt = tpPnlText(p.orderPrice, tpEntry.price, tpEntry.size, p.isAbove);
-          tpEntry.line.updateSection(0, txt, CLR_TP, '#000');
+          tpEntry.line.updateSection(0, txt, CLR_TP, LABEL_TEXT);
           updatePreviewLabels();
         },
         onPlus: () => {
@@ -389,7 +390,7 @@ export function useConditionPreview(
           tpEntry.size++;
           kit.setCount(tpEntry.size);
           const txt = tpPnlText(p.orderPrice, tpEntry.price, tpEntry.size, p.isAbove);
-          tpEntry.line.updateSection(0, txt, CLR_TP, '#000');
+          tpEntry.line.updateSection(0, txt, CLR_TP, LABEL_TEXT);
           updatePreviewLabels();
         },
         isMinDisabled: () => tpEntry.size <= 1,
@@ -422,9 +423,9 @@ export function useConditionPreview(
         lineColor: CLR_SL, lineStyle: 'dashed', lineWidth: 1,
         axisLabelVisible: true, tickSize,
         label: [
-          { text: pnlTxt, bg: CLR_SL, color: '#000' },
-          { text: String(p.size), bg: CLR_SL, color: '#000' },
-          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+          { text: pnlTxt, bg: CLR_SL, color: LABEL_TEXT },
+          { text: String(p.size), bg: CLR_SL, color: LABEL_TEXT },
+          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
         ],
       });
 
@@ -487,9 +488,9 @@ export function useConditionPreview(
         lineColor: CLR_TP, lineStyle: 'dashed', lineWidth: 1,
         axisLabelVisible: true, tickSize,
         label: [
-          { text: pnlTxt, bg: CLR_TP, color: '#000' },
-          { text: String(tpSize), bg: CLR_TP, color: '#000' },
-          { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+          { text: pnlTxt, bg: CLR_TP, color: LABEL_TEXT },
+          { text: String(tpSize), bg: CLR_TP, color: LABEL_TEXT },
+          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
         ],
       });
 

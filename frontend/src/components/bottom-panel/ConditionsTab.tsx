@@ -10,11 +10,11 @@ const ALL_STATUSES = ['armed', 'paused', 'triggered', 'failed', 'expired'] as co
 type ConditionStatus = (typeof ALL_STATUSES)[number];
 
 const STATUS_COLORS: Record<string, string> = {
-  armed: 'text-[#26a69a]',
-  paused: 'text-[#787b86]',
-  triggered: 'text-[#2962ff]',
-  failed: 'text-[#ef5350]',
-  expired: 'text-[#787b86]',
+  armed: 'text-(--color-buy)',
+  paused: 'text-(--color-text-muted)',
+  triggered: 'text-(--color-accent)',
+  failed: 'text-(--color-sell)',
+  expired: 'text-(--color-text-muted)',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -124,7 +124,7 @@ export function ConditionsTab() {
   }
 
   const toolbar = (
-    <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
+    <div className="flex items-center h-8 shrink-0 border-b border-(--color-border)">
       <div style={{ width: '70%' }} />
       <div className="ml-auto flex items-center gap-3" style={{ paddingRight: 16 }}>
         <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -132,15 +132,15 @@ export function ConditionsTab() {
             type="checkbox"
             checked={conditionPreview}
             onChange={(e) => setConditionPreview(e.target.checked)}
-            className="accent-[#2962ff] w-3 h-3 cursor-pointer"
+            className="accent-(--color-accent) w-3 h-3 cursor-pointer"
           />
-          <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-[#d1d4dc]' : 'text-[#787b86]'}`}>
+          <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-(--color-text)' : 'text-(--color-text-muted)'}`}>
             Preview
           </span>
         </label>
         <button
           onClick={() => openConditionModal()}
-          className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer select-none"
+          className="text-[11px] text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer select-none"
           style={{ padding: '2px 8px' }}
         >
           + New
@@ -151,7 +151,7 @@ export function ConditionsTab() {
 
   if (!serverUrl) {
     return (
-      <div className="flex items-center justify-center h-full text-[#434651] text-xs">
+      <div className="flex items-center justify-center h-full text-(--color-text-dim) text-xs">
         Set a Condition Server URL in Settings to use conditional orders
       </div>
     );
@@ -166,7 +166,7 @@ export function ConditionsTab() {
     <div className="px-3 text-center relative" ref={filterRef}>
       <button
         onClick={() => setFilterOpen(!filterOpen)}
-        className="cursor-pointer select-none hover:text-[#d1d4dc] transition-colors inline-flex items-center gap-1"
+        className="cursor-pointer select-none hover:text-(--color-text) transition-colors inline-flex items-center gap-1"
       >
         {filterLabel}
         <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style={{ opacity: 0.6 }}>
@@ -175,7 +175,7 @@ export function ConditionsTab() {
       </button>
       {filterOpen && (
         <div
-          className="absolute left-1/2 top-full mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50"
+          className="absolute left-1/2 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg z-50"
           style={{ background: '#000', minWidth: 120, transform: 'translateX(-50%)' }}
         >
           {ALL_STATUSES.map((s) => {
@@ -184,14 +184,14 @@ export function ConditionsTab() {
               <button
                 key={s}
                 onClick={() => toggleStatus(s)}
-                className={`flex items-center gap-2 w-full text-left text-xs hover:bg-[#2a2e39] transition-colors cursor-pointer ${
-                  active ? 'text-[#d1d4dc]' : 'text-[#787b86]'
+                className={`flex items-center gap-2 w-full text-left text-xs hover:bg-(--color-border) transition-colors cursor-pointer ${
+                  active ? 'text-(--color-text)' : 'text-(--color-text-muted)'
                 }`}
                 style={{ padding: '6px 12px' }}
               >
                 <span
-                  className="inline-block w-3 h-3 rounded-sm border border-[#2a2e39] shrink-0"
-                  style={{ background: active ? '#2962ff' : 'transparent' }}
+                  className="inline-block w-3 h-3 rounded-sm border border-(--color-border) shrink-0"
+                  style={{ background: active ? 'var(--color-accent)' : 'transparent' }}
                 />
                 <span className={STATUS_COLORS[s]}>{STATUS_LABELS[s]}</span>
               </button>
@@ -206,7 +206,7 @@ export function ConditionsTab() {
     return (
       <div className="flex flex-col h-full">
         {toolbar}
-        <div className="flex items-center justify-center flex-1 text-[#434651] text-xs">
+        <div className="flex items-center justify-center flex-1 text-(--color-text-dim) text-xs">
           No conditions
         </div>
       </div>
@@ -216,9 +216,9 @@ export function ConditionsTab() {
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black border-b border-[#2a2e39]">
+      <div className="sticky top-0 z-10 bg-black border-b border-(--color-border)">
         <div className="flex items-center h-8">
-          <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '85%' }}>
+          <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '85%' }}>
             {statusHeaderEl}
             <div className="px-3 text-center">Condition</div>
             <div className="px-3 text-center">Trigger</div>
@@ -234,15 +234,15 @@ export function ConditionsTab() {
                 type="checkbox"
                 checked={conditionPreview}
                 onChange={(e) => setConditionPreview(e.target.checked)}
-                className="accent-[#2962ff] w-3 h-3 cursor-pointer"
+                className="accent-(--color-accent) w-3 h-3 cursor-pointer"
               />
-              <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-[#d1d4dc]' : 'text-[#787b86]'}`}>
+              <span className={`text-[11px] transition-colors ${conditionPreview ? 'text-(--color-text)' : 'text-(--color-text-muted)'}`}>
                 Preview
               </span>
             </label>
             <button
               onClick={() => openConditionModal()}
-              className="text-[11px] text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer select-none"
+              className="text-[11px] text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer select-none"
               style={{ padding: '2px 8px' }}
             >
               + New
@@ -253,7 +253,7 @@ export function ConditionsTab() {
 
       {/* Rows */}
       {filteredConditions.length === 0 && (
-        <div className="flex items-center justify-center text-[#434651] text-xs" style={{ height: 60 }}>
+        <div className="flex items-center justify-center text-(--color-text-dim) text-xs" style={{ height: 60 }}>
           No conditions match filter
         </div>
       )}
@@ -264,32 +264,32 @@ export function ConditionsTab() {
         const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${c.orderSize} ${c.orderType === 'market' ? 'MKT' : `LMT ${c.orderPrice?.toFixed(2) ?? ''}`}`;
 
         return (
-          <div key={c.id} className={`${stripe} hover:bg-[#1e222d]/50 transition-colors`}>
+          <div key={c.id} className={`${stripe} hover:bg-(--color-surface)/50 transition-colors`}>
             <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '85%' }}>
               {/* Status */}
-              <div className={`px-3 text-center font-medium ${STATUS_COLORS[c.status] ?? 'text-[#787b86]'}`}>
+              <div className={`px-3 text-center font-medium ${STATUS_COLORS[c.status] ?? 'text-(--color-text-muted)'}`}>
                 {c.status}
               </div>
 
               {/* Condition type */}
-              <div className="px-3 text-center text-[#d1d4dc]">{condLabel}</div>
+              <div className="px-3 text-center text-(--color-text)">{condLabel}</div>
 
               {/* Trigger price */}
-              <div className="px-3 text-center text-[#d1d4dc]">{c.triggerPrice.toFixed(2)}</div>
+              <div className="px-3 text-center text-(--color-text)">{c.triggerPrice.toFixed(2)}</div>
 
               {/* Timeframe */}
-              <div className="px-3 text-center text-[#9598a1]">{c.timeframe}</div>
+              <div className="px-3 text-center text-(--color-text-medium)">{c.timeframe}</div>
 
               {/* Order */}
               <div className="px-3 text-center whitespace-nowrap">
-                <span className={isBuy ? 'text-[#26a69a]' : 'text-[#ef5350]'}>{orderLabel}</span>
+                <span className={isBuy ? 'text-(--color-buy)' : 'text-(--color-sell)'}>{orderLabel}</span>
               </div>
 
               {/* Symbol */}
-              <div className="px-3 text-center text-[#9598a1]">{shortSymbol(c.contractId)}</div>
+              <div className="px-3 text-center text-(--color-text-medium)">{shortSymbol(c.contractId)}</div>
 
               {/* Bracket */}
-              <div className="px-3 text-center text-[#787b86]">
+              <div className="px-3 text-center text-(--color-text-muted)">
                 {c.bracket?.enabled ? 'Yes' : '\u2014'}
               </div>
 
@@ -300,7 +300,7 @@ export function ConditionsTab() {
                     <button
                       onClick={() => handlePauseResume(c)}
                       disabled={actionId === c.id}
-                      className="text-[#787b86] hover:text-[#d1d4dc] transition-colors disabled:opacity-50"
+                      className="text-(--color-text-muted) hover:text-(--color-text) transition-colors disabled:opacity-50"
                       title={c.status === 'armed' ? 'Pause' : 'Resume'}
                     >
                       {c.status === 'armed' ? '\u23F8' : '\u25B6'}
@@ -308,7 +308,7 @@ export function ConditionsTab() {
                     <button
                       onClick={() => handleDelete(c.id)}
                       disabled={actionId === c.id}
-                      className="text-[#ef5350] hover:bg-[#ef5350]/10 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
+                      className="text-(--color-sell) hover:bg-(--color-sell)/10 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
                       title="Delete"
                     >
                       {actionId === c.id ? '...' : '\u2715'}

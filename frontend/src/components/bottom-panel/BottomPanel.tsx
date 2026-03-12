@@ -5,7 +5,7 @@ import { TradesTab } from './TradesTab';
 import { ConditionsTab } from './ConditionsTab';
 
 function Separator() {
-  return <div className="w-px h-4 bg-[#2a2e39] shrink-0" />;
+  return <div className="w-px h-4 bg-(--color-border) shrink-0" />;
 }
 
 export function BottomPanel() {
@@ -47,7 +47,7 @@ export function BottomPanel() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto border-t border-[#2a2e39]">
+      <div className="flex-1 min-h-0 overflow-auto border-t border-(--color-border)">
         {tab === 'orders' && <OrdersTab />}
         {tab === 'trades' && <TradesTab />}
         {/* Keep ConditionsTab mounted (SSE connection alive) but hidden when inactive */}

@@ -7,6 +7,7 @@ import { snapToTickSize } from '../barUtils';
 import { calcPnl } from '../../../utils/instrument';
 import type { PreviewState, PreviewDragState } from './conditionLineTypes';
 import { CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL, CLR_ARM_ABOVE, CLR_ARM_BELOW, CLR_SL, CLR_TP } from './conditionLineTypes';
+import { LABEL_BG, LABEL_TEXT } from './labelUtils';
 
 /**
  * Effect 4: Mouse move/up handlers for dragging preview lines.
@@ -64,23 +65,23 @@ export function useConditionPreviewDrag(
           const armBg = p.isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
           p.condLine?.setLineColor(p.isAbove ? CLR_ABOVE : CLR_BELOW);
           p.condLine?.updateSection(0, p.isAbove ? '\u25B2' : '\u25BC', armBg, '#fff');
-          p.condLine?.updateSection(1, `If Close ${p.isAbove ? 'Above' : 'Below'} ${timeframe.label}`, '#cac9cb', '#000');
+          p.condLine?.updateSection(1, `If Close ${p.isAbove ? 'Above' : 'Below'} ${timeframe.label}`, LABEL_BG, LABEL_TEXT);
           p.condLine?.updateSection(3, 'ARM', armBg, '#fff');
           const sideBg = p.isAbove ? CLR_BUY : CLR_SELL;
           if (!p.isMarket) p.orderLine?.setLineColor(sideBg);
           const orderWord = p.isMarket ? 'Market' : 'Limit';
-          p.orderLine?.updateSection(0, `${p.isAbove ? 'Buy' : 'Sell'} ${orderWord}`, '#cac9cb', '#000');
+          p.orderLine?.updateSection(0, `${p.isAbove ? 'Buy' : 'Sell'} ${orderWord}`, LABEL_BG, LABEL_TEXT);
           p.orderLine?.updateSection(1, undefined, sideBg);
           // Update SL/TP PnL since direction flipped
           if (p.slLine && p.slPrice != null) {
             const slDiff = p.isAbove ? p.slPrice - p.orderPrice : p.orderPrice - p.slPrice;
             const slPnl = calcPnl(slDiff, contract!, p.size);
-            p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, '#000');
+            p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, LABEL_TEXT);
           }
           for (const tp of p.tpLines) {
             const tpDiff = p.isAbove ? tp.price - p.orderPrice : p.orderPrice - tp.price;
             const tpPnl = calcPnl(tpDiff, contract!, tp.size);
-            tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, '#000');
+            tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, LABEL_TEXT);
           }
         }
       }
@@ -92,7 +93,7 @@ export function useConditionPreviewDrag(
         if (contract) {
           const diff = p.isAbove ? snapped - p.orderPrice : p.orderPrice - snapped;
           const pnl = calcPnl(diff, contract, p.size);
-          p.slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, CLR_SL, '#000');
+          p.slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, CLR_SL, LABEL_TEXT);
         }
       } else if (drag.target === 'tp' && drag.tpIndex != null) {
         const tpEntry = p.tpLines[drag.tpIndex];
@@ -103,7 +104,7 @@ export function useConditionPreviewDrag(
           if (contract) {
             const diff = p.isAbove ? snapped - p.orderPrice : p.orderPrice - snapped;
             const pnl = calcPnl(diff, contract, tpEntry.size);
-            tpEntry.line.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, CLR_TP, '#000');
+            tpEntry.line.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, CLR_TP, LABEL_TEXT);
           }
         }
       }
@@ -114,12 +115,12 @@ export function useConditionPreviewDrag(
       if (p.slLine && p.slPrice != null && contract) {
         const slDiff = p.isAbove ? p.slPrice - refPrice : refPrice - p.slPrice;
         const slPnl = calcPnl(slDiff, contract, p.size);
-        p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, '#000');
+        p.slLine.updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, CLR_SL, LABEL_TEXT);
       }
       for (const tp of p.tpLines) {
         const tpDiff = p.isAbove ? tp.price - refPrice : refPrice - tp.price;
         const tpPnl = calcPnl(tpDiff, contract!, tp.size);
-        tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, '#000');
+        tp.line.updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, CLR_TP, LABEL_TEXT);
       }
     }
 

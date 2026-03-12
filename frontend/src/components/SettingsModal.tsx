@@ -60,17 +60,17 @@ export function SettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setSettingsOpen(false)} className="w-[460px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl">
+    <Modal onClose={() => setSettingsOpen(false)} className="w-[460px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#2a2e39]" style={{ padding: '12px 32px 0 32px' }}>
+        <div className="flex items-center justify-between border-b border-(--color-border)" style={{ padding: '12px 32px 0 32px' }}>
           <div className="flex items-center" style={{ height: 40 }}>
             <TabButton label="API" active={tab === 'api'} onClick={() => setTab('api')} />
-            <div className="w-px h-4 bg-[#2a2e39]" style={{ margin: '0 4px' }} />
+            <div className="w-px h-4 bg-(--color-border)" style={{ margin: '0 4px' }} />
             <TabButton label="Database" active={tab === 'database'} onClick={() => setTab('database')} />
           </div>
           <button
             onClick={() => setSettingsOpen(false)}
-            className="text-[#787b86] hover:text-white transition-colors text-lg leading-none"
+            className="text-(--color-text-muted) hover:text-white transition-colors text-lg leading-none"
           >
             ✕
           </button>
@@ -85,7 +85,7 @@ export function SettingsModal() {
                 <span
                   className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
                 />
-                <span className="text-xs text-[#787b86]">
+                <span className="text-xs text-(--color-text-muted)">
                   {connected ? `Connected · ${baseUrl}` : 'Disconnected'}
                 </span>
               </div>
@@ -93,7 +93,7 @@ export function SettingsModal() {
               {/* Fields — only editable when disconnected */}
               <div className="space-y-3">
                 <label className="block">
-                  <span className="block text-xs text-[#787b86] mb-1">Username</span>
+                  <span className="block text-xs text-(--color-text-muted) mb-1">Username</span>
                   <input
                     type="text"
                     value={userName}
@@ -106,7 +106,7 @@ export function SettingsModal() {
                 </label>
 
                 <label className="block">
-                  <span className="block text-xs text-[#787b86] mb-1">API Key</span>
+                  <span className="block text-xs text-(--color-text-muted) mb-1">API Key</span>
                   <input
                     type="password"
                     value={apiKey}
@@ -119,7 +119,7 @@ export function SettingsModal() {
                 </label>
 
                 <label className="block">
-                  <span className="block text-xs text-[#787b86] mb-1">Gateway URL</span>
+                  <span className="block text-xs text-(--color-text-muted) mb-1">Gateway URL</span>
                   <input
                     type="text"
                     value={url}
@@ -133,9 +133,9 @@ export function SettingsModal() {
               </div>
 
               {/* Condition Server — always editable */}
-              <div className="space-y-3 border-t border-[#2a2e39]" style={{ paddingTop: 16 }}>
+              <div className="space-y-3 border-t border-(--color-border)" style={{ paddingTop: 16 }}>
                 <label className="block">
-                  <span className="block text-xs text-[#787b86] mb-1">Condition Server URL</span>
+                  <span className="block text-xs text-(--color-text-muted) mb-1">Condition Server URL</span>
                   <input
                     type="text"
                     value={condUrl}
@@ -145,7 +145,7 @@ export function SettingsModal() {
                     className={INPUT_DARK}
                     style={{ padding: '10px 14px' }}
                   />
-                  <span className="block text-[10px] text-[#434651] mt-1">Leave empty to disable conditional orders</span>
+                  <span className="block text-[10px] text-(--color-text-dim) mt-1">Leave empty to disable conditional orders</span>
                 </label>
               </div>
 
@@ -156,10 +156,10 @@ export function SettingsModal() {
             </div>
 
             {/* Footer */}
-            <div className="flex justify-end gap-2 border-t border-[#2a2e39]" style={{ padding: '20px 32px' }}>
+            <div className="flex justify-end gap-2 border-t border-(--color-border)" style={{ padding: '20px 32px' }}>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="text-sm text-[#787b86] hover:text-white transition-colors" style={{ padding: '8px 18px' }}
+                className="text-sm text-(--color-text-muted) hover:text-white transition-colors" style={{ padding: '8px 18px' }}
               >
                 Cancel
               </button>
@@ -176,7 +176,7 @@ export function SettingsModal() {
                 <button
                   onClick={handleConnect}
                   disabled={loading || !userName || !apiKey}
-                  className="text-sm font-medium rounded-lg bg-[#2962ff] text-white hover:bg-[#1e4fcc] transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
+                  className="text-sm font-medium rounded-lg bg-(--color-accent) text-white hover:bg-(--color-accent-hover) transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
                 >
                   {loading ? 'Connecting…' : 'Connect'}
                 </button>

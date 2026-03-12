@@ -1,0 +1,61 @@
+/**
+ * Design tokens — THE single source of truth for all colors.
+ * constants/colors.ts reads from these variables at runtime.
+ *
+ * To change a color, edit it HERE only — everything else picks it up automatically.
+ *
+ * Usage in Tailwind:  bg-(--color-surface)  text-(--color-text-muted)
+ * Usage in inline:    var(--color-surface)
+ * Usage in canvas:    import { COLOR_SURFACE } from 'constants/colors'
+ */
+
+:root {
+  /* ── Backgrounds ── */
+  --color-bg: #131722;
+  --color-surface: #1e222d;
+  --color-input: #111111;
+  --color-hover-row: #1e222d;
+  --color-hover-toolbar: #363a45;
+  --color-table-stripe: #0d1117;
+
+  /* ── Text ── */
+  --color-text: #d1d4dc;
+  --color-text-muted: #787b86;
+  --color-text-dim: #434651;
+  --color-text-medium: #9598a1;
+
+  /* ── Borders ── */
+  --color-border: #2a2e39;
+  --color-focus-ring: #1a3a6e;
+
+  /* ── Accents ── */
+  --color-accent: #2962ff;
+  --color-accent-hover: #1e4fcc;
+  --color-warning: #f0a830;
+  --color-error: #f23645;
+
+  /* ── Trade Direction ── */
+  --color-buy: #26a69a;
+  --color-sell: #ef5350;
+
+  /* ── Buy / Sell Button Shades ── */
+  --color-btn-buy: #1b6b4a;
+  --color-btn-buy-hover: #22835b;
+  --color-btn-sell: #8b2232;
+  --color-btn-sell-hover: #a62a3d;
+
+  /* ── Chart Line Colors ── */
+  --color-line-buy: #00c805;
+  --color-line-buy-hover: #00a004;
+  --color-line-sell: #ff0000;
+  --color-line-sell-hover: #cc0000;
+
+  /* ── Label System ── */
+  --color-label-bg: #cac9cb;
+  --color-label-text: #000000;
+  --color-label-close: #e0e0e0;
+
+  /* ── Transitions ── */
+  --transition-fast: 0.15s;
+  --disabled-opacity: 0.5;
+}

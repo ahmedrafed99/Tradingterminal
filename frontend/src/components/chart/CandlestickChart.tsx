@@ -315,8 +315,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   return (
     <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden">
       {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#131722]/80">
-          <span className="text-xs text-[#787b86]">Loading bars...</span>
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-(--color-bg)/80">
+          <span className="text-xs text-(--color-text-muted)">Loading bars...</span>
         </div>
       )}
       {error && !loading && (
@@ -327,7 +327,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       <div ref={containerRef} className="w-full h-full" />
       {contract && (
         <div className="absolute top-2 left-2 z-10 pointer-events-none select-none flex items-center gap-2" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif", maxWidth: 'calc(100% - 90px)' }}>
-          <div ref={instrumentLabelRef} className="text-[#787b86] text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: 2, padding: '1px 3px' }}>
+          <div ref={instrumentLabelRef} className="text-(--color-text-muted) text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: 2, padding: '1px 3px' }}>
             {contract.name.replace(/[FGHJKMNQUVXZ]\d{2}$/, '')} · {timeframe.label}
           </div>
           <div
@@ -362,7 +362,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
                 overflow: 'hidden',
               }}
             >
-              <span data-qo-text style={{ padding: '0 6px', background: '#cac9cb', color: '#000' }} />
+              <span data-qo-text style={{ padding: '0 6px', background: 'var(--color-label-bg)', color: 'var(--color-label-text)' }} />
               <span data-qo-size style={{ padding: '0 6px', borderLeft: '1px solid #000' }} />
             </div>
             <div
@@ -370,14 +370,14 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
               style={{
                 width: 20,
                 height: 20,
-                background: '#2a2e39',
+                background: 'var(--color-border)',
                 borderRadius: '2px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <span style={{ color: '#d1d4dc', fontSize: 14, fontWeight: 'bold' }}>+</span>
+              <span style={{ color: 'var(--color-text)', fontSize: 14, fontWeight: 'bold' }}>+</span>
             </div>
           </div>
         </div>
@@ -416,7 +416,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#2a2e39',
+          background: 'var(--color-border)',
           border: 'none',
           borderRadius: 4,
           cursor: 'pointer',
@@ -429,8 +429,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
         title="Scroll to latest candle"
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M3 2l5 5-5 5" stroke="#d1d4dc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          <line x1="11" y1="2" x2="11" y2="12" stroke="#d1d4dc" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M3 2l5 5-5 5" stroke="var(--color-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <line x1="11" y1="2" x2="11" y2="12" stroke="var(--color-text)" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       </button>
       <DrawingEditToolbar contractId={contract ? String(contract.id) : undefined} />

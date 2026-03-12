@@ -18,16 +18,16 @@ export function TabButton({
       onClick={onClick}
       className={`px-4 h-full text-xs font-medium transition-colors relative cursor-pointer ${
         active
-          ? 'text-[#d1d4dc]'
-          : 'text-[#787b86] hover:text-[#d1d4dc]'
+          ? 'text-(--color-text)'
+          : 'text-(--color-text-muted) hover:text-(--color-text)'
       }`}
     >
       {label}
       {count != null && count > 0 && (
-        <span className="ml-2 text-[#787b86]">({count})</span>
+        <span className="ml-2 text-(--color-text-muted)">({count})</span>
       )}
       {active && (
-        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2962ff]" />
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-(--color-accent)" />
       )}
     </button>
   );

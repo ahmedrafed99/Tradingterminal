@@ -153,7 +153,7 @@ export function useOrderDrag(
             const line = refs.orderLines.current[dragIdx];
             if (line) {
               line.setPrice(originalPrice);
-              line.setLineColor('#ff0000');
+              line.setLineColor(SELL_COLOR);
               line.syncPosition();
               refs.orderLinePrices.current[dragIdx] = originalPrice;
               refs.updateOverlay.current();

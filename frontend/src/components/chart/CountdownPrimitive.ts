@@ -8,6 +8,7 @@ import type {
   Time,
   ISeriesApi,
 } from 'lightweight-charts';
+import { COLOR_BG } from '../../constants/colors';
 
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
@@ -26,7 +27,7 @@ class PriceLabelAxisView implements ISeriesPrimitiveAxisView {
   coordinate(): number { return -10000; }
   fixedCoordinate(): number { return this._coordinate; }
   text(): string { return this._text; }
-  textColor(): string { return '#131722'; }
+  textColor(): string { return COLOR_BG; }
   backColor(): string { return '#ffffff'; }
   visible(): boolean { return false; }
   tickVisible(): boolean { return false; }
@@ -160,12 +161,12 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._htmlEl = el;
 
     const priceEl = document.createElement('div');
-    priceEl.style.cssText = 'font-size:12px;font-weight:bold;color:#131722;line-height:1;padding:3px 0 0;';
+    priceEl.style.cssText = `font-size:12px;font-weight:bold;color:${COLOR_BG};line-height:1;padding:3px 0 0;`;
     el.appendChild(priceEl);
     this._priceEl = priceEl;
 
     const countdownEl = document.createElement('div');
-    countdownEl.style.cssText = 'font-size:12px;color:#131722;line-height:1;padding:1px 0 3px;';
+    countdownEl.style.cssText = `font-size:12px;color:${COLOR_BG};line-height:1;padding:1px 0 3px;`;
     el.appendChild(countdownEl);
     this._countdownEl = countdownEl;
   }

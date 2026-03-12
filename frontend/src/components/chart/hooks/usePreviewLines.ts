@@ -6,6 +6,8 @@ import { pointsToPrice } from '../../../utils/instrument';
 import { PriceLevelLine } from '../PriceLevelLine';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs } from './types';
+import { COLOR_TEXT_MUTED } from '../../../constants/colors';
+import { BUY_COLOR, SELL_COLOR } from './labelUtils';
 
 /**
  * Manage preview overlay lines (entry + SL + TP ghost lines).
@@ -58,7 +60,7 @@ export function usePreviewLines(
     refs.previewLines.current.push(new PriceLevelLine({
       price: ep,
       series, overlay, chartApi: chart,
-      lineColor: hideEntry ? 'transparent' : '#787b86',
+      lineColor: hideEntry ? 'transparent' : COLOR_TEXT_MUTED,
       lineStyle: 'dashed', lineWidth: 1,
       axisLabelVisible: !hideEntry,
       tickSize,
@@ -74,7 +76,7 @@ export function usePreviewLines(
         refs.previewLines.current.push(new PriceLevelLine({
           price: slPrice,
           series, overlay, chartApi: chart,
-          lineColor: '#ff0000', lineStyle: 'dashed', lineWidth: 1,
+          lineColor: SELL_COLOR, lineStyle: 'dashed', lineWidth: 1,
           axisLabelVisible: true, tickSize,
         }));
         refs.previewRoles.current.push({ kind: 'sl' });
@@ -88,7 +90,7 @@ export function usePreviewLines(
         refs.previewLines.current.push(new PriceLevelLine({
           price: tpPrice,
           series, overlay, chartApi: chart,
-          lineColor: '#00c805', lineStyle: 'dashed', lineWidth: 1,
+          lineColor: BUY_COLOR, lineStyle: 'dashed', lineWidth: 1,
           axisLabelVisible: true, tickSize,
         }));
         refs.previewRoles.current.push({ kind: 'tp', index: i });

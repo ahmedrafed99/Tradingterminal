@@ -1,4 +1,4 @@
-import { COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
+import { COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_LABEL_TEXT } from '../../../constants/colors';
 
 /**
  * Composites a time-banner strip above the chart canvas.
@@ -32,7 +32,7 @@ export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement
   const ctx = out.getContext('2d')!;
 
   // Banner background
-  ctx.fillStyle = '#000000';
+  ctx.fillStyle = COLOR_LABEL_TEXT;
   ctx.fillRect(0, 0, w, bannerH);
 
   // Time text — top-left

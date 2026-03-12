@@ -150,14 +150,14 @@ export function TopBar() {
   const unrealizedPnl = upnlRef.current;
 
   return (
-    <header className="flex items-center h-10 bg-black border-b border-[#2a2e39] shrink-0">
+    <header className="flex items-center h-10 bg-black border-b border-(--color-border) shrink-0">
       {/* Left — account selector + privacy toggle */}
       <div className="flex items-center gap-2 w-48 shrink-0" style={{ marginLeft: '16px' }}>
         {accounts.length > 0 ? (
           <div ref={acctRef} className="relative">
             <button
               onClick={() => setAcctOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-[#d1d4dc] font-medium hover:bg-[#1e222d] transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
             >
               <span>{(() => {
                 const name = activeAccount?.name ?? '';
@@ -167,7 +167,7 @@ export function TopBar() {
             </button>
             {acctOpen && (
               <div
-                className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 py-1 animate-dropdown-in"
+                className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 py-1 animate-dropdown-in"
                 style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: 160 }}
               >
                 {accounts.map((a) => {
@@ -179,8 +179,8 @@ export function TopBar() {
                     <button
                       key={a.id}
                       onClick={() => { setActiveAccountId(a.id); setAcctOpen(false); }}
-                      className={`w-full text-left text-xs font-medium px-3 py-1.5 transition-colors rounded-md mx-0 hover:bg-[#1e222d] ${
-                        active ? 'text-[#f0a830]' : 'text-[#d1d4dc]'
+                      className={`w-full text-left text-xs font-medium px-3 py-1.5 transition-colors rounded-md mx-0 hover:bg-(--color-surface) ${
+                        active ? 'text-(--color-warning)' : 'text-(--color-text)'
                       }`}
                     >
                       {display}
@@ -191,11 +191,11 @@ export function TopBar() {
             )}
           </div>
         ) : (
-          <span className="text-xs text-[#434651]">No accounts</span>
+          <span className="text-xs text-(--color-text-dim)">No accounts</span>
         )}
         <button
           onClick={() => setPrivacyOn((p) => !p)}
-          className="text-[#787b86] hover:text-white transition-colors p-0.5 rounded"
+          className="text-(--color-text-muted) hover:text-white transition-colors p-0.5 rounded"
           title={privacyOn ? 'Show full account info' : 'Hide account info'}
         >
           {privacyOn ? <EyeOffIcon /> : <EyeIcon />}
@@ -208,17 +208,17 @@ export function TopBar() {
       {/* Centre — balance + UP&L */}
       {activeAccount && (
         <div className="flex items-center gap-3">
-          <span className="text-xs text-[#787b86]">
+          <span className="text-xs text-(--color-text-muted)">
             Balance: ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
-          <span className="text-xs text-[#787b86]">
+          <span className="text-xs text-(--color-text-muted)">
             RP&L: {(() => { const net = realizedPnl - realizedFees; return (
               <span className={getPnlColorClass(net)}>
                 {net > 0 ? '+' : ''}{net.toFixed(2)} $
               </span>
             ); })()}
           </span>
-          <span className="text-xs text-[#787b86]">
+          <span className="text-xs text-(--color-text-muted)">
             UP&L: <span className={getPnlColorClass(unrealizedPnl)}>
               {unrealizedPnl > 0 ? '+' : ''}{unrealizedPnl.toFixed(2)} $
             </span>
@@ -236,7 +236,7 @@ export function TopBar() {
           <span
             className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
           />
-          <span className="text-xs text-[#787b86]">{connected ? 'Connected' : 'Disconnected'}</span>
+          <span className="text-xs text-(--color-text-muted)">{connected ? 'Connected' : 'Disconnected'}</span>
         </div>
 
         {/* Latency */}
@@ -244,9 +244,9 @@ export function TopBar() {
           <div className="flex items-center gap-1">
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: latency < 50 ? '#26a69a' : latency < 150 ? '#f0a830' : '#ef5350' }}
+              style={{ backgroundColor: latency < 50 ? 'var(--color-buy)' : latency < 150 ? 'var(--color-warning)' : 'var(--color-sell)' }}
             />
-            <span className="text-xs" style={{ color: latency < 50 ? '#26a69a' : latency < 150 ? '#f0a830' : '#ef5350' }}>
+            <span className="text-xs" style={{ color: latency < 50 ? 'var(--color-buy)' : latency < 150 ? 'var(--color-warning)' : 'var(--color-sell)' }}>
               {latency}ms
             </span>
           </div>
@@ -255,7 +255,7 @@ export function TopBar() {
         {/* Settings icon */}
         <button
           onClick={() => setSettingsOpen(true)}
-          className="text-[#787b86] hover:text-white transition-colors p-1 rounded"
+          className="text-(--color-text-muted) hover:text-white transition-colors p-1 rounded"
           title="API Settings"
         >
           <SettingsIcon />

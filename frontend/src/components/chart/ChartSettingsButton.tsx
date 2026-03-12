@@ -129,19 +129,19 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
           padding: 0,
           transition: 'background 0.15s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#1e222d'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         title="Chart settings"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <polygon
             points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
-            stroke="#787b86"
+            stroke="var(--color-text-muted)"
             strokeWidth="1.3"
             strokeLinejoin="round"
             fill="none"
           />
-          <circle cx="8" cy="8" r="2.5" stroke="#787b86" strokeWidth="1.3" fill="none" />
+          <circle cx="8" cy="8" r="2.5" stroke="var(--color-text-muted)" strokeWidth="1.3" fill="none" />
         </svg>
       </button>
 
@@ -154,8 +154,8 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             right: rect.r,
             zIndex: 40,
             minWidth: 160,
-            background: '#131722',
-            border: '1px solid #2a2e39',
+            background: 'var(--color-bg)',
+            border: '1px solid var(--color-border)',
             borderRadius: 4,
             padding: '4px 0',
             boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
@@ -173,7 +173,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               background: 'transparent',
               border: 'none',
-              color: '#d1d4dc',
+              color: 'var(--color-text)',
               fontSize: 12,
               fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
               cursor: 'pointer',
@@ -181,7 +181,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2e39'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-border)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             {/* Checkmark — fades + scales in/out */}
@@ -197,12 +197,12 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
                 flexShrink: 0,
               }}
             >
-              <path d="M2 6.5l2.5 2.5L10 3" stroke="#2962ff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M2 6.5l2.5 2.5L10 3" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>Invert scale</span>
           </button>
           {/* Divider */}
-          <div style={{ height: 1, background: '#2a2e39', margin: '4px 0' }} />
+          <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
           {/* More settings */}
           <button
             onClick={() => { setOpen(false); setModalOpen(true); }}
@@ -214,7 +214,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               background: 'transparent',
               border: 'none',
-              color: '#d1d4dc',
+              color: 'var(--color-text)',
               fontSize: 12,
               fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
               cursor: 'pointer',
@@ -222,19 +222,19 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2e39'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-border)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             {/* Gear icon */}
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
               <polygon
                 points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
-                stroke="#787b86"
+                stroke="var(--color-text-muted)"
                 strokeWidth="1.3"
                 strokeLinejoin="round"
                 fill="none"
               />
-              <circle cx="8" cy="8" r="2.5" stroke="#787b86" strokeWidth="1.3" fill="none" />
+              <circle cx="8" cy="8" r="2.5" stroke="var(--color-text-muted)" strokeWidth="1.3" fill="none" />
             </svg>
             <span>Settings...</span>
           </button>

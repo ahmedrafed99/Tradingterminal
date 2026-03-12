@@ -33,7 +33,7 @@ export function OrdersTab() {
 
   if (openOrders.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-[#434651] text-xs">
+      <div className="flex items-center justify-center h-full text-(--color-text-dim) text-xs">
         No open orders
       </div>
     );
@@ -42,8 +42,8 @@ export function OrdersTab() {
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black border-b border-[#2a2e39]">
-        <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '70%' }}>
+      <div className="sticky top-0 z-10 bg-black border-b border-(--color-border)">
+        <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '70%' }}>
           <div className="px-3 text-center">Side</div>
           <div className="px-3 text-center">Type</div>
           <div className="px-3 text-center">Symbol</div>
@@ -64,29 +64,29 @@ export function OrdersTab() {
         return (
           <div
             key={order.id}
-            className={`${stripe} hover:bg-[#1e222d]/50 transition-colors`}
+            className={`${stripe} hover:bg-(--color-surface)/50 transition-colors`}
           >
             <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
               <div className="px-3 text-center whitespace-nowrap">
-                <span className={`font-medium ${isBuy ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+                <span className={`font-medium ${isBuy ? 'text-(--color-buy)' : 'text-(--color-sell)'}`}>
                   {isBuy ? 'Buy' : 'Sell'}
                 </span>
               </div>
-              <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+              <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
                 {TYPE_LABELS[order.type] ?? order.type}
               </div>
-              <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
+              <div className="px-3 text-center text-(--color-text-medium) whitespace-nowrap">
                 {shortSymbol(order.contractId)}
               </div>
-              <div className="px-3 text-center text-[#d1d4dc]">{order.size}</div>
-              <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+              <div className="px-3 text-center text-(--color-text)">{order.size}</div>
+              <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
                 {price != null ? price.toFixed(2) : '\u2014'}
               </div>
               <div className="px-3 text-center">
                 <button
                   onClick={() => handleCancel(order.id)}
                   disabled={cancellingId === order.id}
-                  className="text-[#ef5350] hover:bg-[#ef5350]/10 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
+                  className="text-(--color-sell) hover:bg-(--color-sell)/10 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
                   title="Cancel order"
                 >
                   {cancellingId === order.id ? '...' : '\u2715'}

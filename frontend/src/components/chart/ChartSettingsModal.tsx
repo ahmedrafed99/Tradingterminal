@@ -68,7 +68,7 @@ function ColorSwatchButton({
           height: 28,
           borderRadius: 4,
           background: color,
-          border: '1px solid #4a4a4a',
+          border: '1px solid var(--color-border)',
           cursor: disabled ? 'default' : 'pointer',
           opacity: disabled ? 0.4 : 1,
           transition: 'opacity 0.15s',
@@ -108,7 +108,7 @@ function Checkbox({
         gap: 8,
         cursor: 'pointer',
         fontSize: 13,
-        color: '#d1d4dc',
+        color: 'var(--color-text)',
         fontFamily: FONT,
       }}
     >
@@ -118,8 +118,8 @@ function Checkbox({
           width: 16,
           height: 16,
           borderRadius: 3,
-          border: `1px solid ${checked ? '#2962ff' : '#434651'}`,
-          background: checked ? '#2962ff' : 'transparent',
+          border: `1px solid ${checked ? 'var(--color-accent)' : 'var(--color-text-dim)'}`,
+          background: checked ? 'var(--color-accent)' : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -149,7 +149,7 @@ function SectionHeader({ children }: { children: string }) {
         fontSize: 10,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
-        color: '#787b86',
+        color: 'var(--color-text-muted)',
         marginBottom: 12,
         marginTop: 4,
         fontFamily: FONT,
@@ -221,16 +221,16 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <Modal onClose={handleCancel} className="bg-[#1f1f1f] border border-[#2a2e39] rounded-lg" style={{ width: 520, maxHeight: '80vh', fontFamily: FONT, overflow: 'visible' }}>
+    <Modal onClose={handleCancel} className="bg-(--color-surface) border border-(--color-border) rounded-lg" style={{ width: 520, maxHeight: '80vh', fontFamily: FONT, overflow: 'visible' }}>
       {/* Title bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #4a4a4a' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--color-border)' }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Settings</span>
         <button
           onClick={handleCancel}
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#787b86',
+            color: 'var(--color-text-muted)',
             fontSize: 18,
             cursor: 'pointer',
             lineHeight: 1,
@@ -238,7 +238,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
             transition: 'color 0.15s',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#787b86'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
         >
           &times;
         </button>
@@ -247,7 +247,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
       {/* Body: sidebar + content */}
       <div style={{ display: 'flex', minHeight: 260 }}>
         {/* Sidebar */}
-        <div style={{ width: 140, borderRight: '1px solid #4a4a4a', padding: '8px 0' }}>
+        <div style={{ width: 140, borderRight: '1px solid var(--color-border)', padding: '8px 0' }}>
           {categories.map((cat) => (
             <button
               key={cat.id}
@@ -258,9 +258,9 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
                 gap: 8,
                 width: '100%',
                 padding: '8px 16px',
-                background: category === cat.id ? '#2a2e39' : 'transparent',
+                background: category === cat.id ? 'var(--color-border)' : 'transparent',
                 border: 'none',
-                color: category === cat.id ? '#fff' : '#787b86',
+                color: category === cat.id ? '#fff' : 'var(--color-text-muted)',
                 fontSize: 13,
                 fontFamily: FONT,
                 cursor: 'pointer',
@@ -269,12 +269,12 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
               }}
               onMouseEnter={(e) => {
                 if (category !== cat.id) {
-                  e.currentTarget.style.color = '#d1d4dc';
+                  e.currentTarget.style.color = 'var(--color-text)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (category !== cat.id) {
-                  e.currentTarget.style.color = '#787b86';
+                  e.currentTarget.style.color = 'var(--color-text-muted)';
                 }
               }}
             >
@@ -292,20 +292,20 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid #4a4a4a' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--color-border)' }}>
         <button
           onClick={handleReset}
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#787b86',
+            color: 'var(--color-text-muted)',
             fontSize: 12,
             fontFamily: FONT,
             cursor: 'pointer',
             transition: 'color 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#d1d4dc'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#787b86'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
         >
           Reset defaults
         </button>
@@ -315,7 +315,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#787b86',
+              color: 'var(--color-text-muted)',
               fontSize: 13,
               fontFamily: FONT,
               cursor: 'pointer',
@@ -324,14 +324,14 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
               transition: 'color 0.15s',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = '#787b86'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
           >
             Cancel
           </button>
           <button
             onClick={handleOk}
             style={{
-              background: '#1e3a8a',
+              background: 'var(--color-accent-hover)',
               border: 'none',
               color: '#fff',
               fontSize: 13,
@@ -342,8 +342,8 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
               fontWeight: 500,
               transition: 'background 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = '#1e2f6a'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = '#1e3a8a'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-accent)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
           >
             Ok
           </button>
@@ -396,8 +396,8 @@ function BarsPanel({ settings, onChange }: { settings: Settings; onChange: OnCha
 
       {/* Legend for up/down columns */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: -4 }}>
-        <span style={{ fontSize: 10, color: '#787b86', width: 28, textAlign: 'center' }}>up</span>
-        <span style={{ fontSize: 10, color: '#787b86', width: 28, textAlign: 'center' }}>down</span>
+        <span style={{ fontSize: 10, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>up</span>
+        <span style={{ fontSize: 10, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>down</span>
       </div>
     </>
   );
@@ -416,10 +416,10 @@ function CanvasPanel({ settings, onChange }: { settings: Settings; onChange: OnC
           value={settings.bgType}
           onChange={(e) => onChange({ bgType: e.target.value as 'solid' | 'gradient' })}
           style={{
-            background: '#1f1f1f',
-            border: '1px solid #4a4a4a',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
             borderRadius: 4,
-            color: '#d1d4dc',
+            color: 'var(--color-text)',
             fontSize: 12,
             fontFamily: FONT,
             padding: '5px 8px',

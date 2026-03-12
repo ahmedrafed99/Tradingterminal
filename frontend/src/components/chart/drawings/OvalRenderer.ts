@@ -2,6 +2,7 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { OvalDrawing } from '../../../types/drawing';
+import { COLOR_LABEL_TEXT } from '../../../constants/colors';
 import { hitTestOval } from './hitTesting';
 
 class OvalRendererImpl implements IPrimitivePaneRenderer {
@@ -59,7 +60,7 @@ class OvalRendererImpl implements IPrimitivePaneRenderer {
           [cx - rx, cy], // left
           [cx + rx, cy], // right
         ];
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = '#1e3a5f';
         ctx.lineWidth = Math.round(1.5 * vpr);
         for (const [hx, hy] of handles) {

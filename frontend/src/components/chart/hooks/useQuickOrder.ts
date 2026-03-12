@@ -14,6 +14,8 @@ import { showToast, errorMessage } from '../../../utils/toast';
 import { isFuturesMarketOpen } from '../../../utils/marketHours';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
+import { COLOR_TEXT_MUTED, COLOR_TEXT_DIM, COLOR_BORDER } from '../../../constants/colors';
+import { BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT, CLOSE_BG } from './labelUtils';
 
 export function useQuickOrder(
   refs: ChartRefs,
@@ -77,7 +79,7 @@ export function useQuickOrder(
       // Entry reference line (no label)
       const entryLine = new PriceLevelLine({
         price: ep, series, overlay, chartApi: chart,
-        lineColor: '#787b86', lineStyle: 'dashed', lineWidth: 1,
+        lineColor: COLOR_TEXT_MUTED, lineStyle: 'dashed', lineWidth: 1,
         axisLabelVisible: true, tickSize,
       });
       qoPreviewLines.push(entryLine);
@@ -91,11 +93,11 @@ export function useQuickOrder(
         const slPnl = calcPnl(slDiff, contract!, st.orderSize);
         const slLine = new PriceLevelLine({
           price: computedSlPrice, series, overlay, chartApi: chart,
-          lineColor: '#ff0000', lineStyle: 'dashed', lineWidth: 1,
+          lineColor: SELL_COLOR, lineStyle: 'dashed', lineWidth: 1,
           axisLabelVisible: true, tickSize,
           label: [
-            { text: `-$${Math.abs(slPnl).toFixed(2)}`, bg: '#ff0000', color: '#000' },
-            { text: String(st.orderSize), bg: '#ff0000', color: '#000' },
+            { text: `-$${Math.abs(slPnl).toFixed(2)}`, bg: SELL_COLOR, color: LABEL_TEXT },
+            { text: String(st.orderSize), bg: SELL_COLOR, color: LABEL_TEXT },
           ],
         });
         qoPreviewLines.push(slLine);
@@ -114,11 +116,11 @@ export function useQuickOrder(
         const tpPnl = calcPnl(tpDiff, contract!, tp.size);
         const tpLine = new PriceLevelLine({
           price: tpPrice, series, overlay, chartApi: chart,
-          lineColor: '#00c805', lineStyle: 'dashed', lineWidth: 1,
+          lineColor: BUY_COLOR, lineStyle: 'dashed', lineWidth: 1,
           axisLabelVisible: true, tickSize,
           label: [
-            { text: `+$${Math.abs(tpPnl).toFixed(2)}`, bg: '#00c805', color: '#000' },
-            { text: String(tp.size), bg: '#00c805', color: '#000' },
+            { text: `+$${Math.abs(tpPnl).toFixed(2)}`, bg: BUY_COLOR, color: LABEL_TEXT },
+            { text: String(tp.size), bg: BUY_COLOR, color: LABEL_TEXT },
           ],
         });
         qoPreviewLines.push(tpLine);
@@ -152,7 +154,7 @@ export function useQuickOrder(
           qoPreviewLines[lineIdx].syncPosition();
           const slDiff = side === OrderSide.Buy ? ep - slPrice : slPrice - ep;
           const slPnl = calcPnl(slDiff, contract!, st.orderSize);
-          qoPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, '#ff0000');
+          qoPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, SELL_COLOR);
           lineIdx++;
         }
         const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
@@ -163,7 +165,7 @@ export function useQuickOrder(
           qoPreviewLines[lineIdx].syncPosition();
           const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
           const tpPnl = calcPnl(tpDiff, contract!, tp.size);
-          qoPreviewLines[lineIdx].updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, '#00c805');
+          qoPreviewLines[lineIdx].updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, BUY_COLOR);
           lineIdx++;
         });
       }
@@ -261,7 +263,7 @@ export function useQuickOrder(
       const plusDisabled = max != null && sz >= max;
       sizeMinusEl.style.display = '';
       sizePlusEl.style.display = '';
-      labelSize.style.background = isBuy ? '#00a004' : '#cc0000';
+      labelSize.style.background = isBuy ? BUY_HOVER : SELL_HOVER;
       requestAnimationFrame(() => {
         if (sizeMinusEl) sizeMinusEl.style.opacity = minDisabled ? '0.35' : '1';
         if (sizePlusEl) sizePlusEl.style.opacity = plusDisabled ? '0.35' : '1';
@@ -274,7 +276,7 @@ export function useQuickOrder(
     // Hide +/- and restore bg — called when mouse leaves the size cell
     function hideSizeButtons() {
       if (!sizeButtonsActive) return;
-      labelSize.style.background = isBuy ? '#00c805' : '#ff0000';
+      labelSize.style.background = isBuy ? BUY_COLOR : SELL_COLOR;
       if (sizeMinusEl) { sizeMinusEl.style.opacity = '0'; sizeMinusEl.style.display = 'none'; }
       if (sizePlusEl) { sizePlusEl.style.opacity = '0'; sizePlusEl.style.display = 'none'; }
       sizeButtonsActive = false;
@@ -303,7 +305,7 @@ export function useQuickOrder(
     }
     function onTextLeave() {
       textHovered = false;
-      labelText.style.background = '#cac9cb';
+      labelText.style.background = LABEL_BG;
       // Hide +/- if not hovering size cell
       if (!sizeButtonsActive && sizeMinusEl && sizePlusEl) {
         sizeMinusEl.style.opacity = '0';
@@ -323,9 +325,9 @@ export function useQuickOrder(
       const sz = useStore.getState().orderSize;
       labelText.textContent = isBuy ? 'Buy Limit' : 'Sell Limit';
       labelSize.style.background = sizeButtonsActive
-        ? (isBuy ? '#00a004' : '#cc0000')
-        : (isBuy ? '#00c805' : '#ff0000');
-      labelSize.style.color = '#000';
+        ? (isBuy ? BUY_HOVER : SELL_HOVER)
+        : (isBuy ? BUY_COLOR : SELL_COLOR);
+      labelSize.style.color = LABEL_TEXT;
 
       if (sizeCountEl && labelSize.contains(sizeCountEl)) {
         // Sub-elements are in the DOM — update the count span only
@@ -389,7 +391,7 @@ export function useQuickOrder(
       refs.qoHovered.current = true;
       label.style.display = 'flex';
       plusEl.style.borderRadius = '0 2px 2px 0';
-      plusEl.style.background = '#434651';
+      plusEl.style.background = COLOR_TEXT_DIM;
       refreshLabel();
       prepareSizeButtons();
       // Keep crosshair visible while hovering the + button
@@ -410,7 +412,7 @@ export function useQuickOrder(
       if (textHovered) onTextLeave();
       label.style.display = 'none';
       plusEl.style.borderRadius = '2px';
-      plusEl.style.background = '#2a2e39';
+      plusEl.style.background = COLOR_BORDER;
       chart.clearCrosshairPosition();
       if (!pendingFillUnsub) {
         removePreviewLines();
@@ -585,7 +587,7 @@ export function useQuickOrder(
       refs.qoHovered.current = false;
       label.style.display = 'none';
       plusEl.style.borderRadius = '2px';
-      plusEl.style.background = '#2a2e39';
+      plusEl.style.background = COLOR_BORDER;
       chart.clearCrosshairPosition();
     }
 
@@ -680,7 +682,7 @@ export function useQuickOrder(
       labelSize.removeEventListener('mouseleave', hideSizeButtons);
       labelText.removeEventListener('mouseenter', onTextEnter);
       labelText.removeEventListener('mouseleave', onTextLeave);
-      labelText.style.background = '#cac9cb';
+      labelText.style.background = LABEL_BG;
       // Reset labelSize to plain text mode
       labelSize.textContent = '';
       labelSize.style.display = '';

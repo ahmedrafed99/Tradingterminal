@@ -40,7 +40,7 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
         onClick={() => {
           if (open) { closeDropdown(); } else { setOpen(true); }
         }}
-        className="flex items-center gap-1.5 text-xs text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer select-none"
+        className="flex items-center gap-1.5 text-xs text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer select-none"
         style={{ padding: '4px 8px' }}
       >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -50,7 +50,7 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
         </svg>
         {DATE_PRESET_LABELS[preset]}
         {counts?.[preset] != null && (
-          <span style={{ color: '#555' }}>({counts[preset]})</span>
+          <span style={{ color: 'var(--color-text-dim)' }}>({counts[preset]})</span>
         )}
         <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style={{ opacity: 0.6 }}>
           <path d="M1.5 3L4 5.5L6.5 3" fill="none" stroke="currentColor" strokeWidth="1.2" />
@@ -59,9 +59,9 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50 overflow-hidden"
+          className="absolute left-0 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg z-50 overflow-hidden"
           style={{
-            background: '#000',
+            background: 'var(--color-bg)',
             minWidth: 140,
             opacity: visible ? 1 : 0,
             transform: visible ? 'translateY(0)' : 'translateY(-4px)',
@@ -73,7 +73,7 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
               key={p}
               onClick={() => handleSelect(p)}
               className={`flex w-full items-center text-xs cursor-pointer ${
-                p === preset ? 'text-[#f0a830]' : 'text-[#d1d4dc] hover:bg-[#1e222d]'
+                p === preset ? 'text-(--color-warning)' : 'text-(--color-text) hover:bg-(--color-hover-row)'
               }`}
               style={{
                 padding: '6px 12px',
@@ -87,7 +87,7 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
                   className="ml-auto"
                   style={{
                     fontSize: 12,
-                    color: p === preset ? 'rgba(240, 168, 48, 0.6)' : '#555',
+                    color: p === preset ? 'rgba(240, 168, 48, 0.6)' : 'var(--color-text-dim)',
                     transition: 'color 0.15s',
                   }}
                 >

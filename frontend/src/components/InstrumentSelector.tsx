@@ -10,7 +10,7 @@ function StarIcon({ filled }: { filled: boolean }) {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ) : (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#787b86]">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   );
@@ -73,7 +73,7 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
   }, [open, fixed]);
 
   return (
-    <div ref={containerRef} className="relative hover:bg-[#1e222d]/50 rounded transition-colors" style={fixed ? undefined : { marginLeft: '8px' }}>
+    <div ref={containerRef} className="relative hover:bg-(--color-hover-row)/50 rounded transition-colors" style={fixed ? undefined : { marginLeft: '8px' }}>
       <input
         type="text"
         value={query}
@@ -84,25 +84,25 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
         onFocus={() => setOpen(true)}
         placeholder={contract ? contract.name : 'Search instrument...'}
         className="bg-transparent border-none px-1 py-1.5 text-xs text-white w-full
-                   focus:outline-none placeholder-[#787b86] text-center cursor-pointer"
+                   focus:outline-none placeholder-(--color-text-muted) text-center cursor-pointer"
       />
 
       {open && (
         <div
-          className="absolute top-full mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-2 animate-dropdown-in"
+          className="absolute top-full mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-2 animate-dropdown-in"
           style={{
             boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
             ...dropdownStyle,
           }}
         >
           {searching && results.length === 0 && (
-            <div className="px-3 py-2 text-xs text-[#787b86] text-center">Searching...</div>
+            <div className="px-3 py-2 text-xs text-(--color-text-muted) text-center">Searching...</div>
           )}
           {showingSearch && !searching && results.length === 0 && (
-            <div className="px-3 py-2 text-xs text-[#787b86] text-center">No results</div>
+            <div className="px-3 py-2 text-xs text-(--color-text-muted) text-center">No results</div>
           )}
           {!showingSearch && bookmarks.length === 0 && (
-            <div className="px-3 py-2 text-xs text-[#787b86] text-center">Type to search instruments</div>
+            <div className="px-3 py-2 text-xs text-(--color-text-muted) text-center">Type to search instruments</div>
           )}
 
           {displayList.map((c) => {
@@ -111,15 +111,15 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
             return (
               <div
                 key={c.id}
-                className={`flex items-center hover:bg-[#1e222d] transition-colors rounded-md mx-1.5 cursor-pointer ${
-                  active ? 'bg-[#1e222d]' : ''
+                className={`flex items-center hover:bg-(--color-hover-row) transition-colors rounded-md mx-1.5 cursor-pointer ${
+                  active ? 'bg-(--color-surface)' : ''
                 }`}
                 style={{ padding: '7px 10px' }}
                 onClick={() => handleSelect(c)}
               >
                 <div className="flex-1 text-center">
-                  <div className={`text-xs font-medium ${active ? 'text-[#f0a830]' : 'text-[#d1d4dc]'}`}>{c.name}</div>
-                  <div className="text-[10px] text-[#787b86] truncate">{c.description}</div>
+                  <div className={`text-xs font-medium ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}>{c.name}</div>
+                  <div className="text-[10px] text-(--color-text-muted) truncate">{c.description}</div>
                 </div>
                 <button
                   onClick={(e) => toggleBookmark(c, e)}

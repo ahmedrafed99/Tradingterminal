@@ -6,6 +6,7 @@ import { OrderSide, OrderType, OrderStatus } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
+import { BUY_COLOR, SELL_COLOR, LABEL_TEXT, CLOSE_BG } from './labelUtils';
 
 interface QoPendingPreview {
   side: OrderSide;
@@ -78,9 +79,9 @@ export function buildQoPendingLabels(
       };
 
       slLine.setLabel([
-        { text: slPnlText, bg: '#ff0000', color: '#000' },
-        { text: String(qo.orderSize), bg: '#ff0000', color: '#000' },
-        { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+        { text: slPnlText, bg: SELL_COLOR, color: LABEL_TEXT },
+        { text: String(qo.orderSize), bg: SELL_COLOR, color: LABEL_TEXT },
+        { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
       ]);
 
       const slCells = slLine.getCells();
@@ -111,7 +112,7 @@ export function buildQoPendingLabels(
         const ep = refs.qoPreviewPrices.current.entry;
         const diff = qo.side === OrderSide.Buy ? ep - sp : sp - ep;
         const pnl = calcPnl(diff, contract, qo.orderSize);
-        slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, '#ff0000');
+        slLine.updateSection(0, `-$${Math.abs(pnl).toFixed(2)}`, SELL_COLOR);
       });
     }
   }
@@ -175,9 +176,9 @@ export function buildQoPendingLabels(
     };
 
     tpLine.setLabel([
-      { text: tpPnlText, bg: '#00c805', color: '#000' },
-      { text: String(tpSize), bg: '#00c805', color: '#000' },
-      { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+      { text: tpPnlText, bg: BUY_COLOR, color: LABEL_TEXT },
+      { text: String(tpSize), bg: BUY_COLOR, color: LABEL_TEXT },
+      { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
     ]);
 
     const tpCells = tpLine.getCells();
@@ -211,7 +212,7 @@ export function buildQoPendingLabels(
       const ep = refs.qoPreviewPrices.current.entry;
       const diff = qo.side === OrderSide.Buy ? tp - ep : ep - tp;
       const pnl = calcPnl(diff, contract, capturedTpSize);
-      tpLine.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, '#00c805');
+      tpLine.updateSection(0, `+$${Math.abs(pnl).toFixed(2)}`, BUY_COLOR);
     });
   }
 

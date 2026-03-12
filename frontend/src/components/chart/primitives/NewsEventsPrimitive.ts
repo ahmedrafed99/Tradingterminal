@@ -17,7 +17,7 @@ const MARKER_COLOR = '#9b59b6';
 const MARKER_FILL = 'rgba(155, 89, 182, 0.18)';
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
-import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED } from '../../../constants/colors';
+import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
 
 const IMPACT_COLORS: Record<string, string> = {
   high: COLOR_SELL,
@@ -359,7 +359,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
         pointer-events: auto;
         z-index: 40;
         background: #000;
-        border: 1px solid #2a2e39;
+        border: 1px solid ${COLOR_BORDER};
         border-radius: 6px;
         padding: 8px 10px;
         font-family: ${FONT_FAMILY};
@@ -380,15 +380,15 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     let html = '';
     for (let i = 0; i < marker.events.length; i++) {
       const ev = marker.events[i];
-      if (i > 0) html += '<div style="border-top:1px solid #2a2e39; margin:5px 0"></div>';
+      if (i > 0) html += `<div style="border-top:1px solid ${COLOR_BORDER}; margin:5px 0"></div>`;
 
-      const impactColor = IMPACT_COLORS[ev.impact] || '#787b86';
+      const impactColor = IMPACT_COLORS[ev.impact] || COLOR_TEXT_MUTED;
       const timeStr = this._formatTime(ev.date);
 
-      html += `<div style="font-size:11px; color:#d1d4dc; font-weight:600; line-height:1.3">${this._escapeHtml(ev.title)}</div>`;
+      html += `<div style="font-size:11px; color:var(--color-text, #d1d4dc); font-weight:600; line-height:1.3">${this._escapeHtml(ev.title)}</div>`;
       html += `<div style="display:flex; align-items:center; gap:6px; margin-top:3px">`;
       html += `<span style="font-size:10px; color:${impactColor}; font-weight:600; text-transform:uppercase">${ev.impact}</span>`;
-      html += `<span style="font-size:10px; color:#787b86">${timeStr}</span>`;
+      html += `<span style="font-size:10px; color:var(--color-text-muted, #787b86)">${timeStr}</span>`;
       html += `</div>`;
     }
 

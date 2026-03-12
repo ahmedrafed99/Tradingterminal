@@ -117,7 +117,7 @@ export function matchTrades(
 
 // ── Renderer ───────────────────────────────────────────────────────────────
 
-import { COLOR_BUY, COLOR_SELL } from '../../constants/colors';
+import { COLOR_BUY, COLOR_SELL, COLOR_LABEL_TEXT, COLOR_TEXT, COLOR_BTN_SELL_HOVER } from '../../constants/colors';
 
 const GREEN = COLOR_BUY;
 const RED = COLOR_SELL;
@@ -238,7 +238,7 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     const cssExitAnchorY = this._series.priceToCoordinate(exitAnchorPrice);
     const exitAnchorY = cssExitAnchorY !== null ? cssExitAnchorY * vpr : y2;
 
-    this._drawLabel(ctx, x2, exitAnchorY, 'Exit', zone.exitTrade, '#a62a3d', vpr, hpr, isLong ? 'above' : 'below');
+    this._drawLabel(ctx, x2, exitAnchorY, 'Exit', zone.exitTrade, COLOR_BTN_SELL_HOVER, vpr, hpr, isLong ? 'above' : 'below');
 
     // Dashed line from entry to exit
     ctx.setLineDash([Math.round(4 * hpr), Math.round(4 * hpr)]);
@@ -321,11 +321,11 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const textY = pillY + pillH / 2;
-    ctx.strokeStyle = '#000000';
+    ctx.strokeStyle = COLOR_LABEL_TEXT;
     ctx.lineWidth = Math.round(3 * vpr);
     ctx.lineJoin = 'round';
     ctx.strokeText(text, x, textY);
-    ctx.fillStyle = '#d1d4dc';
+    ctx.fillStyle = COLOR_TEXT;
     ctx.fillText(text, x, textY);
   }
 }

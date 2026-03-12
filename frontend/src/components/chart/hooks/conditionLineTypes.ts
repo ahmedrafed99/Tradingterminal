@@ -1,4 +1,5 @@
 import type { PriceLevelLine } from '../PriceLevelLine';
+import { COLOR_ACCENT, COLOR_LINE_BUY, COLOR_LINE_SELL } from '../../../constants/colors';
 
 // ── Shared ref types for condition line sub-hooks ──
 
@@ -31,11 +32,11 @@ export interface PreviewDragState {
 }
 
 // ── Colors ──
-export const CLR_ABOVE = '#2962ff';
+export const CLR_ABOVE = COLOR_ACCENT;
 export const CLR_BELOW = '#d32f2f';
-export const CLR_BUY = '#00c805';
-export const CLR_SELL = '#ff0000';
+export const CLR_BUY = COLOR_LINE_BUY;
+export const CLR_SELL = COLOR_LINE_SELL;
 export const CLR_ARM_ABOVE = '#4a7dff';
 export const CLR_ARM_BELOW = '#d32f2f';
-export const CLR_SL = '#ff0000';
-export const CLR_TP = '#00c805';
+export const CLR_SL = COLOR_LINE_SELL;
+export const CLR_TP = COLOR_LINE_BUY;

@@ -254,13 +254,13 @@ export function TradesTab() {
   if (closingTrades.length === 0) {
     return (
       <div className="flex flex-col h-full" style={{ width: '100%' }}>
-        <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
+        <div className="flex items-center h-8 shrink-0 border-b border-(--color-border)">
           <div style={{ width: '70%' }} />
           <div className="ml-auto" style={{ paddingRight: 16 }}>
             <DatePresetSelector counts={presetCounts} />
           </div>
         </div>
-        <div className="flex items-center justify-center flex-1 text-[#434651] text-xs">
+        <div className="flex items-center justify-center flex-1 text-(--color-text-dim) text-xs">
           {emptyLabels[tradesDatePreset]}
         </div>
       </div>
@@ -274,9 +274,9 @@ export function TradesTab() {
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black border-b border-[#2a2e39]">
+      <div className="sticky top-0 z-10 bg-black border-b border-(--color-border)">
         <div className="flex items-center h-8">
-          <div className={`grid ${cols} items-center h-8 text-[#787b86] pl-4`} style={{ width: '70%' }}>
+          <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '70%' }}>
             {([
               ['Time', 'time'],
               ['Side', 'side'],
@@ -293,7 +293,7 @@ export function TradesTab() {
               return (
                 <div
                   key={col}
-                  className={`px-3 text-center cursor-pointer select-none hover:text-[#d1d4dc] transition-colors ${active ? 'text-[#d1d4dc]' : ''}`}
+                  className={`px-3 text-center cursor-pointer select-none hover:text-(--color-text) transition-colors ${active ? 'text-(--color-text)' : ''}`}
                   onClick={() => toggleSort(col)}
                 >
                   {label}
@@ -324,44 +324,44 @@ export function TradesTab() {
           const net = trade.profitAndLoss! - trade.fees;
           const isVisible = visibleTradeIds.includes(trade.id);
           const stripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
-          const selected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+          const selected = isVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
 
           return (
             <div
               key={trade.id}
-              className={`${stripe} ${selected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
+              className={`${stripe} ${selected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
               onClick={() => toggleTradeVisibility(trade.id)}
             >
               <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
-                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {trade.creationTimestamp ? formatTime(trade.creationTimestamp, showDate) : '\u2014'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  <span className={group.isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
+                  <span className={group.isLong ? 'text-(--color-buy)' : 'text-(--color-sell)'}>
                     {group.isLong ? 'Long' : 'Short'}
                   </span>
                 </div>
-                <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-medium) whitespace-nowrap">
                   {shortSymbol(trade.contractId)}
                 </div>
-                <div className="px-3 text-center text-[#d1d4dc]">{trade.size}</div>
-                <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text)">{trade.size}</div>
+                <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
                   {group.entry ? group.entry.price.toFixed(2) : '\u2014'}
                 </div>
-                <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">{trade.price.toFixed(2)}</div>
-                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text) whitespace-nowrap">{trade.price.toFixed(2)}</div>
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  <span className={trade.profitAndLoss! > 0 ? 'text-[#26a69a]' : trade.profitAndLoss! < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}>
+                  <span className={trade.profitAndLoss! > 0 ? 'text-(--color-buy)' : trade.profitAndLoss! < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
                     {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
                   </span>
                 </div>
-                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {trade.fees.toFixed(2)}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  <span className={`font-medium ${net > 0 ? 'text-[#26a69a]' : net < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}`}>
+                  <span className={`font-medium ${net > 0 ? 'text-(--color-buy)' : net < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}`}>
                     {net > 0 ? '+' : ''}{net.toFixed(2)}
                   </span>
                 </div>
@@ -372,50 +372,50 @@ export function TradesTab() {
 
         // Multi-exit group
         const parentStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
-        const parentSelected = anyVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+        const parentSelected = anyVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
 
         return (
           <div key={`group-${group.entryId}`}>
             {/* Parent row */}
             <div
-              className={`${parentStripe} ${parentSelected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
+              className={`${parentStripe} ${parentSelected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
               onClick={() => toggleTradeVisibilityBulk(exitIds)}
             >
               <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
-                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.entry ? formatTime(group.entry.creationTimestamp, showDate) : formatTime(group.earliestTime, showDate)}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  <span className={group.isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}>
+                  <span className={group.isLong ? 'text-(--color-buy)' : 'text-(--color-sell)'}>
                     {group.isLong ? 'Long' : 'Short'}
                   </span>
                 </div>
-                <div className="px-3 text-center text-[#9598a1] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-medium) whitespace-nowrap">
                   {shortSymbol(group.exits[0].contractId)}
                 </div>
-                <div className="px-3 text-center text-[#d1d4dc]">{group.totalQty}</div>
-                <div className="px-3 text-center text-[#d1d4dc] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text)">{group.totalQty}</div>
+                <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
                   {group.entry ? group.entry.price.toFixed(2) : '\u2014'}
                 </div>
                 <div
-                  className="px-3 text-center text-[#787b86] whitespace-nowrap cursor-pointer select-none hover:text-[#d1d4dc] transition-colors"
+                  className="px-3 text-center text-(--color-text-muted) whitespace-nowrap cursor-pointer select-none hover:text-(--color-text) transition-colors"
                   onClick={(e) => { e.stopPropagation(); toggleExpand(group.entryId); }}
                 >
                   {group.exits.length} exits {isExpanded ? '\u25BE' : '\u25B8'}
                 </div>
-                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, group.latestTime)) : '\u2014'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  <span className={group.totalPnl > 0 ? 'text-[#26a69a]' : group.totalPnl < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}>
+                  <span className={group.totalPnl > 0 ? 'text-(--color-buy)' : group.totalPnl < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
                     {group.totalPnl > 0 ? '+' : ''}{group.totalPnl.toFixed(2)}
                   </span>
                 </div>
-                <div className="px-3 text-center text-[#787b86] whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.totalFees.toFixed(2)}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  <span className={`font-medium ${group.totalNet > 0 ? 'text-[#26a69a]' : group.totalNet < 0 ? 'text-[#ef5350]' : 'text-[#787b86]'}`}>
+                  <span className={`font-medium ${group.totalNet > 0 ? 'text-(--color-buy)' : group.totalNet < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}`}>
                     {group.totalNet > 0 ? '+' : ''}{group.totalNet.toFixed(2)}
                   </span>
                 </div>
@@ -427,36 +427,36 @@ export function TradesTab() {
               const net = trade.profitAndLoss! - trade.fees;
               const isVisible = visibleTradeIds.includes(trade.id);
               const subStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
-              const subSelected = isVisible ? 'bg-[#2962ff]/15 border-l-2 border-l-[#2962ff]' : 'border-l-2 border-l-transparent';
+              const subSelected = isVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
 
               return (
                 <div
                   key={trade.id}
-                  className={`${subStripe} ${subSelected} hover:bg-[#1e222d]/50 transition-colors cursor-pointer`}
+                  className={`${subStripe} ${subSelected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
                   onClick={(e) => { e.stopPropagation(); toggleTradeVisibility(trade.id); }}
                 >
                   <div className={`grid ${cols} items-center h-7`} style={{ width: '70%', paddingLeft: 'calc(1rem + 20px)' }}>
-                    <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
+                    <div className="px-3 text-center text-(--color-text-muted)/60 whitespace-nowrap">
                       {formatTime(trade.creationTimestamp, showDate)}
                     </div>
                     <div className="px-3 text-center" />
                     <div className="px-3 text-center" />
-                    <div className="px-3 text-center text-[#787b86]">{trade.size}</div>
+                    <div className="px-3 text-center text-(--color-text-muted)">{trade.size}</div>
                     <div className="px-3 text-center" />
-                    <div className="px-3 text-center text-[#787b86] whitespace-nowrap">{trade.price.toFixed(2)}</div>
-                    <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
+                    <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">{trade.price.toFixed(2)}</div>
+                    <div className="px-3 text-center text-(--color-text-muted)/60 whitespace-nowrap">
                       {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
                     </div>
                     <div className="px-3 text-center whitespace-nowrap">
-                      <span className={trade.profitAndLoss! > 0 ? 'text-[#26a69a]/70' : trade.profitAndLoss! < 0 ? 'text-[#ef5350]/70' : 'text-[#787b86]'}>
+                      <span className={trade.profitAndLoss! > 0 ? 'text-(--color-buy)/70' : trade.profitAndLoss! < 0 ? 'text-(--color-sell)/70' : 'text-(--color-text-muted)'}>
                         {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
                       </span>
                     </div>
-                    <div className="px-3 text-center text-[#787b86]/60 whitespace-nowrap">
+                    <div className="px-3 text-center text-(--color-text-muted)/60 whitespace-nowrap">
                       {trade.fees.toFixed(2)}
                     </div>
                     <div className="px-3 text-center whitespace-nowrap">
-                      <span className={`${net > 0 ? 'text-[#26a69a]/70' : net < 0 ? 'text-[#ef5350]/70' : 'text-[#787b86]'}`}>
+                      <span className={`${net > 0 ? 'text-(--color-buy)/70' : net < 0 ? 'text-(--color-sell)/70' : 'text-(--color-text-muted)'}`}>
                         {net > 0 ? '+' : ''}{net.toFixed(2)}
                       </span>
                     </div>

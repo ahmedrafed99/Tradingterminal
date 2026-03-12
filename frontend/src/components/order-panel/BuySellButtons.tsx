@@ -151,28 +151,28 @@ export function BuySellButtons() {
         <button
           onClick={() => handlePlace(OrderSide.Buy)}
           disabled={!canPlace || placing !== null}
-          className="flex-1 py-2.5 rounded font-bold text-[11px] text-[#d1d4dc] transition-colors
-                     bg-[#1b6b4a] hover:bg-[#22835b] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 rounded font-bold text-[11px] text-(--color-text) transition-colors
+                     bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'buy' ? '...' : `Buy +${orderSize} ${typeLabel}`}
         </button>
         <button
           onClick={() => handlePlace(OrderSide.Sell)}
           disabled={!canPlace || placing !== null}
-          className="flex-1 py-2.5 rounded font-bold text-[11px] text-[#d1d4dc] transition-colors
-                     bg-[#8b2232] hover:bg-[#a62a3d] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 py-2.5 rounded font-bold text-[11px] text-(--color-text) transition-colors
+                     bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'sell' ? '...' : `Sell -${orderSize} ${typeLabel}`}
         </button>
       </div>
       {!marketOpen && (
-        <div className="text-[10px] text-[#ef5350] mt-1 flex items-center gap-1">
-          <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#ef5350', flexShrink: 0 }} />
+        <div className="text-[10px] text-(--color-sell) mt-1 flex items-center gap-1">
+          <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: 'var(--color-sell)', flexShrink: 0 }} />
           Market closed — reopens Sun 18:00 ET
         </div>
       )}
       {error && (
-        <div className="text-[10px] text-[#ff4444] mt-1">{error}</div>
+        <div className="text-[10px] text-(--color-error) mt-1">{error}</div>
       )}
     </div>
   );

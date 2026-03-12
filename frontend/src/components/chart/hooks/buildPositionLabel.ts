@@ -6,7 +6,7 @@ import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT } from './labelUtils';
+import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
 
 interface Position {
   accountId: number;
@@ -35,7 +35,7 @@ export function buildPositionLabel(
   if (!pos) return pnlUpdaters;
 
   const isLong = pos.type === PositionType.Long;
-  const sideBg = isLong ? '#00c805' : '#ff0000';
+  const sideBg = isLong ? BUY_COLOR : SELL_COLOR;
 
   // Compute initial P&L
   const lp = useStore.getState().lastPrice;
@@ -45,7 +45,7 @@ export function buildPositionLabel(
     const diff = isLong ? lp - pos.averagePrice : pos.averagePrice - lp;
     const initPnl = calcPnl(diff, contract, pos.size);
     initText = `${initPnl >= 0 ? '+' : ''}$${initPnl.toFixed(2)}`;
-    initBg = initPnl >= 0 ? '#00c805' : '#ff0000';
+    initBg = initPnl >= 0 ? BUY_COLOR : SELL_COLOR;
     refs.lastPnlCache.current = { text: initText, bg: initBg };
   } else if (refs.lastPnlCache.current.text) {
     initText = refs.lastPnlCache.current.text;
@@ -63,7 +63,7 @@ export function buildPositionLabel(
   posLine.setLabel([
     { text: initText, bg: initBg, color: LABEL_TEXT },
     { text: String(pos.size), bg: sideBg, color: LABEL_TEXT },
-    { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+    { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
   ]);
 
   const cells = posLine.getCells();
@@ -117,7 +117,7 @@ export function buildPositionLabel(
     }
     const diff = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
     const pnl = calcPnl(diff, contract, pos.size);
-    const bg = pnl >= 0 ? '#00c805' : '#ff0000';
+    const bg = pnl >= 0 ? BUY_COLOR : SELL_COLOR;
     const text = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
     refs.lastPnlCache.current = { text, bg };
     posLine.updateSection(0, text, bg, LABEL_TEXT);

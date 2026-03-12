@@ -20,7 +20,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       style={{
         width: 40,
         height: 22,
-        background: checked ? '#2962ff' : '#363a45',
+        background: checked ? 'var(--color-accent)' : 'var(--color-hover-toolbar)',
       }}
     >
       <span
@@ -173,11 +173,11 @@ export function ConditionModal() {
   }
 
   const inp = INPUT_SURFACE;
-  const fieldLabel = 'block text-[11px] text-[#9598a1]';
-  const sectionLabel = 'text-[10px] uppercase tracking-wider text-[#5d606b] font-medium';
+  const fieldLabel = 'block text-[11px] text-(--color-text-medium)';
+  const sectionLabel = 'text-[10px] uppercase tracking-wider text-(--color-text-dim) font-medium';
 
   return (
-    <Modal onClose={closeConditionModal} className="w-[440px] rounded-xl bg-[#1e222d] border border-[#2a2e39] shadow-2xl max-h-[85vh] flex flex-col">
+    <Modal onClose={closeConditionModal} className="w-[440px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl max-h-[85vh] flex flex-col">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between shrink-0" style={{ padding: '20px 28px 16px' }}>
@@ -186,14 +186,14 @@ export function ConditionModal() {
               {editingConditionId ? 'Edit Condition' : 'New Condition'}
             </span>
             {contract && (
-              <span className="text-[11px] font-medium text-[#2962ff] bg-[#2962ff]/15 rounded-md" style={{ padding: '2px 10px' }}>
+              <span className="text-[11px] font-medium text-(--color-accent) bg-(--color-accent)/15 rounded-md" style={{ padding: '2px 10px' }}>
                 {contract.name?.split(' ')[0] ?? contract.id}
               </span>
             )}
           </div>
           <button
             onClick={closeConditionModal}
-            className="text-[#787b86] hover:text-[#d1d4dc] transition-colors text-base leading-none"
+            className="text-(--color-text-muted) hover:text-(--color-text) transition-colors text-base leading-none"
           >
             ✕
           </button>
@@ -203,7 +203,7 @@ export function ConditionModal() {
         <div className="overflow-auto flex-1" style={{ padding: '0 28px 20px' }}>
 
           {/* ─── TRIGGER PARAMETERS ─── */}
-          <div className="border-t border-[#2a2e39]" style={{ paddingTop: 20, marginBottom: 16 }}>
+          <div className="border-t border-(--color-border)" style={{ paddingTop: 20, marginBottom: 16 }}>
             <div className={sectionLabel} style={{ marginBottom: 14 }}>Trigger Parameters</div>
 
             <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 14 }}>
@@ -249,7 +249,7 @@ export function ConditionModal() {
           </div>
 
           {/* ─── ORDER DETAILS ─── */}
-          <div className="border-t border-[#2a2e39]" style={{ paddingTop: 20, marginBottom: 16 }}>
+          <div className="border-t border-(--color-border)" style={{ paddingTop: 20, marginBottom: 16 }}>
             <div className={sectionLabel} style={{ marginBottom: 14 }}>Order Details</div>
 
             {/* Side */}
@@ -259,8 +259,8 @@ export function ConditionModal() {
                 onClick={() => setOrderSide('buy')}
                 className={`flex-1 text-[13px] font-semibold rounded-lg transition-colors ${
                   orderSide === 'buy'
-                    ? 'bg-[#1b6b4a] text-white'
-                    : 'bg-[#131722] text-[#787b86] border border-[#2a2e39] hover:text-[#d1d4dc]'
+                    ? 'bg-(--color-btn-buy) text-white'
+                    : 'bg-(--color-bg) text-(--color-text-muted) border border-(--color-border) hover:text-(--color-text)'
                 }`}
                 style={{ padding: '10px 0' }}
               >
@@ -271,8 +271,8 @@ export function ConditionModal() {
                 onClick={() => setOrderSide('sell')}
                 className={`flex-1 text-[13px] font-semibold rounded-lg transition-colors ${
                   orderSide === 'sell'
-                    ? 'bg-[#8b2232] text-white'
-                    : 'bg-[#131722] text-[#787b86] border border-[#2a2e39] hover:text-[#d1d4dc]'
+                    ? 'bg-(--color-btn-sell) text-white'
+                    : 'bg-(--color-bg) text-(--color-text-muted) border border-(--color-border) hover:text-(--color-text)'
                 }`}
                 style={{ padding: '10px 0' }}
               >
@@ -326,12 +326,12 @@ export function ConditionModal() {
 
           {/* ─── Bracket toggle ─── */}
           <div
-            className="flex items-center justify-between bg-[#131722] border border-[#2a2e39] rounded-lg"
+            className="flex items-center justify-between bg-(--color-bg) border border-(--color-border) rounded-lg"
             style={{ padding: '12px 14px', marginBottom: 16 }}
           >
             <div className="flex items-center gap-2">
-              <span className="text-[13px] text-[#d1d4dc] font-medium">Bracket (SL / TP)</span>
-              <span className="text-[#787b86] text-xs" title="Attach stop-loss and take-profit after fill">&#9432;</span>
+              <span className="text-[13px] text-(--color-text) font-medium">Bracket (SL / TP)</span>
+              <span className="text-(--color-text-muted) text-xs" title="Attach stop-loss and take-profit after fill">&#9432;</span>
             </div>
             <Toggle checked={bracketEnabled} onChange={setBracketEnabled} />
           </div>
@@ -392,7 +392,7 @@ export function ConditionModal() {
           {/* ─── Label ─── */}
           <div>
             <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>
-              Label <span className="text-[#434651]">(Optional)</span>
+              Label <span className="text-(--color-text-dim)">(Optional)</span>
             </span>
             <input
               type="text"
@@ -410,10 +410,10 @@ export function ConditionModal() {
         </div>
 
         {/* ── Footer ── */}
-        <div className="flex justify-end items-center gap-3 border-t border-[#2a2e39] shrink-0" style={{ padding: '18px 28px' }}>
+        <div className="flex justify-end items-center gap-3 border-t border-(--color-border) shrink-0" style={{ padding: '18px 28px' }}>
           <button
             onClick={closeConditionModal}
-            className="text-[13px] text-[#787b86] hover:text-[#d1d4dc] transition-colors"
+            className="text-[13px] text-(--color-text-muted) hover:text-(--color-text) transition-colors"
             style={{ padding: '10px 20px' }}
           >
             Cancel
@@ -421,7 +421,7 @@ export function ConditionModal() {
           <button
             onClick={handleSubmit}
             disabled={loading || !contract || activeAccountId == null}
-            className="text-[13px] font-semibold rounded-lg bg-[#1b6b4a] text-white hover:bg-[#22835b] transition-colors disabled:opacity-50"
+            className="text-[13px] font-semibold rounded-lg bg-(--color-btn-buy) text-white hover:bg-(--color-btn-buy-hover) transition-colors disabled:opacity-50"
             style={{ padding: '10px 24px' }}
           >
             {loading ? 'Saving...' : editingConditionId ? 'Update Condition' : 'Arm Condition'}

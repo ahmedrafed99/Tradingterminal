@@ -116,7 +116,7 @@ export function DrawingToolbar() {
       {/* Tool buttons — expand upward above the toggle button */}
       {showExpanded && (
         <div
-          className={`flex flex-col bg-[#000000] border border-[#2a2e39] rounded-r-md overflow-hidden ${
+          className={`flex flex-col bg-[#000000] border border-(--color-border) rounded-r-md overflow-hidden ${
             closing ? 'animate-toolbar-left-out' : 'animate-toolbar-left'
           }`}
           style={{ padding: '4px 0', marginBottom: 4 }}
@@ -128,8 +128,8 @@ export function DrawingToolbar() {
               onClick={() => setTool(id)}
               className={`flex items-center justify-center ${
                 activeTool === id
-                  ? 'bg-[#2a2e39] text-white'
-                  : 'text-[#787b86] hover:text-white hover:bg-[#2a2e39]/50'
+                  ? 'bg-(--color-border) text-white'
+                  : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
               }`}
               style={{ width: 36, height: 32 }}
               title={label}
@@ -139,10 +139,10 @@ export function DrawingToolbar() {
           ))}
           {drawings.length > 0 && (
             <>
-              <div className="border-t border-[#2a2e39]" style={{ margin: '2px 6px' }} />
+              <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
               <button
                 onClick={clearAllDrawings}
-                className="flex items-center justify-center text-[#787b86] hover:text-red-400 hover:bg-[#2a2e39]/50 transition-colors"
+                className="flex items-center justify-center text-(--color-text-muted) hover:text-red-400 hover:bg-(--color-border)/50 transition-colors"
                 style={{ width: 36, height: 32 }}
                 title="Delete all drawings"
               >
@@ -156,7 +156,7 @@ export function DrawingToolbar() {
       {/* Toggle button — always visible */}
       <button
         onClick={handleToggle}
-        className="flex items-center justify-center bg-[#c8891a] border border-[#c8891a] rounded-r-md text-black hover:brightness-110"
+        className="flex items-center justify-center bg-(--color-warning) border border-(--color-warning) rounded-r-md text-black hover:brightness-110"
         style={{ width: 14, height: 22 }}
         title="Drawing tools"
       >

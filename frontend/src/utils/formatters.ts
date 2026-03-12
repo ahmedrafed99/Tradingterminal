@@ -61,7 +61,7 @@ export function formatDuration(ms: number): string {
  * Return the Tailwind color class for a P&L value.
  * Positive → green, negative → red, zero/null → neutral (default #d1d4dc).
  */
-export function getPnlColorClass(value: number | null | undefined, neutral = 'text-[#d1d4dc]'): string {
+export function getPnlColorClass(value: number | null | undefined, neutral = 'text-(--color-text)'): string {
   if (value == null) return neutral;
-  return value > 0 ? 'text-[#26a69a]' : value < 0 ? 'text-[#ef5350]' : neutral;
+  return value > 0 ? 'text-(--color-buy)' : value < 0 ? 'text-(--color-sell)' : neutral;
 }

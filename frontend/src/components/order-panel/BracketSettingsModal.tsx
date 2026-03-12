@@ -15,8 +15,8 @@ import { DEFAULT_BRACKET_CONFIG, MAX_TP_LEVELS } from '../../types/bracket';
 // Shared styles
 // ---------------------------------------------------------------------------
 
-const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-[#2962ff]/50 transition-all [&::-webkit-inner-spin-button]:appearance-none';
-const SELECT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white appearance-none focus:outline-none focus:border-[#2962ff]/50 transition-all cursor-pointer';
+const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none';
+const SELECT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white appearance-none focus:outline-none focus:border-(--color-accent)/50 transition-all cursor-pointer';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -47,7 +47,7 @@ function getErrors(name: string, c: BracketConfig, triedSave: boolean): string[]
 
 function ChevronDown() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute text-[#787b86] pointer-events-none" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute text-(--color-text-muted) pointer-events-none" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>
       <polyline points="6 9 12 15 18 9" />
     </svg>
   );
@@ -115,7 +115,7 @@ export function BracketSettingsModal() {
             className="flex items-center justify-center rounded-full hover:bg-white/5 transition-colors"
             style={{ width: '32px', height: '32px' }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#787b86" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -127,13 +127,13 @@ export function BracketSettingsModal() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             {/* Preset Name */}
             <div>
-              <div className="text-[11px] font-medium text-[#787b86] uppercase tracking-wider" style={{ marginBottom: '8px' }}>Preset Name</div>
+              <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: '8px' }}>Preset Name</div>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g., Scalp 10-point / Runner"
-                className={`${INPUT_CLS} placeholder-[#434651]`}
+                className={`${INPUT_CLS} placeholder-(--color-text-dim)`}
                 style={{ padding: '10px 14px' }}
                 autoFocus
               />
@@ -141,7 +141,7 @@ export function BracketSettingsModal() {
 
             {/* Stop Loss */}
             <section>
-              <div className="text-[11px] font-medium text-[#787b86] uppercase tracking-wider" style={{ marginBottom: '12px' }}>Stop Loss</div>
+              <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: '12px' }}>Stop Loss</div>
               <StopLossSection
                 sl={draft.stopLoss}
                 onChange={(sl) => setDraft((d) => ({ ...d, stopLoss: sl }))}
@@ -151,14 +151,14 @@ export function BracketSettingsModal() {
             {/* Take Profits */}
             <section>
               <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
-                <div className="text-[11px] font-medium text-[#787b86] uppercase tracking-wider">Take Profits</div>
+                <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider">Take Profits</div>
                 {draft.takeProfits.length < MAX_TP_LEVELS && (
                   <button
                     onClick={() => setDraft((d) => ({
                       ...d,
                       takeProfits: [...d.takeProfits, { id: crypto.randomUUID(), points: 10, size: 1 }],
                     }))}
-                    className="text-[11px] font-medium text-[#787b86] hover:text-white transition-colors uppercase tracking-wider"
+                    className="text-[11px] font-medium text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider"
                   >
                     + Add Target
                   </button>
@@ -173,7 +173,7 @@ export function BracketSettingsModal() {
             {/* Automation */}
             <section>
               <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
-                <div className="text-[11px] font-medium text-[#787b86] uppercase tracking-wider">Automation</div>
+                <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider">Automation</div>
                 <button
                   onClick={() => setDraft((d) => ({
                     ...d,
@@ -183,7 +183,7 @@ export function BracketSettingsModal() {
                     ],
                   }))}
                   disabled={draft.takeProfits.length === 0}
-                  className="text-[11px] font-medium text-[#787b86] hover:text-white transition-colors uppercase tracking-wider disabled:text-[#434651] disabled:cursor-not-allowed"
+                  className="text-[11px] font-medium text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider disabled:text-(--color-text-dim) disabled:cursor-not-allowed"
                 >
                   + New Rule
                 </button>
@@ -198,7 +198,7 @@ export function BracketSettingsModal() {
 
           {/* Errors */}
           {errors.map((e, i) => (
-            <p key={i} className="text-xs text-[#f23645] bg-[#f23645]/10 rounded-lg text-center" style={{ padding: '10px 16px', marginTop: '12px' }}>
+            <p key={i} className="text-xs text-(--color-error) bg-(--color-error)/10 rounded-lg text-center" style={{ padding: '10px 16px', marginTop: '12px' }}>
               {e}
             </p>
           ))}
@@ -215,14 +215,14 @@ export function BracketSettingsModal() {
                 setName(isCreate ? '' : existingPreset?.name ?? '');
                 setDraft(structuredClone(isCreate ? DEFAULT_BRACKET_CONFIG : existingPreset?.config ?? DEFAULT_BRACKET_CONFIG));
               }}
-              className="text-xs text-[#787b86] hover:text-[#d1d4dc] transition-colors"
+              className="text-xs text-(--color-text-muted) hover:text-(--color-text) transition-colors"
             >
               Reset
             </button>
             {!isCreate && existingPreset && (
               <button
                 onClick={handleDelete}
-                className="text-xs text-[#787b86] hover:text-[#f23645] transition-colors"
+                className="text-xs text-(--color-text-muted) hover:text-(--color-error) transition-colors"
               >
                 Delete
               </button>
@@ -231,7 +231,7 @@ export function BracketSettingsModal() {
           <div className="flex items-center" style={{ gap: '10px' }}>
             <button
               onClick={() => setEditingPresetId(null)}
-              className="text-xs text-[#787b86] hover:text-white transition-colors"
+              className="text-xs text-(--color-text-muted) hover:text-white transition-colors"
               style={{ padding: '8px 16px' }}
             >
               Discard
@@ -239,7 +239,7 @@ export function BracketSettingsModal() {
             <button
               onClick={handleSave}
               disabled={errors.length > 0}
-              className="text-xs font-medium rounded-lg bg-[#2962ff]/20 text-[#5b8def] hover:bg-[#2962ff]/30 transition-all disabled:opacity-50"
+              className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
               style={{ padding: '8px 24px' }}
             >
               Save Preset
@@ -265,7 +265,7 @@ function StopLossSection({
   return (
     <div className="grid grid-cols-2" style={{ gap: '12px' }}>
       <label>
-        <span className="block text-[11px] text-[#787b86]" style={{ marginBottom: '6px' }}>Distance (Points)</span>
+        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>Distance (Points)</span>
         <input
           type="number"
           min={0}
@@ -277,7 +277,7 @@ function StopLossSection({
         />
       </label>
       <label>
-        <span className="block text-[11px] text-[#787b86]" style={{ marginBottom: '6px' }}>Order Type</span>
+        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>Order Type</span>
         <div className="relative">
           <select
             value={sl.type}
@@ -318,7 +318,7 @@ function TakeProfitList({
 
   if (tps.length === 0) {
     return (
-      <div className="text-xs text-[#434651] text-center" style={{ padding: '8px 0' }}>
+      <div className="text-xs text-(--color-text-dim) text-center" style={{ padding: '8px 0' }}>
         No targets added yet
       </div>
     );
@@ -353,14 +353,14 @@ function TakeProfitRow({
   return (
     <div className="group/item flex items-center border border-white/[0.05] rounded-lg transition-all hover:border-white/10" style={{ padding: '10px 12px', gap: '12px', background: 'rgba(255,255,255,0.04)' }}>
       {/* Index */}
-      <span className="text-[11px] text-[#787b86] font-medium shrink-0" style={{ width: '18px' }}>
+      <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0" style={{ width: '18px' }}>
         {index + 1}
       </span>
 
       {/* Fields */}
       <div className="flex-1 grid grid-cols-2" style={{ gap: '12px' }}>
         <div className="flex items-center" style={{ gap: '8px' }}>
-          <span className="text-[11px] text-[#787b86] font-medium shrink-0">Points</span>
+          <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0">Points</span>
           <input
             type="number"
             min={1}
@@ -372,7 +372,7 @@ function TakeProfitRow({
           />
         </div>
         <div className="flex items-center" style={{ gap: '8px' }}>
-          <span className="text-[11px] text-[#787b86] font-medium shrink-0">Quantity</span>
+          <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0">Quantity</span>
           <input
             type="number"
             min={1}
@@ -388,7 +388,7 @@ function TakeProfitRow({
       {/* Remove */}
       <button
         onClick={onRemove}
-        className="opacity-0 group-hover/item:opacity-100 text-[#434651] hover:text-[#f23645] transition-all shrink-0"
+        className="opacity-0 group-hover/item:opacity-100 text-(--color-text-dim) hover:text-(--color-error) transition-all shrink-0"
         style={{ padding: '4px' }}
         title="Remove"
       >
@@ -426,7 +426,7 @@ function ConditionList({
 
   if (conditions.length === 0) {
     return (
-      <div className="text-xs text-[#434651] text-center" style={{ padding: '8px 0' }}>
+      <div className="text-xs text-(--color-text-dim) text-center" style={{ padding: '8px 0' }}>
         No rules added yet
       </div>
     );
@@ -490,7 +490,7 @@ function ConditionRow({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* When */}
       <div className="flex items-center" style={{ gap: '10px' }}>
-        <span className="text-[11px] text-[#787b86] font-medium uppercase shrink-0" style={{ width: '36px' }}>When</span>
+        <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>When</span>
         <div className="relative flex-1">
           <select
             value={condition.trigger.tpIndex}
@@ -506,7 +506,7 @@ function ConditionRow({
         </div>
         <button
           onClick={onRemove}
-          className="text-[#434651] hover:text-[#f23645] transition-colors shrink-0"
+          className="text-(--color-text-dim) hover:text-(--color-error) transition-colors shrink-0"
           style={{ padding: '4px' }}
           title="Remove"
         >
@@ -519,7 +519,7 @@ function ConditionRow({
 
       {/* Then */}
       <div className="flex items-center" style={{ gap: '10px' }}>
-        <span className="text-[11px] text-[#787b86] font-medium uppercase shrink-0" style={{ width: '36px' }}>Then</span>
+        <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>Then</span>
         <div className="relative flex-1">
           <select
             value={encodeAction()}
@@ -545,10 +545,10 @@ function ConditionRow({
             step={1}
             value={(condition.action as { kind: 'customOffset'; points: number }).points}
             onChange={(e) => onChange({ ...condition, action: { kind: 'customOffset', points: Math.max(1, +e.target.value || 1) } })}
-            className="w-20 bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white text-center focus:outline-none focus:border-[#2962ff]/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-20 bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
             style={{ padding: '6px 8px' }}
           />
-          <span className="text-[11px] text-[#787b86]">points past entry</span>
+          <span className="text-[11px] text-(--color-text-muted)">points past entry</span>
         </div>
       )}
     </div>

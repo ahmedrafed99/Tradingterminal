@@ -2,6 +2,7 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { RulerDrawing } from '../../../types/drawing';
+import { COLOR_LABEL_TEXT, COLOR_BTN_SELL } from '../../../constants/colors';
 import { hitTestRect } from './hitTesting';
 import { formatVolume } from './rulerMetrics';
 
@@ -57,7 +58,7 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
       // Determine color based on direction
       const isNegative = this._drawing.metrics.priceChange < 0;
       const rectColor = isNegative ? '#d32f2f' : this._drawing.color;
-      const labelColor = isNegative ? '#8b2232' : this._drawing.color;
+      const labelColor = isNegative ? COLOR_BTN_SELL : this._drawing.color;
       const { r: rr, g: rg, b: rb } = hexToRgb(rectColor);
       const { r: lr, g: lg, b: lb } = hexToRgb(labelColor);
 
@@ -125,7 +126,7 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
           [left, top + h],
           [left + w, top + h],
         ];
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = '#1e3a5f';
         ctx.lineWidth = Math.round(1.5 * vpr);
         for (const [hx, hy] of handles) {

@@ -213,7 +213,7 @@ export function ChartArea() {
           />
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-[#434651] text-sm">Select an instrument to get started</p>
+            <p className="text-(--color-text-dim) text-sm">Select an instrument to get started</p>
           </div>
         )}
       </div>
@@ -243,7 +243,7 @@ export function ChartArea() {
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-[#434651] text-sm">{secondContract ? '' : 'Loading MNQ...'}</p>
+              <p className="text-(--color-text-dim) text-sm">{secondContract ? '' : 'Loading MNQ...'}</p>
             </div>
           )}
         </div>
@@ -293,7 +293,7 @@ function DraggableSeparator({
   return (
     <div
       className={`w-1 cursor-col-resize flex-shrink-0 transition-colors ${
-        dragging ? 'bg-[#2962ff]' : 'bg-black hover:bg-[#434651]'
+        dragging ? 'bg-(--color-accent)' : 'bg-black hover:bg-(--color-text-dim)'
       }`}
       onMouseDown={(e) => {
         e.preventDefault();

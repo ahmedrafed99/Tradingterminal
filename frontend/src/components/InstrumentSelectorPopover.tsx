@@ -18,7 +18,7 @@ function StarIcon({ filled }: { filled: boolean }) {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ) : (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#787b86]">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   );
@@ -26,7 +26,7 @@ function StarIcon({ filled }: { filled: boolean }) {
 
 function SearchIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#787b86" strokeWidth="2">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
       <circle cx="11" cy="11" r="8" />
       <path d="M21 21l-4.35-4.35" />
     </svg>
@@ -79,13 +79,13 @@ export function InstrumentSelectorPopover() {
       {/* Trigger button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1 hover:bg-[#1e222d]/50 rounded transition-colors"
+        className="flex items-center gap-1 hover:bg-(--color-surface)/50 rounded transition-colors"
         style={{ padding: '4px 8px' }}
       >
-        <span className="text-xs font-medium text-[#d1d4dc]">
+        <span className="text-xs font-medium text-(--color-text)">
           {contract?.name ?? 'Select'}
         </span>
-<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#787b86" strokeWidth="1.5">
+<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.5">
           <path d="M2.5 3.75L5 6.25L7.5 3.75" />
         </svg>
       </button>
@@ -93,12 +93,12 @@ export function InstrumentSelectorPopover() {
       {/* Popover */}
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 animate-dropdown-in"
+          className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)', width: 380 }}
         >
           {/* Search input */}
           <div style={{ padding: '10px 12px 0' }}>
-            <div className="flex items-center gap-2 bg-[#111] rounded-md border border-[#2a2e39] transition-colors focus-within:border-[#434651]"
+            <div className="flex items-center gap-2 bg-(--color-input) rounded-md border border-(--color-border) transition-colors focus-within:border-(--color-text-dim)"
               style={{ padding: '6px 10px' }}
             >
               <SearchIcon />
@@ -108,7 +108,7 @@ export function InstrumentSelectorPopover() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search instrument..."
-                className="bg-transparent border-none text-xs text-white flex-1 focus:outline-none placeholder-[#787b86]"
+                className="bg-transparent border-none text-xs text-white flex-1 focus:outline-none placeholder-(--color-text-muted)"
               />
             </div>
           </div>
@@ -129,8 +129,8 @@ export function InstrumentSelectorPopover() {
                   cat.disabled
                     ? 'opacity-50 cursor-default'
                     : cat.id === activeCategory
-                      ? 'text-white bg-[#1e222d]'
-                      : 'text-[#787b86] hover:text-[#d1d4dc]'
+                      ? 'text-white bg-(--color-surface)'
+                      : 'text-(--color-text-muted) hover:text-(--color-text)'
                 }`}
                 style={{ padding: '4px 8px' }}
                 title={cat.disabled ? 'Coming soon' : undefined}
@@ -149,8 +149,8 @@ export function InstrumentSelectorPopover() {
                   onClick={() => setActiveExchange(ex)}
                   className={`text-[11px] font-medium rounded-md transition-colors ${
                     ex === activeExchange
-                      ? 'text-white bg-[#1e222d]'
-                      : 'text-[#787b86] hover:text-[#d1d4dc]'
+                      ? 'text-white bg-(--color-surface)'
+                      : 'text-(--color-text-muted) hover:text-(--color-text)'
                   }`}
                   style={{ padding: '3px 8px' }}
                 >
@@ -161,18 +161,18 @@ export function InstrumentSelectorPopover() {
           )}
 
           {/* Divider */}
-          <div className="border-t border-[#2a2e39] mx-3" style={{ marginTop: 8 }} />
+          <div className="border-t border-(--color-border) mx-3" style={{ marginTop: 8 }} />
 
           {/* Results list */}
           <div className="overflow-y-auto" style={{ maxHeight: 280, padding: '4px 6px 6px' }}>
             {searching && results.length === 0 && (
-              <div className="px-3 py-4 text-xs text-[#787b86] text-center">Searching...</div>
+              <div className="px-3 py-4 text-xs text-(--color-text-muted) text-center">Searching...</div>
             )}
             {showingSearch && !searching && results.length === 0 && (
-              <div className="px-3 py-4 text-xs text-[#787b86] text-center">No results</div>
+              <div className="px-3 py-4 text-xs text-(--color-text-muted) text-center">No results</div>
             )}
             {!showingSearch && bookmarks.length === 0 && (
-              <div className="px-3 py-4 text-xs text-[#787b86] text-center">
+              <div className="px-3 py-4 text-xs text-(--color-text-muted) text-center">
                 Type to search instruments
               </div>
             )}
@@ -183,8 +183,8 @@ export function InstrumentSelectorPopover() {
               return (
                 <div
                   key={c.id}
-                  className={`flex items-center hover:bg-[#1e222d] transition-colors rounded-md cursor-pointer ${
-                    active ? 'bg-[#1e222d]' : ''
+                  className={`flex items-center hover:bg-(--color-surface) transition-colors rounded-md cursor-pointer ${
+                    active ? 'bg-(--color-surface)' : ''
                   }`}
                   style={{ padding: '8px 10px' }}
                   onClick={() => handleSelect(c)}
@@ -197,11 +197,11 @@ export function InstrumentSelectorPopover() {
                     <StarIcon filled={bookmarked} />
                   </button>
                   <div className="flex-1 min-w-0">
-                    <div className={`text-xs font-medium ${active ? 'text-[#f0a830]' : 'text-[#d1d4dc]'}`}>
+                    <div className={`text-xs font-medium ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}>
                       {c.name}
                     </div>
-                    <div className="text-[10px] text-[#787b86] truncate">{c.description}</div>
-                    <div className="text-[10px] text-[#787b86]">
+                    <div className="text-[10px] text-(--color-text-muted) truncate">{c.description}</div>
+                    <div className="text-[10px] text-(--color-text-muted)">
                       {currentCategory?.label ?? 'Futures'} · {activeExchange || 'ProjectX'}
                     </div>
                   </div>

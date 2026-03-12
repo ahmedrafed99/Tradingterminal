@@ -8,6 +8,7 @@ import { snapToTickSize } from '../barUtils';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
+import { BUY_COLOR, LABEL_TEXT, CLOSE_BG } from './labelUtils';
 
 // Custom white crosshair cursor (24x24 SVG, hotspot at center)
 const CROSSHAIR_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Cline x1='12' y1='0' x2='12' y2='24' stroke='%23ffffff' stroke-width='2'/%3E%3Cline x1='0' y1='12' x2='24' y2='12' stroke='%23ffffff' stroke-width='2'/%3E%3C/svg%3E") 12 12, crosshair`;
@@ -65,7 +66,7 @@ export function usePositionDrag(
       drag.snappedPrice = snapped;
 
       // Create or update temporary preview line
-      const color = direction === 'sl' ? '#ff4444' : '#00c805';
+      const color = direction === 'sl' ? '#ff4444' : BUY_COLOR;
       if (!refs.posDragLine.current) {
         refs.posDragLine.current = new PriceLevelLine({
           price: snapped,
@@ -89,7 +90,7 @@ export function usePositionDrag(
         ? `-$${Math.abs(pnl).toFixed(2)}`
         : `+$${Math.abs(pnl).toFixed(2)}`;
       const labelText = direction === 'sl' ? 'SL' : 'TP';
-      const textColor = color === '#00c805' ? '#000' : '#fff';
+      const textColor = color === BUY_COLOR ? LABEL_TEXT : '#fff';
 
       // Create or update temporary overlay label
       if (!refs.posDragLabel.current && overlay) {
@@ -109,7 +110,7 @@ export function usePositionDrag(
         row.appendChild(sizeCell);
         // Label cell
         const lblCell = document.createElement('div');
-        lblCell.style.cssText = `background:#e0e0e0;color:#000;padding:0 6px;`;
+        lblCell.style.cssText = `background:${CLOSE_BG};color:${LABEL_TEXT};padding:0 6px;`;
         lblCell.textContent = labelText;
         lblCell.dataset.role = 'lbl';
         row.appendChild(lblCell);

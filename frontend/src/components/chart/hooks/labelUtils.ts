@@ -2,15 +2,20 @@ import type { Contract } from '../../../services/marketDataService';
 import type { Order } from '../../../services/orderService';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
+import {
+  COLOR_LABEL_BG, COLOR_LABEL_TEXT, COLOR_LABEL_CLOSE,
+  COLOR_LINE_BUY, COLOR_LINE_SELL,
+  COLOR_LINE_BUY_HOVER, COLOR_LINE_SELL_HOVER,
+} from '../../../constants/colors';
 
-// ── Shared colors ──────────────────────────────────────
-export const LABEL_BG = '#cac9cb';
-export const LABEL_TEXT = '#000';
-export const CLOSE_BG = '#e0e0e0';
-export const BUY_COLOR = '#00c805';
-export const SELL_COLOR = '#ff0000';
-export const BUY_HOVER = '#00a004';
-export const SELL_HOVER = '#cc0000';
+// ── Shared colors (re-exported from central tokens) ────
+export const LABEL_BG = COLOR_LABEL_BG;
+export const LABEL_TEXT = COLOR_LABEL_TEXT;
+export const CLOSE_BG = COLOR_LABEL_CLOSE;
+export const BUY_COLOR = COLOR_LINE_BUY;
+export const SELL_COLOR = COLOR_LINE_SELL;
+export const BUY_HOVER = COLOR_LINE_BUY_HOVER;
+export const SELL_HOVER = COLOR_LINE_SELL_HOVER;
 
 // ── Order line color ──────────────────────────────────
 

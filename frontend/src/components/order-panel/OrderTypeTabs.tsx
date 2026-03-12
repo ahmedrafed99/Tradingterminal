@@ -13,8 +13,8 @@ export function OrderTypeTabs() {
           onClick={() => setOrderType('market')}
           className={`flex-1 text-xs py-1.5 rounded transition-colors ${
             orderType === 'market'
-              ? 'bg-[#c8891a] text-black font-medium'
-              : 'bg-[#111] text-[#787b86] hover:text-[#d1d4dc]'
+              ? 'bg-(--color-warning) text-black font-medium'
+              : 'bg-(--color-input) text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
           Market
@@ -23,8 +23,8 @@ export function OrderTypeTabs() {
           onClick={() => setOrderType('limit')}
           className={`flex-1 text-xs py-1.5 rounded transition-colors ${
             orderType === 'limit'
-              ? 'bg-[#c8891a] text-black font-medium'
-              : 'bg-[#111] text-[#787b86] hover:text-[#d1d4dc]'
+              ? 'bg-(--color-warning) text-black font-medium'
+              : 'bg-(--color-input) text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
           Limit
@@ -40,8 +40,8 @@ export function OrderTypeTabs() {
             value={limitPrice ?? ''}
             onChange={(e) => setLimitPrice(e.target.value ? Number(e.target.value) : null)}
             placeholder=""
-            className="w-full bg-[#111] border border-[#2a2e39] rounded px-2 py-1.5 text-xs text-white
-                       focus:outline-none focus:border-[#1a3a6e] placeholder-[#434651]"
+            className="w-full bg-(--color-input) border border-(--color-border) rounded px-2 py-1.5 text-xs text-white
+                       focus:outline-none focus:border-(--color-focus-ring) placeholder-(--color-text-dim)"
           />
         </div>
       )}

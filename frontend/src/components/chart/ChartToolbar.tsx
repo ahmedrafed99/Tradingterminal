@@ -7,6 +7,7 @@ import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screen
 import { addTimeBanner } from './screenshot/addTimeBanner';
 import { COLOR_PALETTE } from './ColorPopover';
 import { isFuturesMarketOpen } from '../../utils/marketHours';
+import { COLOR_TEXT_MUTED, COLOR_TEXT, COLOR_BG, COLOR_BORDER } from '../../constants/colors';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -24,7 +25,7 @@ function StarIcon({ filled }: { filled: boolean }) {
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ) : (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#787b86]">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   );
@@ -49,7 +50,7 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
     <div ref={ref} className="relative flex-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-center gap-1 bg-black border border-[#2a2e39] rounded-md text-xs text-[#d1d4dc] focus:outline-none hover:border-[#434651] transition-colors"
+        className="w-full flex items-center justify-center gap-1 bg-black border border-(--color-border) rounded-md text-xs text-(--color-text) focus:outline-none hover:border-(--color-text-dim) transition-colors"
         style={{ padding: '5px 6px' }}
       >
         <span>{current?.label ?? 'Minutes'}</span>
@@ -57,15 +58,15 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-1 w-full bg-black border border-[#2a2e39] rounded-md shadow-lg z-50 py-1 animate-dropdown-in"
+          className="absolute bottom-full left-0 mb-1 w-full bg-black border border-(--color-border) rounded-md shadow-lg z-50 py-1 animate-dropdown-in"
           style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
         >
           {UNIT_OPTIONS.map((u) => (
             <button
               key={u.value}
               onClick={() => { onChange(u.value); setOpen(false); }}
-              className={`w-full text-center text-xs font-medium px-2 py-1 transition-colors rounded-sm mx-0 hover:bg-[#1e222d] ${
-                u.value === value ? 'text-[#f0a830]' : 'text-[#d1d4dc]'
+              className={`w-full text-center text-xs font-medium px-2 py-1 transition-colors rounded-sm mx-0 hover:bg-(--color-surface) ${
+                u.value === value ? 'text-(--color-warning)' : 'text-(--color-text)'
               }`}
             >
               {u.label}
@@ -128,8 +129,8 @@ function IndicatorsDropdown() {
     <div ref={ref} className="relative self-stretch flex items-center">
       <button
         onClick={() => { setOpen((o) => !o); setEditingVp(false); }}
-        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-[#1e222d] transition-colors ${
-          open ? 'text-[#d1d4dc]' : 'text-[#787b86] hover:text-[#d1d4dc]'
+        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
+          open ? 'text-(--color-text)' : 'text-(--color-text-muted) hover:text-(--color-text)'
         }`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title="Indicators"
@@ -144,14 +145,14 @@ function IndicatorsDropdown() {
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 animate-dropdown-in"
+          className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)', minWidth: 220 }}
         >
           {!editingVp ? (
             <div style={{ padding: 6 }}>
               {/* Volume Profile row */}
               <div
-                className="flex items-center hover:bg-[#1e222d] transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 {/* Checkbox */}
@@ -159,8 +160,8 @@ function IndicatorsDropdown() {
                   onClick={() => setVpEnabled(!vpEnabled)}
                   style={{
                     width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                    border: vpEnabled ? 'none' : '1.5px solid #787b86',
-                    background: vpEnabled ? '#2962ff' : 'transparent',
+                    border: vpEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
+                    background: vpEnabled ? 'var(--color-accent)' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer',
                   }}
@@ -174,7 +175,7 @@ function IndicatorsDropdown() {
 
                 {/* Label */}
                 <span
-                  className="flex-1 text-xs text-[#d1d4dc] cursor-pointer select-none"
+                  className="flex-1 text-xs text-(--color-text) cursor-pointer select-none"
                   style={{ marginLeft: 10 }}
                   onClick={() => setVpEnabled(!vpEnabled)}
                 >
@@ -185,7 +186,7 @@ function IndicatorsDropdown() {
                 <div
                   style={{
                     width: 12, height: 12, borderRadius: 2, flexShrink: 0,
-                    background: vpColor, border: '1px solid #2a2e39',
+                    background: vpColor, border: '1px solid var(--color-border)',
                     marginRight: 8,
                   }}
                 />
@@ -193,7 +194,7 @@ function IndicatorsDropdown() {
                 {/* Edit (pencil) button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditingVp(true); }}
-                  className="text-[#787b86] hover:text-[#d1d4dc] transition-colors"
+                  className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
                   title="Edit color"
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -209,13 +210,13 @@ function IndicatorsDropdown() {
               <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
                 <button
                   onClick={() => setEditingVp(false)}
-                  className="text-[#787b86] hover:text-[#d1d4dc] transition-colors"
+                  className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M19 12H5M12 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className="text-xs text-[#d1d4dc] font-medium">Volume Profile Color</span>
+                <span className="text-xs text-(--color-text) font-medium">Volume Profile Color</span>
               </div>
 
               {/* Color palette grid */}
@@ -226,9 +227,9 @@ function IndicatorsDropdown() {
                     onClick={() => setVpColor(c)}
                     style={{
                       width: 20, height: 20, background: c, borderRadius: 3,
-                      border: c === vpColor ? '2px solid #fff' : '1px solid #2a2e39',
+                      border: c === vpColor ? '2px solid #fff' : '1px solid var(--color-border)',
                       cursor: 'pointer',
-                      boxShadow: c === vpColor ? '0 0 0 1px #1e222d' : 'none',
+                      boxShadow: c === vpColor ? '0 0 0 1px var(--color-surface)' : 'none',
                     }}
                   />
                 ))}
@@ -239,8 +240,8 @@ function IndicatorsDropdown() {
                 onClick={() => customInputRef.current?.click()}
                 style={{
                   width: 20, height: 20, borderRadius: 3,
-                  border: '1px dashed #787b86', background: 'transparent',
-                  color: '#787b86', fontSize: 14, lineHeight: '18px',
+                  border: '1px dashed var(--color-text-muted)', background: 'transparent',
+                  color: 'var(--color-text-muted)', fontSize: 14, lineHeight: '18px',
                   cursor: 'pointer', display: 'flex',
                   alignItems: 'center', justifyContent: 'center',
                 }}
@@ -269,8 +270,8 @@ function NewsToggle() {
   return (
     <button
       onClick={() => setNewsVisible(!newsVisible)}
-      className={`self-stretch flex items-center gap-1.5 text-xs font-medium rounded hover:bg-[#1e222d] transition-colors ${
-        newsVisible ? 'text-[#f0a830]' : 'text-[#787b86] hover:text-[#d1d4dc]'
+      className={`self-stretch flex items-center gap-1.5 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
+        newsVisible ? 'text-(--color-warning)' : 'text-(--color-text-muted) hover:text-(--color-text)'
       }`}
       style={{ paddingLeft: 12, paddingRight: 12 }}
       title={newsVisible ? 'Hide economic calendar' : 'Show economic calendar'}
@@ -364,7 +365,7 @@ export function ChartToolbar() {
       const y = 18;
 
       if (instrText) {
-        ctx.fillStyle = '#787b86';
+        ctx.fillStyle = COLOR_TEXT_MUTED;
         ctx.fillText(instrText, x, y);
         x += ctx.measureText(instrText).width + 10;
       }
@@ -372,7 +373,7 @@ export function ChartToolbar() {
         const metrics = ctx.measureText(ohlcText);
         ctx.fillStyle = 'rgba(0,0,0,0.5)';
         ctx.fillRect(x - 3, y - 12, metrics.width + 6, 16);
-        ctx.fillStyle = '#d1d4dc';
+        ctx.fillStyle = COLOR_TEXT;
         ctx.fillText(ohlcText, x, y);
       }
 
@@ -414,10 +415,10 @@ export function ChartToolbar() {
         chartCanvas.width = w;
         chartCanvas.height = h;
         const ctx = chartCanvas.getContext('2d')!;
-        ctx.fillStyle = '#131722';
+        ctx.fillStyle = COLOR_BG;
         ctx.fillRect(0, 0, w, h);
         ctx.drawImage(leftCanvas, 0, 0);
-        ctx.fillStyle = '#2a2e39';
+        ctx.fillStyle = COLOR_BORDER;
         ctx.fillRect(leftCanvas.width, 0, gap, h);
         ctx.drawImage(rightCanvas, leftCanvas.width + gap, 0);
       }
@@ -475,9 +476,9 @@ export function ChartToolbar() {
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 bg-black border-b border-[#2a2e39]" style={{ paddingTop: '7px', paddingBottom: '7px' }}>
+    <div className="flex items-center gap-2 px-4 bg-black border-b border-(--color-border)" style={{ paddingTop: '7px', paddingBottom: '7px' }}>
       <InstrumentSelectorPopover />
-      <div className="w-px h-4 bg-[#2a2e39] mx-1" />
+      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* Pinned timeframe buttons */}
       {pinnedTimeframes.map((tf) => (
@@ -486,8 +487,8 @@ export function ChartToolbar() {
           onClick={() => setTimeframe(tf)}
           className={`px-2 py-1 text-xs font-medium transition-colors ${
             timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber
-              ? 'text-[#f0a830]'
-              : 'text-[#787b86] hover:text-[#d1d4dc]'
+              ? 'text-(--color-warning)'
+              : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
           {tf.label}
@@ -500,8 +501,8 @@ export function ChartToolbar() {
           onClick={() => setDropdownOpen((o) => !o)}
           className={`flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
             !isActivePinned
-              ? 'text-[#f0a830]'
-              : 'text-[#787b86] hover:text-[#d1d4dc]'
+              ? 'text-(--color-warning)'
+              : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
           {!isActivePinned && <span>{timeframe.label}</span>}
@@ -510,7 +511,7 @@ export function ChartToolbar() {
 
         {/* Dropdown menu */}
         {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50 py-2 animate-dropdown-in"
+          <div className="absolute top-full left-0 mt-1 w-56 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 py-2 animate-dropdown-in"
             style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }}
           >
             {/* Preset timeframes */}
@@ -520,15 +521,15 @@ export function ChartToolbar() {
               return (
                 <div
                   key={tf.label}
-                  className={`flex items-center hover:bg-[#1e222d] transition-colors rounded-md mx-1.5 ${
-                    active ? 'bg-[#1e222d]' : ''
+                  className={`flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
+                    active ? 'bg-(--color-surface)' : ''
                   }`}
                   style={{ padding: '8px 10px' }}
                 >
                   <button
                     onClick={() => handleSelectMore(tf)}
                     className={`text-xs flex-1 text-center font-medium ${
-                      active ? 'text-[#f0a830]' : 'text-[#d1d4dc]'
+                      active ? 'text-(--color-warning)' : 'text-(--color-text)'
                     }`}
                   >
                     {tf.label}
@@ -547,7 +548,7 @@ export function ChartToolbar() {
             })}
 
             {/* Divider */}
-            <div className="border-t border-[#2a2e39] my-2 mx-3" />
+            <div className="border-t border-(--color-border) my-2 mx-3" />
 
             {/* Custom timeframe */}
             <div style={{ padding: '4px 14px 8px' }}>
@@ -559,13 +560,13 @@ export function ChartToolbar() {
                   value={customNumber}
                   onChange={(e) => setCustomNumber(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCustom(); }}
-                  className="w-10 bg-black border border-[#2a2e39] rounded-md text-xs text-[#d1d4dc] text-center focus:outline-none focus:border-[#434651]"
+                  className="w-10 bg-black border border-(--color-border) rounded-md text-xs text-(--color-text) text-center focus:outline-none focus:border-(--color-text-dim)"
                   style={{ padding: '5px 4px' }}
                 />
                 <UnitDropdown value={customUnit} onChange={setCustomUnit} />
                 <button
                   onClick={handleApplyCustom}
-                  className="flex items-center justify-center rounded-md bg-[#1e222d] hover:bg-[#2a2e39] text-[#787b86] hover:text-white transition-colors shrink-0"
+                  className="flex items-center justify-center rounded-md bg-(--color-surface) hover:bg-(--color-border) text-(--color-text-muted) hover:text-white transition-colors shrink-0"
                   style={{ width: '24px', height: '24px' }}
                   title="Add custom timeframe"
                 >
@@ -579,7 +580,7 @@ export function ChartToolbar() {
         )}
       </div>
 
-      <div className="w-px h-4 bg-[#2a2e39] mx-1" />
+      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* Indicators */}
       <IndicatorsDropdown />
@@ -597,10 +598,10 @@ export function ChartToolbar() {
           setDualChart(next);
           if (next) setSelectedChart('left');
         }}
-        className={`self-stretch flex items-center rounded hover:bg-[#1e222d] transition-colors ${
+        className={`self-stretch flex items-center rounded hover:bg-(--color-surface) transition-colors ${
           dualChart
-            ? 'text-[#d1d4dc]'
-            : 'text-[#787b86] hover:text-[#d1d4dc]'
+            ? 'text-(--color-text)'
+            : 'text-(--color-text-muted) hover:text-(--color-text)'
         }`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title={dualChart ? 'Single chart' : 'Dual chart'}
@@ -617,18 +618,18 @@ export function ChartToolbar() {
         )}
       </button>
 
-      <div className="w-px h-4 bg-[#2a2e39] mx-1" />
+      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* Screenshot button */}
       <div ref={cameraRef} className="relative self-stretch flex items-center">
         <button
           onClick={() => setCameraOpen((o) => !o)}
-          className={`h-full flex items-center justify-center rounded hover:bg-[#1e222d] transition-colors ${
+          className={`h-full flex items-center justify-center rounded hover:bg-(--color-surface) transition-colors ${
             copied
               ? 'text-green-400'
               : cameraOpen
-                ? 'text-[#d1d4dc]'
-                : 'text-[#787b86] hover:text-[#d1d4dc]'
+                ? 'text-(--color-text)'
+                : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
           style={{ paddingLeft: 12, paddingRight: 12 }}
           title="Chart screenshot"
@@ -647,27 +648,27 @@ export function ChartToolbar() {
 
         {cameraOpen && (
           <div
-            className="absolute top-full right-0 mt-1.5 bg-black border border-[#2a2e39]/60 rounded-xl z-50 animate-dropdown-in"
+            className="absolute top-full right-0 mt-1.5 bg-black border border-(--color-border)/60 rounded-xl z-50 animate-dropdown-in"
             style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)', padding: '6px' }}
           >
             <button
               onClick={handleCopyChartImage}
-              className="w-full flex items-center gap-2.5 text-xs text-[#d1d4dc] hover:bg-[#1e222d] transition-colors rounded-lg"
+              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-surface) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#787b86" strokeWidth="2">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" />
                 <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
               </svg>
               Copy chart image
             </button>
-            <div className="border-t border-[#2a2e39]/40 my-1 mx-2" />
+            <div className="border-t border-(--color-border)/40 my-1 mx-2" />
             <button
               onClick={handleCustomSnapshot}
-              className="w-full flex items-center gap-2.5 text-xs text-[#d1d4dc] hover:bg-[#1e222d] transition-colors rounded-lg"
+              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-surface) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#787b86" strokeWidth="1.8">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
                 <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
@@ -677,7 +678,7 @@ export function ChartToolbar() {
         )}
       </div>
 
-      <div className="w-px h-4 bg-[#2a2e39] mx-1" />
+      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* NY clock + market status */}
       <div className="flex items-center gap-1.5" style={{ marginRight: '8px' }}>
@@ -687,11 +688,11 @@ export function ChartToolbar() {
             display: 'inline-block',
             width: 6, height: 6,
             borderRadius: '50%',
-            background: marketOpen ? '#26a69a' : '#ef5350',
+            background: marketOpen ? 'var(--color-buy)' : 'var(--color-sell)',
             flexShrink: 0,
           }}
         />
-        <span className="text-xs text-[#787b86]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span className="text-xs text-(--color-text-muted)" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {nyClock}
         </span>
       </div>

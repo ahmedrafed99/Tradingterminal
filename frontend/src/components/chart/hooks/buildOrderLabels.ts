@@ -6,7 +6,8 @@ import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { darken, LABEL_TEXT, computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
+import { darken, LABEL_TEXT, LABEL_BG, CLOSE_BG, computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
+import { COLOR_SELL } from '../../../constants/colors';
 
 interface Position {
   accountId: number;
@@ -174,10 +175,10 @@ export function buildOrderLabels(
       if (oType === OrderType.Stop || oType === OrderType.TrailingStop) {
         // SL bracket on an unfilled entry — show label + cancel button so the user can remove it
         initPnlText = 'SL';
-        initPnlBg = '#ef5350';
+        initPnlBg = COLOR_SELL;
       } else {
         initPnlText = oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
-        initPnlBg = '#cac9cb';
+        initPnlBg = LABEL_BG;
       }
     }
 
@@ -199,9 +200,9 @@ export function buildOrderLabels(
     if (isEntryOrder) orderLine.setLabelLeft(0.65);
 
     orderLine.setLabel([
-      { text: initPnlText, bg: initPnlBg, color: initPnlBg === '#cac9cb' ? '#000' : LABEL_TEXT },
+      { text: initPnlText, bg: initPnlBg, color: LABEL_TEXT },
       { text: String(oSize), bg: sizeBg, color: LABEL_TEXT },
-      { text: '\u2715', bg: '#e0e0e0', color: '#000' },
+      { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
     ]);
 
     const cells = orderLine.getCells();

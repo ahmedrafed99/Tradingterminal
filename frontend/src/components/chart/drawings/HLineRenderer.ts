@@ -2,6 +2,7 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { HLineDrawing } from '../../../types/drawing';
+import { COLOR_LABEL_TEXT } from '../../../constants/colors';
 import { hitTestHLine } from './hitTesting';
 
 class HLineRendererImpl implements IPrimitivePaneRenderer {
@@ -115,7 +116,7 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
       // Selection handles
       if (this._selected) {
         const hs = Math.round(4 * vpr);
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = '#1e3a5f';
         ctx.lineWidth = Math.round(1.5 * vpr);
         const hPositions = [startX + hs / 2, (startX + bitmapSize.width) / 2, bitmapSize.width - hs / 2];

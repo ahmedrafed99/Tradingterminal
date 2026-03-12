@@ -1,5 +1,5 @@
 import { ColorType, CrosshairMode } from 'lightweight-charts';
-import { COLOR_TEXT, COLOR_BORDER } from '../../constants/colors';
+import { COLOR_TEXT, COLOR_TEXT_DIM, COLOR_TEXT_MEDIUM, COLOR_BORDER, COLOR_LABEL_TEXT } from '../../constants/colors';
 import type { DeepPartial, ChartOptions, CandlestickSeriesPartialOptions } from 'lightweight-charts';
 
 const NY_TZ = 'America/New_York';
@@ -48,7 +48,7 @@ function nyTickMarkFormatter(utcSeconds: number, tickMarkType: number): string {
 export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   autoSize: true,
   layout: {
-    background: { type: ColorType.Solid, color: '#000000' },
+    background: { type: ColorType.Solid, color: COLOR_LABEL_TEXT },
     textColor: COLOR_TEXT,
     fontSize: 12,
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
@@ -59,8 +59,8 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   },
   crosshair: {
     mode: CrosshairMode.Normal,
-    vertLine: { color: '#434651', labelBackgroundColor: COLOR_BORDER },
-    horzLine: { color: '#434651', labelBackgroundColor: COLOR_BORDER },
+    vertLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER },
+    horzLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER },
   },
   rightPriceScale: {
     borderColor: COLOR_BORDER,
@@ -79,10 +79,10 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
 };
 
 export const CANDLESTICK_OPTIONS: CandlestickSeriesPartialOptions = {
-  upColor: '#9598a1',
+  upColor: COLOR_TEXT_MEDIUM,
   downColor: '#0097a6',
   borderVisible: false,
-  wickUpColor: '#9598a1',
+  wickUpColor: COLOR_TEXT_MEDIUM,
   wickDownColor: '#0097a6',
   lastValueVisible: false, // Replaced by CountdownPrimitive (price + bar countdown label)
 };

@@ -11,8 +11,8 @@ export function ContractsSpinner() {
         <button
           onClick={() => setOrderSize(orderSize - 1)}
           disabled={orderSize <= 1}
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-[#111] text-[#d1d4dc] text-base font-medium leading-none
-                     hover:text-white hover:bg-[#1a1a1a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-(--color-input) text-(--color-text) text-base font-medium leading-none
+                     hover:text-white hover:bg-(--color-bg) disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           −
         </button>
@@ -24,13 +24,13 @@ export function ContractsSpinner() {
             const v = parseInt(e.target.value, 10); // TODO Phase 6: use parseFloat + quantityStep for crypto
             if (!isNaN(v)) setOrderSize(v);
           }}
-          className="flex-1 bg-[#111] border border-[#2a2e39] rounded px-2 py-1 text-xs text-white text-center
-                     focus:outline-none focus:border-[#1a3a6e] [&::-webkit-inner-spin-button]:appearance-none"
+          className="flex-1 bg-(--color-input) border border-(--color-border) rounded px-2 py-1 text-xs text-white text-center
+                     focus:outline-none focus:border-(--color-focus-ring) [&::-webkit-inner-spin-button]:appearance-none"
         />
         <button
           onClick={() => setOrderSize(orderSize + 1)}
-          className="w-7 h-7 flex items-center justify-center rounded-full bg-[#111] text-[#d1d4dc] text-base font-medium leading-none
-                     hover:text-white hover:bg-[#1a1a1a] transition-colors"
+          className="w-7 h-7 flex items-center justify-center rounded-full bg-(--color-input) text-(--color-text) text-base font-medium leading-none
+                     hover:text-white hover:bg-(--color-bg) transition-colors"
         >
           +
         </button>

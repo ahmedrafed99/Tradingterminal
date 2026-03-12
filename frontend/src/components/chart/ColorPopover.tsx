@@ -30,9 +30,9 @@ function ColorSwatch({ color, current, onClick }: { color: string; current: stri
         height: 20,
         background: color,
         borderRadius: 3,
-        border: color === current ? '2px solid #fff' : '1px solid #2a2e39',
+        border: color === current ? '2px solid #fff' : '1px solid var(--color-border)',
         cursor: 'pointer',
-        boxShadow: color === current ? '0 0 0 1px #1e222d' : 'none',
+        boxShadow: color === current ? '0 0 0 1px var(--color-surface)' : 'none',
       }}
     />
   );
@@ -73,7 +73,7 @@ export function ColorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-black border border-[#2a2e39] rounded-lg shadow-lg z-50"
+      className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ padding: 10, width: 252 }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -95,8 +95,8 @@ export function ColorPopover({
                 className="absolute opacity-0 group-hover:opacity-100"
                 style={{
                   top: -4, right: -4, width: 12, height: 12,
-                  borderRadius: '50%', background: '#000', border: '1px solid #434651',
-                  color: '#787b86', fontSize: 8, lineHeight: '10px',
+                  borderRadius: '50%', background: '#000', border: '1px solid var(--color-text-dim)',
+                  color: 'var(--color-text-muted)', fontSize: 8, lineHeight: '10px',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'opacity 0.15s',
                 }}
@@ -115,9 +115,9 @@ export function ColorPopover({
           width: 20,
           height: 20,
           borderRadius: 3,
-          border: '1px dashed #787b86',
+          border: '1px dashed var(--color-text-muted)',
           background: 'transparent',
-          color: '#787b86',
+          color: 'var(--color-text-muted)',
           fontSize: 14,
           lineHeight: '18px',
           cursor: 'pointer',

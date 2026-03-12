@@ -17,9 +17,9 @@ export function PositionDisplay() {
 
   if (!orderContract || !hasPos) {
     return (
-      <div className="border-t border-[#2a2e39] mt-2 pt-3">
+      <div className="border-t border-(--color-border) mt-2 pt-3">
         <div className={`${SECTION_LABEL} mb-1 text-center`}>Position</div>
-        <div className="text-xs text-[#434651] text-center">No position</div>
+        <div className="text-xs text-(--color-text-dim) text-center">No position</div>
       </div>
     );
   }
@@ -38,17 +38,17 @@ export function PositionDisplay() {
   const inProfit = pnl > 0;
 
   return (
-    <div className="border-t border-[#2a2e39] mt-2 pt-3 space-y-1.5">
+    <div className="border-t border-(--color-border) mt-2 pt-3 space-y-1.5">
       <div className={`${SECTION_LABEL} text-center`}>Position</div>
 
       {/* +1 @ 24,905.00 */}
-      <div className={`text-sm font-bold text-center ${isLong ? 'text-[#26a69a]' : 'text-[#ef5350]'}`}>
+      <div className={`text-sm font-bold text-center ${isLong ? 'text-(--color-buy)' : 'text-(--color-sell)'}`}>
         {sign}{pos.size} @ {formatPrice(pos.averagePrice)}
       </div>
 
       {/* UP&L: +12.50 $ */}
       <div className="flex items-center justify-center gap-1">
-        <span className="text-[10px] text-[#787b86]">UP&L:</span>
+        <span className="text-[10px] text-(--color-text-muted)">UP&L:</span>
         <span className={`text-xs font-semibold ${getPnlColorClass(pnl)}`}>
           {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} $
         </span>
@@ -138,8 +138,8 @@ function MoveToBEButton({
     <button
       onClick={handleClick}
       disabled={busy || disabled}
-      className="flex-1 py-2.5 rounded text-[11px] font-bold text-[#d1d4dc] transition-colors
-                 bg-transparent border border-[#363a45] hover:border-[#787b86] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex-1 py-2.5 rounded text-[11px] font-bold text-(--color-text) transition-colors
+                 bg-transparent border border-(--color-hover-toolbar) hover:border-(--color-text-muted) hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {busy ? '...' : 'SL to BE'}
     </button>
@@ -182,8 +182,8 @@ function ClosePositionButton({
     <button
       onClick={handleClick}
       disabled={busy}
-      className="flex-1 py-2.5 rounded text-[11px] font-bold text-[#d1d4dc] transition-colors
-                 bg-transparent border border-[#363a45] hover:border-[#787b86] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex-1 py-2.5 rounded text-[11px] font-bold text-(--color-text) transition-colors
+                 bg-transparent border border-(--color-hover-toolbar) hover:border-(--color-text-muted) hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {busy ? 'Closing...' : 'Close'}
     </button>

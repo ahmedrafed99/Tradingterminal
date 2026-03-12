@@ -18,10 +18,10 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
           onChange={(e) => onChange(e.target.checked)}
           className="sr-only peer"
         />
-        <div className="w-8 h-[18px] rounded-full bg-[#2a2e39] peer-checked:bg-[#1e3a5f] transition-colors" />
-        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-[#787b86] peer-checked:bg-[#4a9eff] peer-checked:translate-x-[14px] transition-all" />
+        <div className="w-8 h-[18px] rounded-full bg-(--color-border) peer-checked:bg-[#1e3a5f] transition-colors" />
+        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-(--color-text-muted) peer-checked:bg-[#4a9eff] peer-checked:translate-x-[14px] transition-all" />
       </div>
-      <span className="text-xs text-[#9598a1] group-hover:text-[#d1d4dc] transition-colors">
+      <span className="text-xs text-(--color-text-medium) group-hover:text-(--color-text) transition-colors">
         {label}
       </span>
     </label>
@@ -89,7 +89,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
       onClose={onClose}
       backdropClassName="animate-backdrop-in"
       backdropStyle={{ backdropFilter: 'blur(4px)' }}
-      className="bg-black border border-[#2a2e39]/60 rounded-xl flex flex-col animate-modal-in"
+      className="bg-black border border-(--color-border)/60 rounded-xl flex flex-col animate-modal-in"
       style={{
         maxWidth: '75vw',
         maxHeight: '82vh',
@@ -100,15 +100,15 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         {/* Header */}
         <div className="flex items-center justify-between" style={{ padding: '14px 20px 10px' }}>
           <div className="flex items-center gap-2.5">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#787b86" strokeWidth="1.8">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
               <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
-            <span className="text-[13px] text-[#d1d4dc] font-medium tracking-tight">Chart Screenshot</span>
+            <span className="text-[13px] text-(--color-text) font-medium tracking-tight">Chart Screenshot</span>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-[#2a2e39] text-[#787b86] hover:text-[#d1d4dc] hover:border-[#434651] hover:bg-[#2a2e39] transition-all"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-(--color-border) text-(--color-text-muted) hover:text-(--color-text) hover:border-(--color-text-dim) hover:bg-(--color-border) transition-all"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
@@ -119,7 +119,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         {/* Preview image */}
         <div className="flex-1 overflow-auto" style={{ padding: '4px 20px 16px', minHeight: 180 }}>
           {previewUrl ? (
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #2a2e39' }}>
+            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
               <img
                 src={previewUrl}
                 alt="Chart snapshot"
@@ -131,14 +131,14 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
               />
             </div>
           ) : (
-            <div className="flex items-center justify-center h-40 text-[#787b86] text-xs">
+            <div className="flex items-center justify-center h-40 text-(--color-text-muted) text-xs">
               No chart available
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-[#2a2e39]/50" style={{ padding: '14px 20px' }}>
+        <div className="flex items-center justify-between border-t border-(--color-border)/50" style={{ padding: '14px 20px' }}>
           {/* Toggles */}
           <div className="flex items-center gap-5">
             <Toggle checked={showDrawings} onChange={setShowDrawings} label="Drawings" />
@@ -152,7 +152,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
             className={`text-xs font-medium rounded-lg transition-all flex items-center gap-2 ${
               copied
                 ? 'bg-emerald-500/15 text-emerald-400'
-                : 'bg-[#2a2e39] text-[#d1d4dc] hover:bg-[#363a45] active:scale-[0.97]'
+                : 'bg-(--color-border) text-(--color-text) hover:bg-(--color-hover-toolbar) active:scale-[0.97]'
             }`}
             style={{ padding: '8px 18px' }}
           >
