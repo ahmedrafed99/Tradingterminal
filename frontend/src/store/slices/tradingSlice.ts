@@ -2,7 +2,7 @@ import type { Contract } from '../../services/marketDataService';
 import type { Order } from '../../services/orderService';
 import type { RealtimePosition } from '../../services/realtimeService';
 import type { BracketPreset } from '../../types/bracket';
-import { OrderSide } from '../../types/enums';
+import { OrderSide, OrderStatus, OrderType } from '../../types/enums';
 
 // ---------------------------------------------------------------------------
 // Orders
@@ -88,14 +88,39 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
   setOpenOrders: (openOrders) => set({ openOrders }),
   upsertOrder: (order) =>
     set((s) => {
-      const idx = s.openOrders.findIndex((o) => o.id === order.id);
-      if (idx === -1) return { openOrders: [...s.openOrders, order] };
+      // For Suspended bracket legs with no prices, inject known prices from qoPendingPreview.
+      // The gateway never returns prices on Suspended orders, but we computed them at placement time.
+      let enriched = order;
+      if (order.status === OrderStatus.Suspended && !order.limitPrice && !order.stopPrice && s.qoPendingPreview) {
+        const qo = s.qoPendingPreview;
+        const oppSide = qo.side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+        const isSl = order.customTag?.endsWith('-SL') ?? (
+          order.side === oppSide && (order.type === OrderType.Stop || order.type === OrderType.TrailingStop)
+        );
+        const isTp = order.customTag?.endsWith('-TP') ?? (
+          order.side === oppSide && order.type === OrderType.Limit
+        );
+        if (isSl && qo.slPrice != null) {
+          enriched = { ...order, stopPrice: qo.slPrice };
+        } else if (isTp && qo.tpPrices[0] != null) {
+          enriched = { ...order, limitPrice: qo.tpPrices[0] };
+        }
+      }
+
+      const idx = s.openOrders.findIndex((o) => o.id === enriched.id);
+      if (idx === -1) return { openOrders: [...s.openOrders, enriched] };
       const prev = s.openOrders[idx];
-      if (prev.status === order.status && prev.size === order.size
-        && prev.limitPrice === order.limitPrice && prev.stopPrice === order.stopPrice
-        && prev.side === order.side && prev.type === order.type) return s;
+      // Preserve existing prices when the incoming event has undefined prices (status-only updates).
+      const merged = {
+        ...enriched,
+        limitPrice: enriched.limitPrice ?? prev.limitPrice,
+        stopPrice: enriched.stopPrice ?? prev.stopPrice,
+      };
+      if (prev.status === merged.status && prev.size === merged.size
+        && prev.limitPrice === merged.limitPrice && prev.stopPrice === merged.stopPrice
+        && prev.side === merged.side && prev.type === merged.type) return s;
       const updated = [...s.openOrders];
-      updated[idx] = order;
+      updated[idx] = merged;
       return { openOrders: updated };
     }),
   removeOrder: (orderId) =>

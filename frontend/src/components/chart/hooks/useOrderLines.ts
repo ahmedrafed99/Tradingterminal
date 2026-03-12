@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
-import { OrderType } from '../../../types/enums';
+import { OrderType, OrderStatus } from '../../../types/enums';
 import { PriceLevelLine } from '../PriceLevelLine';
 import { computeOrderLineColor } from './labelUtils';
 import { usePreviewLines } from './usePreviewLines';
@@ -62,6 +62,9 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     // Open order lines (draggable)
     for (const order of openOrders) {
       if (order.contractId !== contract.id) continue;
+      // Suspended bracket legs are shown via qoPreviewLines while the entry is pending.
+      // Don't create separate chart lines for them or they'll overlap the preview lines.
+      if (order.status === OrderStatus.Suspended) continue;
 
       let price: number | undefined;
 

@@ -19,13 +19,15 @@ export enum OrderSide {
   Sell = 1,
 }
 
-/** Order lifecycle status */
+/** Order lifecycle status (ProjectX gateway values) */
 export enum OrderStatus {
+  Working   = 1,  // Order is open and working on the exchange
   Filled    = 2,
   Cancelled = 3,
   Rejected  = 4,
   Expired   = 5,
-  Pending   = 6,
+  Pending   = 6,  // Accepted but not yet confirmed working
+  Suspended = 8,  // Order suspended pending parent fill (gateway term for contingent SL/TP bracket legs)
 }
 
 /** Position direction */

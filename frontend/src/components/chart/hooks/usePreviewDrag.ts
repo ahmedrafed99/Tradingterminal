@@ -2,7 +2,8 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { useStore } from '../../../store/useStore';
-import { OrderSide } from '../../../types/enums';
+import { orderService } from '../../../services/orderService';
+import { OrderSide, OrderType, OrderStatus } from '../../../types/enums';
 import { priceToPoints } from '../../../utils/instrument';
 import type { ChartRefs } from './types';
 
@@ -117,6 +118,24 @@ export function usePreviewDrag(
                 ...cfg,
                 stopLoss: { ...cfg.stopLoss, points: Math.max(1, slPoints) },
               }));
+
+              // Modify the actual Suspended SL order in the gateway
+              if (st.activeAccountId && contract) {
+                const oppSide = cur.side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+                const slOrder = st.openOrders.find((o) =>
+                  String(o.contractId) === String(contract.id) &&
+                  o.status === OrderStatus.Suspended &&
+                  (o.customTag?.endsWith('-SL') ?? (
+                    o.side === oppSide &&
+                    (o.type === OrderType.Stop || o.type === OrderType.TrailingStop) &&
+                    o.size === cur.orderSize
+                  )),
+                );
+                if (slOrder) {
+                  orderService.modifyOrder({ accountId: st.activeAccountId, orderId: slOrder.id, stopPrice: newSlPrice }).catch(() => {});
+                  st.upsertOrder({ ...slOrder, stopPrice: newSlPrice });
+                }
+              }
             } else if (drag.role.kind === 'qo-tp') {
               const tpIdx = drag.role.index;
               const newTpPrice = refs.qoPreviewPrices.current.tps[tpIdx];
@@ -131,6 +150,25 @@ export function usePreviewDrag(
                   takeProfits: cfg.takeProfits.map((tp, i) =>
                     i === tpIdx ? { ...tp, points: Math.max(1, tpPoints) } : tp),
                 }));
+
+                // Modify the actual Suspended TP order in the gateway
+                if (st.activeAccountId && contract) {
+                  const oppSide = cur.side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+                  const suspendedTps = st.openOrders.filter((o) =>
+                    String(o.contractId) === String(contract.id) &&
+                    o.status === OrderStatus.Suspended &&
+                    (o.customTag?.endsWith('-TP') ?? (
+                      o.side === oppSide &&
+                      o.type === OrderType.Limit &&
+                      o.size === cur.orderSize
+                    )),
+                  );
+                  const tpOrder = suspendedTps[tpIdx];
+                  if (tpOrder) {
+                    orderService.modifyOrder({ accountId: st.activeAccountId, orderId: tpOrder.id, limitPrice: newTpPrice }).catch(() => {});
+                    st.upsertOrder({ ...tpOrder, limitPrice: newTpPrice });
+                  }
+                }
               }
             }
           }

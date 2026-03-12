@@ -13,11 +13,13 @@ export const projectXOrders: ExchangeOrders = {
   },
 
   async cancel(params) {
+    console.log('[backend][orders] cancel request:', params);
     const response = await axios.post(
       `${getBaseUrl()}/api/Order/cancel`,
       params,
       { headers: authHeaders() },
     );
+    console.log('[backend][orders] cancel response:', response.data);
     return response.data;
   },
 

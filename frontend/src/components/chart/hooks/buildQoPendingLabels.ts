@@ -1,7 +1,8 @@
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { bracketEngine } from '../../../services/bracketEngine';
-import { OrderSide } from '../../../types/enums';
+import { orderService } from '../../../services/orderService';
+import { OrderSide, OrderType, OrderStatus } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import type { ChartRefs } from './types';
 
@@ -39,6 +40,27 @@ export function buildQoPendingLabels(
       const slPnl = calcPnl(slDiff, contract, qo.orderSize);
       const slPnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
       const cancelSl = () => {
+        // Cancel the actual Suspended SL order in the gateway
+        const st = useStore.getState();
+        const acct = st.activeAccountId;
+        const cur = st.qoPendingPreview;
+        if (acct && cur) {
+          const oppSide = cur.side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+          const slOrder = st.openOrders.find((o) =>
+            String(o.contractId) === String(contract.id) &&
+            o.status === OrderStatus.Suspended &&
+            (o.customTag?.endsWith('-SL') ?? (
+              o.side === oppSide &&
+              (o.type === OrderType.Stop || o.type === OrderType.TrailingStop) &&
+              o.size === cur.orderSize
+            )),
+          );
+          if (slOrder) {
+            orderService.cancelOrder(acct, slOrder.id).catch(() => {});
+            st.removeOrder(slOrder.id);
+          }
+        }
+
         const sl = refs.qoPreviewLines.current.sl;
         if (sl) {
           sl.destroy();
@@ -48,8 +70,7 @@ export function buildQoPendingLabels(
           ...cfg,
           stopLoss: { ...cfg.stopLoss, points: 0 },
         }));
-        const cur = useStore.getState().qoPendingPreview;
-        if (cur) useStore.getState().setQoPendingPreview({ ...cur, slPrice: null });
+        if (cur) st.setQoPendingPreview({ ...cur, slPrice: null });
       };
 
       slLine.setLabel([
@@ -103,6 +124,28 @@ export function buildQoPendingLabels(
     const tpPnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
     const tpIdx = ti;
     const cancelTp = () => {
+      // Cancel the actual Suspended TP order in the gateway (0-1 TP native bracket path)
+      const st = useStore.getState();
+      const acct = st.activeAccountId;
+      const cur = st.qoPendingPreview;
+      if (acct && cur) {
+        const oppSide = cur.side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+        const suspendedTps = st.openOrders.filter((o) =>
+          String(o.contractId) === String(contract.id) &&
+          o.status === OrderStatus.Suspended &&
+          (o.customTag?.endsWith('-TP') ?? (
+            o.side === oppSide &&
+            o.type === OrderType.Limit &&
+            o.size === cur.orderSize
+          )),
+        );
+        const tpOrder = suspendedTps[tpIdx];
+        if (tpOrder) {
+          orderService.cancelOrder(acct, tpOrder.id).catch(() => {});
+          st.removeOrder(tpOrder.id);
+        }
+      }
+
       const tp = refs.qoPreviewLines.current.tps[tpIdx];
       if (tp) {
         tp.destroy();
@@ -112,12 +155,11 @@ export function buildQoPendingLabels(
         ...cfg,
         takeProfits: cfg.takeProfits.filter((_, i) => i !== tpIdx),
       }));
-      const cur = useStore.getState().qoPendingPreview;
       if (cur) {
         const newTpPrices = cur.tpPrices.filter((_, i) => i !== tpIdx);
         const newTpSizes = cur.tpSizes.filter((_, i) => i !== tpIdx);
         refs.qoPreviewLines.current.tps = refs.qoPreviewLines.current.tps.filter((_, i) => i !== tpIdx);
-        useStore.getState().setQoPendingPreview({
+        st.setQoPendingPreview({
           ...cur,
           tpPrices: newTpPrices,
           tpSizes: newTpSizes,

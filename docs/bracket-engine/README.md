@@ -22,6 +22,26 @@ The ProjectX gateway supports atomic bracket placement (SL + 1 TP attached to th
 
 The gateway only supports **one** TP per bracket. For multi-TP setups, TPs are placed as separate limit orders after detecting the entry fill via SignalR. The SL is still native — the engine discovers the gateway-created SL order and manages it (resize on TP fills, condition actions).
 
+### Native Bracket Limitations (0-1 TP Path)
+
+The following limitations apply **only to the 0-1 TP (gateway-native) path** via `buildNativeBracketParams`. The 2+ TP (client-side engine) path does NOT have these problems because TPs are placed as separate orders after entry fill at the exact desired prices.
+
+#### Suspended orders carry no prices
+
+When the gateway creates native SL/TP bracket legs (status=8, Suspended), it does not include `limitPrice` or `stopPrice` in the SignalR event. Prices are only transmitted when the order transitions to Working (status=1) after entry fill.
+
+**Handling**: `upsertOrder` in `tradingSlice.ts` detects Suspended bracket legs with missing prices and injects the known prices from `qoPendingPreview`. This allows them to display correctly in the orders tab and on the chart immediately after placement, before the entry fills. The `customTag` field (`AutoBracket{guid}-SL` / `AutoBracket{guid}-TP`) is used as the primary identifier; side+type heuristics serve as fallback when `customTag` is absent.
+
+#### modifyOrder is silently ignored on Suspended orders
+
+Calling `modifyOrder` on a Suspended bracket leg (e.g. when the user drags the SL/TP preview line) is acknowledged by the gateway but silently ignored at activation. On entry fill, the gateway always activates the SL/TP at the original tick offset defined at placement time.
+
+**Handling**: A post-fill price correction block in `OrderPanel.tsx` fires when a bracket leg transitions to Working. It compares the gateway-activated price against `qoPendingPreview` and immediately calls `modifyOrder` with the desired price. This is the only reliable window to apply user-adjusted prices to native bracket orders. See the `OrderPanel.tsx` docs for full detail.
+
+#### Why the 2+ TP path avoids this
+
+In the 2+ TP (client-side engine) path, TPs are NOT submitted as bracket parameters at placement time. They are placed as entirely separate limit orders **after** the entry fills, at the exact computed prices. There is no Suspended phase and no silent-ignore problem. The SL is still native, but its price correction (if needed) still goes through the same `OrderPanel.tsx` post-fill correction path.
+
 ---
 
 ## File
@@ -220,6 +240,7 @@ Managed by the Zustand store (not the engine itself):
 | `OrderPanel.tsx` | Forwards every SignalR order event via `onOrderEvent()`, calls `clearSession()` on position close |
 | `PositionDisplay.tsx` | Calls `moveSLToBreakeven()` from the SL-to-BE button |
 | `useOverlayLabels.ts` | Calls `updateTPSize()` after +/- TP size redistribution to keep `normalizedTPs` in sync |
+| `tradingSlice.ts → upsertOrder` | Injects prices from `qoPendingPreview` for Suspended bracket legs on arrival; preserves existing prices on status-only updates (price-preserving merge) |
 
 ---
 

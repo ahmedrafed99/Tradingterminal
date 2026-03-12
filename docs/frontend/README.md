@@ -15,6 +15,10 @@ store/
     ├── connectionSlice.ts   ← auth state, accounts, connection status
     ├── instrumentSlice.ts   ← contracts, timeframes, pinned instruments
     ├── tradingSlice.ts      ← orders, positions, order panel state, bracket presets
+    │                           upsertOrder enrichments: (1) injects prices from qoPendingPreview
+    │                           for Suspended bracket legs that arrive without prices; (2) price-
+    │                           preserving merge for all orders (status-only updates do not erase
+    │                           previously known prices)
     ├── drawingsSlice.ts     ← drawing tools, templates, defaults, custom colors
     ├── layoutSlice.ts       ← dual chart, split ratio, bottom panel, VP settings
     ├── conditionsSlice.ts   ← conditional orders, condition server URL
@@ -155,6 +159,27 @@ All services call the local Express proxy (never ProjectX directly). See `docs/a
 | `bracketEngine` | `services/bracketEngine.ts` | Client-side SL/TP management after fill |
 | `databaseService` | `services/databaseService.ts` | Local SQLite candle storage |
 | `newsService` | `services/newsService.ts` | Economic calendar events |
+
+---
+
+## Types (`types/`)
+
+### `OrderStatus` enum (`types/enums.ts`)
+
+| Value | Name | Meaning |
+|-------|------|---------|
+| 1 | `Working` | Order is live and working on the exchange |
+| 2 | `Filled` | Order fully filled |
+| 3 | `Cancelled` | Order cancelled |
+| 4 | `Rejected` | Order rejected by gateway or exchange |
+| 5 | `Expired` | Order expired (e.g. day order past session close) |
+| 6 | `Pending` | Accepted by gateway but not yet confirmed working |
+| 8 | `Suspended` | Contingent bracket leg, waiting for parent entry to fill |
+
+**Important gateway behavior for `Suspended` orders**:
+- Never appears in `searchOpenOrders` REST responses — the gateway only returns Working orders
+- SignalR delivers Suspended bracket legs with no `limitPrice` / `stopPrice` — prices must be sourced from `qoPendingPreview` in the store and injected by `upsertOrder`
+- `modifyOrder` called on a Suspended order is acknowledged (no error) but silently ignored by the gateway until the parent entry fills
 
 ---
 

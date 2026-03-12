@@ -2,7 +2,7 @@ import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { orderService, type Order } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
-import { OrderType, OrderSide, PositionType } from '../../../types/enums';
+import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
@@ -115,6 +115,7 @@ export function buildOrderLabels(
 
   for (const order of openOrders) {
     if (String(order.contractId) !== String(contract.id)) continue;
+    if (order.status === OrderStatus.Suspended) continue;
     let price: number | undefined;
     if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
       price = order.stopPrice;
@@ -169,9 +170,15 @@ export function buildOrderLabels(
         return { text: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, bg, color: LABEL_TEXT };
       };
     } else {
-      if (oType === OrderType.Stop || oType === OrderType.TrailingStop) continue;
-      initPnlText = oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
-      initPnlBg = '#cac9cb';
+      // No position yet (pending entry with bracket orders, or standalone limit)
+      if (oType === OrderType.Stop || oType === OrderType.TrailingStop) {
+        // SL bracket on an unfilled entry — show label + cancel button so the user can remove it
+        initPnlText = 'SL';
+        initPnlBg = '#ef5350';
+      } else {
+        initPnlText = oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
+        initPnlBg = '#cac9cb';
+      }
     }
 
     let orderLineIdx = -1;
@@ -275,8 +282,9 @@ export function buildOrderLabels(
       el: cells[2],
       priority: 0,
       handler: () => {
+        console.log('[buildOrderLabels] chart cancel clicked for order:', orderId);
         const acct = useStore.getState().activeAccountId;
-        if (!acct) return;
+        if (!acct) { console.warn('[buildOrderLabels] no activeAccountId'); return; }
         orderService.cancelOrder(acct, orderId).catch((err) => {
           showToast('error', 'Failed to cancel order', errorMessage(err));
         });

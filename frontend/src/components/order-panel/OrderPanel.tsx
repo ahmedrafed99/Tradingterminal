@@ -177,6 +177,7 @@ export function OrderPanel() {
   }, [orderLinkedToChart, linkedContract, setOrderContract]);
 
   const subscribedAccountRef = useRef<number | null>(null);
+  const bracketRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Subscribe to user hub events (orders, positions) when account changes
   // Also fetch current positions + orders via REST (SignalR may not send a snapshot)
@@ -205,6 +206,69 @@ export function OrderPanel() {
   // Handle realtime order events
   useEffect(() => {
     const handler = (order: RealtimeOrder, _action: number) => {
+      console.log('[OrderPanel] Order event received:', {
+        id: order.id,
+        status: order.status,
+        type: order.type,
+        side: order.side,
+        contractId: order.contractId,
+        limitPrice: order.limitPrice,
+        stopPrice: order.stopPrice,
+      });
+      console.log('[OrderPanel] Status check — Filled:', OrderStatus.Filled, 'Cancelled:', OrderStatus.Cancelled, 'Rejected:', OrderStatus.Rejected, 'Expired:', OrderStatus.Expired, '→ match?', order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled || order.status === OrderStatus.Rejected || order.status === OrderStatus.Expired);
+
+      // When a non-bracket order becomes Working, schedule a REST refresh to load any
+      // orders placed externally that we haven't received via SignalR yet.
+      // Skip bracket legs (customTag present) — they don't appear in searchOpenOrders while
+      // Suspended, and post-fill we handle their prices via the correction logic below.
+      if (order.status === OrderStatus.Working && !order.customTag) {
+        const acctId = useStore.getState().activeAccountId;
+        if (acctId) {
+          if (bracketRefreshTimerRef.current) clearTimeout(bracketRefreshTimerRef.current);
+          bracketRefreshTimerRef.current = setTimeout(() => {
+            console.log('[OrderPanel] Refreshing open orders to hydrate bracket prices...');
+            orderService.searchOpenOrders(acctId).then((orders) => {
+              console.log('[OrderPanel] Bracket refresh got', orders.length, 'orders:', orders.map(o => ({ id: o.id, type: o.type, limitPrice: o.limitPrice, stopPrice: o.stopPrice })));
+              const st = useStore.getState();
+              for (const o of orders) st.upsertOrder(o);
+            }).catch(() => {});
+          }, 1500);
+        }
+      }
+
+      // When a bracket leg transitions from Suspended to Working (entry just filled),
+      // the gateway always activates it at the original bracket tick offset — ignoring any
+      // modifyOrder calls we made while it was Suspended. Correct the price now by
+      // modifying the Working order to the user's desired price from qoPendingPreview.
+      if (order.status === OrderStatus.Working && order.customTag) {
+        const st = useStore.getState();
+        const qo = st.qoPendingPreview;
+        const acctId = st.activeAccountId;
+        if (qo && acctId) {
+          if (order.customTag.endsWith('-SL') && order.stopPrice != null && qo.slPrice != null
+              && Math.abs(qo.slPrice - order.stopPrice) > 0.001) {
+            orderService.modifyOrder({ accountId: acctId, orderId: order.id, stopPrice: qo.slPrice }).catch(() => {});
+            // Use the desired price in the store immediately so chart doesn't flicker
+            upsertOrder({
+              id: order.id, contractId: order.contractId, type: order.type,
+              side: order.side, size: order.size, status: order.status,
+              stopPrice: qo.slPrice, customTag: order.customTag,
+            });
+            return;
+          }
+          if (order.customTag.endsWith('-TP') && order.limitPrice != null && qo.tpPrices[0] != null
+              && Math.abs(qo.tpPrices[0] - order.limitPrice) > 0.001) {
+            orderService.modifyOrder({ accountId: acctId, orderId: order.id, limitPrice: qo.tpPrices[0] }).catch(() => {});
+            upsertOrder({
+              id: order.id, contractId: order.contractId, type: order.type,
+              side: order.side, size: order.size, status: order.status,
+              limitPrice: qo.tpPrices[0], customTag: order.customTag,
+            });
+            return;
+          }
+        }
+      }
+
       // Forward to bracket engine first (may need to place manual TPs or evaluate conditions)
       bracketEngine.onOrderEvent(order).catch((err) => {
         showToast('error', 'Bracket engine error', errorMessage(err));
@@ -212,6 +276,7 @@ export function OrderPanel() {
 
       // status 2=filled or cancelled-type statuses → remove from open orders
       if (order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled || order.status === OrderStatus.Rejected || order.status === OrderStatus.Expired) {
+        console.log('[OrderPanel] → removeOrder', order.id, '(status=' + order.status + ')');
         removeOrder(order.id);
 
         // If a pending limit entry was cancelled, clean up preview & ad-hoc brackets
@@ -226,6 +291,7 @@ export function OrderPanel() {
         }
 
       } else {
+        console.log('[OrderPanel] → upsertOrder', order.id, '(status=' + order.status + ')');
         upsertOrder({
           id: order.id,
           contractId: order.contractId,
@@ -235,6 +301,7 @@ export function OrderPanel() {
           limitPrice: order.limitPrice,
           stopPrice: order.stopPrice,
           status: order.status,
+          customTag: order.customTag,
         });
       }
     };

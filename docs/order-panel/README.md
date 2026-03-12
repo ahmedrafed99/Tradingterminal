@@ -164,6 +164,43 @@ User clicks BUY
 
 ---
 
+## SignalR Order Event Handler — Bracket Leg Handling
+
+`OrderPanel.tsx` processes every `GotOrder` SignalR event and applies special handling for native bracket legs (SL/TP orders placed atomically alongside the entry via `stopLossBracket`/`takeProfitBracket`).
+
+### Bracket leg detection
+
+Bracket legs are identified by the presence of `order.customTag`:
+- **Bracket leg**: `order.customTag` is a non-empty string (e.g. `AutoBracket{guid}-SL` or `AutoBracket{guid}-TP`)
+- **Regular order**: `order.customTag` is `undefined` or `null`
+
+All special handling below keys on this distinction.
+
+### REST refresh guard
+
+After any Working (status=1) order event, a 1.5-second delayed `searchOpenOrders` REST call fires to hydrate the store with externally-placed orders that weren't seen via SignalR.
+
+This guard fires **only for `!order.customTag`** (regular Working orders). Bracket legs skip the REST refresh for two reasons:
+
+1. While Suspended (status=8), bracket legs do not appear in `searchOpenOrders` at all — the endpoint only returns Working orders.
+2. After transition to Working (post-fill), `searchOpenOrders` returns orders at their gateway-activated prices (the original bracket tick offset), which would overwrite the desired dragged prices stored in `qoPendingPreview`. The post-fill correction block handles price accuracy for bracket legs instead.
+
+### Post-fill price correction
+
+> **⚠ WARNING — Gateway limitation**: The ProjectX gateway activates SL/TP bracket legs at the original tick offset defined at placement time, regardless of any `modifyOrder` calls made while they were Suspended (status=8). The post-fill correction block in this handler is the only reliable way to apply user-adjusted prices to native bracket orders. Do not remove this block.
+
+When `order.status === OrderStatus.Working && order.customTag`, the handler executes the post-fill correction:
+
+1. Reads `qoPendingPreview` and `activeAccountId` from the store.
+2. For an `-SL` bracket leg: compares `order.stopPrice` against `qoPendingPreview.slPrice`. If they differ by more than 0.001, calls `orderService.modifyOrder()` with `stopPrice: qo.slPrice` and calls `upsertOrder()` optimistically with the desired price, then returns early.
+3. For a `-TP` bracket leg: compares `order.limitPrice` against `qoPendingPreview.tpPrices[0]`. If they differ by more than 0.001, calls `orderService.modifyOrder()` with `limitPrice: qo.tpPrices[0]` and calls `upsertOrder()` optimistically with the desired price, then returns early.
+
+The early return skips the normal `upsertOrder` path that would write the wrong gateway-activated price into the store. The optimistic update ensures the chart and orders tab show the user's intended price immediately while the `modifyOrder` API call is in flight.
+
+The correction fires exactly once per bracket leg at the moment it transitions to Working — this is the earliest the gateway will honor a `modifyOrder` call, and also the only window before the UI reflects the (incorrect) gateway price.
+
+---
+
 ## Limit Order Cancel Cleanup
 
 When a limit order is placed with preview enabled (`previewHideEntry: true`), the SL/TP preview lines remain visible while the order is pending. If the order is cancelled (status 3/4/5):

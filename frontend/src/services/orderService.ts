@@ -11,6 +11,7 @@ export interface Order {
   limitPrice?: number;
   stopPrice?: number;
   status?: OrderStatus;
+  customTag?: string;
 }
 
 export interface OrderBracket {
@@ -60,8 +61,10 @@ export const orderService = {
   },
 
   async cancelOrder(accountId: number, orderId: number): Promise<void> {
+    console.log('[orderService] cancelOrder →', { accountId, orderId });
     await retryAsync(async () => {
       const res = await api.post<GatewayResponse>('/orders/cancel', { accountId, orderId });
+      console.log('[orderService] cancelOrder response:', res.data);
       assertSuccess(res.data);
     });
   },
