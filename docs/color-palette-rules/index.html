@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TradingTerminal — Design Palette Rules</title>
+  <style>
+    /* ------------------------------------------------------------------ */
+    /* Global / Font                                                       */
+    /* ------------------------------------------------------------------ */
+    :root {
+      --font: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+      --page-bg: #0a0a0a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      font-size: 13px;
+      color: #d1d4dc;
+      background: var(--page-bg);
+      padding: 40px 48px 80px;
+      line-height: 1.55;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #787b86;
+      margin-bottom: 48px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Category headings                                                    */
+    /* ------------------------------------------------------------------ */
+    .category {
+      margin-bottom: 48px;
+    }
+
+    .category-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #787b86;
+      border-bottom: 1px solid #2a2e39;
+      padding-bottom: 8px;
+      margin-bottom: 24px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Spec rows                                                           */
+    /* ------------------------------------------------------------------ */
+    .spec-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .spec-row {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .spec-preview {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .spec-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .spec-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #d1d4dc;
+      margin-bottom: 2px;
+    }
+
+    .spec-value {
+      font-size: 11px;
+      color: #787b86;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+
+    .spec-note {
+      font-size: 11px;
+      color: #5d606b;
+      margin-top: 2px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Color swatch (generic)                                              */
+    /* ------------------------------------------------------------------ */
+    .swatch {
+      display: inline-block;
+      border-radius: 4px;
+      border: 1px solid #4a4a4a;
+    }
+
+    .swatch-sm { width: 28px; height: 28px; }
+    .swatch-lg { width: 48px; height: 28px; border-radius: 4px; }
+
+    /* ------------------------------------------------------------------ */
+    /* Separator preview                                                   */
+    /* ------------------------------------------------------------------ */
+    .sep-preview {
+      width: 120px;
+      height: 1px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Button preview                                                      */
+    /* ------------------------------------------------------------------ */
+    .btn-preview {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 4px;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: default;
+      padding: 6px 20px;
+      color: #fff;
+      transition: background 0.15s;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Dropdown preview                                                    */
+    /* ------------------------------------------------------------------ */
+    .dropdown-preview {
+      height: 28px;
+      border-radius: 4px;
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 5px 8px;
+      cursor: default;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Mini popover mockup                                                 */
+    /* ------------------------------------------------------------------ */
+    .popover-mock {
+      border-radius: 4px;
+      padding: 4px 0;
+      display: inline-flex;
+      flex-direction: column;
+    }
+
+    .popover-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+
+    .popover-row:hover {
+      background: #2a2e39;
+    }
+
+    .popover-divider {
+      height: 1px;
+      margin: 4px 0;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Modal mockup                                                        */
+    /* ------------------------------------------------------------------ */
+    .modal-mock {
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      width: 360px;
+      overflow: hidden;
+    }
+
+    .modal-header, .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+    }
+
+    .modal-body {
+      display: flex;
+      min-height: 100px;
+    }
+
+    .modal-sidebar {
+      width: 110px;
+      padding: 8px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-sidebar-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: default;
+      transition: background 0.15s, color 0.15s;
+      border: none;
+      background: transparent;
+      text-align: left;
+      font-family: var(--font);
+    }
+
+    .modal-content-area {
+      flex: 1;
+      padding: 16px 24px;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Font specimen                                                       */
+    /* ------------------------------------------------------------------ */
+    .font-specimen {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 16px 20px;
+      background: #131722;
+      border: 1px solid #2a2e39;
+      border-radius: 6px;
+    }
+
+    .font-sample {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+    }
+
+    .font-sample-size {
+      font-size: 11px;
+      color: #787b86;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      width: 40px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Inline row helpers                                                   */
+    /* ------------------------------------------------------------------ */
+    .inline-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid #2a2e39;
+      margin: 8px 0 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Design Palette Rules</h1>
+  <p class="subtitle">TradingTerminal UI component specs &mdash; visual reference</p>
+
+  <!-- ================================================================ -->
+  <!-- GLOBAL / FONT                                                     -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Global &mdash; Font</div>
+    <div class="spec-grid">
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="font-specimen" style="width: 440px;">
+            <div class="font-sample">
+              <span class="font-sample-size">10px</span>
+              <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #787b86;">Section Header Label</span>
+            </div>
+            <div class="font-sample">
+              <span class="font-sample-size">11px</span>
+              <span style="font-size: 11px; color: #9598a1;">Field label or secondary text</span>
+            </div>
+            <div class="font-sample">
+              <span class="font-sample-size">12px</span>
+              <span style="font-size: 12px; color: #d1d4dc;">Popover menu item / dropdown text</span>
+            </div>
+            <div class="font-sample">
+              <span class="font-sample-size">13px</span>
+              <span style="font-size: 13px; color: #d1d4dc;">Button label / sidebar item / body text</span>
+            </div>
+            <div class="font-sample">
+              <span class="font-sample-size">14px</span>
+              <span style="font-size: 14px; font-weight: 600; color: #fff;">Modal title</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Font Stack</div>
+          <div class="spec-value">-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif</div>
+          <div class="spec-note">Used globally across all popovers, modals, buttons, and controls.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- GLOBAL / TEXT COLORS                                              -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Global &mdash; Text Colors</div>
+    <div class="spec-grid">
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch swatch-lg" style="background: #ffffff; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Headings / Active text</div>
+          <div class="spec-value">#ffffff</div>
+          <div class="spec-note">Modal titles, active sidebar items, hover state for muted text.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch swatch-lg" style="background: #d1d4dc; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Primary text</div>
+          <div class="spec-value">#d1d4dc</div>
+          <div class="spec-note">Body text, button labels, menu items, input values.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch swatch-lg" style="background: #9598a1; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Secondary text</div>
+          <div class="spec-value">#9598a1</div>
+          <div class="spec-note">Field labels, supporting descriptions.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch swatch-lg" style="background: #787b86; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Muted text / icons</div>
+          <div class="spec-value">#787b86</div>
+          <div class="spec-note">Section headers, inactive sidebar items, cancel buttons, icon strokes.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch swatch-lg" style="background: #434651; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Placeholder text</div>
+          <div class="spec-value">#434651</div>
+          <div class="spec-note">Input placeholder color, unchecked checkbox borders.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- POPOVER                                                           -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Popover</div>
+    <div class="spec-grid">
+
+      <!-- Background -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="popover-mock" style="background: #131722; border: 1px solid #2a2e39; box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 180px;">
+            <div class="popover-row" style="color: #d1d4dc;">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6.5l2.5 2.5L10 3" stroke="#2962ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>Invert scale</span>
+            </div>
+            <div class="popover-divider" style="background: #2a2e39;"></div>
+            <div class="popover-row" style="color: #d1d4dc;">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink: 0;">
+                <polygon points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25" stroke="#787b86" stroke-width="1.3" stroke-linejoin="round" fill="none"/>
+                <circle cx="8" cy="8" r="2.5" stroke="#787b86" stroke-width="1.3" fill="none"/>
+              </svg>
+              <span>Settings...</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Quick Popover (gear menu)</div>
+          <div class="spec-value">background: #131722</div>
+          <div class="spec-value">border: 1px solid #2a2e39</div>
+          <div class="spec-value">box-shadow: 0 4px 12px rgba(0,0,0,0.5)</div>
+          <div class="spec-value">border-radius: 4px</div>
+          <div class="spec-value">padding: 4px 0</div>
+          <div class="spec-note">Popover entrance: fade + translateY(6px) + scale(0.97), 180ms ease-out, origin bottom-right. Dismiss: mousedown outside.</div>
+        </div>
+      </div>
+
+      <!-- Popover separator -->
+      <div class="spec-row">
+        <div class="spec-preview" style="padding: 8px 0;">
+          <div style="width: 180px; background: #131722; border: 1px solid #2a2e39; border-radius: 4px; padding: 10px 0;">
+            <div style="height: 1px; background: #2a2e39;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Popover Separator</div>
+          <div class="spec-value">height: 1px &nbsp;|&nbsp; background: #2a2e39</div>
+          <div class="spec-value">margin: 4px 0</div>
+          <div class="spec-note">Horizontal divider between popover menu groups.</div>
+        </div>
+      </div>
+
+      <!-- Row hover -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="width: 180px; background: #131722; border: 1px solid #2a2e39; border-radius: 4px; padding: 4px 0;">
+            <div style="padding: 6px 12px; background: #2a2e39; font-size: 12px; color: #d1d4dc;">Hovered row</div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Popover Row Hover</div>
+          <div class="spec-value">background: #2a2e39</div>
+          <div class="spec-value">transition: background 0.15s</div>
+          <div class="spec-note">Row padding: 6px 12px. Font: 12px #d1d4dc.</div>
+        </div>
+      </div>
+
+      <!-- Checkmark accent -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 6.5l2.5 2.5L10 3" stroke="#2962ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="opacity: 0.3;">
+              <path d="M2 6.5l2.5 2.5L10 3" stroke="#2962ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Toggle Checkmark</div>
+          <div class="spec-value">stroke: #2962ff &nbsp;|&nbsp; strokeWidth: 1.8</div>
+          <div class="spec-value">transition: opacity 0.15s, transform 0.15s</div>
+          <div class="spec-note">Active: opacity 1, scale(1). Inactive: opacity 0, scale(0.5).</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- MODAL                                                             -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Modal (Settings)</div>
+    <div class="spec-grid">
+
+      <!-- Full modal mockup -->
+      <div class="spec-row" style="align-items: flex-start;">
+        <div class="spec-preview">
+          <div class="modal-mock" style="background: #1f1f1f; border: 1px solid #2a2e39;">
+            <!-- Header -->
+            <div class="modal-header" style="border-bottom: 1px solid #4a4a4a;">
+              <span style="font-size: 14px; font-weight: 600; color: #fff;">Settings</span>
+              <span style="color: #787b86; font-size: 18px; cursor: default;">&times;</span>
+            </div>
+            <!-- Body -->
+            <div class="modal-body">
+              <div class="modal-sidebar" style="border-right: 1px solid #4a4a4a;">
+                <div class="modal-sidebar-item" style="background: #2a2e39; color: #fff;">Bars</div>
+                <div class="modal-sidebar-item" style="color: #787b86;">Canvas</div>
+              </div>
+              <div class="modal-content-area">
+                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #787b86; margin-bottom: 12px;">Candles</div>
+                <div style="font-size: 13px; color: #d1d4dc;">Body / Borders / Wick...</div>
+              </div>
+            </div>
+            <!-- Footer -->
+            <div class="modal-footer" style="border-top: 1px solid #4a4a4a;">
+              <span style="font-size: 12px; color: #787b86; cursor: default;">Reset defaults</span>
+              <div style="display: flex; gap: 8px;">
+                <span style="font-size: 13px; color: #787b86; padding: 6px 16px; cursor: default;">Cancel</span>
+                <span class="btn-preview" style="background: #1e3a8a;">Ok</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Settings Modal</div>
+          <div class="spec-value">background: #1f1f1f</div>
+          <div class="spec-value">border: 1px solid #2a2e39 (outer)</div>
+          <div class="spec-value">border-radius: 8px</div>
+          <div class="spec-value">width: 520px &nbsp;|&nbsp; max-height: 80vh</div>
+          <div class="spec-value">overflow: visible (for color popovers)</div>
+          <div class="spec-note" style="margin-top: 8px;">Backdrop: bg-black/60. Dismiss: Escape key or backdrop click.</div>
+        </div>
+      </div>
+
+      <!-- Modal internal separators -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="width: 200px; display: flex; flex-direction: column; gap: 12px;">
+            <div>
+              <div style="font-size: 10px; color: #787b86; margin-bottom: 4px;">Title bar bottom</div>
+              <div style="height: 1px; background: #4a4a4a;"></div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: #787b86; margin-bottom: 4px;">Sidebar right</div>
+              <div style="width: 1px; height: 24px; background: #4a4a4a;"></div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: #787b86; margin-bottom: 4px;">Footer top</div>
+              <div style="height: 1px; background: #4a4a4a;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Modal Internal Separators</div>
+          <div class="spec-value">border: 1px solid #4a4a4a</div>
+          <div class="spec-note">All internal dividers inside the settings modal: title bar bottom, sidebar right edge, footer top. Distinct from the outer modal border (#2a2e39).</div>
+        </div>
+      </div>
+
+      <!-- Save / Ok button -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <button class="btn-preview" style="background: #1e3a8a;" onmouseenter="this.style.background='#1e2f6a'" onmouseleave="this.style.background='#1e3a8a'">Ok</button>
+            <button class="btn-preview" style="background: #1e2f6a;">Ok (hover)</button>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Save / Ok Button (primary action)</div>
+          <div class="spec-value">background: #1e3a8a</div>
+          <div class="spec-value">hover: #1e2f6a</div>
+          <div class="spec-value">color: #fff &nbsp;|&nbsp; font-weight: 500</div>
+          <div class="spec-value">padding: 6px 20px &nbsp;|&nbsp; border-radius: 4px</div>
+          <div class="spec-value">transition: background 0.15s</div>
+          <div class="spec-note">Dark blue primary action button. Used for confirm/save actions across modals.</div>
+        </div>
+      </div>
+
+      <!-- Cancel button -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <span style="font-size: 13px; color: #787b86; padding: 6px 16px;">Cancel</span>
+            <span style="font-size: 13px; color: #fff; padding: 6px 16px;">Cancel (hover)</span>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Cancel Button</div>
+          <div class="spec-value">color: #787b86 &nbsp;|&nbsp; hover: #fff</div>
+          <div class="spec-value">background: transparent &nbsp;|&nbsp; border: none</div>
+          <div class="spec-value">padding: 6px 16px &nbsp;|&nbsp; border-radius: 4px</div>
+          <div class="spec-note">Ghost button. Transition: color 0.15s.</div>
+        </div>
+      </div>
+
+      <!-- Reset defaults -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <span style="font-size: 12px; color: #787b86;">Reset defaults</span>
+            <span style="font-size: 12px; color: #d1d4dc;">Reset defaults (hover)</span>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Reset Defaults Link</div>
+          <div class="spec-value">font-size: 12px</div>
+          <div class="spec-value">color: #787b86 &nbsp;|&nbsp; hover: #d1d4dc</div>
+          <div class="spec-note">Footer left. Transition: color 0.15s.</div>
+        </div>
+      </div>
+
+      <!-- Sidebar items -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; flex-direction: column; width: 130px; background: #1f1f1f; border: 1px solid #4a4a4a; border-radius: 4px; padding: 4px 0;">
+            <div style="padding: 8px 16px; font-size: 13px; background: #2a2e39; color: #fff;">Active</div>
+            <div style="padding: 8px 16px; font-size: 13px; color: #787b86;">Inactive</div>
+            <div style="padding: 8px 16px; font-size: 13px; color: #d1d4dc;">Hovered</div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Sidebar Navigation Items</div>
+          <div class="spec-value">active: bg #2a2e39, color #fff</div>
+          <div class="spec-value">inactive: bg transparent, color #787b86</div>
+          <div class="spec-value">hover (inactive): color #d1d4dc</div>
+          <div class="spec-value">padding: 8px 16px &nbsp;|&nbsp; font-size: 13px</div>
+          <div class="spec-note">Transition: background 0.15s, color 0.15s.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- CONTROLS                                                          -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Controls</div>
+    <div class="spec-grid">
+
+      <!-- Color swatch -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 12px; align-items: center;">
+            <div class="swatch swatch-sm" style="background: #9598a1;"></div>
+            <div class="swatch swatch-sm" style="background: #0097a6;"></div>
+            <div class="swatch swatch-sm" style="background: #000000;"></div>
+            <div class="swatch swatch-sm" style="background: #9598a1; opacity: 0.4;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Color Swatch Button</div>
+          <div class="spec-value">width: 28px &nbsp;|&nbsp; height: 28px</div>
+          <div class="spec-value">border-radius: 4px</div>
+          <div class="spec-value">border: 1px solid #4a4a4a</div>
+          <div class="spec-value">box-sizing: border-box</div>
+          <div class="spec-value">disabled: opacity 0.4</div>
+          <div class="spec-note">Wrapper: display inline-flex, align-items center. Transition: opacity 0.15s. Opens ColorPopover on click.</div>
+        </div>
+      </div>
+
+      <!-- Dropdown -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="dropdown-preview" style="background: #1f1f1f; border: 1px solid #4a4a4a; color: #d1d4dc; display: inline-flex; align-items: center;">
+            Solid &nbsp;&#9662;
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Dropdown / Select</div>
+          <div class="spec-value">height: 28px</div>
+          <div class="spec-value">background: #1f1f1f</div>
+          <div class="spec-value">border: 1px solid #4a4a4a</div>
+          <div class="spec-value">border-radius: 4px</div>
+          <div class="spec-value">color: #d1d4dc &nbsp;|&nbsp; font-size: 12px</div>
+          <div class="spec-value">padding: 5px 8px &nbsp;|&nbsp; box-sizing: border-box</div>
+          <div class="spec-note">Transition: border-color 0.15s. Same height as color swatches for vertical alignment.</div>
+        </div>
+      </div>
+
+      <!-- Inline row: dropdown + swatches -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; align-items: center; gap: 8px; background: #1f1f1f; padding: 12px 16px; border: 1px solid #4a4a4a; border-radius: 4px;">
+            <div class="dropdown-preview" style="background: #1f1f1f; border: 1px solid #4a4a4a; color: #d1d4dc; display: inline-flex; align-items: center;">
+              Gradient &nbsp;&#9662;
+            </div>
+            <div class="swatch swatch-sm" style="background: #1e222d;"></div>
+            <div class="swatch swatch-sm" style="background: #000000;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Inline Control Row</div>
+          <div class="spec-value">display: flex &nbsp;|&nbsp; align-items: center &nbsp;|&nbsp; gap: 8px</div>
+          <div class="spec-note">Dropdown and swatches share the same 28px height for perfect vertical alignment. Gradient mode shows 2 swatches (top, bottom), solid mode shows 1.</div>
+        </div>
+      </div>
+
+      <!-- Checkbox -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 20px; align-items: center;">
+            <!-- Checked -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 16px; height: 16px; border-radius: 3px; border: 1px solid #2962ff; background: #2962ff; display: inline-flex; align-items: center; justify-content: center;">
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5.5l2 2L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+              <span style="font-size: 13px; color: #d1d4dc;">Checked</span>
+            </div>
+            <!-- Unchecked -->
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 16px; height: 16px; border-radius: 3px; border: 1px solid #434651; background: transparent; display: inline-block;"></span>
+              <span style="font-size: 13px; color: #d1d4dc;">Unchecked</span>
+            </div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Checkbox</div>
+          <div class="spec-value">size: 16 &times; 16px &nbsp;|&nbsp; border-radius: 3px</div>
+          <div class="spec-value">checked: bg #2962ff, border #2962ff, check #fff</div>
+          <div class="spec-value">unchecked: bg transparent, border #434651</div>
+          <div class="spec-value">transition: background 0.15s, border-color 0.15s</div>
+          <div class="spec-note">Label: 13px #d1d4dc. Gap: 8px.</div>
+        </div>
+      </div>
+
+      <!-- Section header -->
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #787b86;">Candles</div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Section Header</div>
+          <div class="spec-value">font-size: 10px &nbsp;|&nbsp; text-transform: uppercase</div>
+          <div class="spec-value">letter-spacing: 0.08em</div>
+          <div class="spec-value">color: #787b86</div>
+          <div class="spec-value">margin-bottom: 12px &nbsp;|&nbsp; margin-top: 4px</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- BACKGROUNDS                                                       -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Backgrounds</div>
+    <div class="spec-grid">
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch" style="width: 80px; height: 40px; background: #1f1f1f; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Settings Modal panel</div>
+          <div class="spec-value">#1f1f1f</div>
+          <div class="spec-note">ChartSettingsModal background. Also used for dropdown bg.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch" style="width: 80px; height: 40px; background: #131722; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Quick Popover / Input surface</div>
+          <div class="spec-value">#131722</div>
+          <div class="spec-note">Gear popover background. Also INPUT_SURFACE bg.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch" style="width: 80px; height: 40px; background: #1e222d; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Standard Modal panel</div>
+          <div class="spec-value">#1e222d</div>
+          <div class="spec-note">SettingsModal, ConditionModal, Toasts. Standard panel bg.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch" style="width: 80px; height: 40px; background: #111111; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Input / Control background</div>
+          <div class="spec-value">#111</div>
+          <div class="spec-note">Text inputs, search fields. INPUT_DARK bg.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch" style="width: 80px; height: 40px; background: #000000; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Full-bleed / chart default</div>
+          <div class="spec-value">#000000</div>
+          <div class="spec-note">Screenshot preview modal, default chart bg, instrument selector popover.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch" style="width: 80px; height: 40px; background: #2a2e39; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Hover / active highlight</div>
+          <div class="spec-value">#2a2e39</div>
+          <div class="spec-note">Active sidebar item, popover row hover, list item hover.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- BORDERS & SEPARATORS                                              -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Borders &amp; Separators</div>
+    <div class="spec-grid">
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="width: 200px; padding: 12px; background: #1f1f1f; border: 1px solid #2a2e39; border-radius: 8px;">
+            <div style="font-size: 10px; color: #787b86; margin-bottom: 6px;">Outer border</div>
+            <div style="height: 1px; background: #2a2e39;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Outer Modal / Popover Border</div>
+          <div class="spec-value">#2a2e39</div>
+          <div class="spec-note">The outermost edge of modals and popovers. Applied via Tailwind: border border-[#2a2e39]. Also used for popover internal dividers and toast borders.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="width: 200px; padding: 12px; background: #1f1f1f; border: 1px solid #2a2e39; border-radius: 8px;">
+            <div style="font-size: 10px; color: #787b86; margin-bottom: 6px;">Internal separator</div>
+            <div style="height: 1px; background: #4a4a4a;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Modal Internal Separators</div>
+          <div class="spec-value">#4a4a4a</div>
+          <div class="spec-note">Dividers inside the settings modal: between title bar and body, sidebar and content, body and footer. Also used for color swatch and dropdown borders.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="width: 200px; padding: 12px; background: #1f1f1f; border: 1px solid #2a2e39; border-radius: 8px;">
+            <div style="font-size: 10px; color: #787b86; margin-bottom: 6px;">Control border</div>
+            <div class="swatch swatch-sm" style="background: #9598a1; border-color: #4a4a4a; display: inline-block; vertical-align: middle;"></div>
+            <div class="dropdown-preview" style="background: #1f1f1f; border: 1px solid #4a4a4a; color: #d1d4dc; display: inline-flex; align-items: center; vertical-align: middle; margin-left: 8px;">Solid &nbsp;&#9662;</div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Control Borders (swatches, dropdowns)</div>
+          <div class="spec-value">#4a4a4a</div>
+          <div class="spec-note">Color swatch squares and dropdown selects share this border color. Distinct from the structural #2a2e39 border.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- ACCENT COLORS                                                     -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Accent Colors</div>
+    <div class="spec-grid">
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 8px;">
+            <div class="swatch swatch-lg" style="background: #1e3a8a; border-color: #4a4a4a;"></div>
+            <div class="swatch swatch-lg" style="background: #1e2f6a; border-color: #4a4a4a;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Dark Blue (primary action)</div>
+          <div class="spec-value">#1e3a8a &nbsp;|&nbsp; hover: #1e2f6a</div>
+          <div class="spec-note">Ok / Save button in settings modal.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 8px;">
+            <div class="swatch swatch-lg" style="background: #2962ff; border-color: #4a4a4a;"></div>
+            <div class="swatch swatch-lg" style="background: #1e4fcc; border-color: #4a4a4a;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Bright Blue (interactive accent)</div>
+          <div class="spec-value">#2962ff &nbsp;|&nbsp; hover: #1e4fcc</div>
+          <div class="spec-note">Checkboxes, Connect button, focus rings, tab underlines, checkmarks.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div style="display: flex; gap: 8px;">
+            <div class="swatch swatch-lg" style="background: #1b6b4a; border-color: #4a4a4a;"></div>
+            <div class="swatch swatch-lg" style="background: #8b2232; border-color: #4a4a4a;"></div>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Buy / Sell</div>
+          <div class="spec-value">buy: #1b6b4a &nbsp;|&nbsp; sell: #8b2232</div>
+          <div class="spec-note">Trade action buttons and condition confirm.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview">
+          <div class="swatch swatch-lg" style="background: #f0a830; border-color: #4a4a4a;"></div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Gold / Active instrument</div>
+          <div class="spec-value">#f0a830</div>
+          <div class="spec-note">Active instrument text in selectors, warning toasts.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================================ -->
+  <!-- TRANSITIONS                                                       -->
+  <!-- ================================================================ -->
+  <section class="category">
+    <div class="category-title">Transitions</div>
+    <div class="spec-grid">
+
+      <div class="spec-row">
+        <div class="spec-preview" style="width: 200px;">
+          <div style="font-size: 11px; color: #787b86; font-family: 'SF Mono', monospace; display: flex; flex-direction: column; gap: 6px;">
+            <span>background 0.15s</span>
+            <span>color 0.15s</span>
+            <span>opacity 0.15s</span>
+            <span>border-color 0.15s</span>
+            <span>transform 0.15s</span>
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Standard Transition Duration</div>
+          <div class="spec-value">0.15s (150ms)</div>
+          <div class="spec-note">Every interactive state change (hover, focus, active, open/close) must be animated at 150ms. No exceptions. Popovers use 180ms ease-out for entrance animation.</div>
+        </div>
+      </div>
+
+      <div class="spec-row">
+        <div class="spec-preview" style="width: 200px;">
+          <div style="font-size: 11px; color: #787b86; font-family: 'SF Mono', monospace;">
+            disabled: opacity 0.5
+          </div>
+        </div>
+        <div class="spec-details">
+          <div class="spec-name">Disabled State</div>
+          <div class="spec-value">opacity: 0.5</div>
+          <div class="spec-note">Always 0.5. Never 0.3, 0.4, or any other value. cursor: not-allowed or default.</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</body>
+</html>

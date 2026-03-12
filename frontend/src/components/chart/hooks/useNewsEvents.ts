@@ -6,11 +6,15 @@ import type { ChartRefs } from './types';
 export function useNewsEvents(refs: ChartRefs): void {
   // Fetch events on mount
   useEffect(() => {
+    let cancelled = false;
     fetchEconomicEvents()
-      .then((events) => useStore.getState().setNewsEvents(events))
+      .then((events) => {
+        if (!cancelled) useStore.getState().setNewsEvents(events);
+      })
       .catch(() => {
         // Non-critical — silently ignore
       });
+    return () => { cancelled = true; };
   }, []);
 
   // Sync events + visibility to the primitive

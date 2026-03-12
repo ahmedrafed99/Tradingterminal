@@ -39,6 +39,7 @@ export function useChartBars(
 
     const series = refs.series.current;
     let cancelled = false;
+    let autoScaleTimer: ReturnType<typeof setTimeout> | null = null;
 
     async function loadBars() {
       setLoading(true);
@@ -97,7 +98,7 @@ export function useChartBars(
 
         // Disable auto-scale so user can drag vertically immediately
         // (must happen after data load so the chart knows the initial price range)
-        setTimeout(() => {
+        autoScaleTimer = setTimeout(() => {
           refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
         }, 0);
 
@@ -133,7 +134,10 @@ export function useChartBars(
     }
 
     loadBars();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
+    };
   }, [contract, timeframe]);
 
   // -- Real-time quote subscription --

@@ -262,6 +262,47 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   useChartDrawings(refs, contract);
   useNewsEvents(refs);
 
+  // -- Apply chart settings (bar colors, background) from store --
+  const chartSettings = useStore((s) => s.chartSettings);
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    if (!chart || !series) return;
+
+    // Candle colors
+    series.applyOptions({
+      upColor: chartSettings.bodyVisible ? chartSettings.upColor : 'transparent',
+      downColor: chartSettings.bodyVisible ? chartSettings.downColor : 'transparent',
+      borderVisible: chartSettings.borderVisible,
+      borderUpColor: chartSettings.borderUpColor,
+      borderDownColor: chartSettings.borderDownColor,
+      wickUpColor: chartSettings.wickVisible ? chartSettings.wickUpColor : 'transparent',
+      wickDownColor: chartSettings.wickVisible ? chartSettings.wickDownColor : 'transparent',
+    });
+
+    // Background — ColorType enum values are strings: 'solid' and 'gradient'
+    if (chartSettings.bgType === 'gradient') {
+      chart.applyOptions({
+        layout: {
+          background: {
+            type: 'gradient' as any,
+            topColor: chartSettings.gradientTopColor,
+            bottomColor: chartSettings.gradientBottomColor,
+          },
+        },
+      });
+    } else {
+      chart.applyOptions({
+        layout: {
+          background: {
+            type: 'solid' as any,
+            color: chartSettings.bgColor,
+          },
+        },
+      });
+    }
+  }, [chartSettings]);
+
   // -- Order panel contract (overlays show on whichever chart matches) --
   const orderContract = useStore((s) => s.orderContract);
   const isOrderChart = contract?.id != null && contract.id === orderContract?.id;

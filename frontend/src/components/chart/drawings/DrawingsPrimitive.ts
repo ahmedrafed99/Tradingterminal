@@ -472,6 +472,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._chart = null;
     this._series = null;
     this._requestUpdate = null;
+    this._priceAxisViewPool = [];
   }
 
   /** Called by React when store drawings change */

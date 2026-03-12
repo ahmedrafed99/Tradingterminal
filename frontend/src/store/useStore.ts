@@ -9,6 +9,7 @@ import { createDrawingsSlice } from './slices/drawingsSlice';
 import { createLayoutSlice } from './slices/layoutSlice';
 import { createConditionsSlice } from './slices/conditionsSlice';
 import { createToastSlice } from './slices/toastSlice';
+import { createChartSettingsSlice } from './slices/chartSettingsSlice';
 
 // Slice types
 import type { ConnectionSlice } from './slices/connectionSlice';
@@ -18,6 +19,7 @@ import type { DrawingsSlice } from './slices/drawingsSlice';
 import type { LayoutSlice } from './slices/layoutSlice';
 import type { ConditionsSlice } from './slices/conditionsSlice';
 import type { ToastSlice } from './slices/toastSlice';
+import type { ChartSettingsSlice } from './slices/chartSettingsSlice';
 
 // Re-export commonly used types so consumers don't need to change imports
 export type { Timeframe } from './slices/instrumentSlice';
@@ -28,7 +30,7 @@ export type { ToastItem } from './slices/toastSlice';
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
-  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice;
+  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice;
 
 export const useStore = create<Store>()(
   persist(
@@ -40,6 +42,7 @@ export const useStore = create<Store>()(
       ...createLayoutSlice(set as any),
       ...createConditionsSlice(set as any),
       ...createToastSlice(set as any),
+      ...createChartSettingsSlice(set as any),
     }),
     {
       name: 'chart-store',
@@ -75,6 +78,7 @@ export const useStore = create<Store>()(
         orderLinkedToChart: s.orderLinkedToChart,
         newsVisible: s.newsVisible,
         conditionServerUrl: s.conditionServerUrl,
+        chartSettings: s.chartSettings,
       }),
     },
   ),

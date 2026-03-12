@@ -85,6 +85,12 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
 
   /** Provide the overlay div and chart API so we render as HTML above order labels. */
   setOverlay(overlay: HTMLDivElement, chart: IChartApi): void {
+    if (this._overlay === overlay && this._chartApi === chart) return;
+    // Clean up previous HTML if re-initialized
+    if (this._htmlEl) {
+      this._htmlEl.remove();
+      this._htmlEl = null;
+    }
     this._overlay = overlay;
     this._chartApi = chart;
     this._buildHtml();

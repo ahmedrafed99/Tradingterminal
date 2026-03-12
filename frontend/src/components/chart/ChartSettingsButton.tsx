@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { IChartApi } from 'lightweight-charts';
+import { ChartSettingsModal } from './ChartSettingsModal';
 
 interface Props {
   chartRef: React.RefObject<IChartApi | null>;
@@ -15,6 +16,7 @@ interface Props {
 export function ChartSettingsButton({ chartRef, containerRef }: Props) {
   const [open, setOpen] = useState(false);
   const [inverted, setInverted] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
   const [rect, setRect] = useState<{ w: number; h: number; r: number; b: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -152,7 +154,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             right: rect.r,
             zIndex: 40,
             minWidth: 160,
-            background: '#1e222d',
+            background: '#131722',
             border: '1px solid #2a2e39',
             borderRadius: 4,
             padding: '4px 0',
@@ -199,8 +201,47 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             </svg>
             <span>Invert scale</span>
           </button>
+          {/* Divider */}
+          <div style={{ height: 1, background: '#2a2e39', margin: '4px 0' }} />
+          {/* More settings */}
+          <button
+            onClick={() => { setOpen(false); setModalOpen(true); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '6px 12px',
+              background: 'transparent',
+              border: 'none',
+              color: '#d1d4dc',
+              fontSize: 12,
+              fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+              textAlign: 'left',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#2a2e39'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            {/* Gear icon */}
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+              <polygon
+                points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
+                stroke="#787b86"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+                fill="none"
+              />
+              <circle cx="8" cy="8" r="2.5" stroke="#787b86" strokeWidth="1.3" fill="none" />
+            </svg>
+            <span>Settings...</span>
+          </button>
         </div>
       )}
+
+      {modalOpen && <ChartSettingsModal onClose={() => setModalOpen(false)} />}
 
       <style>{`
         @keyframes chartSettingsFadeIn {
