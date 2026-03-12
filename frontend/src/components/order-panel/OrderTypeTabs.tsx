@@ -7,8 +7,8 @@ export function OrderTypeTabs() {
 
   return (
     <div>
-      <div className={`${SECTION_LABEL} mb-1 text-center`}>Order Type</div>
-      <div className="flex gap-1">
+      <div className={`${SECTION_LABEL} text-center`}>Order Type</div>
+      <div className="flex gap-1" style={{ marginTop: 6 }}>
         <button
           onClick={() => setOrderType('market')}
           className={`flex-1 text-xs py-1.5 rounded transition-colors ${

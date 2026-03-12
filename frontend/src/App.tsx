@@ -143,7 +143,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-(--color-bg) text-(--color-text)">
-      <TopBar />
+      {connected && <TopBar />}
 
       {/* Main content area */}
       <main className="flex-1 flex flex-row min-h-0">

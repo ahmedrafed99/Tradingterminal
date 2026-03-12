@@ -32,7 +32,7 @@ export function BracketSummary() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between">
         <div className={`${SECTION_LABEL} text-center flex-1`}>Bracket</div>
         {/* Add new preset */}
         <button
@@ -48,7 +48,7 @@ export function BracketSummary() {
       </div>
 
       {/* Custom dropdown */}
-      <div ref={containerRef} className="relative mb-1">
+      <div ref={containerRef} className="relative" style={{ marginTop: 6 }}>
         <button
           onClick={() => setOpen((v) => !v)}
           className="w-full flex items-center justify-center bg-(--color-input) border border-(--color-border) rounded text-xs text-white focus:outline-none focus:border-(--color-accent)"
@@ -122,7 +122,7 @@ export function BracketSummary() {
 
       {/* Config summary when preset is active */}
       {config && (
-        <div className="bg-(--color-input) border border-(--color-border) rounded text-xs space-y-2.5" style={{ padding: 12 }}>
+        <div className="bg-(--color-input) border border-(--color-border) rounded text-xs space-y-2.5" style={{ padding: 12, marginTop: 6 }}>
           {/* SL */}
           {(() => {
             const slPts = draftSlPoints ?? config.stopLoss.points;

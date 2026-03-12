@@ -5,7 +5,7 @@ Controls instrument selection, order type, size, bracket configuration,
 and the preview toggle that overlays ghost lines on the chart.
 
 - **Background**: `bg-black`, border right `border-[#2a2e39]`, width 240px
-- All section titles use `SECTION_LABEL` constant from `constants/styles.ts` (`text-[10px] uppercase tracking-wider text-[#787b86]`), centred (`text-center`)
+- All section titles use `SECTION_LABEL` constant from `constants/styles.ts` (`text-[10px] uppercase tracking-wider text-[#787b86]`), centred (`text-center`), with `marginTop: 6` gap between label and content
 - All input fields use `bg-[#111] border-[#2a2e39]`, focus: `border-[#1a3a6e]`
 
 ---
@@ -92,7 +92,7 @@ and the preview toggle that overlays ghost lines on the chart.
 - Both use `activeAccountId`, `activeContractId`, `orderSize`, and the active
   bracket configuration from the store
 - Buttons disabled when: not connected, no instrument selected, **or market is closed**
-- **Market-closed state**: `useMarketStatus()` (1 s reactive hook) drives `canPlace`. When closed, buttons are `disabled:opacity-50` and a red `●` "Market closed — reopens Sun 18:00 ET" hint appears below them. A second `isFuturesMarketOpen()` call inside `handlePlace` guards against the race where the hook value is stale at click time.
+- **Market-closed state**: `useMarketStatus()` (1 s reactive hook) drives `canPlace`. When closed, buttons are `disabled:opacity-50` and a full-width amber banner appears below (12px gap): warning icon + "Market closed — reopens Sun 18:00 ET", styled with `text-(--color-warning)` on a subtle `color-mix(in srgb, var(--color-warning) 8%, transparent)` background. A second `isFuturesMarketOpen()` call inside `handlePlace` guards against the race where the hook value is stale at click time.
 - On placement failure: shows error toast alongside inline error text
 
 ### `PositionDisplay`

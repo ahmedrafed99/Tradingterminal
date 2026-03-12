@@ -1,6 +1,6 @@
 # Feature: Top Bar
 
-A persistent top bar (`h-10`) rendered above the chart. Contains account selector, live balance + unrealized P&L, realized P&L, connection status, latency display, and settings access.
+A top bar (`h-10`) rendered above the chart when connected. Contains account selector, live balance + unrealized P&L, realized P&L, connection status, latency display, and settings access. Hidden when not connected (only the "Connect to TopstepX" button is shown).
 
 **Status**: Implemented
 
