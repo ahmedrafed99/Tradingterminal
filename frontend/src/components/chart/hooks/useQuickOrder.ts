@@ -509,15 +509,51 @@ export function useQuickOrder(
           bracketEngine.confirmEntryOrderId(orderId);
         }
         if (bracketsArmed || nativeBrackets) {
-          // Keep preview lines until entry fills/cancels, then remove
+          // Keep preview lines until entry fills/cancels, then remove.
+          // Also detect individual bracket leg cancellations from the orders tab.
+          let seenSlId: number | null = null;
+          let seenTpId: number | null = null; // at most 1 Suspended TP exists pre-fill (0-1 TP path)
           pendingFillUnsub = useStore.subscribe((state) => {
             const o = state.openOrders.find((ord) => ord.id === orderId);
+            // Entry filled/cancelled → full cleanup
             if (!o || o.status === OrderStatus.Filled || o.status === OrderStatus.Cancelled) {
               // Unsubscribe FIRST to prevent recursive re-entry from setQoPendingPreview
               pendingFillUnsub?.();
               pendingFillUnsub = null;
               removePreviewLines();
               useStore.getState().setQoPendingPreview(null);
+              return;
+            }
+
+            // Track Suspended bracket leg IDs as they arrive via SignalR
+            const cid = contract!.id;
+            for (const ord of state.openOrders) {
+              if (String(ord.contractId) !== String(cid) || ord.status !== OrderStatus.Suspended) continue;
+              if (seenSlId == null && ord.customTag?.endsWith('-SL')) seenSlId = ord.id;
+              if (seenTpId == null && ord.customTag?.endsWith('-TP')) seenTpId = ord.id;
+            }
+
+            // SL cancelled via orders tab — destroy its preview line.
+            // Clear seenSlId BEFORE the store write to prevent recursive re-entry.
+            if (seenSlId != null && !state.openOrders.some(ord => ord.id === seenSlId)) {
+              const sl = refs.qoPreviewLines.current.sl;
+              if (sl) { sl.destroy(); refs.qoPreviewLines.current.sl = null; }
+              seenSlId = null;
+              const qo = state.qoPendingPreview;
+              if (qo) useStore.getState().setQoPendingPreview({ ...qo, slPrice: null });
+            }
+
+            // TP cancelled via orders tab — destroy its preview line.
+            // Clear seenTpId BEFORE the store write to prevent recursive re-entry.
+            if (seenTpId != null && !state.openOrders.some(ord => ord.id === seenTpId)) {
+              const tp = refs.qoPreviewLines.current.tps[0];
+              if (tp) { tp.destroy(); refs.qoPreviewLines.current.tps[0] = null; }
+              seenTpId = null;
+              const qo = state.qoPendingPreview;
+              if (qo) {
+                refs.qoPreviewLines.current.tps = refs.qoPreviewLines.current.tps.filter((_, i) => i !== 0);
+                useStore.getState().setQoPendingPreview({ ...qo, tpPrices: [], tpSizes: [] });
+              }
             }
           });
         }

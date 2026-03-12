@@ -524,21 +524,54 @@ Two mechanisms keep the preview visible:
 
 2. **Overlay labels** (`qoPendingPreview` in store): the overlay label effect reads this state and creates HTML labels (same style as main preview labels) for SL and TP lines. Labels show projected P&L and size.
 
-A Zustand `subscribe()` watches for the entry order to fill (status 2) or cancel (status 3):
+A Zustand `subscribe()` watches for three events:
+
+1. **Entry order fills or cancels** → full cleanup (all lines + `qoPendingPreview`)
+2. **SL bracket leg cancelled externally** (orders tab) → destroy SL preview line, update `qoPendingPreview.slPrice = null`
+3. **TP bracket leg cancelled externally** (orders tab) → destroy TP preview line, update `qoPendingPreview`
 
 ```ts
+let seenSlId: number | null = null;
+let seenTpId: number | null = null;
+
 pendingFillUnsub = useStore.subscribe((state) => {
   const o = state.openOrders.find((ord) => ord.id === orderId);
-  if (!o || o.status === 2 || o.status === 3) {
+  // Entry filled/cancelled → full cleanup
+  if (!o || o.status === Filled || o.status === Cancelled) {
     pendingFillUnsub?.();        // unsubscribe FIRST (prevents recursive re-entry)
     pendingFillUnsub = null;
     removePreviewLines();
     setQoPendingPreview(null);   // clears overlay labels
+    return;
+  }
+  // Track Suspended bracket leg IDs as they arrive via SignalR
+  for (const ord of state.openOrders) {
+    if (String(ord.contractId) !== contractId || ord.status !== Suspended) continue;
+    if (seenSlId == null && ord.customTag?.endsWith('-SL')) seenSlId = ord.id;
+    if (seenTpId == null && ord.customTag?.endsWith('-TP')) seenTpId = ord.id;
+  }
+  // SL cancelled via orders tab — clear ID BEFORE store write to prevent re-entry
+  if (seenSlId != null && !state.openOrders.some(o => o.id === seenSlId)) {
+    refs.qoPreviewLines.current.sl?.destroy();
+    refs.qoPreviewLines.current.sl = null;
+    seenSlId = null;
+    const qo = state.qoPendingPreview;
+    if (qo) setQoPendingPreview({ ...qo, slPrice: null });
+  }
+  // TP cancelled via orders tab — same re-entry guard pattern
+  if (seenTpId != null && !state.openOrders.some(o => o.id === seenTpId)) {
+    refs.qoPreviewLines.current.tps[0]?.destroy();
+    refs.qoPreviewLines.current.tps = [];
+    seenTpId = null;
+    const qo = state.qoPendingPreview;
+    if (qo) setQoPendingPreview({ ...qo, tpPrices: [], tpSizes: [] });
   }
 });
 ```
 
-**Important**: The unsubscribe must happen *before* `setQoPendingPreview(null)` — otherwise the store update re-triggers the subscriber (still subscribed), causing `Maximum call stack size exceeded`.
+**Critical re-entry rule**: Any closure variable used as a guard (`seenSlId`, `seenTpId`, `pendingFillUnsub`) **must be nulled before the store write** that triggers it. Zustand subscribers fire synchronously — the subscriber re-enters before the line after the write executes. Setting the guard after the write causes `Maximum call stack size exceeded`.
+
+`seenSlId` / `seenTpId` start as `null` and are only set once the Suspended orders arrive via SignalR. This prevents false positives if the subscriber fires before the bracket leg events have been received.
 
 Each label has an independent X cancel button — cancelling a single TP/SL removes only that line and updates the bracket engine's armed config via `bracketEngine.updateArmedConfig()`. A no-op `pendingFillUnsub` placeholder is set synchronously before the async `placeOrder` call so that `onLeave` does not prematurely remove preview lines.
 
