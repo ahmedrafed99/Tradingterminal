@@ -37,18 +37,27 @@ export function useChartWidgets(
         primitive?.setData([]);
         return;
       }
-      const { visibleTradeIds, sessionTrades } = useStore.getState();
+      const { visibleTradeIds, sessionTrades, displayTrades } = useStore.getState();
       if (visibleTradeIds.length === 0) {
         primitive.setData([]);
         return;
       }
-      const zones = matchTrades(sessionTrades, visibleTradeIds, String(contractId));
+      // Merge session + display trades (deduplicate by id) so clicks from
+      // the Trades tab work regardless of which date preset is active.
+      const merged = new Map<number, typeof sessionTrades[0]>();
+      for (const t of sessionTrades) merged.set(t.id, t);
+      for (const t of displayTrades) merged.set(t.id, t);
+      const zones = matchTrades([...merged.values()], visibleTradeIds, String(contractId));
       primitive.setData(zones);
     }
 
     rebuild();
     const unsub = useStore.subscribe((s, prev) => {
-      if (s.visibleTradeIds !== prev.visibleTradeIds || s.sessionTrades !== prev.sessionTrades) {
+      if (
+        s.visibleTradeIds !== prev.visibleTradeIds ||
+        s.sessionTrades !== prev.sessionTrades ||
+        s.displayTrades !== prev.displayTrades
+      ) {
         rebuild();
       }
     });

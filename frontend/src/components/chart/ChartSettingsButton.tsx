@@ -52,10 +52,29 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
       });
     };
 
-    // Measure after chart is ready + on resize
+    // Measure after chart is ready + on resize.
+    // We observe both the container AND the dead-zone <td> itself, because
+    // the price scale can change width (e.g. when bar data loads and price
+    // labels get wider) without the outer container resizing.
     const raf = requestAnimationFrame(measure);
     const ro = new ResizeObserver(measure);
     ro.observe(container);
+
+    // Find and observe the dead-zone cell directly so we catch price-scale
+    // width changes that happen after initial data load.
+    let deadZoneCell: HTMLElement | null = null;
+    requestAnimationFrame(() => {
+      const tables = container.querySelectorAll('table');
+      if (!tables.length) return;
+      const table = tables[tables.length - 1];
+      const rows = table.querySelectorAll('tr');
+      if (!rows.length) return;
+      const lastRow = rows[rows.length - 1];
+      const cells = lastRow.querySelectorAll('td');
+      if (!cells.length) return;
+      deadZoneCell = cells[cells.length - 1] as HTMLElement;
+      ro.observe(deadZoneCell);
+    });
 
     const chart = chartRef.current;
     if (chart) {

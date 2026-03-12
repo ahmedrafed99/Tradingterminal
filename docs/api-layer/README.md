@@ -127,17 +127,17 @@ searchOpenOrders(accountId: number): Promise<Order[]>
 ### `realtimeService.ts`
 
 Singleton that manages both SignalR hub connections (Market + User).
-Connects directly to `rtc.topstepx.com` using JWT from `GET /auth/token`.
+Connects through the backend proxy at `/hubs/*` — JWT is injected server-side.
 
 ```ts
-connect(token: string): Promise<void>
+connect(): Promise<void>
 disconnect(): Promise<void>
 isConnected(): boolean
 
 // Market Hub subscriptions
-subscribeQuotes(contractId: string): void
-unsubscribeQuotes(contractId: string): void
-subscribeDepth(contractId: string): void      // Volume profile data
+subscribeQuotes(contractId: string): void   // Also subscribes to SubscribeContractTrades
+unsubscribeQuotes(contractId: string): void // Also unsubscribes from trades
+subscribeDepth(contractId: string): void    // Volume profile data
 unsubscribeDepth(contractId: string): void
 
 // User Hub subscriptions
@@ -158,6 +158,8 @@ offUserReconnect(handler: () => void): void
 // Utility
 ping(): Promise<number>   // WebSocket round-trip latency in ms
 ```
+
+**Price update strategy:** `subscribeQuotes()` subscribes to both `SubscribeContractQuotes` and `SubscribeContractTrades` on the market hub. `GatewayQuote` events are the primary price source (carry full market snapshot: bid/ask/high/low/volume). `GatewayTrade` events are the fallback — when quotes go silent (e.g. stable spread, daily maintenance close), trade prices are used to synthesize quote objects so `lastPrice` stays current. Both feed into the same `quoteHandlers`. The adapter caches the last quote per contract so synthetic quotes from trades carry forward bid/ask/high/low values.
 
 **Handler signatures:**
 ```ts

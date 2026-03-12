@@ -42,7 +42,7 @@ Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setT
 ## Trades Tab
 
 - **Date preset selector**: Dropdown in the header row lets the user choose between Today (default), This Week, and This Month. The selected preset determines the `startTimestamp` passed to `tradeService.searchTrades()`. Preset is persisted to localStorage. Results are cached in memory per `accountId:preset` key. Each option displays a closing-trade count in parentheses (e.g. "Today (7)"). Counts are fetched in parallel for all three presets on mount and refresh when trades change. The selected preset's count also appears on the trigger button. The dropdown animates open/close with a fade + slide transition (150ms ease).
-- **Decoupled from RPNL**: Display trades (local state) are independent of `sessionTrades` in the store. Session trades (for TopBar RPNL) are fetched in `App.tsx` on connect and refreshed via SignalR — runs regardless of which bottom panel tab is active.
+- **Decoupled from RPNL**: Display trades are stored in the global store (`displayTrades`) separately from `sessionTrades`. Session trades (for TopBar RPNL) are fetched in `App.tsx` on connect and refreshed via SignalR — runs regardless of which bottom panel tab is active. `displayTrades` is in the store (not local state) so the chart can access them for trade zone rendering.
 - Fetches filtered display trades on mount and whenever account or preset changes via `tradeService.searchTrades(accountId, startTimestamp, endTimestamp?)`.
 - Re-fetches display trades on SignalR trade events (debounced 500ms). Cache is invalidated on new trade events.
 - Time column shows `MM/DD HH:MM` format for week/month presets, `HH:MM:SS` for session/today.
@@ -61,12 +61,12 @@ Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setT
 
 ## Chart Trade Markers
 
-When a trade ID is in `visibleTradeIds`, `CandlestickChart.tsx` renders a series marker:
+When a trade ID is in `visibleTradeIds`, `useChartWidgets` renders trade zone overlays via `TradeZonePrimitive`:
 
-- Buy fills: green (`#26a69a`) upward arrow at the trade price
-- Sell fills: red (`#ef5350`) downward arrow at the trade price
-- Marker time is snapped to the candle boundary via `floorToCandlePeriod()`
-- Markers reposition when the timeframe changes
+- `useChartWidgets` merges `sessionTrades` + `displayTrades` (deduplicated by ID) before calling `matchTrades()`. This ensures clicks from the Trades tab work regardless of which date preset is active — `displayTrades` may contain trades outside the current CME session.
+- `matchTrades()` finds exit trades by ID, then resolves their entry counterpart via `buildEntryMap()` (FIFO). Each matched pair produces a `TradeZone` rendered as an entry/exit rectangle.
+- Profitable zones are green, losing zones are red.
+- The subscription reacts to changes in `visibleTradeIds`, `sessionTrades`, and `displayTrades`.
 
 ## Shared Utility
 

@@ -37,6 +37,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
 
   private subscribedQuotes: Set<string> = new Set();
   private subscribedDepth: Set<string> = new Set();
+  private lastQuote: Map<string, Quote> = new Map();
   private subscribedOrderAccounts: Set<number> = new Set();
   private connectingPromise: Promise<void> | null = null;
   private userReconnectHandlers: (() => void)[] = [];
@@ -77,7 +78,36 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
 
     // Market hub: GatewayQuote has two params (contractId, data)
     this.marketHub.on('GatewayQuote', (contractId: string, data: Quote) => {
+      this.lastQuote.set(contractId, data);
       this.quoteHandlers.forEach((h) => h(contractId, data));
+    });
+
+    // Market hub: GatewayTrade — use trade price to keep lastPrice fresh
+    // GatewayQuote only fires on best-bid/ask changes and can go silent;
+    // trades fire on every fill, so we synthesize a quote update from them.
+    this.marketHub.on('GatewayTrade', (contractId: string, trades: unknown) => {
+      const arr = Array.isArray(trades) ? trades : [trades];
+      const last = arr[arr.length - 1] as { price?: number; timestamp?: string } | undefined;
+      if (!last?.price) return;
+
+      const prev = this.lastQuote.get(contractId);
+      const synthetic: Quote = {
+        symbol: prev?.symbol ?? '',
+        symbolName: prev?.symbolName ?? '',
+        lastPrice: last.price,
+        bestBid: prev?.bestBid ?? last.price,
+        bestAsk: prev?.bestAsk ?? last.price,
+        change: prev?.change ?? 0,
+        changePercent: prev?.changePercent ?? 0,
+        open: prev?.open ?? last.price,
+        high: Math.max(prev?.high ?? last.price, last.price),
+        low: Math.min(prev?.low ?? last.price, last.price),
+        volume: (prev?.volume ?? 0) + arr.length,
+        lastUpdated: last.timestamp ?? new Date().toISOString(),
+        timestamp: last.timestamp ?? new Date().toISOString(),
+      };
+      this.lastQuote.set(contractId, synthetic);
+      this.quoteHandlers.forEach((h) => h(contractId, synthetic));
     });
 
     // Market hub: GatewayDepth has two params (contractId, entries[])
@@ -113,6 +143,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
     this.marketHub.onreconnected(() => {
       for (const contractId of this.subscribedQuotes) {
         this.marketHub?.invoke('SubscribeContractQuotes', contractId).catch(console.error);
+        this.marketHub?.invoke('SubscribeContractTrades', contractId).catch(console.error);
       }
       for (const contractId of this.subscribedDepth) {
         this.marketHub?.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
@@ -131,6 +162,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
     // Flush any subscriptions that were requested before connection was ready
     for (const contractId of this.subscribedQuotes) {
       this.marketHub.invoke('SubscribeContractQuotes', contractId).catch(console.error);
+      this.marketHub.invoke('SubscribeContractTrades', contractId).catch(console.error);
     }
     for (const contractId of this.subscribedDepth) {
       this.marketHub.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
@@ -160,13 +192,16 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
     this.subscribedQuotes.add(contractId);
     if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
       this.marketHub.invoke('SubscribeContractQuotes', contractId).catch(console.error);
+      this.marketHub.invoke('SubscribeContractTrades', contractId).catch(console.error);
     }
   }
 
   unsubscribeQuotes(contractId: string) {
     this.subscribedQuotes.delete(contractId);
+    this.lastQuote.delete(contractId);
     if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
       this.marketHub.invoke('UnsubscribeContractQuotes', contractId).catch(console.error);
+      this.marketHub.invoke('UnsubscribeContractTrades', contractId).catch(console.error);
     }
   }
 

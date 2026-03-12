@@ -38,8 +38,9 @@ export function TradesTab() {
   const toggleTradeVisibilityBulk = useStore((s) => s.toggleTradeVisibilityBulk);
   const tradesDatePreset = useStore((s) => s.tradesDatePreset);
 
-  // Local state for display trades (decoupled from sessionTrades used for RPNL)
-  const [displayTrades, setDisplayTrades] = useState<Trade[]>([]);
+  // Display trades in store so the chart can access them for trade zone markers
+  const displayTrades = useStore((s) => s.displayTrades);
+  const setDisplayTrades = useStore((s) => s.setDisplayTrades);
 
   const showDate = tradesDatePreset === 'week' || tradesDatePreset === 'month';
 

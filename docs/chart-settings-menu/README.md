@@ -26,7 +26,7 @@ The dead rectangle where the right price scale border meets the time scale borde
 - **Hover**: `bg-[#1e222d]` with `transition: background 0.15s`
 - **Click**: Opens the quick popover directly above the button
 - **Icon**: Hexagon with inner circle SVG, stroke `#787b86`
-- **Size**: Fills the corner rectangle exactly — measured at runtime by querying the actual dead-zone `<td>` element that lightweight-charts renders (last cell in the last `<tr>` of its internal table layout), using `getBoundingClientRect()` relative to the parent wrapper
+- **Size**: Fills the corner rectangle exactly — measured at runtime by querying the actual dead-zone `<td>` element that lightweight-charts renders (last cell in the last `<tr>` of its internal table layout), using `getBoundingClientRect()` relative to the parent wrapper. A `ResizeObserver` watches both the chart container and the dead-zone `<td>` itself — the latter is needed because the price scale can change width after bar data loads (wider price labels) without the outer container resizing.
 
 ---
 
