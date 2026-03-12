@@ -64,6 +64,7 @@ export interface OrderPanelState {
   removeAdHocTp: (index: number) => void;
   updateAdHocTpPoints: (index: number, points: number) => void;
   clearAdHocBrackets: () => void;
+  /** QO = Quick Order (one-click buy/sell from chart). Tracks SL/TP preview while entry is pending fill. */
   qoPendingPreview: {
     entryPrice: number;
     slPrice: number | null;

@@ -4,6 +4,7 @@ import { bracketEngine } from '../../../services/bracketEngine';
 import { orderService } from '../../../services/orderService';
 import { OrderSide, OrderType, OrderStatus } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
+import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 
 interface QoPendingPreview {
@@ -56,8 +57,11 @@ export function buildQoPendingLabels(
             )),
           );
           if (slOrder) {
-            orderService.cancelOrder(acct, slOrder.id).catch(() => {});
             st.removeOrder(slOrder.id);
+            orderService.cancelOrder(acct, slOrder.id).catch((err) => {
+              st.upsertOrder(slOrder);
+              showToast('error', 'SL cancel failed', errorMessage(err));
+            });
           }
         }
 
@@ -141,8 +145,11 @@ export function buildQoPendingLabels(
         );
         const tpOrder = suspendedTps[tpIdx];
         if (tpOrder) {
-          orderService.cancelOrder(acct, tpOrder.id).catch(() => {});
           st.removeOrder(tpOrder.id);
+          orderService.cancelOrder(acct, tpOrder.id).catch((err) => {
+            st.upsertOrder(tpOrder);
+            showToast('error', 'TP cancel failed', errorMessage(err));
+          });
         }
       }
 

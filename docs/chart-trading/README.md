@@ -573,11 +573,13 @@ pendingFillUnsub = useStore.subscribe((state) => {
 
 `seenSlId` / `seenTpId` start as `null` and are only set once the Suspended orders arrive via SignalR. This prevents false positives if the subscriber fires before the bracket leg events have been received.
 
-Each label has an independent X cancel button — cancelling a single TP/SL removes only that line and updates the bracket engine's armed config via `bracketEngine.updateArmedConfig()`. A no-op `pendingFillUnsub` placeholder is set synchronously before the async `placeOrder` call so that `onLeave` does not prematurely remove preview lines.
+Each label has an independent X cancel button — cancelling a single TP/SL removes only that line and updates the bracket engine's armed config via `bracketEngine.updateArmedConfig()`. Cancel uses **optimistic update with rollback**: the order is removed from the store immediately, then `cancelOrder` is sent to the gateway. If the gateway call fails, the order is re-added to the store via `upsertOrder` and an error toast is shown (`'SL cancel failed'` / `'TP cancel failed'`). This prevents ghost orders (visible in gateway but invisible in UI). A no-op `pendingFillUnsub` placeholder is set synchronously before the async `placeOrder` call so that `onLeave` does not prematurely remove preview lines.
 
 ### Quick-order pending preview drag
 
 SL/TP labels from the + button pending preview are draggable (same pattern as order panel preview lines). Drag uses `qoPreviewPricesRef` for flicker-free movement; on mouseup the new price is committed to `qoPendingPreview` store state and `bracketEngine.updateArmedConfig()` so the actual bracket orders use the adjusted prices when the entry fills.
+
+**Optimistic update with rollback**: On mouseup, `usePreviewDrag` updates the store immediately (via `upsertOrder`) then sends `modifyOrder` to the gateway. If the gateway call fails, the store is rolled back to the previous price and an error toast is shown (`'SL modify failed'` / `'TP modify failed'`). This prevents silent divergence between what the UI shows and what the gateway actually has.
 
 > **Note**: `modifyOrder` calls on Suspended orders are acknowledged by the gateway but silently ignored at activation. See the "Native Bracket Order Lifecycle" section for the post-fill correction that handles this.
 
@@ -676,12 +678,12 @@ interface OrderPanelState {
 | `frontend/src/components/chart/CandlestickChart.tsx` | Orchestrator: declares refs, init effect, delegates to 6 hooks. Exposes `setCrosshairPrice()` for dual-chart sync. |
 | `frontend/src/components/chart/hooks/useOrderLines.ts` | Orchestrator hook — delegates to 4 sub-hooks, directly manages live order/position `PriceLevelLine` creation |
 | `frontend/src/components/chart/hooks/usePreviewLines.ts` | Preview line lifecycle: creates/destroys `PriceLevelLine` instances on config change + Zustand price subscription for flicker-free updates |
-| `frontend/src/components/chart/hooks/usePreviewDrag.ts` | Preview line drag: handles entry/SL/TP drag + QO pending preview drag; finds Suspended bracket legs by `customTag` and calls `modifyOrder` on drag (acknowledged by gateway but not honored — post-fill correction in OrderPanel handles actual price application) |
+| `frontend/src/components/chart/hooks/usePreviewDrag.ts` | Preview line drag: handles entry/SL/TP drag + QO pending preview drag; finds Suspended bracket legs by `customTag` and calls `modifyOrder` on mouseup with optimistic store update + rollback on failure (error toast shown). Gateway may silently ignore Suspended modify — post-fill correction in OrderPanel handles actual price application. |
 | `frontend/src/components/chart/hooks/useOrderDrag.ts` | Live order drag: `orderService.modifyOrder()` with bracket preview shift, SL validation, optimistic updates + rollback |
 | `frontend/src/components/chart/hooks/usePositionDrag.ts` | Position drag-to-create: drag from position label to place SL/TP orders via `orderService.placeOrder()` |
 | `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
 | `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: creates PriceLevelLine instances with baked-in labels for hover preview |
-| `frontend/src/components/chart/hooks/buildQoPendingLabels.ts` | Builds overlay labels for `qoPendingPreview` SL/TP lines (post-placement pending preview); cancel handlers call `orderService.cancelOrder()` + `removeOrder` to cancel the actual gateway bracket leg order |
+| `frontend/src/components/chart/hooks/buildQoPendingLabels.ts` | Builds overlay labels for `qoPendingPreview` SL/TP lines (post-placement pending preview); cancel handlers use optimistic `removeOrder` + `cancelOrder` with rollback (`upsertOrder` + error toast) on failure |
 | `frontend/src/components/chart/hooks/labelUtils.ts` | Shared utilities: `computeOrderLineColor()` (profit/loss color logic), `installSizeButtons()` (hover-reveal +/- DOM factory), `formatSlPnl()`/`formatTpPnl()` (P&L text), `darken()`, shared color constants, drag helpers |
 | `frontend/src/components/chart/hooks/resolvePreviewConfig.ts` | `resolvePreviewConfig()` — unified BracketConfig resolver; `fitTpsToOrderSize()` — trims TPs to fit within orderSize |
 | `frontend/src/components/order-panel/OrderPanel.tsx` | SignalR event wiring, limit order cancel cleanup, position close auto-cancel |

@@ -5,6 +5,7 @@ import { useStore } from '../../../store/useStore';
 import { orderService } from '../../../services/orderService';
 import { OrderSide, OrderType, OrderStatus } from '../../../types/enums';
 import { priceToPoints } from '../../../utils/instrument';
+import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 
 // Custom white crosshair cursor (24x24 SVG, hotspot at center)
@@ -132,8 +133,12 @@ export function usePreviewDrag(
                   )),
                 );
                 if (slOrder) {
-                  orderService.modifyOrder({ accountId: st.activeAccountId, orderId: slOrder.id, stopPrice: newSlPrice }).catch(() => {});
+                  const prevPrice = slOrder.stopPrice;
                   st.upsertOrder({ ...slOrder, stopPrice: newSlPrice });
+                  orderService.modifyOrder({ accountId: st.activeAccountId, orderId: slOrder.id, stopPrice: newSlPrice }).catch((err) => {
+                    st.upsertOrder({ ...slOrder, stopPrice: prevPrice });
+                    showToast('error', 'SL modify failed', errorMessage(err));
+                  });
                 }
               }
             } else if (drag.role.kind === 'qo-tp') {
@@ -165,8 +170,12 @@ export function usePreviewDrag(
                   );
                   const tpOrder = suspendedTps[tpIdx];
                   if (tpOrder) {
-                    orderService.modifyOrder({ accountId: st.activeAccountId, orderId: tpOrder.id, limitPrice: newTpPrice }).catch(() => {});
+                    const prevPrice = tpOrder.limitPrice;
                     st.upsertOrder({ ...tpOrder, limitPrice: newTpPrice });
+                    orderService.modifyOrder({ accountId: st.activeAccountId, orderId: tpOrder.id, limitPrice: newTpPrice }).catch((err) => {
+                      st.upsertOrder({ ...tpOrder, limitPrice: prevPrice });
+                      showToast('error', 'TP modify failed', errorMessage(err));
+                    });
                   }
                 }
               }
