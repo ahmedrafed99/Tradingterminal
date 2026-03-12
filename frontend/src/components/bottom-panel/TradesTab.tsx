@@ -5,7 +5,7 @@ import type { Trade } from '../../services/tradeService';
 import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
-import { getDateRange } from '../../utils/cmeSession';
+import { getDateRange, type DatePreset } from '../../utils/cmeSession';
 import { shortSymbol, formatTime, durationMs, formatDuration } from '../../utils/formatters';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 import { DatePresetSelector } from './DatePresetSelector';
@@ -66,6 +66,35 @@ export function TradesTab() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, [connected, activeAccountId, tradesDatePreset]);
+
+  // Preset trade counts (for dropdown badges)
+  const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month'];
+  const [presetCounts, setPresetCounts] = useState<Partial<Record<DatePreset, number>>>({});
+
+  useEffect(() => {
+    if (!connected || activeAccountId == null) return;
+    let cancelled = false;
+
+    const countClosing = (trades: Trade[]) =>
+      trades.filter((t) => t.profitAndLoss != null && !t.voided).length;
+
+    Promise.all(
+      ALL_PRESETS.map(async (p) => {
+        const key = `${activeAccountId}:${p}`;
+        const cached = tradesCache.get(key);
+        if (cached) return [p, countClosing(cached)] as const;
+        const { startTimestamp, endTimestamp } = getDateRange(p);
+        const trades = await tradeService.searchTrades(activeAccountId, startTimestamp, endTimestamp);
+        tradesCache.set(key, trades);
+        return [p, countClosing(trades)] as const;
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setPresetCounts(Object.fromEntries(results));
+    }).catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [connected, activeAccountId, displayTrades]);
 
   // Re-fetch display trades on SignalR trade events (debounced 500ms)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -228,7 +257,7 @@ export function TradesTab() {
         <div className="flex items-center h-8 shrink-0 border-b border-[#2a2e39]">
           <div style={{ width: '70%' }} />
           <div className="ml-auto" style={{ paddingRight: 16 }}>
-            <DatePresetSelector />
+            <DatePresetSelector counts={presetCounts} />
           </div>
         </div>
         <div className="flex items-center justify-center flex-1 text-[#434651] text-xs">
@@ -276,7 +305,7 @@ export function TradesTab() {
             })}
           </div>
           <div className="ml-auto" style={{ paddingRight: 16 }}>
-            <DatePresetSelector />
+            <DatePresetSelector counts={presetCounts} />
           </div>
         </div>
       </div>

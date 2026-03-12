@@ -22,13 +22,13 @@ Toggling "dual chart" mode splits the chart area into two independent candlestic
 ├───────────────────────────────┬──┬───────────────────────────────────┤
 │                               │  │                                   │
 │    Left Chart (NQ)            │▐ │    Right Chart (MNQ)              │
-│    ring-1 ring-[#2962ff]      │▐ │                                   │
+│    border-2 rgba(41,98,255,0.5)│▐ │                                   │
 │    (selected)                 │▐ │                                   │
 │                               │  │                                   │
 ├───────────────────────────────┴──┴───────────────────────────────────┤
 ```
 
-- **Selection border**: `ring-1 ring-[#2962ff] ring-inset` on the selected chart panel (only in dual mode)
+- **Selection border**: Absolute overlay (`pointer-events-none`, `z-50`) with `border: 2px solid rgba(41, 98, 255, 0.5)` on the selected chart panel. Renders on both panels (always mounted in dual mode) with `border-color` transitioning between transparent and blue (0.25s ease) for smooth selection changes.
 - **Separator**: 4px vertical bar, draggable to resize (clamped 0.2–0.8)
 - **Layout toggle**: stroke-only SVG icon (`#787b86`) in right section of toolbar — single rectangle (□) vs dual rectangles (□|□), separated from camera and clock by vertical dividers
 

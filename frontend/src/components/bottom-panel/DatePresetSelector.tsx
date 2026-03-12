@@ -1,22 +1,45 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { DATE_PRESET_LABELS, type DatePreset } from '../../utils/cmeSession';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
 const PRESETS: DatePreset[] = ['today', 'week', 'month'];
 
-export function DatePresetSelector() {
+interface DatePresetSelectorProps {
+  counts?: Partial<Record<DatePreset, number>>;
+}
+
+export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
   const preset = useStore((s) => s.tradesDatePreset);
   const setPreset = useStore((s) => s.setTradesDatePreset);
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const closeDropdown = useCallback(() => setOpen(false), []);
+  const closeDropdown = useCallback(() => {
+    setVisible(false);
+    setTimeout(() => setOpen(false), 150);
+  }, []);
   useClickOutside(ref, open, closeDropdown);
+
+  // Animate in after mount
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => setVisible(true));
+    }
+  }, [open]);
+
+  const handleSelect = (p: DatePreset) => {
+    setPreset(p);
+    setVisible(false);
+    setTimeout(() => setOpen(false), 150);
+  };
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (open) { closeDropdown(); } else { setOpen(true); }
+        }}
         className="flex items-center gap-1.5 text-xs text-[#787b86] hover:text-[#d1d4dc] transition-colors cursor-pointer select-none"
         style={{ padding: '4px 8px' }}
       >
@@ -26,6 +49,9 @@ export function DatePresetSelector() {
           <path d="M5.5 1.5v3M10.5 1.5v3" />
         </svg>
         {DATE_PRESET_LABELS[preset]}
+        {counts?.[preset] != null && (
+          <span style={{ color: '#555' }}>({counts[preset]})</span>
+        )}
         <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" style={{ opacity: 0.6 }}>
           <path d="M1.5 3L4 5.5L6.5 3" fill="none" stroke="currentColor" strokeWidth="1.2" />
         </svg>
@@ -33,19 +59,41 @@ export function DatePresetSelector() {
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50"
-          style={{ background: '#000', minWidth: 120 }}
+          className="absolute left-0 top-full mt-1 border border-[#2a2e39] rounded-lg shadow-lg z-50 overflow-hidden"
+          style={{
+            background: '#000',
+            minWidth: 140,
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'translateY(0)' : 'translateY(-4px)',
+            transition: 'opacity 0.15s ease, transform 0.15s ease',
+          }}
         >
           {PRESETS.map((p) => (
             <button
               key={p}
-              onClick={() => { setPreset(p); setOpen(false); }}
-              className={`block w-full text-left text-xs hover:bg-[#2a2e39] transition-colors cursor-pointer ${
-                p === preset ? 'text-[#f0a830]' : 'text-[#d1d4dc]'
+              onClick={() => handleSelect(p)}
+              className={`flex w-full items-center text-xs cursor-pointer ${
+                p === preset ? 'text-[#f0a830]' : 'text-[#d1d4dc] hover:bg-[#1e222d]'
               }`}
-              style={{ padding: '6px 12px' }}
+              style={{
+                padding: '6px 12px',
+                gap: 10,
+                transition: 'background 0.15s, color 0.15s',
+              }}
             >
-              {DATE_PRESET_LABELS[p]}
+              <span>{DATE_PRESET_LABELS[p]}</span>
+              {counts?.[p] != null && (
+                <span
+                  className="ml-auto"
+                  style={{
+                    fontSize: 12,
+                    color: p === preset ? 'rgba(240, 168, 48, 0.6)' : '#555',
+                    transition: 'color 0.15s',
+                  }}
+                >
+                  ({counts[p]})
+                </span>
+              )}
             </button>
           ))}
         </div>

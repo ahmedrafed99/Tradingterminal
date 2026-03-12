@@ -177,13 +177,22 @@ export function ChartArea() {
     };
   }, [dualChart, contract, secondContract]);
 
-  // Selection border class
-  const selectedBorder = useCallback(
-    (side: 'left' | 'right') =>
-      dualChart && selectedChart === side
-        ? 'ring-1 ring-[#2962ff] ring-inset'
-        : '',
+  // Selection border overlay
+  const isSelected = useCallback(
+    (side: 'left' | 'right') => dualChart && selectedChart === side,
     [dualChart, selectedChart],
+  );
+
+  const SelectionOverlay = ({ visible }: { visible: boolean }) => (
+    <div
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        zIndex: 50,
+        border: '1px solid',
+        borderColor: visible ? 'rgba(41, 98, 255, 0.5)' : 'transparent',
+        transition: 'border-color 0.25s ease',
+      }}
+    />
   );
 
   return (
@@ -192,8 +201,9 @@ export function ChartArea() {
       {/* Left chart panel */}
       <div
         style={{ flex: dualChart ? splitRatio : 1 }}
-        className={`flex flex-col min-h-0 min-w-0 overflow-hidden ${selectedBorder('left')}`}
+        className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
       >
+        {dualChart && <SelectionOverlay visible={isSelected('left')} />}
         {contract ? (
           <CandlestickChart
             ref={leftRef}
@@ -221,8 +231,9 @@ export function ChartArea() {
       {dualChart && (
         <div
           style={{ flex: 1 - splitRatio }}
-          className={`flex flex-col min-h-0 min-w-0 overflow-hidden ${selectedBorder('right')}`}
+          className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
         >
+          <SelectionOverlay visible={isSelected('right')} />
           {rightChartReady && secondContract ? (
             <CandlestickChart
               ref={rightRef}

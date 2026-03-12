@@ -15,7 +15,7 @@ Collapsible, resizable panel below the chart displaying **Orders** and **Trades*
 | `BottomPanel.tsx` | Container with tab bar, tab switching, collapse/expand toggle. ConditionsTab stays mounted (hidden) to keep SSE alive |
 | `OrdersTab.tsx` | Table of open orders with cancel buttons |
 | `TradesTab.tsx` | Grid of trades with date preset selector and click-to-show-on-chart |
-| `DatePresetSelector.tsx` | Dropdown for choosing trade date range (Today, This Week, This Month) |
+| `DatePresetSelector.tsx` | Dropdown for choosing trade date range (Today, This Week, This Month). Shows per-preset trade counts in both the trigger button and dropdown options. Animated open/close (fade + slide, 150ms) |
 
 ## Store (Zustand)
 
@@ -41,7 +41,7 @@ Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setT
 
 ## Trades Tab
 
-- **Date preset selector**: Dropdown in the tab bar (next to "Trades" tab) lets the user choose between Today (default), This Week, and This Month. The selected preset determines the `startTimestamp` passed to `tradeService.searchTrades()`. Preset is persisted to localStorage. Results are cached in memory per `accountId:preset` key.
+- **Date preset selector**: Dropdown in the header row lets the user choose between Today (default), This Week, and This Month. The selected preset determines the `startTimestamp` passed to `tradeService.searchTrades()`. Preset is persisted to localStorage. Results are cached in memory per `accountId:preset` key. Each option displays a closing-trade count in parentheses (e.g. "Today (7)"). Counts are fetched in parallel for all three presets on mount and refresh when trades change. The selected preset's count also appears on the trigger button. The dropdown animates open/close with a fade + slide transition (150ms ease).
 - **Decoupled from RPNL**: Display trades (local state) are independent of `sessionTrades` in the store. Session trades (for TopBar RPNL) are fetched in `App.tsx` on connect and refreshed via SignalR — runs regardless of which bottom panel tab is active.
 - Fetches filtered display trades on mount and whenever account or preset changes via `tradeService.searchTrades(accountId, startTimestamp, endTimestamp?)`.
 - Re-fetches display trades on SignalR trade events (debounced 500ms). Cache is invalidated on new trade events.

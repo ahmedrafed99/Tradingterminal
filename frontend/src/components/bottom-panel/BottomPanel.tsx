@@ -19,7 +19,7 @@ export function BottomPanel() {
   return (
     <div className="flex flex-col h-full bg-black">
       {/* Tab bar */}
-      <div className="flex items-center h-10 shrink-0 border-t border-[#2a2e39] pr-4 gap-3" style={{ marginLeft: 16 }}>
+      <div className="flex items-center h-10 shrink-0 pr-4 gap-3" style={{ marginLeft: 16 }}>
         <TabButton
           label="Orders"
           active={tab === 'orders'}
