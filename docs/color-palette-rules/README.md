@@ -125,6 +125,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | `--color-label-bg` | `#cac9cb` | Neutral label background |
 | `--color-label-text` | `#000000` | Label text (dark on light) |
 | `--color-label-close` | `#e0e0e0` | Close (X) button background |
+| `--color-label-close-hover` | `#b8b8b8` | Close (X) button hover (darkened) |
 
 ---
 
@@ -174,6 +175,26 @@ Everything else must use a token.
 
 ---
 
+## Theme Editor (developer tool)
+
+A live theme editor is available at `/theme-editor.html` when running the Vite dev server.
+
+**Features:**
+- Sidebar with all 28 tokens grouped by category — click any swatch to open a color picker
+- Live preview via iframe — changes update instantly in the preview
+- **Inspect Mode** — hover over any element in the preview to see which tokens control it, click to edit matched colors in-place
+- **Apply to File** — writes changes directly to `tokens.css` via a Vite dev server plugin (`POST /__theme-write`). Vite HMR picks up the change and hot-reloads the app automatically
+
+**How to use:**
+1. Start the dev server (`npm run dev`)
+2. Open `http://localhost:5173/theme-editor.html`
+3. Edit colors in the sidebar or use Inspect Mode to find and change specific element colors
+4. Click "Apply to File" to persist changes to `tokens.css`
+
+> **Note:** Canvas-rendered elements (chart primitives using `colors.ts`) read CSS variables at module init time. After applying file changes, a full page reload may be needed for canvas colors to update.
+
+---
+
 ## File Quick Reference
 
 | I need to... | File |
@@ -182,3 +203,4 @@ Everything else must use a token.
 | Use a color in canvas/ctx | `import { COLOR_* } from 'constants/colors'` |
 | Use a reusable Tailwind pattern | `import { SECTION_LABEL, INPUT_DARK, ... } from 'constants/styles'` |
 | See the visual palette reference | `docs/color-palette-rules/index.html` |
+| Live-edit tokens with preview | `/theme-editor.html` (dev server) |

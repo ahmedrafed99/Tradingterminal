@@ -2,6 +2,17 @@ import { useStore } from '../../../store/useStore';
 import { DEFAULT_ARROWPATH_COLOR } from '../../../types/drawing';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
+import { CLOSE_BG, CLOSE_BG_HOVER } from './labelUtils';
+
+// ─── Close-cell hover tracking ───
+let _hoveredCloseCell: HTMLElement | null = null;
+
+function clearCloseHover(): void {
+  if (_hoveredCloseCell) {
+    _hoveredCloseCell.style.background = CLOSE_BG;
+    _hoveredCloseCell = null;
+  }
+}
 
 // ─── Resize handle cursor ───
 const HANDLE_CURSOR = 'grab';
@@ -238,6 +249,7 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
   const my = e.clientY;
   const sortedTargets = refs.hitTargets.current.slice().sort((a, b) => a.priority - b.priority);
   let overLabel = false;
+  let hoveredEl: HTMLElement | null = null;
   for (const target of sortedTargets) {
     const el = target.el;
     if (el.offsetParent === null) continue;
@@ -246,8 +258,20 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
     if (mx >= tRect.left && mx <= tRect.right && my >= tRect.top && my <= tRect.bottom) {
       container.style.cursor = target.priority >= 2 ? 'grab' : 'pointer';
       overLabel = true;
+      hoveredEl = el;
       break;
     }
+  }
+
+  // Close-cell (✕) hover effect
+  const isClose = hoveredEl && hoveredEl.textContent === '\u2715';
+  if (isClose && hoveredEl !== _hoveredCloseCell) {
+    clearCloseHover();
+    _hoveredCloseCell = hoveredEl;
+    hoveredEl!.style.transition = 'background 0.15s';
+    hoveredEl!.style.background = CLOSE_BG_HOVER;
+  } else if (!isClose) {
+    clearCloseHover();
   }
 
   // Hide quick-order button while hovering a label

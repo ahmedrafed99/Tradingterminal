@@ -1,12 +1,43 @@
+import fs from 'fs'
 import path from 'path'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 const BACKEND = 'http://localhost:3001';
 
+/** Dev-only plugin: lets the theme editor write tokens.css via POST /__theme-write */
+function themeWritePlugin(): Plugin {
+  const tokensPath = path.resolve(__dirname, 'src/styles/tokens.css');
+  return {
+    name: 'theme-write',
+    apply: 'serve', // dev only
+    configureServer(server) {
+      server.middlewares.use('/__theme-write', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.end('Method not allowed');
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        req.on('end', () => {
+          try {
+            fs.writeFileSync(tokensPath, body, 'utf-8');
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ ok: true }));
+          } catch (e: any) {
+            res.statusCode = 500;
+            res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), themeWritePlugin()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

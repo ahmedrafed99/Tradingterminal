@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Theme Editor — TradingTerminal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --editor-bg: #0d0d0d;
+      --panel-bg: #161616;
+      --panel-border: #2a2e39;
+      --text: #d1d4dc;
+      --text-muted: #787b86;
+      --text-dim: #434651;
+      --accent: #2962ff;
+      --swatch-border: #4a4a4a;
+      --font: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+      --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text);
+      background: var(--editor-bg);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      height: 100vh;
+      background: var(--panel-bg);
+      border-right: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--panel-border);
+      flex-shrink: 0;
+    }
+
+    .sidebar-header h1 { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .sidebar-header p { font-size: 11px; color: var(--text-muted); }
+
+    .sidebar-actions {
+      display: flex;
+      gap: 6px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--panel-border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .sidebar-actions button {
+      padding: 6px 0;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .sidebar-actions button:hover { background: #1e222d; color: var(--text); border-color: #3a3e49; }
+    .sidebar-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .sidebar-actions button.primary:hover { background: #1e4fcc; }
+    .sidebar-actions button.apply { background: #26a69a; border-color: #26a69a; color: #fff; }
+    .sidebar-actions button.apply:hover { background: #1e8e83; }
+    .sidebar-actions button.inspect-active { background: #f0a830; border-color: #f0a830; color: #000; }
+    .sidebar-actions button.inspect-active:hover { background: #d4932a; }
+
+    .sidebar-actions .row1,
+    .sidebar-actions .row2 {
+      display: flex;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .sidebar-actions .row1 button,
+    .sidebar-actions .row2 button { flex: 1; }
+
+    .token-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 0 20px;
+    }
+
+    .token-list::-webkit-scrollbar { width: 6px; }
+    .token-list::-webkit-scrollbar-track { background: transparent; }
+    .token-list::-webkit-scrollbar-thumb { background: #2a2e39; border-radius: 3px; }
+    .token-list::-webkit-scrollbar-thumb:hover { background: #3a3e49; }
+
+    .category { padding: 0 20px; }
+
+    .category-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      padding: 14px 0 8px;
+      border-bottom: 1px solid var(--panel-border);
+      margin-bottom: 2px;
+      position: sticky;
+      top: 0;
+      background: var(--panel-bg);
+      z-index: 1;
+    }
+
+    .token-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid #1a1a1a;
+      transition: background 0.15s;
+    }
+
+    .token-row:last-child { border-bottom: none; }
+    .token-row.highlight { background: #1e222d; }
+
+    .swatch-wrap { position: relative; flex-shrink: 0; }
+
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      border: 1px solid var(--swatch-border);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+
+    .swatch:hover { border-color: #666; }
+    .swatch.active { border-color: #fff; box-shadow: 0 0 0 1px var(--accent); }
+
+    .token-info { flex: 1; min-width: 0; }
+
+    .token-name {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .token-hex {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      cursor: text;
+      width: 70px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      padding: 1px 4px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .token-hex:focus { border-color: var(--accent); background: #111; }
+
+    .token-changed {
+      display: none;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .token-row.changed .token-changed { display: block; }
+
+    .token-reset {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 0 2px;
+      line-height: 1;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+
+    .token-reset:hover { color: var(--text); }
+    .token-row.changed .token-reset { display: block; }
+
+    /* ── Color picker popover ── */
+    .cpick {
+      display: none;
+      position: fixed;
+      z-index: 300;
+      background: #111;
+      border: 1px solid #3a3e49;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+      width: 252px;
+      animation: popIn 0.12s ease-out;
+    }
+
+    .cpick.open { display: block; }
+
+    .cpick-section-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+      margin-top: 6px;
+    }
+
+    .cpick-section-label:first-child { margin-top: 0; }
+
+    .cpick-grid {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 3px;
+    }
+
+    .cpick-cell {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      border: 1px solid var(--panel-border);
+      cursor: pointer;
+      transition: transform 0.1s, border-color 0.1s;
+    }
+
+    .cpick-cell:hover { transform: scale(1.15); border-color: #666; z-index: 1; }
+    .cpick-cell.selected { border: 2px solid #fff; box-shadow: 0 0 0 1px var(--panel-bg); }
+
+    .cpick-tokens-row {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+
+    .cpick-bottom {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #2a2e39;
+    }
+
+    .cpick-custom-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      border: 1px dashed var(--text-muted);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cpick-custom-btn:hover { border-color: var(--text); color: var(--text); }
+
+    .cpick-hex-input {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text);
+      background: #0a0a0a;
+      border: 1px solid #2a2e39;
+      border-radius: 3px;
+      padding: 3px 6px;
+      width: 80px;
+      outline: none;
+    }
+
+    .cpick-hex-input:focus { border-color: var(--accent); }
+
+    .cpick-preview {
+      width: 20px;
+      height: 20px;
+      border-radius: 3px;
+      border: 1px solid var(--swatch-border);
+    }
+
+    /* ── Preview area ── */
+    .preview {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: var(--panel-bg);
+      border-bottom: 1px solid var(--panel-border);
+      flex-shrink: 0;
+    }
+
+    .preview-header span { font-size: 11px; color: var(--text-muted); }
+    .preview-header .status { display: flex; align-items: center; gap: 6px; }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ef5350;
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected { background: #26a69a; }
+
+    .preview-frame-wrap {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #000;
+    }
+
+    /* ── Inspect ── */
+    .inspect-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+      cursor: crosshair;
+    }
+
+    .inspect-overlay.active { display: block; }
+
+    .inspect-highlight {
+      position: absolute;
+      border: 2px solid #f0a830;
+      background: rgba(240, 168, 48, 0.08);
+      pointer-events: none;
+      z-index: 11;
+      display: none;
+      transition: top 0.05s, left 0.05s, width 0.05s, height 0.05s;
+    }
+
+    .inspect-highlight .inspect-tag {
+      position: absolute;
+      top: -20px;
+      left: 0;
+      font-size: 10px;
+      font-family: var(--mono);
+      color: #000;
+      background: #f0a830;
+      padding: 1px 6px;
+      border-radius: 2px;
+      white-space: nowrap;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .inspect-popover {
+      display: none;
+      position: absolute;
+      z-index: 20;
+      background: #1a1a1a;
+      border: 1px solid #3a3e49;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      min-width: 260px;
+      max-width: 320px;
+      overflow: hidden;
+      animation: popIn 0.15s ease-out;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: translateY(4px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .inspect-popover.open { display: block; }
+
+    .inspect-popover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid #2a2e39;
+    }
+
+    .inspect-popover-header .el-tag {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: #f0a830;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .inspect-popover-header .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0 2px;
+      transition: color 0.15s;
+    }
+
+    .inspect-popover-header .close-btn:hover { color: #fff; }
+
+    .inspect-popover-body { padding: 6px 0; }
+
+    .inspect-popover-empty {
+      padding: 12px 14px;
+      font-size: 11px;
+      color: var(--text-dim);
+      text-align: center;
+    }
+
+    .inspect-prop-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 14px;
+      transition: background 0.1s;
+    }
+
+    .inspect-prop-row:hover { background: #222; }
+
+    .inspect-prop-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      width: 52px;
+      flex-shrink: 0;
+    }
+
+    .inspect-prop-swatch-wrap { position: relative; flex-shrink: 0; }
+
+    .inspect-prop-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 3px;
+      border: 1px solid var(--swatch-border);
+      cursor: pointer;
+    }
+
+    .inspect-prop-info { flex: 1; min-width: 0; }
+
+    .inspect-prop-token {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .inspect-prop-hex {
+      font-size: 9px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+    }
+
+    .inspect-prop-unknown {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-dim);
+      font-style: italic;
+    }
+
+    /* ── Export modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #1e222d;
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      width: 560px;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .modal-header h2 { font-size: 14px; font-weight: 600; color: #fff; }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .modal-close:hover { color: #fff; }
+
+    .modal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+    .modal-body textarea {
+      width: 100%;
+      min-height: 300px;
+      background: #111;
+      border: 1px solid var(--panel-border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+    }
+
+    .modal-body textarea:focus { border-color: var(--accent); }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--panel-border);
+    }
+
+    .modal-footer button {
+      padding: 6px 16px;
+      border-radius: 4px;
+      font-family: var(--font);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-ghost { background: transparent; border: none; color: var(--text-muted); }
+    .btn-ghost:hover { color: #fff; }
+    .btn-primary { background: var(--accent); border: none; color: #fff; }
+    .btn-primary:hover { background: #1e4fcc; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1e222d;
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-size: 12px;
+      color: var(--text);
+      z-index: 200;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: all 0.2s ease-out;
+      pointer-events: none;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .change-count {
+      font-size: 10px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      padding: 1px 6px;
+      margin-left: 6px;
+      display: none;
+    }
+
+    .change-count.visible { display: inline; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Sidebar ═══ -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Theme Editor</h1>
+      <p>Edit tokens.css colors with live preview</p>
+    </div>
+
+    <div class="sidebar-actions">
+      <div class="row1">
+        <button onclick="resetAll()">Reset</button>
+        <button id="inspectBtn" onclick="toggleInspect()">Inspect</button>
+        <button onclick="openExport()">Export</button>
+      </div>
+      <div class="row2">
+        <button class="apply" onclick="applyToFile()">Apply to File</button>
+        <button class="primary" onclick="copyTokensCSS()">Copy CSS</button>
+      </div>
+    </div>
+
+    <div class="token-list" id="tokenList"></div>
+  </div>
+
+  <!-- ═══ Preview Area ═══ -->
+  <div class="preview">
+    <div class="preview-header">
+      <div class="status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting to app...</span>
+      </div>
+      <span>
+        Changes: <span id="changeCountInline">0</span>
+        <span class="change-count" id="changeBadge">0</span>
+      </span>
+    </div>
+    <div class="preview-frame-wrap" id="frameWrap">
+      <iframe id="appFrame" src="/"></iframe>
+      <div class="inspect-overlay" id="inspectOverlay"></div>
+      <div class="inspect-highlight" id="inspectHighlight">
+        <div class="inspect-tag" id="inspectTag"></div>
+      </div>
+      <div class="inspect-popover" id="inspectPopover"></div>
+    </div>
+  </div>
+
+  <!-- ═══ Color Picker Popover ═══ -->
+  <div class="cpick" id="cpick"></div>
+
+  <!-- ═══ Export Modal ═══ -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Export tokens.css</h2>
+        <button class="modal-close" onclick="closeExport()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="exportText" readonly></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" onclick="closeExport()">Close</button>
+        <button class="btn-primary" onclick="copyExportText()">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ═══ Color palette (matches ColorPopover.tsx) ═══
+    const COLOR_PALETTE = [
+      ['#f2f2f2','#e6e6e6','#cccccc','#b3b3b3','#808080','#666666','#4d4d4d','#333333','#1a1a1a','#000000'],
+      ['#ff4d4f','#ffa500','#ffd84d','#a6e22e','#1abc9c','#00bbd4','#4c6ef5','#7b61ff','#9c27b0','#e91e63'],
+      ['#f8c8c8','#f5deb3','#f0e6b6','#e8f5c8','#cdefe3','#c8f1f5','#d6e4ff','#e0d4ff','#e8c6f0','#f5c6d6'],
+      ['#f28b82','#f6c26b','#f8e71c','#b7e778','#48c9b0','#4dd0e1','#82b1ff','#b39dff','#ce93d8','#f06292'],
+      ['#e57373','#ffb74d','#fff176','#aed581','#26a69a','#26c6da','#64b5f6','#9575cd','#ba68c8','#ec407a'],
+      ['#d32f2f','#f57c00','#fbc02d','#7cb342','#00897b','#00acc1','#3949ab','#5e35b1','#8e24aa','#c2185b'],
+      ['#b71c1c','#e65100','#f9a825','#2e7d32','#004d40','#006064','#1a237e','#311b92','#4a148c','#880e4f'],
+      ['#7f0000','#bf360c','#c68400','#1b5e20','#003330','#004d50','#0d1642','#1a0e5b','#2c0b3f','#560027'],
+    ];
+
+    // ═══ Token definitions ═══
+    const TOKEN_GROUPS = [
+      { title: 'Backgrounds', tokens: [
+        { name: '--color-bg', default: '#131722' },
+        { name: '--color-surface', default: '#1e222d' },
+        { name: '--color-input', default: '#111111' },
+        { name: '--color-hover-row', default: '#1e222d' },
+        { name: '--color-hover-toolbar', default: '#363a45' },
+        { name: '--color-table-stripe', default: '#0d1117' },
+      ]},
+      { title: 'Text', tokens: [
+        { name: '--color-text', default: '#d1d4dc' },
+        { name: '--color-text-muted', default: '#787b86' },
+        { name: '--color-text-dim', default: '#434651' },
+        { name: '--color-text-medium', default: '#9598a1' },
+      ]},
+      { title: 'Borders', tokens: [
+        { name: '--color-border', default: '#2a2e39' },
+        { name: '--color-focus-ring', default: '#1a3a6e' },
+      ]},
+      { title: 'Accents', tokens: [
+        { name: '--color-accent', default: '#2962ff' },
+        { name: '--color-accent-hover', default: '#1e4fcc' },
+        { name: '--color-warning', default: '#f0a830' },
+        { name: '--color-error', default: '#f23645' },
+      ]},
+      { title: 'Trade Direction', tokens: [
+        { name: '--color-buy', default: '#26a69a' },
+        { name: '--color-sell', default: '#ef5350' },
+      ]},
+      { title: 'Buy / Sell Buttons', tokens: [
+        { name: '--color-btn-buy', default: '#1b6b4a' },
+        { name: '--color-btn-buy-hover', default: '#22835b' },
+        { name: '--color-btn-sell', default: '#8b2232' },
+        { name: '--color-btn-sell-hover', default: '#a62a3d' },
+      ]},
+      { title: 'Chart Lines', tokens: [
+        { name: '--color-line-buy', default: '#00c805' },
+        { name: '--color-line-buy-hover', default: '#00a004' },
+        { name: '--color-line-sell', default: '#ff0000' },
+        { name: '--color-line-sell-hover', default: '#cc0000' },
+      ]},
+      { title: 'Label System', tokens: [
+        { name: '--color-label-bg', default: '#cac9cb' },
+        { name: '--color-label-text', default: '#000000' },
+        { name: '--color-label-close', default: '#e0e0e0' },
+        { name: '--color-label-close-hover', default: '#b8b8b8' },
+      ]},
+    ];
+
+    // ═══ State ═══
+    const currentValues = {};
+    const defaultValues = {};
+    let iframeReady = false;
+    let inspectActive = false;
+
+    // ═══ Color picker state ═══
+    let cpickOpen = false;
+    let cpickToken = null; // which token is being edited
+    let cpickSource = null; // 'sidebar' | 'inspect'
+
+    // ═══ Build sidebar ═══
+    function buildTokenList() {
+      const container = document.getElementById('tokenList');
+      container.innerHTML = '';
+
+      for (const group of TOKEN_GROUPS) {
+        const cat = document.createElement('div');
+        cat.className = 'category';
+        const title = document.createElement('div');
+        title.className = 'category-title';
+        title.textContent = group.title;
+        cat.appendChild(title);
+
+        for (const token of group.tokens) {
+          defaultValues[token.name] = token.default;
+          currentValues[token.name] = token.default;
+
+          const row = document.createElement('div');
+          row.className = 'token-row';
+          row.dataset.token = token.name;
+
+          const swatchWrap = document.createElement('div');
+          swatchWrap.className = 'swatch-wrap';
+          const swatch = document.createElement('div');
+          swatch.className = 'swatch';
+          swatch.style.background = token.default;
+          swatch.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openColorPicker(token.name, swatch, 'sidebar');
+          });
+          swatchWrap.appendChild(swatch);
+
+          const info = document.createElement('div');
+          info.className = 'token-info';
+          const nameEl = document.createElement('div');
+          nameEl.className = 'token-name';
+          nameEl.textContent = token.name;
+          const hex = document.createElement('input');
+          hex.className = 'token-hex';
+          hex.value = token.default;
+          hex.spellcheck = false;
+          hex.addEventListener('change', (e) => {
+            const v = normalizeHex(e.target.value);
+            if (v) updateToken(token.name, v);
+            else e.target.value = currentValues[token.name];
+          });
+          hex.addEventListener('keydown', (e) => { if (e.key === 'Enter') hex.blur(); });
+          info.appendChild(nameEl);
+          info.appendChild(hex);
+
+          const dot = document.createElement('div');
+          dot.className = 'token-changed';
+
+          const reset = document.createElement('button');
+          reset.className = 'token-reset';
+          reset.textContent = '\u21BA';
+          reset.title = 'Reset to default';
+          reset.addEventListener('click', () => updateToken(token.name, defaultValues[token.name]));
+
+          row.appendChild(swatchWrap);
+          row.appendChild(info);
+          row.appendChild(dot);
+          row.appendChild(reset);
+          cat.appendChild(row);
+        }
+
+        container.appendChild(cat);
+      }
+    }
+
+    // ═══ Color Picker ═══
+    function openColorPicker(tokenName, anchorEl, source) {
+      // If same token is already open, close it
+      if (cpickOpen && cpickToken === tokenName) { closeColorPicker(); return; }
+      closeColorPicker();
+
+      cpickToken = tokenName;
+      cpickSource = source;
+      cpickOpen = true;
+
+      const cpick = document.getElementById('cpick');
+      const currentColor = currentValues[tokenName] || '#000000';
+
+      // Build picker HTML
+      let html = '';
+
+      // Theme token presets row
+      html += '<div class="cpick-section-label">Theme tokens</div>';
+      html += '<div class="cpick-tokens-row">';
+      const uniqueTokenColors = [...new Set(Object.values(currentValues))];
+      for (const c of uniqueTokenColors) {
+        const sel = c.toLowerCase() === currentColor.toLowerCase() ? ' selected' : '';
+        html += `<div class="cpick-cell${sel}" style="background:${c}" data-color="${c}"></div>`;
+      }
+      html += '</div>';
+
+      // Main palette
+      html += '<div class="cpick-section-label">Palette</div>';
+      html += '<div class="cpick-grid">';
+      for (const row of COLOR_PALETTE) {
+        for (const c of row) {
+          const sel = c.toLowerCase() === currentColor.toLowerCase() ? ' selected' : '';
+          html += `<div class="cpick-cell${sel}" style="background:${c}" data-color="${c}"></div>`;
+        }
+      }
+      html += '</div>';
+
+      // Bottom: custom picker + hex input + preview
+      html += `<div class="cpick-bottom">
+        <div class="cpick-preview" id="cpickPreview" style="background:${currentColor}"></div>
+        <input class="cpick-hex-input" id="cpickHexInput" value="${currentColor}" spellcheck="false">
+        <button class="cpick-custom-btn" id="cpickCustomBtn" title="Custom color">+</button>
+        <input type="color" id="cpickNativeInput" value="${currentColor}" style="position:absolute;opacity:0;pointer-events:none;">
+      </div>`;
+
+      cpick.innerHTML = html;
+
+      // Position near anchor
+      const anchorRect = anchorEl.getBoundingClientRect();
+      let left = anchorRect.right + 8;
+      let top = anchorRect.top;
+      // Keep within viewport
+      if (left + 260 > window.innerWidth) left = anchorRect.left - 260;
+      if (top + 340 > window.innerHeight) top = Math.max(8, window.innerHeight - 340);
+      cpick.style.left = left + 'px';
+      cpick.style.top = top + 'px';
+      cpick.classList.add('open');
+
+      // Mark active swatch in sidebar
+      document.querySelectorAll('.swatch.active').forEach(s => s.classList.remove('active'));
+      anchorEl.classList.add('active');
+
+      // Wire up cell clicks
+      cpick.querySelectorAll('.cpick-cell').forEach(cell => {
+        cell.addEventListener('click', () => {
+          const c = cell.dataset.color;
+          updateToken(cpickToken, c);
+          refreshPickerSelection(c);
+        });
+      });
+
+      // Wire up hex input
+      const hexInput = document.getElementById('cpickHexInput');
+      hexInput.addEventListener('change', () => {
+        const v = normalizeHex(hexInput.value);
+        if (v) { updateToken(cpickToken, v); refreshPickerSelection(v); }
+        else hexInput.value = currentValues[cpickToken];
+      });
+      hexInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') hexInput.blur(); });
+
+      // Wire up custom color button → native picker
+      document.getElementById('cpickCustomBtn').addEventListener('click', () => {
+        document.getElementById('cpickNativeInput').click();
+      });
+      const nativeInput = document.getElementById('cpickNativeInput');
+      nativeInput.addEventListener('input', (e) => {
+        updateToken(cpickToken, e.target.value);
+        refreshPickerSelection(e.target.value);
+      });
+    }
+
+    function refreshPickerSelection(color) {
+      const cpick = document.getElementById('cpick');
+      cpick.querySelectorAll('.cpick-cell').forEach(cell => {
+        cell.classList.toggle('selected', cell.dataset.color.toLowerCase() === color.toLowerCase());
+      });
+      const preview = document.getElementById('cpickPreview');
+      const hexInput = document.getElementById('cpickHexInput');
+      const nativeInput = document.getElementById('cpickNativeInput');
+      if (preview) preview.style.background = color;
+      if (hexInput) hexInput.value = color;
+      if (nativeInput) nativeInput.value = color;
+    }
+
+    function closeColorPicker() {
+      if (!cpickOpen) return;
+      cpickOpen = false;
+      cpickToken = null;
+      document.getElementById('cpick').classList.remove('open');
+      document.querySelectorAll('.swatch.active').forEach(s => s.classList.remove('active'));
+    }
+
+    // Close picker on outside click
+    document.addEventListener('mousedown', (e) => {
+      if (!cpickOpen) return;
+      const cpick = document.getElementById('cpick');
+      if (cpick.contains(e.target)) return;
+      // Don't close if clicking a swatch (it handles its own toggle)
+      if (e.target.classList.contains('swatch')) return;
+      closeColorPicker();
+    });
+
+    // ═══ Update token ═══
+    function updateToken(name, value) {
+      currentValues[name] = value;
+
+      // Sidebar row
+      const row = document.querySelector(`.token-row[data-token="${name}"]`);
+      if (row) {
+        row.querySelector('.swatch').style.background = value;
+        row.querySelector('.token-hex').value = value;
+        row.classList.toggle('changed', value !== defaultValues[name]);
+      }
+
+      applyToIframe(name, value);
+      updateChangeCount();
+
+      // Inspect popover swatches
+      document.querySelectorAll(`.inspect-prop-swatch[data-token="${name}"]`).forEach(s => {
+        s.style.background = value;
+      });
+      document.querySelectorAll(`.inspect-prop-row`).forEach(r => {
+        const s = r.querySelector(`.inspect-prop-swatch[data-token="${name}"]`);
+        if (s) {
+          const hex = r.querySelector('.inspect-prop-hex');
+          if (hex) hex.textContent = value;
+        }
+      });
+    }
+
+    // ═══ Iframe ═══
+    function applyToIframe(name, value) {
+      try {
+        const frame = document.getElementById('appFrame');
+        if (frame?.contentDocument) frame.contentDocument.documentElement.style.setProperty(name, value);
+      } catch (e) { /* cross-origin */ }
+    }
+
+    function applyAllToIframe() {
+      try {
+        const frame = document.getElementById('appFrame');
+        if (!frame?.contentDocument) return;
+        const root = frame.contentDocument.documentElement;
+        for (const [name, value] of Object.entries(currentValues)) {
+          if (value !== defaultValues[name]) root.style.setProperty(name, value);
+        }
+      } catch (e) { /* */ }
+    }
+
+    // ═══ Helpers ═══
+    function normalizeHex(val) {
+      let v = val.trim();
+      if (!v.startsWith('#')) v = '#' + v;
+      if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v[1]+v[1] + v[2]+v[2] + v[3]+v[3];
+      if (/^#[0-9a-f]{6}$/i.test(v) || /^#[0-9a-f]{8}$/i.test(v)) return v.toLowerCase();
+      return null;
+    }
+
+    function rgbToHex(rgb) {
+      if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
+      const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (!m) return null;
+      return ('#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('')).toLowerCase();
+    }
+
+    function updateChangeCount() {
+      let count = 0;
+      for (const name of Object.keys(currentValues)) {
+        if (currentValues[name] !== defaultValues[name]) count++;
+      }
+      document.getElementById('changeCountInline').textContent = count;
+      const badge = document.getElementById('changeBadge');
+      badge.textContent = count;
+      badge.classList.toggle('visible', count > 0);
+    }
+
+    function findTokensForHex(hex) {
+      if (!hex) return [];
+      const matches = [];
+      for (const [name, value] of Object.entries(currentValues)) {
+        if (value.toLowerCase() === hex.toLowerCase()) matches.push(name);
+      }
+      return matches;
+    }
+
+    // ═══ Apply to File (via Vite dev server plugin) ═══
+    async function applyToFile() {
+      const css = generateTokensCSS();
+
+      try {
+        const res = await fetch('/__theme-write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/css' },
+          body: css,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('Applied to tokens.css — Vite HMR will update the app');
+      } catch (e) {
+        console.error(e);
+        try { await navigator.clipboard.writeText(css); } catch {}
+        showToast('Write failed — CSS copied to clipboard instead');
+      }
+    }
+
+    // ═══ Inspect mode ═══
+    function toggleInspect() {
+      inspectActive = !inspectActive;
+      const btn = document.getElementById('inspectBtn');
+      const overlay = document.getElementById('inspectOverlay');
+      const highlight = document.getElementById('inspectHighlight');
+
+      btn.classList.toggle('inspect-active', inspectActive);
+      btn.textContent = inspectActive ? 'Inspecting...' : 'Inspect';
+      overlay.classList.toggle('active', inspectActive);
+
+      if (!inspectActive) {
+        highlight.style.display = 'none';
+        closeInspectPopover();
+      }
+    }
+
+    function getIframeElementAt(clientX, clientY) {
+      try {
+        const frame = document.getElementById('appFrame');
+        if (!frame?.contentDocument) return null;
+        const frameRect = frame.getBoundingClientRect();
+        return { el: frame.contentDocument.elementFromPoint(clientX - frameRect.left, clientY - frameRect.top), frameRect };
+      } catch (e) { return null; }
+    }
+
+    function describeElement(el) {
+      if (!el) return '';
+      let desc = el.tagName.toLowerCase();
+      const classes = Array.from(el.classList).filter(c => !c.match(/^[a-z]{1,3}-\[/) && c.length < 30).slice(0, 2);
+      if (classes.length) desc += '.' + classes.join('.');
+      const text = el.textContent?.trim();
+      if (text && text.length <= 30 && el.children.length === 0) desc += ` "${text}"`;
+      return desc;
+    }
+
+    function extractColors(el) {
+      if (!el) return [];
+      const props = [];
+      const seen = new Set();
+      const frame = document.getElementById('appFrame');
+      if (!frame?.contentWindow) return [];
+
+      let current = el;
+      let depth = 0;
+      while (current && current.nodeType === 1 && depth < 4) {
+        const cs = frame.contentWindow.getComputedStyle(current);
+        const isTarget = depth === 0;
+        const suffix = isTarget ? '' : ` (${current.tagName.toLowerCase()})`;
+
+        const bg = rgbToHex(cs.backgroundColor);
+        if (bg && bg !== '#000000' && !seen.has('bg:' + bg)) {
+          seen.add('bg:' + bg);
+          props.push({ prop: 'bg' + suffix, hex: bg });
+        }
+
+        const color = rgbToHex(cs.color);
+        if (color && !seen.has('text:' + color)) {
+          const hasText = Array.from(current.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
+          if (isTarget || hasText) {
+            seen.add('text:' + color);
+            props.push({ prop: 'text' + suffix, hex: color });
+          }
+        }
+
+        if (isTarget && parseFloat(cs.borderTopWidth) > 0) {
+          const bc = rgbToHex(cs.borderTopColor);
+          if (bc && !seen.has('border:' + bc)) {
+            seen.add('border:' + bc);
+            props.push({ prop: 'border', hex: bc });
+          }
+        }
+
+        current = current.parentElement;
+        depth++;
+      }
+      return props;
+    }
+
+    function buildInspectPopover(el, x, y) {
+      const popover = document.getElementById('inspectPopover');
+      const colors = extractColors(el);
+
+      let html = `<div class="inspect-popover-header">
+        <span class="el-tag">${describeElement(el)}</span>
+        <button class="close-btn" onclick="closeInspectPopover()">&times;</button>
+      </div><div class="inspect-popover-body">`;
+
+      if (colors.length === 0) {
+        html += '<div class="inspect-popover-empty">No color tokens detected</div>';
+      } else {
+        for (const c of colors) {
+          const tokens = findTokensForHex(c.hex);
+          if (tokens.length > 0) {
+            for (const token of tokens) {
+              html += `<div class="inspect-prop-row">
+                <div class="inspect-prop-label">${c.prop}</div>
+                <div class="inspect-prop-swatch-wrap">
+                  <div class="inspect-prop-swatch" data-token="${token}" style="background:${c.hex}"></div>
+                </div>
+                <div class="inspect-prop-info">
+                  <div class="inspect-prop-token">${token}</div>
+                  <div class="inspect-prop-hex">${c.hex}</div>
+                </div>
+              </div>`;
+            }
+          } else {
+            html += `<div class="inspect-prop-row">
+              <div class="inspect-prop-label">${c.prop}</div>
+              <div class="inspect-prop-swatch-wrap">
+                <div class="inspect-prop-swatch" style="background:${c.hex}"></div>
+              </div>
+              <div class="inspect-prop-info">
+                <div class="inspect-prop-unknown">no token match</div>
+                <div class="inspect-prop-hex">${c.hex}</div>
+              </div>
+            </div>`;
+          }
+        }
+      }
+
+      html += '</div>';
+      popover.innerHTML = html;
+
+      // Position
+      const wrap = document.getElementById('frameWrap');
+      const wrapRect = wrap.getBoundingClientRect();
+      let px = x - wrapRect.left + 12;
+      let py = y - wrapRect.top + 12;
+      if (px + 280 > wrapRect.width) px = x - wrapRect.left - 280 - 12;
+      if (py + (popover.offsetHeight || 200) > wrapRect.height) py = Math.max(8, wrapRect.height - (popover.offsetHeight || 200) - 8);
+      popover.style.left = px + 'px';
+      popover.style.top = py + 'px';
+      popover.classList.add('open');
+
+      // Wire inspect swatch clicks → open color picker
+      popover.querySelectorAll('.inspect-prop-swatch[data-token]').forEach(swatch => {
+        swatch.style.cursor = 'pointer';
+        swatch.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openColorPicker(swatch.dataset.token, swatch, 'inspect');
+        });
+      });
+    }
+
+    function closeInspectPopover() {
+      document.getElementById('inspectPopover').classList.remove('open');
+    }
+
+    // ═══ Inspect overlay handlers ═══
+    const inspectOverlay = document.getElementById('inspectOverlay');
+    const inspectHighlight = document.getElementById('inspectHighlight');
+    const inspectTag = document.getElementById('inspectTag');
+    let _lastInspectEl = null;
+
+    inspectOverlay.addEventListener('mousemove', (e) => {
+      if (!inspectActive) return;
+      const result = getIframeElementAt(e.clientX, e.clientY);
+      if (!result?.el || result.el === _lastInspectEl) return;
+      _lastInspectEl = result.el;
+
+      const frame = document.getElementById('appFrame');
+      const frameRect = frame.getBoundingClientRect();
+      const wrapRect = document.getElementById('frameWrap').getBoundingClientRect();
+      const elRect = result.el.getBoundingClientRect();
+      const offX = frameRect.left - wrapRect.left;
+      const offY = frameRect.top - wrapRect.top;
+
+      inspectHighlight.style.display = 'block';
+      inspectHighlight.style.left = (elRect.left + offX) + 'px';
+      inspectHighlight.style.top = (elRect.top + offY) + 'px';
+      inspectHighlight.style.width = elRect.width + 'px';
+      inspectHighlight.style.height = elRect.height + 'px';
+      inspectTag.textContent = describeElement(result.el);
+
+      if (elRect.top < 24) { inspectTag.style.top = 'auto'; inspectTag.style.bottom = '-20px'; }
+      else { inspectTag.style.top = '-20px'; inspectTag.style.bottom = 'auto'; }
+    });
+
+    inspectOverlay.addEventListener('mouseleave', () => {
+      inspectHighlight.style.display = 'none';
+      _lastInspectEl = null;
+    });
+
+    inspectOverlay.addEventListener('click', (e) => {
+      if (!inspectActive) return;
+      const result = getIframeElementAt(e.clientX, e.clientY);
+      if (result?.el) buildInspectPopover(result.el, e.clientX, e.clientY);
+    });
+
+    // ═══ Keyboard ═══
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (cpickOpen) closeColorPicker();
+        else if (document.getElementById('inspectPopover').classList.contains('open')) closeInspectPopover();
+        else if (inspectActive) toggleInspect();
+        else closeExport();
+      }
+    });
+
+    // ═══ Reset ═══
+    function resetAll() {
+      for (const name of Object.keys(defaultValues)) {
+        currentValues[name] = defaultValues[name];
+        const row = document.querySelector(`.token-row[data-token="${name}"]`);
+        if (row) {
+          row.querySelector('.swatch').style.background = defaultValues[name];
+          row.querySelector('.token-hex').value = defaultValues[name];
+          row.classList.remove('changed');
+        }
+      }
+      try {
+        const frame = document.getElementById('appFrame');
+        if (frame?.contentDocument) {
+          for (const name of Object.keys(defaultValues)) frame.contentDocument.documentElement.style.removeProperty(name);
+        }
+      } catch (e) { /* */ }
+      updateChangeCount();
+      closeColorPicker();
+      closeInspectPopover();
+      showToast('Reset to defaults');
+    }
+
+    // ═══ Generate CSS ═══
+    function generateTokensCSS() {
+      let css = `/**\n * Design tokens — THE single source of truth for all colors.\n * constants/colors.ts reads from these variables at runtime.\n *\n * To change a color, edit it HERE only — everything else picks it up automatically.\n *\n * Usage in Tailwind:  bg-(--color-surface)  text-(--color-text-muted)\n * Usage in inline:    var(--color-surface)\n * Usage in canvas:    import { COLOR_SURFACE } from 'constants/colors'\n */\n\n:root {\n`;
+      for (const group of TOKEN_GROUPS) {
+        css += `  /* ── ${group.title} ── */\n`;
+        for (const token of group.tokens) css += `  ${token.name}: ${currentValues[token.name] || token.default};\n`;
+        css += '\n';
+      }
+      css += `  /* ── Transitions ── */\n  --transition-fast: 0.15s;\n  --disabled-opacity: 0.5;\n}\n`;
+      return css;
+    }
+
+    // ═══ Export ═══
+    function openExport() {
+      document.getElementById('exportText').value = generateTokensCSS();
+      document.getElementById('exportModal').classList.add('open');
+    }
+    function closeExport() { document.getElementById('exportModal').classList.remove('open'); }
+    function copyExportText() {
+      navigator.clipboard.writeText(document.getElementById('exportText').value)
+        .then(() => { showToast('Copied to clipboard'); closeExport(); });
+    }
+    function copyTokensCSS() {
+      navigator.clipboard.writeText(generateTokensCSS()).then(() => showToast('Copied to clipboard'));
+    }
+
+    // ═══ Toast ═══
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // ═══ Iframe status ═══
+    function checkIframeStatus() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      try {
+        const frame = document.getElementById('appFrame');
+        if (frame?.contentDocument?.body) {
+          dot.classList.add('connected');
+          text.textContent = 'Live preview connected';
+          if (!iframeReady) { iframeReady = true; applyAllToIframe(); }
+          return;
+        }
+      } catch (e) { /* */ }
+      dot.classList.remove('connected');
+      text.textContent = 'Waiting for app...';
+      iframeReady = false;
+    }
+
+    document.getElementById('exportModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeExport();
+    });
+
+    // ═══ Init ═══
+    buildTokenList();
+    document.getElementById('appFrame').addEventListener('load', () => setTimeout(checkIframeStatus, 500));
+    setInterval(checkIframeStatus, 3000);
+  </script>
+</body>
+</html>

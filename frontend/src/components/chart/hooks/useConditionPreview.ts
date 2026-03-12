@@ -10,7 +10,7 @@ import { showToast, errorMessage } from '../../../utils/toast';
 import {
   installSizeButtons, formatSlPnl, formatTpPnl,
   updateSizeCellCount, BUY_HOVER, SELL_HOVER,
-  LABEL_BG, LABEL_TEXT, CLOSE_BG, BUY_COLOR,
+  LABEL_BG, LABEL_TEXT, CLOSE_BG, BUY_COLOR, wireCloseHover,
 } from './labelUtils';
 import { snapToTickSize } from '../barUtils';
 import { calcPnl } from '../../../utils/instrument';
@@ -212,7 +212,8 @@ export function useConditionPreview(
             });
           }
           if (cell.textContent === '\u2715') {
-            makeClickable(cell);
+            cell.style.cursor = 'pointer';
+            wireCloseHover(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -253,7 +254,8 @@ export function useConditionPreview(
             });
           }
           if (cell.textContent === '\u2715') {
-            makeClickable(cell);
+            cell.style.cursor = 'pointer';
+            wireCloseHover(cell);
             cell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
@@ -442,6 +444,7 @@ export function useConditionPreview(
 
         if (slCells[2]) {
           slCells[2].style.cursor = 'pointer';
+          wireCloseHover(slCells[2]);
           slCells[2].addEventListener('mousedown', (e) => {
             e.stopPropagation(); e.preventDefault();
             p.slLine?.destroy();
@@ -508,6 +511,7 @@ export function useConditionPreview(
 
         if (tpCells[2]) {
           tpCells[2].style.cursor = 'pointer';
+          wireCloseHover(tpCells[2]);
           tpCells[2].addEventListener('mousedown', (e) => {
             e.stopPropagation(); e.preventDefault();
             tpEntry.line.destroy();

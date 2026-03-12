@@ -56,3 +56,4 @@ export const COLOR_LINE_SELL_HOVER = v('--color-line-sell-hover');
 export const COLOR_LABEL_BG = v('--color-label-bg');
 export const COLOR_LABEL_TEXT = v('--color-label-text');
 export const COLOR_LABEL_CLOSE = v('--color-label-close');
+export const COLOR_LABEL_CLOSE_HOVER = v('--color-label-close-hover');

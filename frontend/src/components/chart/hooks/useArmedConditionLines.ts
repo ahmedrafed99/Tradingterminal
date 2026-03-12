@@ -8,7 +8,7 @@ import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ArmedDragState } from './conditionLineTypes';
 import { CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL, CLR_ARM_ABOVE, CLR_ARM_BELOW } from './conditionLineTypes';
-import { LABEL_BG, LABEL_TEXT, CLOSE_BG } from './labelUtils';
+import { LABEL_BG, LABEL_TEXT, CLOSE_BG, wireCloseHover } from './labelUtils';
 
 /**
  * Effect 1: Creates dashed lines on the chart for each armed condition
@@ -77,6 +77,7 @@ export function useArmedConditionLines(
         const xCell = cells[cells.length - 1];
         if (xCell) {
           xCell.style.cursor = 'pointer';
+          wireCloseHover(xCell);
           xCell.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             e.preventDefault();
@@ -142,6 +143,7 @@ export function useArmedConditionLines(
           const orderXCell = orderCells[orderCells.length - 1];
           if (orderXCell) {
             orderXCell.style.cursor = 'pointer';
+            wireCloseHover(orderXCell);
             orderXCell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();

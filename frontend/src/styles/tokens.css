@@ -38,13 +38,13 @@
   --color-buy: #26a69a;
   --color-sell: #ef5350;
 
-  /* ── Buy / Sell Button Shades ── */
+  /* ── Buy / Sell Buttons ── */
   --color-btn-buy: #1b6b4a;
   --color-btn-buy-hover: #22835b;
   --color-btn-sell: #8b2232;
   --color-btn-sell-hover: #a62a3d;
 
-  /* ── Chart Line Colors ── */
+  /* ── Chart Lines ── */
   --color-line-buy: #00c805;
   --color-line-buy-hover: #00a004;
   --color-line-sell: #ff0000;
@@ -54,6 +54,7 @@
   --color-label-bg: #cac9cb;
   --color-label-text: #000000;
   --color-label-close: #e0e0e0;
+  --color-label-close-hover: #b8b8b8;
 
   /* ── Transitions ── */
   --transition-fast: 0.15s;

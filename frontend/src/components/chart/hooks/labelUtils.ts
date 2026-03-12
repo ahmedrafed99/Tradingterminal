@@ -3,7 +3,7 @@ import type { Order } from '../../../services/orderService';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import {
-  COLOR_LABEL_BG, COLOR_LABEL_TEXT, COLOR_LABEL_CLOSE,
+  COLOR_LABEL_BG, COLOR_LABEL_TEXT, COLOR_LABEL_CLOSE, COLOR_LABEL_CLOSE_HOVER,
   COLOR_LINE_BUY, COLOR_LINE_SELL,
   COLOR_LINE_BUY_HOVER, COLOR_LINE_SELL_HOVER,
 } from '../../../constants/colors';
@@ -12,10 +12,18 @@ import {
 export const LABEL_BG = COLOR_LABEL_BG;
 export const LABEL_TEXT = COLOR_LABEL_TEXT;
 export const CLOSE_BG = COLOR_LABEL_CLOSE;
+export const CLOSE_BG_HOVER = COLOR_LABEL_CLOSE_HOVER;
 export const BUY_COLOR = COLOR_LINE_BUY;
 export const SELL_COLOR = COLOR_LINE_SELL;
 export const BUY_HOVER = COLOR_LINE_BUY_HOVER;
 export const SELL_HOVER = COLOR_LINE_SELL_HOVER;
+
+/** Wire hover darken effect on a ✕ close cell. */
+export function wireCloseHover(cell: HTMLDivElement): void {
+  cell.style.transition = 'background 0.15s';
+  cell.addEventListener('mouseenter', () => { cell.style.background = CLOSE_BG_HOVER; });
+  cell.addEventListener('mouseleave', () => { cell.style.background = CLOSE_BG; });
+}
 
 // ── Order line color ──────────────────────────────────
 
