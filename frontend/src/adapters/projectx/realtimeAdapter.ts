@@ -88,18 +88,8 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
 
     // User hub events — may arrive as a single array arg OR spread args
     this.userHub.on('GatewayUserOrder', (...args: unknown[]) => {
-      console.log('[SignalR][GatewayUserOrder] RAW args:', JSON.stringify(args));
       const items = normalizeUserHubArgs<RealtimeOrder>(args);
-      console.log('[SignalR][GatewayUserOrder] Normalized items count:', items.length);
       for (const item of items) {
-        console.log('[SignalR][GatewayUserOrder] item:', {
-          action: item.action,
-          id: (item.data as RealtimeOrder)?.id,
-          status: (item.data as RealtimeOrder)?.status,
-          type: (item.data as RealtimeOrder)?.type,
-          side: (item.data as RealtimeOrder)?.side,
-          contractId: (item.data as RealtimeOrder)?.contractId,
-        });
         this.orderHandlers.forEach((h) => h(item.data, item.action));
       }
     });

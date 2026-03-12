@@ -206,17 +206,6 @@ export function OrderPanel() {
   // Handle realtime order events
   useEffect(() => {
     const handler = (order: RealtimeOrder, _action: number) => {
-      console.log('[OrderPanel] Order event received:', {
-        id: order.id,
-        status: order.status,
-        type: order.type,
-        side: order.side,
-        contractId: order.contractId,
-        limitPrice: order.limitPrice,
-        stopPrice: order.stopPrice,
-      });
-      console.log('[OrderPanel] Status check — Filled:', OrderStatus.Filled, 'Cancelled:', OrderStatus.Cancelled, 'Rejected:', OrderStatus.Rejected, 'Expired:', OrderStatus.Expired, '→ match?', order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled || order.status === OrderStatus.Rejected || order.status === OrderStatus.Expired);
-
       // When a non-bracket order becomes Working, schedule a REST refresh to load any
       // orders placed externally that we haven't received via SignalR yet.
       // Skip bracket legs (customTag present) — they don't appear in searchOpenOrders while
@@ -226,9 +215,7 @@ export function OrderPanel() {
         if (acctId) {
           if (bracketRefreshTimerRef.current) clearTimeout(bracketRefreshTimerRef.current);
           bracketRefreshTimerRef.current = setTimeout(() => {
-            console.log('[OrderPanel] Refreshing open orders to hydrate bracket prices...');
             orderService.searchOpenOrders(acctId).then((orders) => {
-              console.log('[OrderPanel] Bracket refresh got', orders.length, 'orders:', orders.map(o => ({ id: o.id, type: o.type, limitPrice: o.limitPrice, stopPrice: o.stopPrice })));
               const st = useStore.getState();
               for (const o of orders) st.upsertOrder(o);
             }).catch(() => {});
@@ -276,7 +263,6 @@ export function OrderPanel() {
 
       // status 2=filled or cancelled-type statuses → remove from open orders
       if (order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled || order.status === OrderStatus.Rejected || order.status === OrderStatus.Expired) {
-        console.log('[OrderPanel] → removeOrder', order.id, '(status=' + order.status + ')');
         removeOrder(order.id);
 
         // If a pending limit entry was cancelled, clean up preview & ad-hoc brackets
@@ -291,7 +277,6 @@ export function OrderPanel() {
         }
 
       } else {
-        console.log('[OrderPanel] → upsertOrder', order.id, '(status=' + order.status + ')');
         upsertOrder({
           id: order.id,
           contractId: order.contractId,

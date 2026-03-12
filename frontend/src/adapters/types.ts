@@ -41,6 +41,7 @@ export interface RealtimeOrder {
   filledPrice?: number;
   limitPrice?: number;
   stopPrice?: number;
+  customTag?: string;
 }
 
 export interface RealtimePosition {
