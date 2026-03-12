@@ -23,44 +23,41 @@ The dead rectangle where the right price scale border meets the time scale borde
 
 ### Behaviour
 
-- **Hover**: `bg-[#363a45]` with `transition-colors` (toolbar icon button style)
-- **Click**: Opens the quick popover directly above/beside the button
-- **Icon**: Lucide `Settings` icon, `#787b86` at rest, `#d1d4dc` on hover
-- **Size**: Fills the corner rectangle (matches price scale width × time scale height)
+- **Hover**: `bg-[#1e222d]` with `transition: background 0.15s`
+- **Click**: Opens the quick popover directly above the button
+- **Icon**: Hexagon with inner circle SVG, stroke `#787b86`
+- **Size**: Fills the corner rectangle exactly — measured at runtime by querying the actual dead-zone `<td>` element that lightweight-charts renders (last cell in the last `<tr>` of its internal table layout), using `getBoundingClientRect()` relative to the parent wrapper
 
 ---
 
 ## Quick Popover
 
-A small popover that appears on gear click. Two items only — no scrolling, no tabs.
+A small popover that appears on gear click, opening upward from the bottom-right corner. Currently one item.
 
 ```
 ┌─────────────────────────┐
-│  ↕  Invert Scale        │
-│  ─────────────────────  │
-│  ⚙  More Settings...    │
+│  ✓  Invert scale        │
 └─────────────────────────┘
 ```
 
 ### Items
 
-| Item | Icon | Action |
-|------|------|--------|
-| Invert Scale | `↕` (Lucide `ArrowUpDown`) | Toggles `rightPriceScale.invertScale` on the active chart. Persisted per chart (left/right in dual mode). |
-| More Settings... | `⚙` (Lucide `Settings`) | Closes popover, opens the full Settings modal. |
+| Item | Indicator | Action |
+|------|-----------|--------|
+| Invert scale | Blue checkmark (`#2962ff`) when active, hidden when inactive | Toggles `rightPriceScale.invertScale` on the chart via `chart.applyOptions()` |
 
 ### Styling
 
 | Element | Value |
 |---------|-------|
-| Background | `bg-black` |
-| Border | `border border-[#2a2e39]` |
-| Shadow | `0 4px 24px rgba(0,0,0,0.5)` |
-| Row hover | `hover:bg-[#1e222d]` with `transition-colors` |
-| Text | `text-xs text-[#d1d4dc]` |
-| Icon colour | `#787b86` |
-| Entrance | `animate-dropdown-in` (existing fade/slide) |
-| Dismiss | Click outside, Escape key, or selecting an action |
+| Background | `#1e222d` |
+| Border | `1px solid #2a2e39` |
+| Shadow | `0 4px 12px rgba(0,0,0,0.5)` |
+| Row hover | `bg-[#2a2e39]` with `transition: background 0.15s` |
+| Text | `12px #d1d4dc` |
+| Checkmark | `#2962ff` stroke, fades + scales in/out with `transition: opacity 0.15s, transform 0.15s` |
+| Entrance | `@keyframes chartSettingsFadeIn` — fade + translateY(6px) + scale(0.97), 180ms ease-out, origin bottom-right |
+| Dismiss | Click outside (mousedown listener) |
 
 ---
 
@@ -184,15 +181,15 @@ Default values match the current hardcoded values in `chartTheme.ts` so nothing 
 
 ---
 
-## Key Files (planned)
+## Key Files
 
 | File | Role |
 |------|------|
-| `frontend/src/components/chart/ChartSettingsGear.tsx` | Gear button + quick popover |
-| `frontend/src/components/chart/ChartSettingsModal.tsx` | Full settings modal with sidebar categories |
-| `frontend/src/components/chart/chartTheme.ts` | Read from `chartSettings` store instead of hardcoded values |
-| `frontend/src/store/useStore.ts` | `chartSettings` slice + persistence |
-| `frontend/src/components/chart/CandlestickChart.tsx` | Apply settings to chart instance, react to changes |
+| `frontend/src/components/chart/ChartSettingsButton.tsx` | Gear button + quick popover (implemented) |
+| `frontend/src/components/chart/CandlestickChart.tsx` | Mounts `ChartSettingsButton`, passes `chartRef` + `containerRef` |
+| `frontend/src/components/chart/ChartSettingsModal.tsx` | Full settings modal with sidebar categories (planned) |
+| `frontend/src/components/chart/chartTheme.ts` | Read from `chartSettings` store instead of hardcoded values (planned) |
+| `frontend/src/store/useStore.ts` | `chartSettings` slice + persistence (planned) |
 
 ---
 
@@ -211,11 +208,15 @@ All Lightweight Charts options are hot-updatable — no chart recreation needed.
 
 ## Scope
 
-### Phase 1 (this feature)
-- Gear button in the scale corner
-- Quick popover with Invert Scale + More Settings
+### Phase 1 (implemented)
+- Gear button in the scale corner (hexagon icon)
+- Quick popover with Invert Scale toggle (checkmark indicator)
+- Button dynamically sized to fill the dead-zone `<td>` via `getBoundingClientRect()`
+
+### Phase 2 (planned)
+- "More Settings..." entry point in popover
 - Full modal with Symbol, Scales, Canvas categories
-- Persist all settings to `user-settings.json`
+- Persist all settings to `user-settings.json` via Zustand store
 - Apply settings to chart in real time
 
 ### Out of scope (future)

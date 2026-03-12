@@ -6,6 +6,7 @@ import type { Timeframe } from '../../store/useStore';
 import { useStore } from '../../store/useStore';
 import { CHART_OPTIONS, CANDLESTICK_OPTIONS } from './chartTheme';
 import { DrawingEditToolbar } from './DrawingEditToolbar';
+import { ChartSettingsButton } from './ChartSettingsButton';
 import { DrawingsPrimitive } from './drawings/DrawingsPrimitive';
 import { CountdownPrimitive } from './CountdownPrimitive';
 import { CrosshairLabelPrimitive } from './CrosshairLabelPrimitive';
@@ -392,6 +393,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
         </svg>
       </button>
       <DrawingEditToolbar contractId={contract ? String(contract.id) : undefined} />
+      <ChartSettingsButton chartRef={chartRef} containerRef={containerRef} />
     </div>
   );
 }));
