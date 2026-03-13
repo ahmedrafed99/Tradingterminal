@@ -17,6 +17,7 @@ import { DEFAULT_BRACKET_CONFIG, MAX_TP_LEVELS } from '../../types/bracket';
 
 const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none';
 const SELECT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white appearance-none focus:outline-none focus:border-(--color-accent)/50 transition-all cursor-pointer';
+const OPTION_CLS = 'bg-(--color-surface) text-white';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -293,8 +294,8 @@ function StopLossSection({
             className={SELECT_CLS}
             style={{ padding: '9px 12px' }}
           >
-            <option value="Stop">Stop Market</option>
-            <option value="TrailingStop">Trailing Stop</option>
+            <option value="Stop" className={OPTION_CLS}>Stop Market</option>
+            <option value="TrailingStop" className={OPTION_CLS}>Trailing Stop</option>
           </select>
           <ChevronDown />
         </div>
@@ -517,8 +518,8 @@ function ConditionRow({
               className={SELECT_CLS}
               style={{ padding: '8px 12px' }}
             >
-              {tpCount > 0 && <option value="tpFilled">Target filled</option>}
-              <option value="profitReached">Profit reached</option>
+              {tpCount > 0 && <option value="tpFilled" className={OPTION_CLS}>Target filled</option>}
+              <option value="profitReached" className={OPTION_CLS}>Profit reached</option>
             </select>
             <ChevronDown />
           </div>
@@ -533,7 +534,7 @@ function ConditionRow({
                 style={{ padding: '8px 12px' }}
               >
                 {Array.from({ length: tpCount }, (_, i) => (
-                  <option key={i} value={i}>Target {i + 1}</option>
+                  <option key={i} value={i} className={OPTION_CLS}>Target {i + 1}</option>
                 ))}
               </select>
               <ChevronDown />
@@ -578,7 +579,7 @@ function ConditionRow({
             style={{ padding: '8px 12px' }}
           >
             {actionOptions.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value} className={OPTION_CLS}>{o.label}</option>
             ))}
           </select>
           <ChevronDown />
