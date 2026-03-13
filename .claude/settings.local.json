@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 candles.db *)",
+      "Bash(node backtest_*)",
+      "Bash(curl * http://localhost:3001/*)",
+      "Bash(curl * \"http://localhost:3001/*)",
+      "Bash(git status:*)",
+      "Bash(grep *)",
+      "WebSearch",
+      "Bash(source /c/Users/Ahmed/Projects/TradingTerminal/backend/claude-tools.sh)",
+      "Bash(status)",
+      "Bash(price)",
+      "Bash(bars *)",
+      "Bash(pos)",
+      "Bash(orders)",
+      "Bash(market buy:*)",
+      "Bash(stop sell:*)",
+      "Bash(limit sell:*)",
+      "Bash(bal)"
+    ]
+  }
+}
