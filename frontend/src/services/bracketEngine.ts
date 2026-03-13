@@ -65,6 +65,9 @@ class BracketEngine {
 
   private session: ActiveSession | null = null;
 
+  /** Order IDs that the bracket engine already played sounds for (prevents ad-hoc double-play on partial fills). */
+  private handledFillIds = new Set<number>();
+
   // Price-based condition monitoring
   private _priceUnsubscribe: (() => void) | null = null;
 
@@ -130,6 +133,7 @@ class BracketEngine {
     this.confirmedOrderId = null;
     this.bufferedFills = [];
     this.session = null; // Null out first so concurrent calls don't double-cancel
+    this.handledFillIds.clear();
     this.unsubscribeFromPrice();
     if (this._nativeSLTimer) {
       clearTimeout(this._nativeSLTimer);
@@ -153,6 +157,11 @@ class BracketEngine {
 
   hasActiveSession(): boolean {
     return this.session !== null || this.armedConfig !== null;
+  }
+
+  /** Returns true if this order was already handled (sound played) by the bracket engine. */
+  wasHandled(orderId: number): boolean {
+    return this.handledFillIds.has(orderId);
   }
 
   /** Update a TP's tracked size after external modification (e.g. +/- overlay buttons) */
@@ -330,6 +339,7 @@ class BracketEngine {
         this.armedConfig = null;
         this.confirmedOrderId = null;
         this.bufferedFills = [];
+        this.handledFillIds.add(order.id);
         await this.onEntryFilled(cfg, order.filledPrice ?? 0);
         return;
       }
@@ -361,6 +371,7 @@ class BracketEngine {
 
     // Check if SL was filled → cancel all remaining TPs
     if (this.session.slOrderId !== null && order.id === this.session.slOrderId) {
+      this.handledFillIds.add(order.id);
       audioService.play('stop_filled');
       if (DEV) console.log('[BracketEngine] SL filled! Cancelling remaining TPs...');
       const snapshot = this.session;
@@ -383,6 +394,7 @@ class BracketEngine {
     if (filledTpIndex === null) return;
     if (this.session.filledTPs.has(filledTpIndex)) return;
 
+    this.handledFillIds.add(order.id);
     audioService.play('target_filled');
     if (DEV) console.log(`[BracketEngine] TP${filledTpIndex + 1} filled`);
     this.session.filledTPs.add(filledTpIndex);

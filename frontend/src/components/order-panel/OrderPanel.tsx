@@ -12,6 +12,7 @@ import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enu
 import { getCmeSessionStart } from '../../utils/cmeSession';
 import { showToast, errorMessage } from '../../utils/toast';
 import { audioService } from '../../services/audioService';
+import { consumeManualClose } from '../../services/manualCloseTracker';
 import type { GatewayQuote, RealtimeOrder, RealtimePosition } from '../../services/realtimeService';
 import { InstrumentSelector } from '../InstrumentSelector';
 import { OrderTypeTabs } from './OrderTypeTabs';
@@ -272,14 +273,20 @@ export function OrderPanel() {
 
       // status 2=filled or cancelled-type statuses → remove from open orders
       if (order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled || order.status === OrderStatus.Rejected || order.status === OrderStatus.Expired) {
-        // Play fill sound for ad-hoc orders (bracket engine handles its own sounds)
-        if (order.status === OrderStatus.Filled && !bracketEngine.hasActiveSession()) {
-          if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
-            audioService.play('stop_filled');
-          } else if (order.type === OrderType.Limit) {
-            audioService.play('target_filled');
-          } else {
-            audioService.play('order_filled');
+        // Play fill sounds
+        if (order.status === OrderStatus.Filled) {
+          if (consumeManualClose(order.contractId)) {
+            // Manual close (Close button / chart X) — always plays regardless of bracket state
+            audioService.play('position_closed');
+          } else if (!bracketEngine.hasActiveSession() && !bracketEngine.wasHandled(order.id)) {
+            // Ad-hoc orders (bracket engine handles its own sounds)
+            if (order.customTag?.endsWith('-SL')) {
+              audioService.play('stop_filled');
+            } else if (order.customTag?.endsWith('-TP')) {
+              audioService.play('target_filled');
+            } else {
+              audioService.play('order_filled');
+            }
           }
         }
         removeOrder(order.id);

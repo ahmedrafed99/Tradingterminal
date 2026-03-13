@@ -11,8 +11,9 @@ Default clips are located in `frontend/public/sounds/{category}/1.mp3` (served b
 | Folder | Trigger |
 |--------|---------|
 | `order_filled/` | Entry order filled (market or limit) |
-| `target_filled/` | Take-profit limit order filled |
+| `target_filled/` | Take-profit order filled |
 | `stop_filled/` | Stop-loss order filled |
+| `position_closed/` | Manual close (Close button or chart X) |
 
 User-uploaded voice lines are stored in **IndexedDB** (`voice-lines` database) and take priority over default clips when present.
 
@@ -31,7 +32,7 @@ Singleton `audioService` that:
 
 ```ts
 // Playback
-audioService.play('order_filled' | 'target_filled' | 'stop_filled')
+audioService.play('order_filled' | 'target_filled' | 'stop_filled' | 'position_closed')
 audioService.playClip(name, index)   // play a specific clip (0-based)
 
 // Clip management
@@ -55,7 +56,7 @@ audioService.ready()        // Promise that resolves when IDB clips are loaded
 
 ### Bracket Engine (`bracketEngine.ts`)
 
-When a bracket session is active, the engine classifies fills precisely:
+When a bracket session is active, the engine classifies fills precisely and tracks handled order IDs to prevent duplicate sounds on partial fills (multi-contract orders):
 
 | Event | Method | Sound |
 |-------|--------|-------|
@@ -63,15 +64,24 @@ When a bracket session is active, the engine classifies fills precisely:
 | TP order filled | `onOrderEvent()` (TP match) | `target_filled` |
 | SL order filled | `onOrderEvent()` (SL match) | `stop_filled` |
 
+### Manual Close Tracker (`manualCloseTracker.ts`)
+
+Tracks manual close actions by contractId. Called **before** `placeOrder()` to avoid race conditions with SignalR fill events arriving before the REST response.
+
+| Source | Sound |
+|--------|-------|
+| Close button (`PositionDisplay.tsx`) | `position_closed` |
+| Chart X button (`buildPositionLabel.ts`) | `position_closed` |
+
 ### Ad-Hoc Orders (`OrderPanel.tsx`)
 
-When no bracket session is active, the `onOrder` handler classifies by `order.type`:
+When no bracket session is active and the order wasn't handled by the bracket engine or manual close tracker, classifies by `customTag`:
 
-| Order Type | Sound |
+| Custom Tag | Sound |
 |------------|-------|
-| `Stop` / `TrailingStop` | `stop_filled` |
-| `Limit` | `target_filled` |
-| `Market` (or other) | `order_filled` |
+| Ends with `-SL` | `stop_filled` |
+| Ends with `-TP` | `target_filled` |
+| None (entry) | `order_filled` |
 
 ---
 
@@ -97,7 +107,7 @@ Controls:
 ### Via Settings UI (recommended)
 
 1. Open **Settings → Sound**
-2. Expand a sound category (Entry Filled, Target Filled, Stop Filled)
+2. Expand a sound category (Entry Filled, Target Filled, Stop Filled, Position Closed)
 3. Click the upload zone or drag audio files into it
 4. Clips are stored in IndexedDB and persist across sessions
 

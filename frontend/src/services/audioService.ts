@@ -11,8 +11,8 @@ const DB_NAME = 'voice-lines';
 const DB_VERSION = 1;
 const STORE_NAME = 'clips';
 
-export type SoundName = 'order_filled' | 'target_filled' | 'stop_filled';
-export const SOUND_NAMES: SoundName[] = ['order_filled', 'target_filled', 'stop_filled'];
+export type SoundName = 'order_filled' | 'target_filled' | 'stop_filled' | 'position_closed';
+export const SOUND_NAMES: SoundName[] = ['order_filled', 'target_filled', 'stop_filled', 'position_closed'];
 
 export interface ClipRecord {
   id?: number;

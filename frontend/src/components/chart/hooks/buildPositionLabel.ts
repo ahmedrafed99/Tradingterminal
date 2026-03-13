@@ -4,6 +4,7 @@ import { useStore } from '../../../store/useStore';
 import { orderService } from '../../../services/orderService';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
+import { markAsManualClose } from '../../../services/manualCloseTracker';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
@@ -76,6 +77,7 @@ export function buildPositionLabel(
     handler: () => {
       const acct = useStore.getState().activeAccountId;
       if (!acct || !contract) return;
+      markAsManualClose(contract.id);
       orderService.placeOrder({
         accountId: acct, contractId: contract.id,
         type: OrderType.Market, side: isLong ? OrderSide.Sell : OrderSide.Buy, size: pos.size,

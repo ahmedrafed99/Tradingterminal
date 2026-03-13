@@ -7,6 +7,7 @@ const SOUNDS: { name: SoundName; label: string }[] = [
   { name: 'order_filled', label: 'Entry Filled' },
   { name: 'target_filled', label: 'Target Filled' },
   { name: 'stop_filled', label: 'Stop Filled' },
+  { name: 'position_closed', label: 'Position Closed' },
 ];
 
 export function SoundTab() {

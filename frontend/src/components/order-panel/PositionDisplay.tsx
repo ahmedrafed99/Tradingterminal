@@ -4,6 +4,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
+import { markAsManualClose } from '../../services/manualCloseTracker';
 import { showToast, errorMessage } from '../../utils/toast';
 import { calcPnl } from '../../utils/instrument';
 import { formatPrice, getPnlColorClass } from '../../utils/formatters';
@@ -163,6 +164,7 @@ function ClosePositionButton({
     if (!accountId) return;
     setBusy(true);
     try {
+      markAsManualClose(contractId);
       await orderService.placeOrder({
         accountId,
         contractId,
