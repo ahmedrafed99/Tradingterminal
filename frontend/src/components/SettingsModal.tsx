@@ -4,12 +4,13 @@ import { accountService } from '../services/accountService';
 import { useStore } from '../store/useStore';
 import { TabButton } from './shared/TabButton';
 import { DatabaseTab } from './settings/DatabaseTab';
+import { SoundTab } from './settings/SoundTab';
 import { Modal } from './shared/Modal';
 import { INPUT_DARK } from '../constants/styles';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
-type SettingsTab = 'api' | 'database';
+type SettingsTab = 'api' | 'database' | 'sound';
 
 export function SettingsModal() {
   const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();
@@ -62,18 +63,23 @@ export function SettingsModal() {
   return (
     <Modal onClose={() => setSettingsOpen(false)} className="w-[460px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-(--color-border)" style={{ padding: '12px 32px 0 32px' }}>
-          <div className="flex items-center" style={{ height: 40 }}>
-            <TabButton label="API" active={tab === 'api'} onClick={() => setTab('api')} />
-            <div className="w-px h-4 bg-(--color-border)" style={{ margin: '0 4px' }} />
-            <TabButton label="Database" active={tab === 'database'} onClick={() => setTab('database')} />
+        <div className="border-b border-(--color-border)" style={{ padding: '16px 32px 0 32px' }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+            <h2 className="text-sm font-medium text-(--color-text)">Settings</h2>
+            <button
+              onClick={() => setSettingsOpen(false)}
+              className="text-(--color-text-muted) hover:text-white transition-colors p-1 rounded hover:bg-(--color-hover-toolbar)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={() => setSettingsOpen(false)}
-            className="text-(--color-text-muted) hover:text-white transition-colors text-lg leading-none"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-1" style={{ height: 36 }}>
+            <TabButton label="API" active={tab === 'api'} onClick={() => setTab('api')} />
+            <TabButton label="Database" active={tab === 'database'} onClick={() => setTab('database')} />
+            <TabButton label="Sound" active={tab === 'sound'} onClick={() => setTab('sound')} />
+          </div>
         </div>
 
         {/* Body */}
@@ -159,7 +165,7 @@ export function SettingsModal() {
             <div className="flex justify-end gap-2 border-t border-(--color-border)" style={{ padding: '20px 32px' }}>
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="text-sm text-(--color-text-muted) hover:text-white transition-colors" style={{ padding: '8px 18px' }}
+                className="text-sm text-(--color-text-muted) hover:text-white border border-(--color-border) hover:border-(--color-text-dim) rounded-lg transition-colors" style={{ padding: '8px 18px' }}
               >
                 Cancel
               </button>
@@ -186,6 +192,7 @@ export function SettingsModal() {
         )}
 
         {tab === 'database' && <DatabaseTab />}
+        {tab === 'sound' && <SoundTab />}
     </Modal>
   );
 }

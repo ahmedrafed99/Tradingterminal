@@ -41,6 +41,7 @@ docs/
 ├── journal/              — Trade journaling with screenshots
 ├── news-display/         — Economic calendar + chart markers
 ├── settings-persistence/ — File-based settings backup (survives cache clears)
+├── voice-notifications/  — Audible voice clips on order/TP/SL fills
 └── frontend/             — Full index: all components, services, store slices, types
 ```
 
@@ -78,6 +79,7 @@ docs/
 | Position drag-to-create SL/TP              | `docs/chart-trading/` → Position Drag-to-Create |
 | Conditional orders (candle-close triggers)  | `docs/conditional-orders/` |
 | Condition deployment (Render / Docker)      | `docs/conditional-orders/` → Deployment |
+| Voice notifications on fills                | `docs/voice-notifications/` |
 
 ---
 

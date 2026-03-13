@@ -159,6 +159,7 @@ All services call the local Express proxy (never ProjectX directly). See `docs/a
 | `bracketEngine` | `services/bracketEngine.ts` | Client-side SL/TP management after fill |
 | `databaseService` | `services/databaseService.ts` | Local SQLite candle storage |
 | `newsService` | `services/newsService.ts` | Economic calendar events |
+| `audioService` | `services/audioService.ts` | Voice notification playback on fills |
 
 ---
 

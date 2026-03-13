@@ -7,6 +7,7 @@ import { OrderType, OrderSide, OrderStatus } from '../types/enums';
 import { pointsToPrice, priceToPoints } from '../utils/instrument';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
+import { audioService } from './audioService';
 
 const DEV = import.meta.env.DEV;
 
@@ -360,6 +361,7 @@ class BracketEngine {
 
     // Check if SL was filled → cancel all remaining TPs
     if (this.session.slOrderId !== null && order.id === this.session.slOrderId) {
+      audioService.play('stop_filled');
       if (DEV) console.log('[BracketEngine] SL filled! Cancelling remaining TPs...');
       const snapshot = this.session;
       this.session = null; // Clear immediately so clearSession() won't double-cancel
@@ -381,6 +383,7 @@ class BracketEngine {
     if (filledTpIndex === null) return;
     if (this.session.filledTPs.has(filledTpIndex)) return;
 
+    audioService.play('target_filled');
     if (DEV) console.log(`[BracketEngine] TP${filledTpIndex + 1} filled`);
     this.session.filledTPs.add(filledTpIndex);
 
@@ -486,6 +489,7 @@ class BracketEngine {
   // ── Internal ──────────────────────────────────────────────────────────
 
   private async onEntryFilled(cfg: PendingEntryConfig, entryPrice: number) {
+    audioService.play('order_filled');
     const { config, accountId, contractId, entrySide, entrySize, contract } = cfg;
 
     // Normalize TP sizes upfront
