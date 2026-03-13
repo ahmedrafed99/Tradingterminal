@@ -2,15 +2,21 @@ import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { accountService } from '../services/accountService';
 import { useStore } from '../store/useStore';
-import { TabButton } from './shared/TabButton';
 import { DatabaseTab } from './settings/DatabaseTab';
 import { SoundTab } from './settings/SoundTab';
 import { Modal } from './shared/Modal';
-import { INPUT_DARK } from '../constants/styles';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
 type SettingsTab = 'api' | 'database' | 'sound';
+
+const TABS: { id: SettingsTab; label: string }[] = [
+  { id: 'api', label: 'API' },
+  { id: 'database', label: 'Database' },
+  { id: 'sound', label: 'Sound' },
+];
+
+const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
   const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();
@@ -61,138 +67,170 @@ export function SettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setSettingsOpen(false)} className="w-[460px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl">
+    <Modal onClose={() => setSettingsOpen(false)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="border-b border-(--color-border)" style={{ padding: '16px 32px 0 32px' }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
-            <h2 className="text-sm font-medium text-(--color-text)">Settings</h2>
+        <div className="border-b border-white/5" style={{ padding: '18px 24px 0 24px' }}>
+          <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+            <h2 className="text-sm font-semibold text-white">Settings</h2>
             <button
               onClick={() => setSettingsOpen(false)}
-              className="text-(--color-text-muted) hover:text-white transition-colors p-1 rounded hover:bg-(--color-hover-toolbar)"
+              className="flex items-center justify-center rounded-full hover:bg-white/5 transition-colors"
+              style={{ width: 32, height: 32 }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
-          <div className="flex items-center gap-1" style={{ height: 36 }}>
-            <TabButton label="API" active={tab === 'api'} onClick={() => setTab('api')} />
-            <TabButton label="Database" active={tab === 'database'} onClick={() => setTab('database')} />
-            <TabButton label="Sound" active={tab === 'sound'} onClick={() => setTab('sound')} />
+
+          {/* Tabs */}
+          <div className="flex" style={{ gap: 2 }}>
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`text-xs font-medium transition-colors relative cursor-pointer ${
+                  tab === t.id
+                    ? 'text-white'
+                    : 'text-(--color-text-muted) hover:text-(--color-text)'
+                }`}
+                style={{ padding: '8px 16px' }}
+              >
+                {t.label}
+                {tab === t.id && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--color-accent) rounded-full" />
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Body */}
-        {tab === 'api' && (
-          <>
-            <div className="space-y-4" style={{ padding: '24px 32px' }}>
-              {/* Status pill */}
-              <div className="flex items-center gap-2">
-                <span
-                  className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
-                />
-                <span className="text-xs text-(--color-text-muted)">
-                  {connected ? `Connected · ${baseUrl}` : 'Disconnected'}
-                </span>
+        <div className="overflow-y-auto flex-1">
+          {tab === 'api' && (
+            <>
+              <div style={{ padding: '20px 24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {/* Status pill */}
+                  <div className="flex items-center" style={{ gap: 8 }}>
+                    <span
+                      className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
+                    />
+                    <span className="text-xs text-(--color-text-muted)">
+                      {connected ? `Connected · ${baseUrl}` : 'Disconnected'}
+                    </span>
+                  </div>
+
+                  {/* Connection Fields */}
+                  <div>
+                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Connection</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <label className="block">
+                        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Username</span>
+                        <input
+                          type="text"
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          disabled={connected || loading}
+                          placeholder="your-projectx-username"
+                          className={INPUT_CLS}
+                          style={{ padding: '10px 14px' }}
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>API Key</span>
+                        <input
+                          type="password"
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          disabled={connected || loading}
+                          placeholder="••••••••••••••••"
+                          className={INPUT_CLS}
+                          style={{ padding: '10px 14px' }}
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Gateway URL</span>
+                        <input
+                          type="text"
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                          disabled={connected || loading}
+                          placeholder={DEFAULT_BASE_URL}
+                          className={INPUT_CLS}
+                          style={{ padding: '10px 14px' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Condition Server — always editable */}
+                  <div>
+                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Condition Server</div>
+                    <label className="block">
+                      <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Server URL</span>
+                      <input
+                        type="text"
+                        value={condUrl}
+                        onChange={(e) => setCondUrl(e.target.value)}
+                        onBlur={() => setConditionServerUrl(condUrl.trim())}
+                        placeholder="http://localhost:3001"
+                        className={INPUT_CLS}
+                        style={{ padding: '10px 14px' }}
+                      />
+                      <span className="block text-[10px] text-(--color-text-dim)" style={{ marginTop: 6 }}>Defaults to localhost:3001 (local backend). Set a remote URL for server mode.</span>
+                    </label>
+                  </div>
+
+                  {/* Error */}
+                  {error && (
+                    <p className="text-xs text-(--color-error) bg-(--color-error)/10 rounded-lg text-center" style={{ padding: '10px 16px' }}>{error}</p>
+                  )}
+                </div>
               </div>
 
-              {/* Fields — only editable when disconnected */}
-              <div className="space-y-3">
-                <label className="block">
-                  <span className="block text-xs text-(--color-text-muted) mb-1">Username</span>
-                  <input
-                    type="text"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    disabled={connected || loading}
-                    placeholder="your-projectx-username"
-                    className={INPUT_DARK}
-                    style={{ padding: '10px 14px' }}
-                  />
-                </label>
+              {/* Footer */}
+              <div className="flex justify-between items-center border-t border-white/5" style={{ padding: '16px 24px' }}>
+                <div />
+                <div className="flex items-center" style={{ gap: 10 }}>
+                  <button
+                    onClick={() => setSettingsOpen(false)}
+                    className="text-xs text-(--color-text-muted) hover:text-white transition-colors"
+                    style={{ padding: '8px 16px' }}
+                  >
+                    Cancel
+                  </button>
 
-                <label className="block">
-                  <span className="block text-xs text-(--color-text-muted) mb-1">API Key</span>
-                  <input
-                    type="password"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    disabled={connected || loading}
-                    placeholder="••••••••••••••••"
-                    className={INPUT_DARK}
-                    style={{ padding: '10px 14px' }}
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="block text-xs text-(--color-text-muted) mb-1">Gateway URL</span>
-                  <input
-                    type="text"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    disabled={connected || loading}
-                    placeholder={DEFAULT_BASE_URL}
-                    className={INPUT_DARK}
-                    style={{ padding: '10px 14px' }}
-                  />
-                </label>
+                  {connected ? (
+                    <button
+                      onClick={handleDisconnect}
+                      disabled={loading}
+                      className="text-xs font-medium rounded-lg bg-(--color-error)/20 text-(--color-error) hover:bg-(--color-error)/30 transition-all disabled:opacity-50"
+                      style={{ padding: '8px 24px' }}
+                    >
+                      {loading ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleConnect}
+                      disabled={loading || !userName || !apiKey}
+                      className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+                      style={{ padding: '8px 24px' }}
+                    >
+                      {loading ? 'Connecting...' : 'Connect'}
+                    </button>
+                  )}
+                </div>
               </div>
+            </>
+          )}
 
-              {/* Condition Server — always editable */}
-              <div className="space-y-3 border-t border-(--color-border)" style={{ paddingTop: 16 }}>
-                <label className="block">
-                  <span className="block text-xs text-(--color-text-muted) mb-1">Condition Server URL</span>
-                  <input
-                    type="text"
-                    value={condUrl}
-                    onChange={(e) => setCondUrl(e.target.value)}
-                    onBlur={() => setConditionServerUrl(condUrl.trim())}
-                    placeholder="http://localhost:3001"
-                    className={INPUT_DARK}
-                    style={{ padding: '10px 14px' }}
-                  />
-                  <span className="block text-[10px] text-(--color-text-dim) mt-1">Defaults to localhost:3001 (local backend). Set a remote URL for server mode.</span>
-                </label>
-              </div>
-
-              {/* Error */}
-              {error && (
-                <p className="text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">{error}</p>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex justify-end gap-2 border-t border-(--color-border)" style={{ padding: '20px 32px' }}>
-              <button
-                onClick={() => setSettingsOpen(false)}
-                className="text-sm text-(--color-text-muted) hover:text-white border border-(--color-border) hover:border-(--color-text-dim) rounded-lg transition-colors" style={{ padding: '8px 18px' }}
-              >
-                Cancel
-              </button>
-
-              {connected ? (
-                <button
-                  onClick={handleDisconnect}
-                  disabled={loading}
-                  className="text-sm font-medium rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
-                >
-                  {loading ? 'Disconnecting…' : 'Disconnect'}
-                </button>
-              ) : (
-                <button
-                  onClick={handleConnect}
-                  disabled={loading || !userName || !apiKey}
-                  className="text-sm font-medium rounded-lg bg-(--color-accent) text-white hover:bg-(--color-accent-hover) transition-colors disabled:opacity-50" style={{ padding: '8px 18px' }}
-                >
-                  {loading ? 'Connecting…' : 'Connect'}
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {tab === 'database' && <DatabaseTab />}
-        {tab === 'sound' && <SoundTab />}
+          {tab === 'database' && <DatabaseTab />}
+          {tab === 'sound' && <SoundTab />}
+        </div>
     </Modal>
   );
 }

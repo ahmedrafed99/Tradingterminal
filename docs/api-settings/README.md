@@ -10,40 +10,44 @@ connection to the ProjectX Gateway.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  API Settings                                       [✕]  │
+│  Settings                                           [✕]  │
+│  API   Database   Sound                                  │
+│  ───                                                     │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  Environment                                             │
-│  ( ) Demo   (●) Live                                     │
+│  ● Connected · https://api.topstepx.com                  │
 │                                                          │
+│  CONNECTION                                              │
 │  Username                                                │
-│  [ your.email@example.com              ]                 │
-│                                                          │
+│  [ your-projectx-username                ]               │
 │  API Key                                                 │
-│  [ ••••••••••••••••••••••••••••••••••• ] [👁]           │
+│  [ ••••••••••••••••                      ]               │
+│  Gateway URL                                             │
+│  [ https://api.topstepx.com             ]                │
 │                                                          │
-│  Status:  ● Connected as Eval-A #12345                   │
+│  CONDITION SERVER                                        │
+│  Server URL                                              │
+│  [ http://localhost:3001                 ]                │
 │                                                          │
-│          [ Disconnect ]       [ Connect ]                │
-│                                                          │
+├──────────────────────────────────────────────────────────┤
+│                          [ Cancel ]  [ Connect ]         │
 └──────────────────────────────────────────────────────────┘
 ```
+
+The modal uses a tabbed layout shared with the Database and Sound tabs. Design matches the BracketSettingsModal language: `bg-(--color-surface)`, `border-(--color-border)`, translucent glass inputs (`bg-white/[0.05] border-white/10`), soft accent buttons, 28px section spacing.
 
 ---
 
 ## Components
 
-### `ApiSettingsModal`
-Top-level modal. Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use `INPUT_DARK` from `constants/styles.ts`.
+### `SettingsModal`
+Top-level modal with three tabs (API, Database, Sound). Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use translucent glass styling (`bg-white/[0.05] border border-white/10`) matching the BracketSettingsModal design language.
 
-### `EnvironmentSelector`
-- Radio group: **Demo** (`gateway-api-demo.s2f.projectx.com`) |
-  **Live** (production URL, to be filled when known)
-- Selection stored in proxy session; frontend receives a simple label
-
-### `CredentialsForm`
+### `CredentialsForm` (API tab)
 - **Username** text input
-- **API Key** password input with eye toggle to reveal
+- **API Key** password input
+- **Gateway URL** — defaults to `https://api.topstepx.com`
+- **Condition Server URL** — always editable, defaults to `http://localhost:3001`
 - Credentials sent to proxy `POST /auth/connect` — **never stored in
   the browser or localStorage**
 

@@ -5,14 +5,10 @@ import {
   type DatabaseStatus,
   type FetchProgress,
 } from '../../services/databaseService';
-import { SECTION_LABEL } from '../../constants/styles';
-import {
-  COLOR_TEXT, COLOR_TEXT_MUTED, COLOR_TEXT_DIM, COLOR_BORDER,
-  COLOR_SURFACE, COLOR_ACCENT, COLOR_ACCENT_HOVER, COLOR_INPUT,
-  COLOR_BUY, COLOR_SELL, COLOR_WARNING,
-} from '../../constants/colors';
 
 const POLL_INTERVAL = 1500;
+const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider';
+const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function DatabaseTab() {
   const { contract } = useStore();
@@ -155,240 +151,215 @@ export function DatabaseTab() {
 
   const hasData = (status?.contracts?.length ?? 0) > 0;
 
+  const progressPct = progress && progress.pagesTotal > 0
+    ? (progress.pagesCompleted / progress.pagesTotal) * 100
+    : 0;
+
   return (
-    <div style={{ padding: '20px 32px 24px' }}>
-      {/* STATUS SECTION */}
-      <div style={{ marginBottom: 20 }}>
-        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span className={SECTION_LABEL}>
-            Stored Data
-          </span>
-          <span className="text-[10px]" style={{ color: COLOR_TEXT_DIM }}>
-            {formatBytes(status?.dbSizeBytes ?? 0)}
-          </span>
-        </div>
+    <div style={{ padding: '20px 24px 24px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {/* STORED DATA */}
+        <div>
+          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+            <span className={SECTION_TITLE}>Stored Data</span>
+            <span className="text-[10px] text-(--color-text-dim)">
+              {formatBytes(status?.dbSizeBytes ?? 0)}
+            </span>
+          </div>
 
-        {status?.contracts?.length ? (
-          <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${COLOR_BORDER}` }}>
-            {status.contracts.map((c, i) => (
-              <div
-                key={c.contractId}
-                className="flex items-center justify-between transition-colors"
-                style={{
-                  padding: '10px 12px',
-                  borderTop: i > 0 ? `1px solid ${COLOR_BORDER}` : undefined,
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = COLOR_SURFACE; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = ''; }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div className="text-xs" style={{ marginBottom: 2, color: COLOR_TEXT }}>
-                    {c.contractId}
-                  </div>
-                  <div className="text-[10px]" style={{ color: COLOR_TEXT_MUTED }}>
-                    {formatDate(c.oldestBar)} — {formatDate(c.newestBar)}
-                    <span style={{ color: COLOR_TEXT_DIM }}> · </span>
-                    {formatNumber(c.totalBars)} bars
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDelete(c.contractId)}
-                  disabled={isFetching}
-                  className="hover:text-red-400 transition-colors disabled:opacity-50"
-                  style={{ color: COLOR_TEXT_DIM }}
-                  style={{ marginLeft: 8, fontSize: 11, lineHeight: 1 }}
-                  title="Delete"
+          {status?.contracts?.length ? (
+            <div className="rounded-lg overflow-hidden border border-white/[0.06]">
+              {status.contracts.map((c, i) => (
+                <div
+                  key={c.contractId}
+                  className="group/row flex items-center justify-between transition-colors hover:bg-white/[0.03]"
+                  style={{
+                    padding: '10px 12px',
+                    borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                  }}
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div
-            className="text-xs text-center rounded-lg"
-            style={{ padding: '16px 12px', border: `1px solid ${COLOR_BORDER}`, color: COLOR_TEXT_DIM }}
-          >
-            No data stored yet
-          </div>
-        )}
-      </div>
-
-      {/* DIVIDER */}
-      <div style={{ borderTop: `1px solid ${COLOR_BORDER}`, marginBottom: 20 }} />
-
-      {/* SYNC CONTROLS */}
-      <div>
-        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span className={SECTION_LABEL}>
-            Sync
-          </span>
-          <span className="text-[10px]" style={{ color: COLOR_TEXT_DIM }}>
-            Auto-sync every 30 min
-          </span>
-        </div>
-
-        <button
-          onClick={handleSync}
-          disabled={isFetching || loading || !contract || !hasData}
-          className="text-[11px] font-medium rounded-lg text-white transition-colors disabled:opacity-50"
-          style={{ padding: '7px 16px', backgroundColor: COLOR_ACCENT }}
-          onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = COLOR_ACCENT_HOVER; }}
-          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLOR_ACCENT; }}
-        >
-          {isFetching ? 'Syncing…' : 'Sync Now'}
-        </button>
-
-        {!hasData && (
-          <span className="text-[10px]" style={{ marginLeft: 8, color: COLOR_TEXT_DIM }}>
-            No data to sync
-          </span>
-        )}
-      </div>
-
-      {/* PROGRESS */}
-      {progress && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ borderTop: `1px solid ${COLOR_BORDER}`, marginBottom: 16 }} />
-
-          <div className="flex items-center justify-between" style={{ marginBottom: 6 }}>
-            <span className={SECTION_LABEL}>
-              Progress
-            </span>
-            <span className="text-[10px]">
-              {progress.status === 'running' && (
-                <span style={{ color: COLOR_TEXT_MUTED }}>Syncing…</span>
-              )}
-              {progress.status === 'completed' && (
-                <span style={{ color: COLOR_BUY }}>Completed</span>
-              )}
-              {progress.status === 'failed' && (
-                <span style={{ color: COLOR_SELL }}>Failed</span>
-              )}
-              {progress.status === 'cancelled' && (
-                <span style={{ color: COLOR_WARNING }}>Cancelled</span>
-              )}
-            </span>
-          </div>
-
-          {/* Bar */}
-          <div
-            className="w-full overflow-hidden rounded-full"
-            style={{ height: 4, backgroundColor: COLOR_INPUT, marginBottom: 8 }}
-          >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="text-xs text-white" style={{ marginBottom: 2 }}>
+                      {c.contractId}
+                    </div>
+                    <div className="text-[10px] text-(--color-text-muted)">
+                      {formatDate(c.oldestBar)} — {formatDate(c.newestBar)}
+                      <span className="text-(--color-text-dim)"> · </span>
+                      {formatNumber(c.totalBars)} bars
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDelete(c.contractId)}
+                    disabled={isFetching}
+                    className="opacity-0 group-hover/row:opacity-100 text-(--color-text-dim) hover:text-(--color-error) transition-all disabled:opacity-50 shrink-0"
+                    style={{ padding: 4 }}
+                    title="Delete"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
             <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${progress.pagesTotal > 0 ? (progress.pagesCompleted / progress.pagesTotal) * 100 : 0}%`,
-                backgroundColor:
-                  progress.status === 'completed' ? COLOR_BUY :
-                  progress.status === 'failed' ? COLOR_SELL :
-                  progress.status === 'cancelled' ? COLOR_WARNING : COLOR_ACCENT,
-              }}
-            />
-          </div>
-
-          <div className="flex items-center justify-between" style={{ marginBottom: progress.status === 'running' ? 10 : 0 }}>
-            <span className="text-[10px]" style={{ color: COLOR_TEXT_MUTED }}>
-              {progress.pagesCompleted} / {progress.pagesTotal} pages
-            </span>
-            {progress.barsInserted > 0 && (
-              <span className="text-[10px]" style={{ color: COLOR_TEXT_MUTED }}>
-                {formatNumber(progress.barsInserted)} bars inserted
-              </span>
-            )}
-          </div>
-
-          {progress.status === 'failed' && progress.errorMessage && (
-            <div className="text-[10px]" style={{ marginTop: 4, color: COLOR_SELL }}>
-              {progress.errorMessage}
+              className="text-xs text-center rounded-lg border border-white/[0.06] text-(--color-text-dim)"
+              style={{ padding: '16px 12px' }}
+            >
+              No data stored yet
             </div>
           )}
-
-          {progress.status === 'running' && (
-            <button
-              onClick={handleCancel}
-              className="text-[10px] hover:text-red-400 transition-colors"
-              style={{ color: COLOR_TEXT_MUTED }}
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* BACKUP */}
-      <div style={{ marginTop: 20 }}>
-        <div style={{ borderTop: `1px solid ${COLOR_BORDER}`, marginBottom: 16 }} />
-
-        <div className="flex items-center justify-between" style={{ marginBottom: 10 }}>
-          <span className={SECTION_LABEL}>
-            Backup
-          </span>
-          <span className="text-[10px]" style={{ color: COLOR_TEXT_DIM }}>
-            Auto-backup daily · last 7 kept
-          </span>
         </div>
 
-        {/* Save to directory */}
-        <div style={{ marginBottom: 10 }}>
-          <span className="text-[10px]" style={{ display: 'block', marginBottom: 4, color: COLOR_TEXT_MUTED }}>
-            Save to directory (leave empty for default)
-          </span>
-          <div className="flex items-center" style={{ gap: 8 }}>
-            <input
-              type="text"
-              value={backupDir}
-              onChange={(e) => setBackupDir(e.target.value)}
-              placeholder="C:\Users\Ahmed\Backups"
-              className="flex-1 text-xs rounded-lg focus:outline-none disabled:opacity-50"
-              style={{ padding: '8px 12px', border: `1px solid ${COLOR_BORDER}`, backgroundColor: COLOR_INPUT, color: COLOR_TEXT }}
-            />
+        {/* SYNC */}
+        <div>
+          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+            <span className={SECTION_TITLE}>Sync</span>
+            <span className="text-[10px] text-(--color-text-dim)">Auto-sync every 30 min</span>
+          </div>
+
+          <div className="flex items-center" style={{ gap: 10 }}>
             <button
-              onClick={handleBackup}
-              disabled={backupLoading || !hasData}
-              className="text-[11px] font-medium rounded-lg text-white transition-colors disabled:opacity-50"
-              style={{ padding: '7px 16px', whiteSpace: 'nowrap', backgroundColor: COLOR_ACCENT }}
-              onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.backgroundColor = COLOR_ACCENT_HOVER; }}
-              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = COLOR_ACCENT; }}
+              onClick={handleSync}
+              disabled={isFetching || loading || !contract || !hasData}
+              className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+              style={{ padding: '7px 18px' }}
             >
-              {backupLoading ? 'Saving…' : 'Save Backup'}
+              {isFetching ? 'Syncing...' : 'Sync Now'}
             </button>
+
+            {!hasData && (
+              <span className="text-[10px] text-(--color-text-dim)">No data to sync</span>
+            )}
           </div>
         </div>
 
-        {/* Download link */}
-        <button
-          onClick={handleDownload}
-          disabled={!hasData}
-          className="text-[11px] transition-colors disabled:opacity-50"
-          style={{ color: COLOR_TEXT_MUTED }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = COLOR_TEXT; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = COLOR_TEXT_MUTED; }}
-        >
-          Or download to browser →
-        </button>
+        {/* PROGRESS */}
+        {progress && (
+          <div>
+            <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+              <span className={SECTION_TITLE}>Progress</span>
+              <span className="text-[10px]">
+                {progress.status === 'running' && (
+                  <span className="text-(--color-text-muted)">Syncing...</span>
+                )}
+                {progress.status === 'completed' && (
+                  <span className="text-(--color-buy)">Completed</span>
+                )}
+                {progress.status === 'failed' && (
+                  <span className="text-(--color-sell)">Failed</span>
+                )}
+                {progress.status === 'cancelled' && (
+                  <span className="text-(--color-warning)">Cancelled</span>
+                )}
+              </span>
+            </div>
 
-        {backupMsg && (
-          <div
-            className="text-[10px] rounded-lg"
-            style={{
-              marginTop: 8,
-              padding: '6px 10px',
-              backgroundColor: backupMsg.startsWith('Saved') ? 'rgba(38,166,154,0.1)' : 'rgba(239,83,80,0.1)',
-              color: backupMsg.startsWith('Saved') ? COLOR_BUY : COLOR_SELL,
-            }}
-          >
-            {backupMsg}
+            {/* Progress bar */}
+            <div
+              className="w-full overflow-hidden rounded-full"
+              style={{ height: 4, marginBottom: 8, background: 'rgba(255,255,255,0.05)' }}
+            >
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  progress.status === 'completed' ? 'bg-(--color-buy)' :
+                  progress.status === 'failed' ? 'bg-(--color-sell)' :
+                  progress.status === 'cancelled' ? 'bg-(--color-warning)' : 'bg-(--color-accent)'
+                }`}
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-(--color-text-muted)">
+                {progress.pagesCompleted} / {progress.pagesTotal} pages
+              </span>
+              {progress.barsInserted > 0 && (
+                <span className="text-[10px] text-(--color-text-muted)">
+                  {formatNumber(progress.barsInserted)} bars inserted
+                </span>
+              )}
+            </div>
+
+            {progress.status === 'failed' && progress.errorMessage && (
+              <div className="text-[10px] text-(--color-sell)" style={{ marginTop: 6 }}>
+                {progress.errorMessage}
+              </div>
+            )}
+
+            {progress.status === 'running' && (
+              <button
+                onClick={handleCancel}
+                className="text-[10px] text-(--color-text-muted) hover:text-(--color-error) transition-colors"
+                style={{ marginTop: 8 }}
+              >
+                Cancel
+              </button>
+            )}
           </div>
         )}
+
+        {/* BACKUP */}
+        <div>
+          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+            <span className={SECTION_TITLE}>Backup</span>
+            <span className="text-[10px] text-(--color-text-dim)">Auto-backup daily · last 7 kept</span>
+          </div>
+
+          <div style={{ marginBottom: 10 }}>
+            <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>
+              Save to directory (leave empty for default)
+            </span>
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <input
+                type="text"
+                value={backupDir}
+                onChange={(e) => setBackupDir(e.target.value)}
+                placeholder="C:\Users\Ahmed\Backups"
+                className={`flex-1 ${INPUT_CLS}`}
+                style={{ padding: '8px 12px' }}
+              />
+              <button
+                onClick={handleBackup}
+                disabled={backupLoading || !hasData}
+                className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
+                style={{ padding: '7px 18px', whiteSpace: 'nowrap' }}
+              >
+                {backupLoading ? 'Saving...' : 'Save Backup'}
+              </button>
+            </div>
+          </div>
+
+          <button
+            onClick={handleDownload}
+            disabled={!hasData}
+            className="text-[11px] text-(--color-text-muted) hover:text-white transition-colors disabled:opacity-50"
+          >
+            Or download to browser →
+          </button>
+
+          {backupMsg && (
+            <div
+              className={`text-[10px] rounded-lg ${
+                backupMsg.startsWith('Saved')
+                  ? 'bg-(--color-buy)/10 text-(--color-buy)'
+                  : 'bg-(--color-error)/10 text-(--color-error)'
+              }`}
+              style={{ marginTop: 8, padding: '6px 10px' }}
+            >
+              {backupMsg}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Error */}
       {error && (
         <p
-          className="text-xs text-red-400 rounded-lg"
-          style={{ marginTop: 12, padding: '8px 12px', backgroundColor: 'rgba(239,83,80,0.1)' }}
+          className="text-xs text-(--color-error) bg-(--color-error)/10 rounded-lg text-center"
+          style={{ marginTop: 16, padding: '10px 16px' }}
         >
           {error}
         </p>

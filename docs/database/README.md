@@ -222,29 +222,29 @@ A tab in the Settings modal alongside the API credentials tab.
 ### Layout
 
 ```
-+---------------------------------------------------------------+
-|  [ API ]  [ Database ]                                  [X]    |
-+---------------------------------------------------------------+
-|                                                                 |
-|  STORED DATA                                      399.3 MB     |
-|  ┌─────────────────────────────────────────────────────────┐   |
-|  │ NQ                                                  ✕   │   |
-|  │ Dec 11, 2008 — Mar 9, 2026 · 5,778,958 bars            │   |
-|  └─────────────────────────────────────────────────────────┘   |
-|                                                                 |
-|  ─────────────────────────────────────────────────────────     |
-|                                                                 |
-|  SYNC                                  Auto-sync every 30 min  |
-|  [ Sync Now ]                                                   |
-|                                                                 |
-|  ─────────────────────────────────────────────────────────     |
-|                                                                 |
-|  BACKUP                          Auto-backup daily · last 7    |
-|  Save to directory: [________________________]  [Save Backup]   |
-|  Or download to browser →                                       |
-|                                                                 |
-+---------------------------------------------------------------+
+┌──────────────────────────────────────────────────────────┐
+│  Settings                                           [✕]  │
+│  API   Database   Sound                                  │
+│        ────────                                          │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  STORED DATA                                  399.3 MB   │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ NQ                                            [✕]  │  │
+│  │ Dec 11, 2008 — Mar 9, 2026 · 5,778,958 bars       │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                                          │
+│  SYNC                          Auto-sync every 30 min    │
+│  [ Sync Now ]                                            │
+│                                                          │
+│  BACKUP                    Auto-backup daily · last 7    │
+│  Save to directory: [____________________] [Save Backup] │
+│  Or download to browser →                                │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
 ```
+
+Sections are separated by 28px vertical gap (no explicit dividers). Delete button appears on row hover only. Buttons use soft accent style (`bg-(--color-accent)/20`).
 
 ### Behavior
 
