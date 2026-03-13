@@ -15,9 +15,11 @@ import settingsRoutes from './routes/settingsRoutes';
 import newsRoutes from './routes/newsRoutes';
 import conditionRoutes from './routes/conditionRoutes';
 import databaseRoutes from './routes/databaseRoutes';
+import WebSocket from 'ws';
 import * as conditionEngine from './services/conditionEngine';
 import * as databaseService from './services/databaseService';
 import * as backfillService from './services/backfillService';
+import * as tickAggregator from './services/tickAggregator';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 const app = express();
@@ -67,7 +69,21 @@ app.use('/hubs', (req, res, next) => {
 // ---------------------------------------------------------------------------
 const server = http.createServer(app);
 
+// WebSocket server for frontend → backend tick forwarding (condition engine)
+const conditionWss = new WebSocket.Server({ noServer: true });
+conditionWss.on('connection', (ws) => tickAggregator.addClient(ws));
+
 server.on('upgrade', (req, socket, head) => {
+  const url = req.url ?? '';
+
+  // Condition tick feed — no auth needed (local only)
+  if (url.startsWith('/ws/condition-quotes')) {
+    conditionWss.handleUpgrade(req, socket, head, (ws) => {
+      conditionWss.emit('connection', ws, req);
+    });
+    return;
+  }
+
   if (!isConnected()) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();

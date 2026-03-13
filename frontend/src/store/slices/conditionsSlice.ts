@@ -1,5 +1,12 @@
 import type { Condition } from '../../services/conditionService';
 
+const DEFAULT_CONDITION_SERVER = 'http://localhost:3001';
+
+/** Resolve the effective condition server URL (empty → localhost:3001). */
+export function resolveConditionServerUrl(raw: string): string {
+  return raw.trim() || DEFAULT_CONDITION_SERVER;
+}
+
 export interface ConditionsSlice {
   conditionServerUrl: string;
   conditions: Condition[];

@@ -3,6 +3,7 @@ import type { Contract } from '../../../services/marketDataService';
 import type { Condition } from '../../../services/conditionService';
 import { conditionService } from '../../../services/conditionService';
 import { useStore } from '../../../store/useStore';
+import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
@@ -18,7 +19,7 @@ export function useArmedConditionLines(
   refs: ChartRefs,
   contract: Contract | null,
   conditions: Condition[],
-  conditionServerUrl: string | null,
+  conditionServerUrl: string,
   linesRef: React.MutableRefObject<PriceLevelLine[]>,
   condIdsRef: React.MutableRefObject<string[]>,
   dragRef: React.MutableRefObject<ArmedDragState | null>,
@@ -32,7 +33,7 @@ export function useArmedConditionLines(
     linesRef.current = [];
     condIdsRef.current = [];
 
-    if (!series || !overlay || !chart || !contract || !conditionServerUrl) return;
+    if (!series || !overlay || !chart || !contract) return;
 
     const relevant = conditions.filter(
       (c) => c.status === 'armed' && String(c.contractId) === String(contract.id),
@@ -81,8 +82,7 @@ export function useArmedConditionLines(
           xCell.addEventListener('mousedown', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            const url = useStore.getState().conditionServerUrl;
-            if (!url) return;
+            const url = resolveConditionServerUrl(useStore.getState().conditionServerUrl);
             conditionService.remove(url, condId).then(() => {
               useStore.getState().removeCondition(condId);
             }).catch((err) => {
@@ -147,8 +147,7 @@ export function useArmedConditionLines(
             orderXCell.addEventListener('mousedown', (e) => {
               e.stopPropagation();
               e.preventDefault();
-              const url = useStore.getState().conditionServerUrl;
-              if (!url) return;
+              const url = resolveConditionServerUrl(useStore.getState().conditionServerUrl);
               conditionService.update(url, condId, { orderType: 'market', orderPrice: undefined })
                 .then((updated) => { useStore.getState().upsertCondition(updated); })
                 .catch((err) => {

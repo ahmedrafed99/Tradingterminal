@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore, DEFAULT_PINNED, MORE_TIMEFRAMES } from '../../store/useStore';
+import { resolveConditionServerUrl } from '../../store/slices/conditionsSlice';
 import { conditionService } from '../../services/conditionService';
 import type { CreateConditionInput, PatchConditionInput, ConditionBracket } from '../../services/conditionService';
 import type { BracketPreset } from '../../types/bracket';
@@ -115,8 +116,9 @@ export function ConditionModal() {
   if (!conditionModalOpen) return null;
 
   async function handleSubmit() {
-    if (!conditionServerUrl || !contract || activeAccountId == null) {
-      setError('Missing server URL, contract, or account');
+    const serverUrl = resolveConditionServerUrl(conditionServerUrl);
+    if (!contract || activeAccountId == null) {
+      setError('Missing contract or account');
       return;
     }
     const tp = parseFloat(triggerPrice);
@@ -156,11 +158,11 @@ export function ConditionModal() {
     try {
       if (editingConditionId) {
         const patch: PatchConditionInput = { ...payload };
-        const updated = await conditionService.update(conditionServerUrl, editingConditionId, patch);
+        const updated = await conditionService.update(serverUrl, editingConditionId, patch);
         upsertCondition(updated);
         addToast({ type: 'success', message: 'Condition updated' });
       } else {
-        const created = await conditionService.create(conditionServerUrl, payload);
+        const created = await conditionService.create(serverUrl, payload);
         upsertCondition(created);
         addToast({ type: 'success', message: 'Condition armed' });
       }

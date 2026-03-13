@@ -12,6 +12,7 @@
 import { getAdapter, isConnected } from '../adapters/registry';
 import * as store from './conditionStore';
 import { evaluateBar } from './conditionEngine';
+import { hasLiveClients } from './tickAggregator';
 
 // ---------------------------------------------------------------------------
 // Timeframe → API unit mapping
@@ -60,6 +61,12 @@ function nextCandleCloseMs(periodSec: number): number {
 
 async function pollTimeframes(timeframes: Set<string>): Promise<void> {
   if (!isConnected()) return;
+
+  // Skip REST polling when a frontend is forwarding live ticks
+  if (hasLiveClients()) {
+    console.log(`[barAggregator] Skipping REST poll — tick aggregator active`);
+    return;
+  }
 
   const armed = store.getArmed();
   if (armed.length === 0) return;
@@ -119,7 +126,9 @@ async function pollTimeframes(timeframes: Set<string>): Promise<void> {
 
       console.log(`[barAggregator] Completed bar: ${contractId} ${timeframe} close=${lastBar.c} @ ${lastBar.t}`);
 
-      await evaluateBar(contractId, timeframe, lastBar.c);
+      // Pass bar close time so the engine can measure evaluation delay
+      const barCloseIso = new Date(new Date(lastBar.t).getTime() + tf.periodSec * 1000).toISOString();
+      await evaluateBar(contractId, timeframe, lastBar.c, barCloseIso);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (!msg.includes('Not connected')) {

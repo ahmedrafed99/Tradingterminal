@@ -39,19 +39,31 @@ export async function evaluateBar(
   contractId: string,
   timeframe: string,
   close: number,
+  barCloseTime?: string,
 ): Promise<void> {
-  const armed = store.getArmed().filter(
+  const allArmed = store.getArmed();
+  const armed = allArmed.filter(
     (c) => c.contractId === contractId && c.timeframe === timeframe,
   );
+
+  if (armed.length === 0) return;
+
+  // Measure delay from candle close to evaluation
+  const delaySec = barCloseTime
+    ? ((Date.now() - new Date(barCloseTime).getTime()) / 1000).toFixed(1)
+    : '?';
 
   for (const condition of armed) {
     const met =
       (condition.conditionType === 'closes_above' && close > condition.triggerPrice) ||
       (condition.conditionType === 'closes_below' && close < condition.triggerPrice);
 
-    if (!met) continue;
+    if (!met) {
+      console.log(`[conditionEngine] ${condition.conditionType} trigger=${condition.triggerPrice} close=${close} → not met (delay: ${delaySec}s)`);
+      continue;
+    }
 
-    console.log(`[conditionEngine] Condition ${condition.id} met (${condition.conditionType} @ ${condition.triggerPrice}, close=${close})`);
+    console.log(`[conditionEngine] TRIGGERED ${condition.id}: ${condition.conditionType} trigger=${condition.triggerPrice} close=${close} (delay: ${delaySec}s after bar close)`);
 
     try {
       await executeCondition(condition);

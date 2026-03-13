@@ -141,11 +141,11 @@ export function SettingsModal() {
                     value={condUrl}
                     onChange={(e) => setCondUrl(e.target.value)}
                     onBlur={() => setConditionServerUrl(condUrl.trim())}
-                    placeholder="http://localhost:3002"
+                    placeholder="http://localhost:3001"
                     className={INPUT_DARK}
                     style={{ padding: '10px 14px' }}
                   />
-                  <span className="block text-[10px] text-(--color-text-dim) mt-1">Leave empty to disable conditional orders</span>
+                  <span className="block text-[10px] text-(--color-text-dim) mt-1">Defaults to localhost:3001 (local backend). Set a remote URL for server mode.</span>
                 </label>
               </div>
 

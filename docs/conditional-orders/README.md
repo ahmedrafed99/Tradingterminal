@@ -22,9 +22,9 @@ Place orders automatically when a candle closes above or below a price. Runs 24/
 
 - The condition engine lives inside the **existing Express backend** -- no separate server process
 - It uses the same **adapter pattern** (`getAdapter().orders.place()`) so it works with any future exchange
-- The frontend talks to the remote server via a configurable URL in Settings ("Conditional Orders Server")
-- When the remote server is a different machine than your PC, your normal trading still goes through your local backend
-- Same port (3001), same backend -- just deployed to a different machine
+- The frontend defaults to `http://localhost:3001` (same backend) for conditions — no configuration needed for local use
+- For remote servers, set a custom URL in Settings ("Conditional Orders Server")
+- Same port (3001), same backend -- just deployed to a different machine when remote
 
 ## Deployment
 
@@ -70,7 +70,9 @@ The `backend/docker-compose.yml` references the Docker Hub image, so the target 
 
 ### Frontend setup
 
-In Settings, set **"Conditional Orders Server"** to the backend URL:
+The condition server URL **defaults to `http://localhost:3001`** (your local backend) when left empty in Settings. No configuration needed for local use.
+
+For remote servers, set **"Conditional Orders Server"** in Settings to:
 - Render: `https://trading-conditions.onrender.com`
 - Self-hosted: `http://<machine-ip>:3001`
 
@@ -196,10 +198,12 @@ bracket?: {
 |------|---------|
 | `backend/src/types/condition.ts` | Zod schemas + TypeScript types (includes bracket fields) |
 | `backend/src/services/conditionStore.ts` | JSON file persistence |
-| `backend/src/services/barAggregator.ts` | Candle-boundary-aligned REST polling for completed bars |
-| `backend/src/services/conditionEngine.ts` | Condition evaluation + order execution (called by barAggregator) + bracket follow-up |
+| `backend/src/services/barAggregator.ts` | Candle-boundary-aligned REST polling for completed bars (remote fallback) |
+| `backend/src/services/tickAggregator.ts` | Real-time tick-to-bar aggregation from frontend WebSocket (local mode, zero delay) |
+| `backend/src/services/conditionEngine.ts` | Condition evaluation + order execution (called by barAggregator or tickAggregator) + bracket follow-up |
 | `backend/src/routes/conditionRoutes.ts` | REST API + SSE endpoint |
 | `frontend/src/services/conditionService.ts` | API client + SSE connection |
+| `frontend/src/services/conditionTickForwarder.ts` | Forwards quote ticks to backend WebSocket when conditions are armed |
 | `frontend/src/components/bottom-panel/ConditionsTab.tsx` | Conditions table in bottom panel |
 | `frontend/src/components/bottom-panel/ConditionModal.tsx` | Create/edit condition form (modal) |
 | `frontend/src/components/chart/hooks/useConditionLines.ts` | Orchestrator (decomposed into 5 sub-hooks: useArmedConditionLines, useArmedConditionDrag, useConditionPreview, useConditionPreviewDrag, useConditionLinesSync) |
@@ -223,7 +227,7 @@ bracket?: {
 ## Key design decisions
 
 - **Chart-first UX**: Creating and adjusting conditions happens directly on the chart via draggable `PriceLevelLine` instances — same interaction model as existing order lines. The modal form is a secondary path for precision or bulk editing.
-- **Candle-boundary polling**: The bar aggregator uses REST polling aligned to candle close times — for a 1m condition it wakes at :00, :01, :02; for 15m at :00, :15, :30, :45; for 4h at 00:00, 04:00, 08:00, etc. A 3s buffer is added after each boundary to let the API finalize the bar. This avoids needing a second WebSocket connection (exchanges like TopStepX limit one per user). When a new condition is armed or resumed, the scheduler reschedules to the next boundary **and** does an immediate poll for any timeframes whose candle closed within the last 10s (prevents the race where `reschedule()` cancels the pending poll timer right after a candle close, which would skip that bar).
+- **Dual-mode bar detection**: In **local mode** (frontend running), the frontend forwards live quote ticks to the backend over a dedicated WebSocket (`/ws/condition-quotes`). The backend's `tickAggregator` builds candles from these ticks and fires `evaluateBar()` the instant a new candle period starts — effectively zero delay (~-1s). In **remote mode** (no frontend connected), the `barAggregator` falls back to REST polling aligned to candle close times with a 3s buffer. The bar aggregator automatically skips polling when a tick-forwarding frontend is connected.
 - **Optional bracket**: Each condition can optionally carry SL/TP config. On fill, the backend places bracket orders using the same adapter pattern. This is a toggle, not mandatory.
 - **Exchange-agnostic**: Only calls through the generic `ExchangeAdapter` interface. Only auto-connect env vars are exchange-specific.
 - **JSON file persistence**: `data/conditions.json` with in-memory array and debounced disk writes (500ms). Simple, no database needed.

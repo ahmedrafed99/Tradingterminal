@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
+import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
 import type { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import type { ArmedDragState, PreviewState, PreviewDragState } from './conditionLineTypes';
@@ -28,7 +29,7 @@ export function useConditionLines(
   timeframe: Timeframe,
 ): void {
   const conditions = useStore((s) => s.conditions);
-  const conditionServerUrl = useStore((s) => s.conditionServerUrl);
+  const conditionServerUrl = useStore((s) => resolveConditionServerUrl(s.conditionServerUrl));
   const conditionPreview = useStore((s) => s.conditionPreview);
 
   // Armed condition refs

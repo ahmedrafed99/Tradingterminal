@@ -13,7 +13,6 @@ export function BottomPanel() {
   const setTab = useStore((s) => s.setBottomPanelTab);
   const openOrders = useStore((s) => s.openOrders);
   const sessionTrades = useStore((s) => s.sessionTrades);
-  const conditionServerUrl = useStore((s) => s.conditionServerUrl);
   const conditions = useStore((s) => s.conditions);
 
   return (
@@ -33,17 +32,13 @@ export function BottomPanel() {
           count={sessionTrades.filter((t) => t.profitAndLoss != null && !t.voided).length}
           onClick={() => setTab('trades')}
         />
-        {conditionServerUrl && (
-          <>
-            <Separator />
-            <TabButton
-              label="Conditions"
-              active={tab === 'conditions'}
-              count={conditions.filter((c) => c.status === 'armed').length}
-              onClick={() => setTab('conditions')}
-            />
-          </>
-        )}
+        <Separator />
+        <TabButton
+          label="Conditions"
+          active={tab === 'conditions'}
+          count={conditions.filter((c) => c.status === 'armed').length}
+          onClick={() => setTab('conditions')}
+        />
       </div>
 
       {/* Content */}
@@ -51,11 +46,9 @@ export function BottomPanel() {
         {tab === 'orders' && <OrdersTab />}
         {tab === 'trades' && <TradesTab />}
         {/* Keep ConditionsTab mounted (SSE connection alive) but hidden when inactive */}
-        {conditionServerUrl && (
-          <div className={tab === 'conditions' ? undefined : 'hidden'}>
-            <ConditionsTab />
-          </div>
-        )}
+        <div className={tab === 'conditions' ? undefined : 'hidden'}>
+          <ConditionsTab />
+        </div>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
+import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
 import { conditionService } from '../../../services/conditionService';
 import type { CreateConditionInput } from '../../../services/conditionService';
 import { PriceLevelLine } from '../PriceLevelLine';
@@ -30,7 +31,7 @@ export function useConditionPreview(
   contract: Contract | null,
   timeframe: Timeframe,
   conditionPreview: boolean,
-  conditionServerUrl: string | null,
+  conditionServerUrl: string,
   previewRef: React.MutableRefObject<PreviewState | null>,
   previewDragRef: React.MutableRefObject<PreviewDragState | null>,
 ): void {
@@ -51,7 +52,7 @@ export function useConditionPreview(
       previewRef.current = null;
     }
 
-    if (!conditionPreview || !series || !overlay || !chart || !container || !contract || !conditionServerUrl) {
+    if (!conditionPreview || !series || !overlay || !chart || !container || !contract) {
       destroyPreview();
       return;
     }
@@ -540,8 +541,8 @@ export function useConditionPreview(
       const p = previewRef.current;
       if (!p) return;
       const st = useStore.getState();
-      const url = st.conditionServerUrl;
-      if (!url || !st.activeAccountId || !contract) return;
+      const url = resolveConditionServerUrl(st.conditionServerUrl);
+      if (!st.activeAccountId || !contract) return;
 
       const isAbove = p.isAbove;
       const conditionType = isAbove ? 'closes_above' : 'closes_below';

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { conditionService } from '../../../services/conditionService';
 import { useStore } from '../../../store/useStore';
+import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
 import type { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
@@ -59,8 +60,7 @@ export function useArmedConditionDrag(
 
       const newPrice = line?.getPrice() ?? drag.originalPrice;
       if (newPrice === drag.originalPrice) return;
-      const url = useStore.getState().conditionServerUrl;
-      if (!url) return;
+      const url = resolveConditionServerUrl(useStore.getState().conditionServerUrl);
       conditionService.update(url, drag.condId, { [drag.field]: newPrice })
         .then((updated) => { useStore.getState().upsertCondition(updated); })
         .catch((err) => {

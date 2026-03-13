@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { useStore } from '../../store/useStore';
+import { resolveConditionServerUrl } from '../../store/slices/conditionsSlice';
 import { conditionService } from '../../services/conditionService';
 import type { Condition } from '../../services/conditionService';
 import { shortSymbol } from '../../utils/formatters';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { syncForwarder } from '../../services/conditionTickForwarder';
 
 const ALL_STATUSES = ['armed', 'paused', 'triggered', 'failed', 'expired'] as const;
 type ConditionStatus = (typeof ALL_STATUSES)[number];
@@ -29,7 +31,7 @@ const cols = 'grid-cols-[0.8fr_1fr_0.8fr_0.6fr_0.8fr_0.6fr_0.6fr_0.4fr]';
 
 export function ConditionsTab() {
   const conditions = useStore((s) => s.conditions);
-  const serverUrl = useStore((s) => s.conditionServerUrl);
+  const serverUrl = useStore((s) => resolveConditionServerUrl(s.conditionServerUrl));
   const setConditions = useStore((s) => s.setConditions);
   const upsertCondition = useStore((s) => s.upsertCondition);
   const removeCondition = useStore((s) => s.removeCondition);
@@ -64,10 +66,15 @@ export function ConditionsTab() {
     });
   }
 
+  // Tick forwarder — forward live quotes to backend for real-time condition evaluation
+  useEffect(() => {
+    const hasArmed = conditions.some((c) => c.status === 'armed');
+    syncForwarder(hasArmed);
+    return () => syncForwarder(false);
+  }, [conditions]);
+
   // SSE connection
   useEffect(() => {
-    if (!serverUrl) return;
-
     // Initial fetch
     conditionService.getAll(serverUrl).then(setConditions).catch(() => {});
 
@@ -95,7 +102,6 @@ export function ConditionsTab() {
   }, [serverUrl, setConditions, upsertCondition, addToast]);
 
   async function handlePauseResume(condition: Condition) {
-    if (!serverUrl) return;
     setActionId(condition.id);
     try {
       const updated =
@@ -111,7 +117,6 @@ export function ConditionsTab() {
   }
 
   async function handleDelete(id: string) {
-    if (!serverUrl) return;
     setActionId(id);
     try {
       await conditionService.remove(serverUrl, id);
@@ -148,14 +153,6 @@ export function ConditionsTab() {
       </div>
     </div>
   );
-
-  if (!serverUrl) {
-    return (
-      <div className="flex items-center justify-center h-full text-(--color-text-dim) text-xs">
-        Set a Condition Server URL in Settings to use conditional orders
-      </div>
-    );
-  }
 
   const isFilterAll = statusFilter.size === ALL_STATUSES.length;
   const filterLabel = isFilterAll
