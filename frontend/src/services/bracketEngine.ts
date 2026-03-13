@@ -4,7 +4,7 @@ import type { Contract } from './marketDataService';
 import { useStore } from '../store/useStore';
 import type { BracketConfig, ConditionAction } from '../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
-import { pointsToPrice } from '../utils/instrument';
+import { pointsToPrice, priceToPoints } from '../utils/instrument';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 
@@ -46,6 +46,8 @@ interface ActiveSession {
   tpOrderIds: Map<number, number>; // tpIndex → orderId
   filledTPs: Set<number>;
   pendingActions: ConditionAction[];
+  /** Condition IDs that have already fired (one-shot price triggers) */
+  firedPriceTriggers: Set<string>;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +63,9 @@ class BracketEngine {
   private bufferedFills: RealtimeOrder[] = [];
 
   private session: ActiveSession | null = null;
+
+  // Price-based condition monitoring
+  private _priceUnsubscribe: (() => void) | null = null;
 
   // Native SL discovery state
   private _awaitingNativeSL: {
@@ -124,6 +129,7 @@ class BracketEngine {
     this.confirmedOrderId = null;
     this.bufferedFills = [];
     this.session = null; // Null out first so concurrent calls don't double-cancel
+    this.unsubscribeFromPrice();
     if (this._nativeSLTimer) {
       clearTimeout(this._nativeSLTimer);
       this._nativeSLTimer = null;
@@ -173,6 +179,55 @@ class BracketEngine {
     } catch (err) {
       showToast('error', 'Failed to move SL to breakeven', errorMessage(err));
       return false;
+    }
+  }
+
+  // ── Price-Based Condition Monitoring ─────────────────────────────────
+
+  /**
+   * Subscribe to lastPrice store changes to evaluate profitReached triggers.
+   * Called after session setup if the config has any profitReached conditions.
+   */
+  private subscribeToPriceUpdates(): void {
+    this.unsubscribeFromPrice();
+    let prevLp = useStore.getState().lastPrice;
+    this._priceUnsubscribe = useStore.subscribe((state) => {
+      if (state.lastPrice !== prevLp) {
+        prevLp = state.lastPrice;
+        if (state.lastPrice !== null) this.onPriceUpdate(state.lastPrice);
+      }
+    });
+  }
+
+  private unsubscribeFromPrice(): void {
+    if (this._priceUnsubscribe) {
+      this._priceUnsubscribe();
+      this._priceUnsubscribe = null;
+    }
+  }
+
+  /**
+   * Evaluate profitReached conditions against the current live price.
+   * Called on every lastPrice change when subscribed.
+   */
+  private onPriceUpdate(lastPrice: number): void {
+    if (!this.session) return;
+    const { entryPrice, entrySide, contract, config } = this.session;
+
+    // Compute current profit in points (direction-aware)
+    const priceDiff = entrySide === OrderSide.Buy
+      ? lastPrice - entryPrice   // long: profit when price rises
+      : entryPrice - lastPrice;  // short: profit when price falls
+    const profitPoints = priceToPoints(priceDiff, contract);
+
+    for (const condition of config.conditions) {
+      if (condition.trigger.kind !== 'profitReached') continue;
+      if (this.session.firedPriceTriggers.has(condition.id)) continue;
+      if (profitPoints >= condition.trigger.points) {
+        this.session.firedPriceTriggers.add(condition.id);
+        if (DEV) console.log(`[BracketEngine] profitReached triggered: ${profitPoints.toFixed(1)} pts >= ${condition.trigger.points} pts, action: ${condition.action.kind}`);
+        this.executeAction(condition.action);
+      }
     }
   }
 
@@ -308,6 +363,7 @@ class BracketEngine {
       if (DEV) console.log('[BracketEngine] SL filled! Cancelling remaining TPs...');
       const snapshot = this.session;
       this.session = null; // Clear immediately so clearSession() won't double-cancel
+      this.unsubscribeFromPrice();
       await this.cancelSessionTPs(snapshot);
       return;
     }
@@ -457,7 +513,13 @@ class BracketEngine {
       tpOrderIds: new Map(),
       filledTPs: new Set(),
       pendingActions: [],
+      firedPriceTriggers: new Set(),
     };
+
+    // Subscribe to live price if any profitReached conditions exist
+    if (config.conditions.some((c) => c.trigger.kind === 'profitReached')) {
+      this.subscribeToPriceUpdates();
+    }
 
     const oppositeSide = entrySide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
 

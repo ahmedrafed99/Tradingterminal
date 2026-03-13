@@ -20,7 +20,9 @@ export interface TakeProfitLevel {
 // ---------------------------------------------------------------------------
 // Conditions
 // ---------------------------------------------------------------------------
-export type ConditionTrigger = { kind: 'tpFilled'; tpIndex: number }; // 0-based
+export type ConditionTrigger =
+  | { kind: 'tpFilled'; tpIndex: number }    // 0-based
+  | { kind: 'profitReached'; points: number }; // fire when unrealized profit >= N points
 
 export type ConditionAction =
   | { kind: 'moveSLToBreakeven' }

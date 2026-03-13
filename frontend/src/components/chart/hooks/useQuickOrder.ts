@@ -445,11 +445,15 @@ export function useQuickOrder(
       if (activePreset) {
         const bc = activePreset.config;
         const bracketsActive = bc.stopLoss.points >= 1 || bc.takeProfits.length >= 1;
-        if (bracketsActive) {
-          nativeBrackets = buildNativeBracketParams(bc, side, contract!);
+        const hasPriceTriggers = bc.conditions.some((c) => c.trigger.kind === 'profitReached');
+        if (bracketsActive || hasPriceTriggers) {
+          // Skip native brackets when profitReached conditions need the engine
+          nativeBrackets = !hasPriceTriggers
+            ? buildNativeBracketParams(bc, side, contract!)
+            : null;
 
-          if (!nativeBrackets) {
-            // 2+ TPs — attach native SL for zero-latency protection, engine handles TPs after fill
+          if (!nativeBrackets && bracketsActive) {
+            // 2+ TPs or profitReached — attach native SL for zero-latency protection, engine handles TPs after fill
             nativeSL = buildNativeSLOnly(bc, side, contract!);
 
             bracketEngine.armForEntry({
@@ -460,6 +464,17 @@ export function useQuickOrder(
               config: bc,
               contract: contract!,
               nativeSL: !!nativeSL,
+            });
+            bracketsArmed = true;
+          } else if (!nativeBrackets && hasPriceTriggers) {
+            // No SL/TP brackets but profitReached conditions — arm engine for price monitoring only
+            bracketEngine.armForEntry({
+              accountId: st.activeAccountId,
+              contractId: contract!.id,
+              entrySide: side,
+              entrySize: st.orderSize,
+              config: bc,
+              contract: contract!,
             });
             bracketsArmed = true;
           }

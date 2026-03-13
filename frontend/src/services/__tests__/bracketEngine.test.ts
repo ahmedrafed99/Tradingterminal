@@ -35,12 +35,28 @@ vi.mock('../../utils/retry', () => ({
 
 // Mock store for openOrders (used by isOrderStillOpen and findNativeSLInStore)
 let mockOpenOrders: Array<{ id: number; contractId: string; side: OrderSide; type: OrderType; size: number }> = [];
+let mockLastPrice: number | null = null;
+// Capture subscribe callbacks so we can simulate price updates in tests
+const subscribeCallbacks: Array<(state: { lastPrice: number | null; openOrders: typeof mockOpenOrders }) => void> = [];
 vi.mock('../../store/useStore', () => ({
   useStore: {
-    getState: () => ({ openOrders: mockOpenOrders }),
-    subscribe: vi.fn(() => () => {}),
+    getState: () => ({ openOrders: mockOpenOrders, lastPrice: mockLastPrice }),
+    subscribe: vi.fn((cb: (state: { lastPrice: number | null; openOrders: typeof mockOpenOrders }) => void) => {
+      subscribeCallbacks.push(cb);
+      return () => {
+        const idx = subscribeCallbacks.indexOf(cb);
+        if (idx >= 0) subscribeCallbacks.splice(idx, 1);
+      };
+    }),
   },
 }));
+
+/** Simulate a lastPrice change by dispatching to all subscribe callbacks */
+function simulatePriceUpdate(price: number) {
+  mockLastPrice = price;
+  const state = { lastPrice: price, openOrders: mockOpenOrders };
+  for (const cb of [...subscribeCallbacks]) cb(state);
+}
 
 // Import AFTER mocks
 import { bracketEngine } from '../bracketEngine';
@@ -119,6 +135,8 @@ beforeEach(async () => {
   vi.clearAllMocks();
   orderIdCounter = 100;
   mockOpenOrders = [];
+  mockLastPrice = null;
+  subscribeCallbacks.length = 0;
   placeOrder.mockImplementation(async (params: { contractId: string; side: OrderSide; type: OrderType; size: number }) => {
     const id = ++orderIdCounter;
     mockOpenOrders.push({ id, contractId: params.contractId, side: params.side, type: params.type, size: params.size });
@@ -584,5 +602,100 @@ describe('native SL discovery', () => {
     );
 
     vi.useRealTimers();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Price-Based (profitReached) Condition Tests
+// ---------------------------------------------------------------------------
+
+describe('profitReached conditions', () => {
+  const profitConfig: BracketConfig = {
+    stopLoss: { points: 10, type: 'Stop' },
+    takeProfits: [
+      { id: 'tp1', points: 50, size: 1 },
+    ],
+    conditions: [
+      {
+        id: 'pr1',
+        trigger: { kind: 'profitReached', points: 25 },
+        action: { kind: 'moveSLToBreakeven' },
+      },
+    ],
+  };
+
+  it('should fire action when profit reaches threshold (long)', async () => {
+    armAndConfirm(profitConfig, 1, OrderSide.Buy);
+    bracketEngine.confirmEntryOrderId(42);
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    const slOrderId = (await placeOrder.mock.results[0].value).orderId;
+
+    // Price moves +25 points (= +25 * 0.25 * 4 = +25 price units for MNQ)
+    // For MNQ: 1 point = 0.25 * 4 = 1.0 price, so 25 pts = 25.0 price
+    simulatePriceUpdate(20025); // exactly 25 pts profit
+
+    expect(modifyOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: slOrderId,
+        stopPrice: 20000, // breakeven
+      }),
+    );
+  });
+
+  it('should NOT fire when profit is below threshold', async () => {
+    armAndConfirm(profitConfig, 1, OrderSide.Buy);
+    bracketEngine.confirmEntryOrderId(42);
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    simulatePriceUpdate(20020); // only 20 pts, need 25
+
+    expect(modifyOrder).not.toHaveBeenCalled();
+  });
+
+  it('should fire action for short entries', async () => {
+    armAndConfirm(profitConfig, 1, OrderSide.Sell);
+    bracketEngine.confirmEntryOrderId(42);
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    const slOrderId = (await placeOrder.mock.results[0].value).orderId;
+
+    // Short: profit when price drops. 25 pts below entry = 19975
+    simulatePriceUpdate(19975);
+
+    expect(modifyOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderId: slOrderId,
+        stopPrice: 20000, // breakeven
+      }),
+    );
+  });
+
+  it('should only fire once (one-shot)', async () => {
+    armAndConfirm(profitConfig, 1, OrderSide.Buy);
+    bracketEngine.confirmEntryOrderId(42);
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    simulatePriceUpdate(20025); // triggers
+    simulatePriceUpdate(20030); // should NOT trigger again
+
+    // modifyOrder called once for the condition, not twice
+    const beCalls = modifyOrder.mock.calls.filter(
+      (c: unknown[]) => (c[0] as { stopPrice?: number }).stopPrice === 20000,
+    );
+    expect(beCalls).toHaveLength(1);
+  });
+
+  it('should unsubscribe from price on clearSession', async () => {
+    armAndConfirm(profitConfig, 1, OrderSide.Buy);
+    bracketEngine.confirmEntryOrderId(42);
+    await bracketEngine.onOrderEvent(mockOrder({ id: 42, status: OrderStatus.Filled, filledPrice: 20000 }));
+
+    expect(subscribeCallbacks.length).toBeGreaterThan(0);
+
+    bracketEngine.clearSession();
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(subscribeCallbacks.length).toBe(0);
   });
 });

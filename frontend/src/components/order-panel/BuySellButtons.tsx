@@ -92,15 +92,21 @@ export function BuySellButtons() {
 
     const bracketsActive = mergedConfig != null
       && (mergedConfig.stopLoss.points >= 1 || mergedConfig.takeProfits.length >= 1);
+    const hasPriceTriggers = mergedConfig?.conditions.some((c) => c.trigger.kind === 'profitReached') ?? false;
 
     // Use gateway-native brackets for <= 1 TP (atomic placement, zero latency gap).
     // For 2+ TPs, attach native SL bracket (zero-latency SL) + arm engine for TPs only.
-    const nativeBrackets = bracketsActive && mergedConfig ? buildNativeBracketParams(mergedConfig, side, orderContract) : null;
+    // If profitReached conditions exist, always arm the engine (for price monitoring).
+    const nativeBrackets = bracketsActive && mergedConfig && !hasPriceTriggers
+      ? buildNativeBracketParams(mergedConfig, side, orderContract)
+      : null;
+
+    const engineNeeded = (bracketsActive && !nativeBrackets) || hasPriceTriggers;
 
     if (nativeBrackets) {
       Object.assign(params, nativeBrackets);
     } else if (bracketsActive && mergedConfig) {
-      // 2+ TPs — attach native SL for zero-latency protection, engine handles TPs after fill
+      // 2+ TPs or profitReached — attach native SL for zero-latency protection, engine handles TPs after fill
       const nativeSL = buildNativeSLOnly(mergedConfig, side, orderContract);
       if (nativeSL) Object.assign(params, nativeSL);
 
@@ -113,13 +119,23 @@ export function BuySellButtons() {
         contract: orderContract,
         nativeSL: !!nativeSL,
       });
+    } else if (hasPriceTriggers && mergedConfig) {
+      // No SL/TP brackets but profitReached conditions exist — arm engine for price monitoring only
+      bracketEngine.armForEntry({
+        accountId: activeAccountId,
+        contractId: orderContract.id,
+        entrySide: side,
+        entrySize: orderSize,
+        config: mergedConfig,
+        contract: orderContract,
+      });
     }
 
     try {
       const { orderId } = await orderService.placeOrder(params);
 
-      // Confirm orderId — engine checks buffered fills (only for 2+ TP path)
-      if (bracketsActive && !nativeBrackets) {
+      // Confirm orderId — engine checks buffered fills
+      if (engineNeeded) {
         bracketEngine.confirmEntryOrderId(orderId);
       }
       clearDraftOverrides();
@@ -136,8 +152,8 @@ export function BuySellButtons() {
       const msg = err instanceof Error ? err.message : 'Order failed';
       setError(msg);
       showToast('error', 'Order placement failed', msg);
-      // Disarm bracket engine if it was armed for this order (2+ TP path)
-      if (bracketsActive && !nativeBrackets) {
+      // Disarm bracket engine if it was armed for this order
+      if (engineNeeded) {
         bracketEngine.clearSession();
       }
     } finally {

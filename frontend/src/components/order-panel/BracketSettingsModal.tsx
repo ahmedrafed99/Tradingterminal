@@ -34,8 +34,11 @@ function getErrors(name: string, c: BracketConfig, triedSave: boolean): string[]
     if (c.takeProfits[i].size < 1) errs.push(`TP ${i + 1}: size must be at least 1 contract`);
   }
   for (const cond of c.conditions) {
-    if (cond.trigger.tpIndex >= c.takeProfits.length) {
+    if (cond.trigger.kind === 'tpFilled' && cond.trigger.tpIndex >= c.takeProfits.length) {
       errs.push(`Condition references TP ${cond.trigger.tpIndex + 1} which does not exist`);
+    }
+    if (cond.trigger.kind === 'profitReached' && cond.trigger.points < 1) {
+      errs.push('Profit threshold must be at least 1 point');
     }
   }
   return errs;
@@ -179,11 +182,16 @@ export function BracketSettingsModal() {
                     ...d,
                     conditions: [
                       ...d.conditions,
-                      { id: crypto.randomUUID(), trigger: { kind: 'tpFilled', tpIndex: 0 }, action: { kind: 'moveSLToBreakeven' } },
+                      {
+                        id: crypto.randomUUID(),
+                        trigger: d.takeProfits.length > 0
+                          ? { kind: 'tpFilled' as const, tpIndex: 0 }
+                          : { kind: 'profitReached' as const, points: 10 },
+                        action: { kind: 'moveSLToBreakeven' as const },
+                      },
                     ],
                   }))}
-                  disabled={draft.takeProfits.length === 0}
-                  className="text-[11px] font-medium text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider disabled:text-(--color-text-dim) disabled:cursor-not-allowed"
+                  className="text-[11px] font-medium text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider"
                 >
                   + New Rule
                 </button>
@@ -458,13 +466,15 @@ function ConditionRow({
   onChange: (updated: BracketCondition) => void;
   onRemove: () => void;
 }) {
+  const triggerKind = condition.trigger.kind;
   const actionKind = condition.action.kind;
 
+  // Build action options (skip "Move SL to Target N" self-reference for tpFilled triggers)
   const actionOptions: { value: string; label: string }[] = [
     { value: 'moveSLToBreakeven', label: 'Move SL to Breakeven' },
   ];
   for (let i = 0; i < tpCount; i++) {
-    if (i !== condition.trigger.tpIndex) {
+    if (!(triggerKind === 'tpFilled' && i === condition.trigger.tpIndex)) {
       actionOptions.push({ value: `moveSLToTP:${i}`, label: `Move SL to Target ${i + 1} price` });
     }
   }
@@ -474,7 +484,7 @@ function ConditionRow({
   );
 
   function encodeAction(): string {
-    if (actionKind === 'moveSLToTP') return `moveSLToTP:${condition.action.kind === 'moveSLToTP' ? (condition.action as { kind: 'moveSLToTP'; tpIndex: number }).tpIndex : 0}`;
+    if (actionKind === 'moveSLToTP') return `moveSLToTP:${(condition.action as { kind: 'moveSLToTP'; tpIndex: number }).tpIndex}`;
     if (actionKind === 'moveSLToPrice') return 'customOffset';
     return actionKind;
   }
@@ -488,21 +498,61 @@ function ConditionRow({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      {/* When */}
+      {/* When — trigger kind selector + sub-input */}
       <div className="flex items-center" style={{ gap: '10px' }}>
         <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>When</span>
-        <div className="relative flex-1">
-          <select
-            value={condition.trigger.tpIndex}
-            onChange={(e) => onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: +e.target.value } })}
-            className={SELECT_CLS}
-            style={{ padding: '8px 12px' }}
-          >
-            {Array.from({ length: tpCount }, (_, i) => (
-              <option key={i} value={i}>Target {i + 1} is filled</option>
-            ))}
-          </select>
-          <ChevronDown />
+        <div className="flex-1 flex items-center" style={{ gap: '8px' }}>
+          {/* Trigger type dropdown */}
+          <div className="relative" style={{ minWidth: '130px' }}>
+            <select
+              value={triggerKind}
+              onChange={(e) => {
+                const kind = e.target.value as 'tpFilled' | 'profitReached';
+                if (kind === 'tpFilled') {
+                  onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: 0 } });
+                } else {
+                  onChange({ ...condition, trigger: { kind: 'profitReached', points: 10 } });
+                }
+              }}
+              className={SELECT_CLS}
+              style={{ padding: '8px 12px' }}
+            >
+              {tpCount > 0 && <option value="tpFilled">Target filled</option>}
+              <option value="profitReached">Profit reached</option>
+            </select>
+            <ChevronDown />
+          </div>
+
+          {/* Sub-input: TP index or profit points */}
+          {triggerKind === 'tpFilled' && (
+            <div className="relative flex-1">
+              <select
+                value={condition.trigger.tpIndex}
+                onChange={(e) => onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: +e.target.value } })}
+                className={SELECT_CLS}
+                style={{ padding: '8px 12px' }}
+              >
+                {Array.from({ length: tpCount }, (_, i) => (
+                  <option key={i} value={i}>Target {i + 1}</option>
+                ))}
+              </select>
+              <ChevronDown />
+            </div>
+          )}
+          {triggerKind === 'profitReached' && (
+            <div className="flex items-center flex-1" style={{ gap: '6px' }}>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={(condition.trigger as { kind: 'profitReached'; points: number }).points}
+                onChange={(e) => onChange({ ...condition, trigger: { kind: 'profitReached', points: Math.max(1, +e.target.value || 1) } })}
+                className="w-16 bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
+                style={{ padding: '7px 8px' }}
+              />
+              <span className="text-[11px] text-(--color-text-muted) shrink-0">pts profit</span>
+            </div>
+          )}
         </div>
         <button
           onClick={onRemove}

@@ -68,7 +68,9 @@ interface TakeProfitLevel {
   size: number;       // contract count (absolute, not percentage)
 }
 
-type ConditionTrigger = { kind: 'tpFilled'; tpIndex: number };
+type ConditionTrigger =
+  | { kind: 'tpFilled'; tpIndex: number }       // fire when TP N fills
+  | { kind: 'profitReached'; points: number };   // fire when unrealized profit >= N points
 
 type ConditionAction =
   | { kind: 'moveSLToBreakeven' }
@@ -126,10 +128,12 @@ Top-level modal. Uses the shared `<Modal>` component (`shared/Modal.tsx`) for ba
 
 ### `ConditionList`
 - Renders `ConditionRow` per rule, `gap: 12px`
-- "+ New Rule" disabled when no TPs exist
+- "+ New Rule" always enabled — defaults to `profitReached` when no TPs exist, `tpFilled` otherwise
 
 ### `ConditionRow`
-- **When** row: `WHEN` label (36px wide) + full-width trigger dropdown + ✕ button
+- **When** row: `WHEN` label (36px wide) + two-part trigger:
+  - Trigger kind dropdown: "Target filled" (hidden when no TPs) / "Profit reached"
+  - Sub-input: TP index dropdown (for `tpFilled`) or points input + "pts profit" label (for `profitReached`)
 - **Then** row: `THEN` label (36px wide) + full-width action dropdown
 - Labels `text-[11px] text-[#787b86] font-medium uppercase`
 - Selects `padding: 8px 12px`, `text-xs`
@@ -160,7 +164,8 @@ editingPresetId: string | null;     // 'new' or preset ID → opens modal
 | SL ≥ 1 when TPs exist | SL points must be at least 1 if any TPs are set |
 | TP points ≥ 1 | Required per level |
 | TP size ≥ 1 | Required per level |
-| Condition trigger TP exists | `tpIndex < takeProfits.length` |
+| Condition trigger TP exists | `tpIndex < takeProfits.length` (tpFilled only) |
+| Profit threshold ≥ 1 | Required for `profitReached` triggers |
 
 Errors shown as red pills, warnings (TP size sum) as yellow pills. Save disabled when errors exist.
 
@@ -168,15 +173,18 @@ Errors shown as red pills, warnings (TP size sum) as yellow pills. Save disabled
 
 ## Runtime Execution
 
-Conditions are evaluated client-side by `BracketEngine` listening to SignalR order events — NOT sent to the API:
+Conditions are evaluated client-side by `BracketEngine` — NOT sent to the API:
 
+**TP-fill triggers** — evaluated on SignalR order fill events:
 ```
 SignalR GatewayUserOrder event (status=2, filled)
   └─► BracketEngine.onOrderEvent()
-        └─► if filled order matches a TP
-              └─► evaluate all Conditions where trigger.tpIndex matches
-                    moveSLToBreakeven → modify SL order price to entry price
-                    moveSLToTP        → modify SL order price to TP N price
-                    customOffset      → modify SL order price to entry ± points
-                    cancelRemainingTPs → cancel all remaining TP orders
+        └─► if filled order matches a TP → evaluate matching tpFilled conditions
+```
+
+**Price-based triggers** — evaluated on every lastPrice tick via Zustand store subscription:
+```
+useStore lastPrice change
+  └─► BracketEngine.onPriceUpdate()
+        └─► if profitPoints >= threshold → fire action (one-shot)
 ```

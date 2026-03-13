@@ -96,6 +96,10 @@ priceOffset = pointsToPrice(points, contract)
 
 ## Condition Evaluation
 
+Two trigger types are supported:
+
+### TP-Fill Triggers (`tpFilled`)
+
 On each SignalR order fill event, the engine checks if a TP was filled and executes associated condition actions:
 
 ```
@@ -108,6 +112,22 @@ SignalR GatewayUserOrder event (status=2, filled)
                     customOffset      → modify SL order price to entry ± points
                     cancelRemainingTPs → cancel all remaining TP orders
 ```
+
+### Price-Based Triggers (`profitReached`)
+
+The engine subscribes to the Zustand store's `lastPrice` and evaluates profit thresholds on every tick:
+
+```
+useStore.subscribe(lastPrice change)
+  └─► BracketEngine.onPriceUpdate(lastPrice)
+        └─► compute profitPoints (direction-aware: long vs short)
+              └─► for each unfired profitReached condition
+                    if profitPoints >= threshold → fire action (one-shot)
+```
+
+- **One-shot**: each `profitReached` condition fires at most once per session (tracked in `firedPriceTriggers`)
+- **Subscription lifecycle**: subscribes in `onEntryFilled()`, unsubscribes in `clearSession()` and on SL fill
+- **Engine arming**: when `profitReached` conditions exist, `BuySellButtons` and `useQuickOrder` force the engine path (skip native brackets) so the price subscription is active
 
 Conditions are defined in the bracket preset UI and evaluated entirely client-side — they are NOT sent to the TopstepX API.
 
@@ -235,8 +255,8 @@ Managed by the Zustand store (not the engine itself):
 
 | Consumer | Usage |
 |----------|-------|
-| `BuySellButtons.tsx` | Uses native brackets for <= 1 TP; arms engine for 2+ TPs, confirms after, disarms on failure |
-| `useQuickOrder.ts` (+ button) | Same dual-path: native brackets or engine arming. Disarms on failure. Updates armed config on drag |
+| `BuySellButtons.tsx` | Uses native brackets for <= 1 TP; arms engine for 2+ TPs or `profitReached` conditions, confirms after, disarms on failure |
+| `useQuickOrder.ts` (+ button) | Same dual-path: native brackets or engine arming (forced for `profitReached`). Disarms on failure. Updates armed config on drag |
 | `OrderPanel.tsx` | Forwards every SignalR order event via `onOrderEvent()`, calls `clearSession()` on position close |
 | `PositionDisplay.tsx` | Calls `moveSLToBreakeven()` from the SL-to-BE button |
 | `useOverlayLabels.ts` | Calls `updateTPSize()` after +/- TP size redistribution to keep `normalizedTPs` in sync |
@@ -246,9 +266,9 @@ Managed by the Zustand store (not the engine itself):
 
 ## Tests
 
-`frontend/src/services/__tests__/bracketEngine.test.ts` — 20 tests using Vitest, mocking `orderService`, `showToast`, and `useStore`.
+`frontend/src/services/__tests__/bracketEngine.test.ts` — 25 tests using Vitest, mocking `orderService`, `showToast`, and `useStore`.
 
-Coverage: arm/confirm lifecycle, entry fill (long/short/buffered), SL placement failure + critical toast, TP size normalization, SL fill cancels TPs, TP fill reduces SL size, clearSession cancels orders, conditions (moveSLToBreakeven on TP fill), condition action failure toast, **native SL discovery** (from store, from event, resize on TP fill, discovery timeout warning).
+Coverage: arm/confirm lifecycle, entry fill (long/short/buffered), SL placement failure + critical toast, TP size normalization, SL fill cancels TPs, TP fill reduces SL size, clearSession cancels orders, conditions (moveSLToBreakeven on TP fill), condition action failure toast, **native SL discovery** (from store, from event, resize on TP fill, discovery timeout warning), **profitReached** (fires at threshold long/short, below-threshold no-op, one-shot behavior, unsubscribe on clearSession).
 
 ```bash
 cd frontend && npm test
