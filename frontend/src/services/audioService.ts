@@ -1,6 +1,6 @@
 /**
  * Audio notification service for order fill events.
- * Preloads .m4a voice clips from /sounds/ and exposes a simple play() API.
+ * Preloads .mp3 voice clips from /sounds/ and exposes a simple play() API.
  * Settings (enabled, volume) are persisted in localStorage.
  */
 
@@ -45,7 +45,7 @@ class AudioService {
   private preload(): void {
     const sounds: SoundName[] = ['order_filled', 'target_filled', 'stop_filled'];
     for (const name of sounds) {
-      const audio = new Audio(`/sounds/${name}.m4a`);
+      const audio = new Audio(`/sounds/${name}.mp3`);
       audio.preload = 'auto';
       audio.volume = this.settings.volume;
       this.audioElements.set(name, audio);

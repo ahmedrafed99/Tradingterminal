@@ -10,9 +10,9 @@ Located in `frontend/public/sounds/` (served at `/sounds/` by Vite):
 
 | File | Trigger |
 |------|---------|
-| `order_filled.m4a` | Entry order filled (market or limit) |
-| `target_filled.m4a` | Take-profit limit order filled |
-| `stop_filled.m4a` | Stop-loss order filled |
+| `order_filled.mp3` | Entry order filled (market or limit) |
+| `target_filled.mp3` | Take-profit limit order filled |
+| `stop_filled.mp3` | Stop-loss order filled |
 
 ---
 
@@ -21,7 +21,7 @@ Located in `frontend/public/sounds/` (served at `/sounds/` by Vite):
 **File:** `frontend/src/services/audioService.ts`
 
 Singleton `audioService` that:
-1. **Preloads** all three `.m4a` files as `HTMLAudioElement` instances on startup
+1. **Preloads** all three `.mp3` files as `HTMLAudioElement` instances on startup
 2. **Exposes** `play(name)` — resets `currentTime` and plays (silently catches autoplay blocks)
 3. **Persists** `enabled` (boolean) and `volume` (0–1) in `localStorage` key `sound-settings`
 
@@ -74,7 +74,7 @@ Controls:
 
 ## Adding New Sounds
 
-1. Drop a new `.m4a` file into `frontend/public/sounds/`
+1. Drop a new `.mp3` file into `frontend/public/sounds/`
 2. Add the filename (without extension) to the `SoundName` union type in `audioService.ts`
 3. Add a trigger call (`audioService.play('new_sound')`) at the appropriate event handler
 4. Add a row to the `SOUNDS` array in `SoundTab.tsx` for the test button
