@@ -150,7 +150,7 @@ export function TopBar() {
   const unrealizedPnl = upnlRef.current;
 
   return (
-    <header className="flex items-center h-10 bg-black border-b border-(--color-border) shrink-0">
+    <header className="flex items-center h-10 bg-(--color-panel) border-b border-(--color-border) shrink-0">
       {/* Left — account selector + privacy toggle */}
       <div className="flex items-center gap-2 w-48 shrink-0" style={{ marginLeft: '16px' }}>
         {accounts.length > 0 ? (
@@ -167,7 +167,7 @@ export function TopBar() {
             </button>
             {acctOpen && (
               <div
-                className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 py-1 animate-dropdown-in"
+                className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 py-1 animate-dropdown-in"
                 style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: 160 }}
               >
                 {accounts.map((a) => {

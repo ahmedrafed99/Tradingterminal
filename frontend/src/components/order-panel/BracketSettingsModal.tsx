@@ -107,7 +107,7 @@ export function BracketSettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setEditingPresetId(null)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-black border border-white/5 shadow-2xl overflow-hidden">
+    <Modal onClose={() => setEditingPresetId(null)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-panel) border border-white/5 shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-white/5" style={{ padding: '18px 24px' }}>
           <h2 className="text-sm font-semibold text-white">

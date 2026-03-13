@@ -50,7 +50,7 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
     <div ref={ref} className="relative flex-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-center gap-1 bg-black border border-(--color-border) rounded-md text-xs text-(--color-text) focus:outline-none hover:border-(--color-text-dim) transition-colors"
+        className="w-full flex items-center justify-center gap-1 bg-(--color-panel) border border-(--color-border) rounded-md text-xs text-(--color-text) focus:outline-none hover:border-(--color-text-dim) transition-colors"
         style={{ padding: '5px 6px' }}
       >
         <span>{current?.label ?? 'Minutes'}</span>
@@ -58,7 +58,7 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-1 w-full bg-black border border-(--color-border) rounded-md shadow-lg z-50 py-1 animate-dropdown-in"
+          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-panel) border border-(--color-border) rounded-md shadow-lg z-50 py-1 animate-dropdown-in"
           style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
         >
           {UNIT_OPTIONS.map((u) => (
@@ -145,7 +145,7 @@ function IndicatorsDropdown() {
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
+          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)', minWidth: 220 }}
         >
           {!editingVp ? (
@@ -476,7 +476,7 @@ export function ChartToolbar() {
   }
 
   return (
-    <div className="flex items-center gap-2 px-4 bg-black border-b border-(--color-border)" style={{ paddingTop: '7px', paddingBottom: '7px' }}>
+    <div className="flex items-center gap-2 px-4 bg-(--color-panel) border-b border-(--color-border)" style={{ paddingTop: '7px', paddingBottom: '7px' }}>
       <InstrumentSelectorPopover />
       <div className="w-px h-4 bg-(--color-border) mx-1" />
 
@@ -511,7 +511,7 @@ export function ChartToolbar() {
 
         {/* Dropdown menu */}
         {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 py-2 animate-dropdown-in"
+          <div className="absolute top-full left-0 mt-1 w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 py-2 animate-dropdown-in"
             style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }}
           >
             {/* Preset timeframes */}
@@ -560,7 +560,7 @@ export function ChartToolbar() {
                   value={customNumber}
                   onChange={(e) => setCustomNumber(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCustom(); }}
-                  className="w-10 bg-black border border-(--color-border) rounded-md text-xs text-(--color-text) text-center focus:outline-none focus:border-(--color-text-dim)"
+                  className="w-10 bg-(--color-panel) border border-(--color-border) rounded-md text-xs text-(--color-text) text-center focus:outline-none focus:border-(--color-text-dim)"
                   style={{ padding: '5px 4px' }}
                 />
                 <UnitDropdown value={customUnit} onChange={setCustomUnit} />
@@ -648,7 +648,7 @@ export function ChartToolbar() {
 
         {cameraOpen && (
           <div
-            className="absolute top-full right-0 mt-1.5 bg-black border border-(--color-border)/60 rounded-xl z-50 animate-dropdown-in"
+            className="absolute top-full right-0 mt-1.5 bg-(--color-panel) border border-(--color-border)/60 rounded-xl z-50 animate-dropdown-in"
             style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)', padding: '6px' }}
           >
             <button

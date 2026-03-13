@@ -275,7 +275,7 @@ export function TradesTab() {
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-black border-b border-(--color-border)">
+      <div className="sticky top-0 z-10 bg-(--color-panel) border-b border-(--color-border)">
         <div className="flex items-center h-8">
           <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '70%' }}>
             {([

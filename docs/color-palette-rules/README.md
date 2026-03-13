@@ -72,8 +72,9 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 ### Backgrounds
 | Token | Value | Usage |
 |-------|-------|-------|
-| `--color-bg` | `#131722` | Page background, chart canvas, dropdown backgrounds |
-| `--color-surface` | `#1e222d` | Modal panels, hover rows, card backgrounds |
+| `--color-bg` | `#131722` | Page background, chart canvas |
+| `--color-panel` | `#000000` | Panel backgrounds — order panel, top bar, bottom panel, toolbars, dropdowns |
+| `--color-surface` | `#111111` | Modal panels, hover rows, card backgrounds |
 | `--color-input` | `#111111` | Text inputs, search fields, spinners |
 | `--color-hover-row` | `#1e222d` | Dropdown item / list row hover |
 | `--color-hover-toolbar` | `#363a45` | Toolbar icon button hover |
@@ -91,6 +92,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | Token | Value | Usage |
 |-------|-------|-------|
 | `--color-border` | `#2a2e39` | All borders — modal edges, dividers, table borders |
+| `--color-separator` | `#000000` | Bottom panel resize handle / separator bar |
 | `--color-focus-ring` | `#1a3a6e` | Focus ring on inputs and controls |
 
 ### Accents

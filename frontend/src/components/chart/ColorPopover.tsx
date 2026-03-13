@@ -73,7 +73,7 @@ export function ColorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50"
+      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ padding: 10, width: 252 }}
       onClick={(e) => e.stopPropagation()}
     >

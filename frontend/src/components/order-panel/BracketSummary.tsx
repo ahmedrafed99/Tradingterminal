@@ -58,7 +58,7 @@ export function BracketSummary() {
         </button>
 
         {open && (
-          <div className="absolute z-50 left-0 right-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ padding: '4px' }}>
+          <div className="absolute z-50 left-0 right-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ padding: '4px' }}>
             {/* None option */}
             <button
               onClick={() => { setActivePresetId(null); setOpen(false); }}

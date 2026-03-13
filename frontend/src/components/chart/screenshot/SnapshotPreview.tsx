@@ -89,7 +89,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
       onClose={onClose}
       backdropClassName="animate-backdrop-in"
       backdropStyle={{ backdropFilter: 'blur(4px)' }}
-      className="bg-black border border-(--color-border)/60 rounded-xl flex flex-col animate-modal-in"
+      className="bg-(--color-panel) border border-(--color-border)/60 rounded-xl flex flex-col animate-modal-in"
       style={{
         maxWidth: '75vw',
         maxHeight: '82vh',

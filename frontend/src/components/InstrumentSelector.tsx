@@ -89,7 +89,7 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
 
       {open && (
         <div
-          className="absolute top-full mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-2 animate-dropdown-in"
+          className="absolute top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-2 animate-dropdown-in"
           style={{
             boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
             ...dropdownStyle,

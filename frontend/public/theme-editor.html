@@ -695,6 +695,7 @@
     const TOKEN_GROUPS = [
       { title: 'Backgrounds', tokens: [
         { name: '--color-bg', default: '#131722' },
+        { name: '--color-panel', default: '#000000' },
         { name: '--color-surface', default: '#1e222d' },
         { name: '--color-input', default: '#111111' },
         { name: '--color-hover-row', default: '#1e222d' },
@@ -709,6 +710,7 @@
       ]},
       { title: 'Borders', tokens: [
         { name: '--color-border', default: '#2a2e39' },
+        { name: '--color-separator', default: '#000000' },
         { name: '--color-focus-ring', default: '#1a3a6e' },
       ]},
       { title: 'Accents', tokens: [
@@ -1018,13 +1020,27 @@
       badge.classList.toggle('visible', count > 0);
     }
 
-    function findTokensForHex(hex) {
+    function findTokensForHex(hex, el) {
       if (!hex) return [];
       const matches = [];
       for (const [name, value] of Object.entries(currentValues)) {
         if (value.toLowerCase() === hex.toLowerCase()) matches.push(name);
       }
-      return matches;
+      if (matches.length === 0) return [];
+      if (!el) return matches;
+      // Check the element (and a few ancestors) for a class/style referencing a token.
+      // Tailwind classes like bg-(--color-border) contain the token name verbatim.
+      let node = el;
+      for (let i = 0; i < 3 && node; i++) {
+        const markup = (node.className || '') + ' ' + (node.getAttribute('style') || '');
+        const referenced = matches.filter(name => markup.includes(name));
+        if (referenced.length > 0) return referenced;
+        node = node.parentElement;
+      }
+      // If only one token matches, it's unambiguous — show it
+      if (matches.length === 1) return matches;
+      // Multiple tokens share this hex and none are referenced — don't guess
+      return [];
     }
 
     // ═══ Apply to File (via Vite dev server plugin) ═══
@@ -1096,26 +1112,37 @@
         const isTarget = depth === 0;
         const suffix = isTarget ? '' : ` (${current.tagName.toLowerCase()})`;
 
+        // Collect bg — stop walking for bg once we find the first opaque one,
+        // since parent bgs are hidden behind it visually.
         const bg = rgbToHex(cs.backgroundColor);
-        if (bg && bg !== '#000000' && !seen.has('bg:' + bg)) {
+        const bgAlreadyFound = Array.from(seen).some(k => k.startsWith('bg:'));
+        if (bg && !bgAlreadyFound) {
           seen.add('bg:' + bg);
-          props.push({ prop: 'bg' + suffix, hex: bg });
+          props.push({ prop: 'bg' + suffix, hex: bg, el: current });
         }
 
         const color = rgbToHex(cs.color);
         if (color && !seen.has('text:' + color)) {
-          const hasText = Array.from(current.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
-          if (isTarget || hasText) {
+          // Only show text color if this element (or its subtree for the target) has visible text
+          const hasDirectText = Array.from(current.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
+          const hasSubtreeText = isTarget && current.textContent?.trim();
+          if (hasDirectText || hasSubtreeText) {
             seen.add('text:' + color);
-            props.push({ prop: 'text' + suffix, hex: color });
+            props.push({ prop: 'text' + suffix, hex: color, el: current });
           }
         }
 
-        if (isTarget && parseFloat(cs.borderTopWidth) > 0) {
-          const bc = rgbToHex(cs.borderTopColor);
-          if (bc && !seen.has('border:' + bc)) {
-            seen.add('border:' + bc);
-            props.push({ prop: 'border', hex: bc });
+        if (isTarget) {
+          // Check all four border sides
+          for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
+            if (parseFloat(cs[`border${side}Width`]) > 0) {
+              const bc = rgbToHex(cs[`border${side}Color`]);
+              if (bc && !seen.has('border:' + bc)) {
+                seen.add('border:' + bc);
+                props.push({ prop: 'border', hex: bc, el: current });
+              }
+              break; // one border color is enough
+            }
           }
         }
 
@@ -1138,7 +1165,7 @@
         html += '<div class="inspect-popover-empty">No color tokens detected</div>';
       } else {
         for (const c of colors) {
-          const tokens = findTokensForHex(c.hex);
+          const tokens = findTokensForHex(c.hex, c.el);
           if (tokens.length > 0) {
             for (const token of tokens) {
               html += `<div class="inspect-prop-row">

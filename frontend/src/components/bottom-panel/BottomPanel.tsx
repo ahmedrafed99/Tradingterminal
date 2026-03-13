@@ -17,7 +17,7 @@ export function BottomPanel() {
   const conditions = useStore((s) => s.conditions);
 
   return (
-    <div className="flex flex-col h-full bg-black">
+    <div className="flex flex-col h-full bg-(--color-panel)">
       {/* Tab bar */}
       <div className="flex items-center h-10 shrink-0 pr-4 gap-3" style={{ marginLeft: 16 }}>
         <TabButton

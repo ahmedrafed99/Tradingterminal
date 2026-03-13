@@ -45,7 +45,7 @@ function VerticalSeparator({
   return (
     <div
       className={`h-1 cursor-row-resize flex-shrink-0 transition-colors ${
-        dragging ? 'bg-(--color-accent)' : 'bg-black hover:bg-(--color-text-dim)'
+        dragging ? 'bg-(--color-accent)' : 'bg-(--color-separator) hover:bg-(--color-text-dim)'
       }`}
       onMouseDown={(e) => { e.preventDefault(); setDragging(true); }}
     />

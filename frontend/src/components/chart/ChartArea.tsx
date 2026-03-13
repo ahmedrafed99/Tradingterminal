@@ -293,7 +293,7 @@ function DraggableSeparator({
   return (
     <div
       className={`w-1 cursor-col-resize flex-shrink-0 transition-colors ${
-        dragging ? 'bg-(--color-accent)' : 'bg-black hover:bg-(--color-text-dim)'
+        dragging ? 'bg-(--color-accent)' : 'bg-(--color-panel) hover:bg-(--color-text-dim)'
       }`}
       onMouseDown={(e) => {
         e.preventDefault();

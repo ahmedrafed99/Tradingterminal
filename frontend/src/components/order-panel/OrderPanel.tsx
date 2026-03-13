@@ -396,7 +396,7 @@ export function OrderPanel() {
 
   return (
     <div
-      className="flex flex-col bg-black border-r border-(--color-border) overflow-y-auto"
+      className="flex flex-col bg-(--color-panel) border-r border-(--color-border) overflow-y-auto"
       style={{ width: 240, minWidth: 240, padding: 12 }}
     >
       <div className="flex flex-col" style={{ gap: 20 }}>

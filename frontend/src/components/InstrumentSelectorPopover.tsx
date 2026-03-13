@@ -93,7 +93,7 @@ export function InstrumentSelectorPopover() {
       {/* Popover */}
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
+          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
           style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)', width: 380 }}
         >
           {/* Search input */}

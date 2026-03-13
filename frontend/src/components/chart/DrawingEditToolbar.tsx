@@ -404,7 +404,7 @@ function StrokePopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-1/2 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50"
+      className="absolute top-full left-1/2 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ transform: 'translateX(-50%)', padding: '6px 4px', width: 120 }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -528,7 +528,7 @@ function TemplatePopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-black border border-(--color-border) rounded-lg shadow-lg z-50"
+      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50"
       style={{ padding: '4px 0', width: 220, maxHeight: 300, overflowY: 'auto', overflowX: 'hidden' }}
       onClick={(e) => e.stopPropagation()}
     >
