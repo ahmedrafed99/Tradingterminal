@@ -31,8 +31,8 @@ export function DatabaseTab() {
     try {
       const s = await databaseService.getStatus();
       setStatus(s);
-    } catch {
-      // silent
+    } catch (err) {
+      console.error('[DatabaseTab] Status fetch failed:', err instanceof Error ? err.message : err);
     }
   }, []);
 
@@ -56,8 +56,8 @@ export function DatabaseTab() {
             refreshStatus();
           }
         }
-      } catch {
-        // silent
+      } catch (err) {
+        console.error('[DatabaseTab] Progress poll failed:', err instanceof Error ? err.message : err);
       }
     }, POLL_INTERVAL);
   }, [refreshStatus]);
@@ -77,8 +77,8 @@ export function DatabaseTab() {
           setProgress(p as FetchProgress);
           startPolling();
         }
-      } catch {
-        // silent
+      } catch (err) {
+        console.error('[DatabaseTab] Initial progress check failed:', err instanceof Error ? err.message : err);
       }
     })();
     return () => stopPolling();
@@ -105,14 +105,18 @@ export function DatabaseTab() {
   }
 
   async function handleCancel() {
-    try { await databaseService.cancelFetch(); } catch { /* silent */ }
+    try { await databaseService.cancelFetch(); } catch (err) {
+      console.error('[DatabaseTab] Cancel failed:', err instanceof Error ? err.message : err);
+    }
   }
 
   async function handleDelete(contractId: string) {
     try {
       await databaseService.deleteContract(contractId);
       refreshStatus();
-    } catch { /* silent */ }
+    } catch (err) {
+      console.error('[DatabaseTab] Delete failed:', err instanceof Error ? err.message : err);
+    }
   }
 
   function formatBytes(bytes: number): string {

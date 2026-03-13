@@ -43,7 +43,9 @@ export function ChartArea() {
         const active = contracts.find((c) => c.activeContract);
         if (active) setSecondContract(active);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[ChartArea] Auto-load MNQ failed:', err instanceof Error ? err.message : err);
+      });
   }, [dualChart, secondContract, setSecondContract]);
 
   // -- Crosshair sync between charts --

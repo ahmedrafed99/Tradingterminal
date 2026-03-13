@@ -218,7 +218,9 @@ export async function start(): Promise<void> {
 
   // Do an initial poll immediately for any bars we may have missed
   const allTimeframes = new Set(Object.keys(TIMEFRAME_MAP));
-  pollTimeframes(allTimeframes).catch(() => {});
+  pollTimeframes(allTimeframes).catch((err) => {
+    console.error('[barAggregator] Initial poll failed:', err instanceof Error ? err.message : err);
+  });
 
   scheduleNext();
   console.log('[barAggregator] Started (candle-boundary aligned polling)');

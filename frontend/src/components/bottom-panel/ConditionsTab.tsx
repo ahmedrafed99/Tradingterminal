@@ -76,7 +76,9 @@ export function ConditionsTab() {
   // SSE connection
   useEffect(() => {
     // Initial fetch
-    conditionService.getAll(serverUrl).then(setConditions).catch(() => {});
+    conditionService.getAll(serverUrl).then(setConditions).catch((err) => {
+      console.error('[ConditionsTab] Initial fetch failed:', err instanceof Error ? err.message : err);
+    });
 
     // SSE stream
     const es = conditionService.subscribe(serverUrl, {
@@ -109,8 +111,8 @@ export function ConditionsTab() {
           ? await conditionService.pause(serverUrl, condition.id)
           : await conditionService.resume(serverUrl, condition.id);
       upsertCondition(updated);
-    } catch {
-      // toast handled by SSE
+    } catch (err) {
+      console.warn('[ConditionsTab] Pause/resume failed:', err instanceof Error ? err.message : err);
     } finally {
       setActionId(null);
     }
@@ -121,8 +123,8 @@ export function ConditionsTab() {
     try {
       await conditionService.remove(serverUrl, id);
       removeCondition(id);
-    } catch {
-      // stay in list on failure
+    } catch (err) {
+      console.error('[ConditionsTab] Delete failed:', err instanceof Error ? err.message : err);
     } finally {
       setActionId(null);
     }

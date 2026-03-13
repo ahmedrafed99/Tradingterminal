@@ -74,8 +74,8 @@ export default function App() {
       .then((status) => {
         useStore.getState().setConnected(status.connected, status.baseUrl);
       })
-      .catch(() => {
-        // Backend might not be running yet — ignore
+      .catch((err) => {
+        console.warn('[App] Status check failed:', err instanceof Error ? err.message : err);
       });
   }, []);
 
@@ -88,7 +88,9 @@ export default function App() {
         const active = contracts.find((c) => c.activeContract);
         if (active) useStore.getState().setContract(active);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[App] Auto-load NQ failed:', err instanceof Error ? err.message : err);
+      });
   }, [connected, contract]);
 
   // Auto-load NQ into order panel when connected and no order contract selected
@@ -100,7 +102,9 @@ export default function App() {
         const active = contracts.find((c) => c.activeContract);
         if (active) useStore.getState().setOrderContract(active);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[App] Auto-load order contract failed:', err instanceof Error ? err.message : err);
+      });
   }, [connected, settingsHydrated, orderContract]);
 
   // Fetch session trades on connect (for TopBar RPNL) — runs regardless of bottom panel tab
@@ -114,7 +118,9 @@ export default function App() {
       .then((trades) => {
         if (!cancelled) useStore.getState().setSessionTrades(trades);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[App] Session trades fetch failed:', err instanceof Error ? err.message : err);
+      });
     return () => { cancelled = true; };
   }, [connected, activeAccountId]);
 
@@ -131,7 +137,9 @@ export default function App() {
         tradeService
           .searchTrades(state.activeAccountId, sessionStart)
           .then((trades) => state.setSessionTrades(trades))
-          .catch(() => {});
+          .catch((err) => {
+            console.error('[App] Trade event re-fetch failed:', err instanceof Error ? err.message : err);
+          });
       }, 500);
     };
     realtimeService.onTrade(handler);

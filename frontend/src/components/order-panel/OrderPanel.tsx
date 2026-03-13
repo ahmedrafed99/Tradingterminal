@@ -58,8 +58,8 @@ async function inferPositionsFromOrders(accountId: number, orders: Order[]) {
   let trades;
   try {
     trades = await tradeService.searchTrades(accountId, getCmeSessionStart());
-  } catch {
-    if (import.meta.env.DEV) console.warn('[OrderPanel] Could not fetch trades for position inference');
+  } catch (err) {
+    console.warn('[OrderPanel] Could not fetch trades for position inference:', err instanceof Error ? err.message : err);
     return;
   }
 
@@ -125,7 +125,9 @@ function hydratePositionsAndOrders(accountId: number) {
   positionService.searchOpenPositions(accountId).then((positions) => {
     const st = useStore.getState();
     for (const pos of positions) st.upsertPosition(pos);
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[OrderPanel] Position REST fetch failed:', err instanceof Error ? err.message : err);
+  });
 
   // Fetch orders, then infer positions if needed
   orderService.searchOpenOrders(accountId).then(async (orders) => {
@@ -140,7 +142,7 @@ function hydratePositionsAndOrders(accountId: number) {
       await inferPositionsFromOrders(accountId, orders);
     }
   }).catch((err) => {
-    if (import.meta.env.DEV) console.warn('[OrderPanel] Order REST fetch failed:', err);
+    console.warn('[OrderPanel] Order REST fetch failed:', err instanceof Error ? err.message : err);
   });
 }
 
@@ -218,7 +220,9 @@ export function OrderPanel() {
             orderService.searchOpenOrders(acctId).then((orders) => {
               const st = useStore.getState();
               for (const o of orders) st.upsertOrder(o);
-            }).catch(() => {});
+            }).catch((err) => {
+              console.error('[OrderPanel] Order refresh failed:', err instanceof Error ? err.message : err);
+            });
           }, 1500);
         }
       }
@@ -234,7 +238,9 @@ export function OrderPanel() {
         if (qo && acctId) {
           if (order.customTag.endsWith('-SL') && order.stopPrice != null && qo.slPrice != null
               && Math.abs(qo.slPrice - order.stopPrice) > 0.001) {
-            orderService.modifyOrder({ accountId: acctId, orderId: order.id, stopPrice: qo.slPrice }).catch(() => {});
+            orderService.modifyOrder({ accountId: acctId, orderId: order.id, stopPrice: qo.slPrice }).catch((err) => {
+              console.error('[OrderPanel] SL bracket correction failed:', err instanceof Error ? err.message : err);
+            });
             // Use the desired price in the store immediately so chart doesn't flicker
             upsertOrder({
               id: order.id, contractId: order.contractId, type: order.type,
@@ -245,7 +251,9 @@ export function OrderPanel() {
           }
           if (order.customTag.endsWith('-TP') && order.limitPrice != null && qo.tpPrices[0] != null
               && Math.abs(qo.tpPrices[0] - order.limitPrice) > 0.001) {
-            orderService.modifyOrder({ accountId: acctId, orderId: order.id, limitPrice: qo.tpPrices[0] }).catch(() => {});
+            orderService.modifyOrder({ accountId: acctId, orderId: order.id, limitPrice: qo.tpPrices[0] }).catch((err) => {
+              console.error('[OrderPanel] TP bracket correction failed:', err instanceof Error ? err.message : err);
+            });
             upsertOrder({
               id: order.id, contractId: order.contractId, type: order.type,
               side: order.side, size: order.size, status: order.status,
@@ -379,7 +387,9 @@ export function OrderPanel() {
       includePartialBar: true,
     }).then((bars) => {
       if (bars.length > 0) setLastPrice(bars[bars.length - 1].c);
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[OrderPanel] Last price seed failed:', err instanceof Error ? err.message : err);
+    });
   }, [orderContract, setLastPrice]);
 
   // Update lastPrice from quote stream for P&L calculation

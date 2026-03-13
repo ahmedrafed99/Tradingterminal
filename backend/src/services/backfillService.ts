@@ -325,10 +325,14 @@ async function autoSyncAll(): Promise<void> {
 
 export function startAutoSync(): void {
   // Initial sync after a short delay (let auth settle)
-  setTimeout(() => { autoSyncAll().catch(() => {}); }, 10_000);
+  setTimeout(() => { autoSyncAll().catch((err) => {
+    console.error('[auto-sync] Initial sync failed:', err instanceof Error ? err.message : err);
+  }); }, 10_000);
 
   autoSyncTimer = setInterval(() => {
-    autoSyncAll().catch(() => {});
+    autoSyncAll().catch((err) => {
+      console.error('[auto-sync] Periodic sync failed:', err instanceof Error ? err.message : err);
+    });
   }, AUTO_SYNC_INTERVAL);
 
   console.log('[auto-sync] Enabled (every 30 minutes)');

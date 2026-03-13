@@ -93,7 +93,9 @@ export function TopBar() {
   // Reload accounts when connection state becomes true
   useEffect(() => {
     if (connected) {
-      accountService.searchAccounts().then((a) => useStore.getState().setAccounts(a)).catch(() => {});
+      accountService.searchAccounts().then((a) => useStore.getState().setAccounts(a)).catch((err) => {
+        console.error('[TopBar] Account search failed:', err instanceof Error ? err.message : err);
+      });
     } else {
       useStore.getState().setAccounts([]);
     }

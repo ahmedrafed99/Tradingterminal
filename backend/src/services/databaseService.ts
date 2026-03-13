@@ -293,10 +293,14 @@ let autoBackupTimer: ReturnType<typeof setInterval> | null = null;
 
 export function startAutoBackup(): void {
   // Run once on startup (after a short delay)
-  setTimeout(() => { autoBackup().catch(() => {}); }, 5000);
+  setTimeout(() => { autoBackup().catch((err) => {
+    console.error('[database] Initial auto-backup failed:', err instanceof Error ? err.message : err);
+  }); }, 5000);
 
   autoBackupTimer = setInterval(() => {
-    autoBackup().catch(() => {});
+    autoBackup().catch((err) => {
+      console.error('[database] Periodic auto-backup failed:', err instanceof Error ? err.message : err);
+    });
   }, AUTO_BACKUP_INTERVAL);
 
   console.log('[database] Auto-backup enabled (daily, keep last 7)');

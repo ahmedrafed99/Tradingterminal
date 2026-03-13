@@ -70,7 +70,9 @@ export function useSettingsSync() {
         } else {
           // File is empty (first run) — seed it with current store state
           // so localStorage data gets backed up immediately
-          persistenceService.saveSettings(getPersistedState()).catch(() => {});
+          persistenceService.saveSettings(getPersistedState()).catch((err) => {
+            console.warn('[useSettingsSync] Initial settings seed failed:', err instanceof Error ? err.message : err);
+          });
         }
         useStore.setState({ settingsHydrated: true });
         // Snapshot what we just loaded so the save handler can skip no-op saves
@@ -78,8 +80,8 @@ export function useSettingsSync() {
         // Delay enabling saves so the hydration setState doesn't trigger an immediate save-back
         requestAnimationFrame(() => { hydrated.current = true; });
       })
-      .catch(() => {
-        // Backend might not be running — fall back to localStorage
+      .catch((err) => {
+        console.warn('[useSettingsSync] Load failed, falling back to localStorage:', err instanceof Error ? err.message : err);
         useStore.setState({ settingsHydrated: true });
         lastSavedSnapshot = JSON.stringify(getPersistedState());
         requestAnimationFrame(() => { hydrated.current = true; });
@@ -97,8 +99,8 @@ export function useSettingsSync() {
         const snapshot = JSON.stringify(data);
         if (snapshot === lastSavedSnapshot) return; // nothing changed — skip
         lastSavedSnapshot = snapshot;
-        persistenceService.saveSettings(data).catch(() => {
-          // Silent fail — localStorage still works as fallback
+        persistenceService.saveSettings(data).catch((err) => {
+          console.warn('[useSettingsSync] Save failed:', err instanceof Error ? err.message : err);
         });
       }, 500);
     });
@@ -119,7 +121,9 @@ export function useSettingsSync() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data),
           keepalive: true,
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[useSettingsSync] Unload flush failed:', err instanceof Error ? err.message : err);
+        });
       }
     }
     window.addEventListener('beforeunload', flushBeforeUnload);

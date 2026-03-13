@@ -64,7 +64,9 @@ export function TradesTab() {
         tradesCache.set(cacheKey, trades);
         setDisplayTrades(trades);
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[TradesTab] Trades fetch failed:', err instanceof Error ? err.message : err);
+      });
     return () => { cancelled = true; };
   }, [connected, activeAccountId, tradesDatePreset]);
 
@@ -92,7 +94,9 @@ export function TradesTab() {
     ).then((results) => {
       if (cancelled) return;
       setPresetCounts(Object.fromEntries(results));
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[TradesTab] Preset counts fetch failed:', err instanceof Error ? err.message : err);
+    });
 
     return () => { cancelled = true; };
   }, [connected, activeAccountId, displayTrades]);
@@ -117,7 +121,9 @@ export function TradesTab() {
             tradesCache.set(`${state.activeAccountId}:${state.tradesDatePreset}`, trades);
             setDisplayTrades(trades);
           })
-          .catch(() => {});
+          .catch((err) => {
+            console.error('[TradesTab] Trade event re-fetch failed:', err instanceof Error ? err.message : err);
+          });
       }, 500);
     };
     realtimeService.onTrade(handler);
