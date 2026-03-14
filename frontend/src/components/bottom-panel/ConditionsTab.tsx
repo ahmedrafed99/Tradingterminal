@@ -175,7 +175,7 @@ export function ConditionsTab() {
       {filterOpen && (
         <div
           className="absolute left-1/2 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg z-50"
-          style={{ background: '#000', minWidth: 120, transform: 'translateX(-50%)' }}
+          style={{ background: 'var(--color-panel)', minWidth: 120, transform: 'translateX(-50%)' }}
         >
           {ALL_STATUSES.map((s) => {
             const active = statusFilter.has(s);

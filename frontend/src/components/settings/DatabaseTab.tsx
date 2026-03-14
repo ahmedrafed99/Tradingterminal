@@ -8,7 +8,7 @@ import {
 
 const POLL_INTERVAL = 1500;
 const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider';
-const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
+const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function DatabaseTab() {
   const { contract } = useStore();
@@ -168,14 +168,14 @@ export function DatabaseTab() {
           </div>
 
           {status?.contracts?.length ? (
-            <div className="rounded-lg overflow-hidden border border-white/[0.06]">
+            <div className="rounded-lg overflow-hidden border border-(--color-border)/30">
               {status.contracts.map((c, i) => (
                 <div
                   key={c.contractId}
-                  className="group/row flex items-center justify-between transition-colors hover:bg-white/[0.03]"
+                  className="group/row flex items-center justify-between transition-colors hover:bg-(--color-hover-row)/30"
                   style={{
                     padding: '10px 12px',
-                    borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : undefined,
+                    borderTop: i > 0 ? '1px solid var(--color-border)' : undefined,
                   }}
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
@@ -205,7 +205,7 @@ export function DatabaseTab() {
             </div>
           ) : (
             <div
-              className="text-xs text-center rounded-lg border border-white/[0.06] text-(--color-text-dim)"
+              className="text-xs text-center rounded-lg border border-(--color-border)/30 text-(--color-text-dim)"
               style={{ padding: '16px 12px' }}
             >
               No data stored yet
@@ -224,7 +224,7 @@ export function DatabaseTab() {
             <button
               onClick={handleSync}
               disabled={isFetching || loading || !contract || !hasData}
-              className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+              className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
               style={{ padding: '7px 18px' }}
             >
               {isFetching ? 'Syncing...' : 'Sync Now'}
@@ -260,7 +260,7 @@ export function DatabaseTab() {
             {/* Progress bar */}
             <div
               className="w-full overflow-hidden rounded-full"
-              style={{ height: 4, marginBottom: 8, background: 'rgba(255,255,255,0.05)' }}
+              style={{ height: 4, marginBottom: 8, background: 'var(--color-input)' }}
             >
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
@@ -324,7 +324,7 @@ export function DatabaseTab() {
               <button
                 onClick={handleBackup}
                 disabled={backupLoading || !hasData}
-                className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
+                className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
                 style={{ padding: '7px 18px', whiteSpace: 'nowrap' }}
               >
                 {backupLoading ? 'Saving...' : 'Save Backup'}

@@ -517,7 +517,7 @@ function PreviewToggle() {
             style={{
               padding: '0 6px',
               background: previewSide === OrderSide.Buy ? 'var(--color-buy)' : 'var(--color-input)',
-              color: previewSide === OrderSide.Buy ? '#fff' : 'var(--color-text-muted)',
+              color: previewSide === OrderSide.Buy ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
             }}
           >
             Long
@@ -528,7 +528,7 @@ function PreviewToggle() {
             style={{
               padding: '0 6px',
               background: previewSide === OrderSide.Sell ? 'var(--color-sell)' : 'var(--color-input)',
-              color: previewSide === OrderSide.Sell ? '#fff' : 'var(--color-text-muted)',
+              color: previewSide === OrderSide.Sell ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
             }}
           >
             Short

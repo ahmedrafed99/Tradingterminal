@@ -116,7 +116,7 @@ export function DrawingToolbar() {
       {/* Tool buttons — expand upward above the toggle button */}
       {showExpanded && (
         <div
-          className={`flex flex-col bg-[#000000] border border-(--color-border) rounded-r-md overflow-hidden ${
+          className={`flex flex-col bg-(--color-panel) border border-(--color-border) rounded-r-md overflow-hidden ${
             closing ? 'animate-toolbar-left-out' : 'animate-toolbar-left'
           }`}
           style={{ padding: '4px 0', marginBottom: 4 }}

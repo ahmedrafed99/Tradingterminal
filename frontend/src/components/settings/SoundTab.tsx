@@ -95,7 +95,7 @@ export function SoundTab() {
             <span className={SECTION_TITLE}>Voice Lines</span>
           </div>
 
-          <div className="rounded-lg overflow-hidden border border-white/[0.06] bg-(--color-input)">
+          <div className="rounded-lg overflow-hidden border border-(--color-border)/30 bg-(--color-input)">
             {SOUNDS.map((s, i) => (
               <SoundCategory
                 key={s.name}
@@ -148,13 +148,13 @@ function SoundCategory({
 
   return (
     <div
-      style={{ borderTop: !isFirst ? '1px solid rgba(255,255,255,0.06)' : undefined }}
+      style={{ borderTop: !isFirst ? '1px solid var(--color-border)' : undefined }}
     >
       {/* Header row */}
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between transition-colors hover:bg-white/[0.03] cursor-pointer"
+        className="w-full flex items-center justify-between transition-colors hover:bg-(--color-hover-row)/30 cursor-pointer"
         style={{ padding: '10px 12px' }}
       >
         <div className="text-left">
@@ -209,7 +209,7 @@ function SoundCategory({
                       audioService.playClip(name, idx);
                       if (!wasEnabled) audioService.setEnabled(false);
                     }}
-                    className="rounded transition-colors hover:bg-white/[0.08]"
+                    className="rounded transition-colors hover:bg-(--color-hover-toolbar)/30"
                     style={{ padding: '3px 5px' }}
                     title="Play"
                   >
@@ -222,7 +222,7 @@ function SoundCategory({
                     <button
                       type="button"
                       onClick={() => audioService.removeClip(name, clip.id!)}
-                      className="rounded transition-colors hover:bg-white/[0.08]"
+                      className="rounded transition-colors hover:bg-(--color-hover-toolbar)/30"
                       style={{ padding: '3px 5px' }}
                       title="Remove"
                     >
@@ -254,7 +254,7 @@ function SoundCategory({
             className="w-full rounded-lg border border-dashed transition-colors cursor-pointer"
             style={{
               padding: '10px 0',
-              borderColor: dragOver ? 'var(--color-accent)' : 'rgba(255,255,255,0.1)',
+              borderColor: dragOver ? 'var(--color-accent)' : 'var(--color-border)',
               background: dragOver ? 'rgba(91,141,239,0.08)' : 'transparent',
             }}
           >

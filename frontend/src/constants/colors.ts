@@ -19,9 +19,11 @@ export const COLOR_SELL = v('--color-sell');
 // ── Accent ──
 export const COLOR_ACCENT = v('--color-accent');
 export const COLOR_ACCENT_HOVER = v('--color-accent-hover');
+export const COLOR_ACCENT_TEXT = v('--color-accent-text');
 
 // ── Text ──
 export const COLOR_TEXT = v('--color-text');
+export const COLOR_TEXT_BRIGHT = v('--color-text-bright');
 export const COLOR_TEXT_MUTED = v('--color-text-muted');
 export const COLOR_TEXT_DIM = v('--color-text-dim');
 export const COLOR_TEXT_MEDIUM = v('--color-text-medium');

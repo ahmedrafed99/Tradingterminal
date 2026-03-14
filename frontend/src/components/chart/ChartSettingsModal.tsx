@@ -224,7 +224,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
     <Modal onClose={handleCancel} className="bg-(--color-surface) border border-(--color-border) rounded-lg" style={{ width: 520, maxHeight: '80vh', fontFamily: FONT, overflow: 'visible' }}>
       {/* Title bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--color-border)' }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>Settings</span>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-bright)' }}>Settings</span>
         <button
           onClick={handleCancel}
           style={{
@@ -237,7 +237,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
             padding: '0 2px',
             transition: 'color 0.15s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
         >
           &times;
@@ -260,7 +260,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
                 padding: '8px 16px',
                 background: category === cat.id ? 'var(--color-border)' : 'transparent',
                 border: 'none',
-                color: category === cat.id ? '#fff' : 'var(--color-text-muted)',
+                color: category === cat.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
                 fontSize: 13,
                 fontFamily: FONT,
                 cursor: 'pointer',
@@ -323,7 +323,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
               borderRadius: 4,
               transition: 'color 0.15s',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = '#fff'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
           >
             Cancel
@@ -333,7 +333,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
             style={{
               background: 'var(--color-accent-hover)',
               border: 'none',
-              color: '#fff',
+              color: 'var(--color-text-bright)',
               fontSize: 13,
               fontFamily: FONT,
               cursor: 'pointer',

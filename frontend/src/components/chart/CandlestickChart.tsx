@@ -363,7 +363,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
               }}
             >
               <span data-qo-text style={{ padding: '0 6px', background: 'var(--color-label-bg)', color: 'var(--color-label-text)' }} />
-              <span data-qo-size style={{ padding: '0 6px', borderLeft: '1px solid #000' }} />
+              <span data-qo-size style={{ padding: '0 6px', borderLeft: '1px solid var(--color-separator)' }} />
             </div>
             <div
               data-qo-plus

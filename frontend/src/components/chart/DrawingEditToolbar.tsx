@@ -186,7 +186,7 @@ function TextPopover({
     <div
       ref={ref}
       className="absolute top-full left-0 mt-1 border border-(--color-border) rounded-lg shadow-lg z-50"
-      style={{ padding: 12, width: 290, background: '#000' }}
+      style={{ padding: 12, width: 290, background: 'var(--color-panel)' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Row 1: Color swatch + Font size + Bold + Italic */}
@@ -706,7 +706,7 @@ export function DrawingEditToolbar({
         top: '10%',
         padding: '4px 6px',
         gap: 4,
-        background: '#000000',
+        background: 'var(--color-panel)',
         border: '1px solid var(--color-border)',
         borderRadius: 8,
         boxShadow: '0 4px 16px rgba(0,0,0,0.4)',

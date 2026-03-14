@@ -18,8 +18,8 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
           onChange={(e) => onChange(e.target.checked)}
           className="sr-only peer"
         />
-        <div className="w-8 h-[18px] rounded-full bg-(--color-border) peer-checked:bg-[#1e3a5f] transition-colors" />
-        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-(--color-text-muted) peer-checked:bg-[#4a9eff] peer-checked:translate-x-[14px] transition-all" />
+        <div className="w-8 h-[18px] rounded-full bg-(--color-border) peer-checked:bg-(--color-focus-ring) transition-colors" />
+        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-(--color-text-muted) peer-checked:bg-(--color-accent) peer-checked:translate-x-[14px] transition-all" />
       </div>
       <span className="text-xs text-(--color-text-medium) group-hover:text-(--color-text) transition-colors">
         {label}

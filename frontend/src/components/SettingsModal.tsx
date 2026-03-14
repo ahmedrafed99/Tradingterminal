@@ -16,7 +16,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'sound', label: 'Sound' },
 ];
 
-const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
+const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
   const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();
@@ -69,12 +69,12 @@ export function SettingsModal() {
   return (
     <Modal onClose={() => setSettingsOpen(false)} backdropClassName="!items-start" className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden" style={{ marginTop: '8vh' }}>
         {/* Header */}
-        <div className="border-b border-white/5" style={{ padding: '18px 24px 0 24px' }}>
+        <div className="border-b border-(--color-border)/30" style={{ padding: '18px 24px 0 24px' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
             <h2 className="text-sm font-semibold text-white">Settings</h2>
             <button
               onClick={() => setSettingsOpen(false)}
-              className="flex items-center justify-center rounded-full hover:bg-white/5 transition-colors"
+              className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
               style={{ width: 32, height: 32 }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -193,7 +193,7 @@ export function SettingsModal() {
               </div>
 
               {/* Footer */}
-              <div className="flex justify-between items-center border-t border-white/5" style={{ padding: '16px 24px' }}>
+              <div className="flex justify-between items-center border-t border-(--color-border)/30" style={{ padding: '16px 24px' }}>
                 <div />
                 <div className="flex items-center" style={{ gap: 10 }}>
                   <button
@@ -217,7 +217,7 @@ export function SettingsModal() {
                     <button
                       onClick={handleConnect}
                       disabled={loading || !userName || !apiKey}
-                      className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+                      className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
                       style={{ padding: '8px 24px' }}
                     >
                       {loading ? 'Connecting...' : 'Connect'}

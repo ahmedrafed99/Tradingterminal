@@ -15,9 +15,9 @@ import { DEFAULT_BRACKET_CONFIG, MAX_TP_LEVELS } from '../../types/bracket';
 // Shared styles
 // ---------------------------------------------------------------------------
 
-const INPUT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none';
-const SELECT_CLS = 'w-full bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white appearance-none focus:outline-none focus:border-(--color-accent)/50 transition-all cursor-pointer';
-const OPTION_CLS = 'bg-(--color-surface) text-white';
+const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none';
+const SELECT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) appearance-none focus:outline-none focus:border-(--color-accent)/50 transition-all cursor-pointer';
+const OPTION_CLS = 'bg-(--color-surface) text-(--color-text-bright)';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -108,15 +108,15 @@ export function BracketSettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setEditingPresetId(null)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-panel) border border-white/5 shadow-2xl overflow-hidden">
+    <Modal onClose={() => setEditingPresetId(null)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/5" style={{ padding: '18px 24px' }}>
+        <div className="flex items-center justify-between border-b border-(--color-border)/30" style={{ padding: '18px 24px' }}>
           <h2 className="text-sm font-semibold text-white">
             {isCreate ? 'New Bracket Preset' : 'Edit Bracket Preset'}
           </h2>
           <button
             onClick={() => setEditingPresetId(null)}
-            className="flex items-center justify-center rounded-full hover:bg-white/5 transition-colors"
+            className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
             style={{ width: '32px', height: '32px' }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -215,7 +215,7 @@ export function BracketSettingsModal() {
 
         {/* Footer */}
         <div
-          className="flex justify-between items-center border-t border-white/5"
+          className="flex justify-between items-center border-t border-(--color-border)/30"
           style={{ padding: '16px 24px' }}
         >
           <div className="flex items-center" style={{ gap: '16px' }}>
@@ -248,7 +248,7 @@ export function BracketSettingsModal() {
             <button
               onClick={handleSave}
               disabled={errors.length > 0}
-              className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-[#5b8def] hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+              className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
               style={{ padding: '8px 24px' }}
             >
               Save Preset
@@ -360,7 +360,7 @@ function TakeProfitRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group/item flex items-center border border-white/[0.05] rounded-lg transition-all hover:border-white/10" style={{ padding: '10px 12px', gap: '12px', background: 'rgba(255,255,255,0.04)' }}>
+    <div className="group/item flex items-center border border-(--color-border)/30 rounded-lg transition-all hover:border-(--color-border)/60" style={{ padding: '10px 12px', gap: '12px', background: 'var(--color-input)' }}>
       {/* Index */}
       <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0" style={{ width: '18px' }}>
         {index + 1}
@@ -376,7 +376,7 @@ function TakeProfitRow({
             step={1}
             value={tp.points}
             onChange={(e) => onChange({ ...tp, points: Math.max(1, +e.target.value || 1) })}
-            className="w-full bg-transparent border-b border-white/10 focus:border-white/30 outline-none text-xs text-white transition-colors [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full bg-transparent border-b border-(--color-border) focus:border-(--color-border) outline-none text-xs text-white transition-colors [&::-webkit-inner-spin-button]:appearance-none"
             style={{ padding: '4px 0' }}
           />
         </div>
@@ -388,7 +388,7 @@ function TakeProfitRow({
             step={1}
             value={tp.size}
             onChange={(e) => onChange({ ...tp, size: Math.max(1, +e.target.value || 1) })}
-            className="w-full bg-transparent border-b border-white/10 focus:border-white/30 outline-none text-xs text-white transition-colors [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full bg-transparent border-b border-(--color-border) focus:border-(--color-border) outline-none text-xs text-white transition-colors [&::-webkit-inner-spin-button]:appearance-none"
             style={{ padding: '4px 0' }}
           />
         </div>
@@ -548,7 +548,7 @@ function ConditionRow({
                 step={1}
                 value={(condition.trigger as { kind: 'profitReached'; points: number }).points}
                 onChange={(e) => onChange({ ...condition, trigger: { kind: 'profitReached', points: Math.max(1, +e.target.value || 1) } })}
-                className="w-16 bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-16 bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
                 style={{ padding: '7px 8px' }}
               />
               <span className="text-[11px] text-(--color-text-muted) shrink-0">pts profit</span>
@@ -596,7 +596,7 @@ function ConditionRow({
             step={1}
             value={(condition.action as { kind: 'customOffset'; points: number }).points}
             onChange={(e) => onChange({ ...condition, action: { kind: 'customOffset', points: Math.max(1, +e.target.value || 1) } })}
-            className="w-20 bg-white/[0.05] border border-white/10 rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-20 bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
             style={{ padding: '6px 8px' }}
           />
           <span className="text-[11px] text-(--color-text-muted)">points past entry</span>

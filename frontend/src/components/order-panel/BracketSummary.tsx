@@ -130,7 +130,7 @@ export function BracketSummary() {
             return (
               <div className="flex justify-between">
                 <span className="text-(--color-text-muted)">SL</span>
-                <span className={slPts > 0 ? (isDraft ? 'text-[#c4475a]' : 'text-(--color-btn-sell-hover)') : 'text-(--color-text-dim)'}>
+                <span className={slPts > 0 ? (isDraft ? 'text-(--color-sell)' : 'text-(--color-btn-sell-hover)') : 'text-(--color-text-dim)'}>
                   {slPts > 0
                     ? `${slPts}pt ${config.stopLoss.type === 'TrailingStop' ? '(Trail)' : ''}${isDraft ? ' *' : ''}`
                     : 'Off'}
@@ -152,7 +152,7 @@ export function BracketSummary() {
               return (
                 <div key={tp.id} className="flex justify-between">
                   <span className="text-(--color-text-muted)">TP{i + 1}</span>
-                  <span className={isDraft ? 'text-[#3aa876]' : 'text-(--color-btn-buy-hover)'}>
+                  <span className={isDraft ? 'text-(--color-buy)' : 'text-(--color-btn-buy-hover)'}>
                     {tpPts}pt / {tp.size}ct{isDraft ? ' *' : ''}
                   </span>
                 </div>
@@ -164,7 +164,7 @@ export function BracketSummary() {
           {config.conditions.map((cond, i) => (
             <div key={i} className="flex justify-between">
               <span className="text-(--color-text-muted)">TP{cond.trigger.tpIndex + 1} hit</span>
-              <span className="text-[#4a80b0]">{formatAction(cond.action, config.takeProfits)}</span>
+              <span className="text-(--color-accent-text)">{formatAction(cond.action, config.takeProfits)}</span>
             </div>
           ))}
         </div>

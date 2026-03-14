@@ -3,6 +3,7 @@ import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { OrderType, OrderStatus } from '../../../types/enums';
 import { PriceLevelLine } from '../PriceLevelLine';
+import { COLOR_LABEL_BG } from '../../../constants/colors';
 import { computeOrderLineColor } from './labelUtils';
 import { usePreviewLines } from './usePreviewLines';
 import { usePreviewDrag } from './usePreviewDrag';
@@ -52,7 +53,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       refs.orderLines.current.push(new PriceLevelLine({
         price: pos.averagePrice,
         series, overlay, chartApi: chart,
-        lineColor: '#cac8cb', lineStyle: 'solid', lineWidth: 1,
+        lineColor: COLOR_LABEL_BG, lineStyle: 'solid', lineWidth: 1,
         axisLabelVisible: true, tickSize,
       }));
       refs.orderLineMeta.current.push({ kind: 'position' });

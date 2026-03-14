@@ -84,6 +84,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | Token | Value | Usage |
 |-------|-------|-------|
 | `--color-text` | `#d1d4dc` | Primary body text |
+| `--color-text-bright` | `#ffffff` | Active/selected text, modal titles, emphasis on dark backgrounds |
 | `--color-text-muted` | `#787b86` | Section labels, secondary info, icon strokes |
 | `--color-text-dim` | `#434651` | Placeholders, empty states, disabled text |
 | `--color-text-medium` | `#9598a1` | Field labels, supporting descriptions |
@@ -100,6 +101,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 |-------|-------|-------|
 | `--color-accent` | `#2962ff` | Primary interactive — checkboxes, connect button, focus rings |
 | `--color-accent-hover` | `#1e4fcc` | Accent hover state |
+| `--color-accent-text` | `#5b8def` | Ghost button text, soft accent links on dark backgrounds |
 | `--color-warning` | `#f0a830` | Active instrument, warning toasts, selected highlights |
 | `--color-error` | `#f23645` | Error toasts, validation, delete hovers |
 
