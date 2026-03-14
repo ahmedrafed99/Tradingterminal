@@ -95,7 +95,7 @@ export function SoundTab() {
             <span className={SECTION_TITLE}>Voice Lines</span>
           </div>
 
-          <div className="rounded-lg overflow-hidden border border-white/[0.06]">
+          <div className="rounded-lg overflow-hidden border border-white/[0.06] bg-(--color-input)">
             {SOUNDS.map((s, i) => (
               <SoundCategory
                 key={s.name}
