@@ -159,7 +159,7 @@ function SoundCategory({
       >
         <div className="text-left">
           <div className="text-xs text-white">{label}</div>
-          <div className="text-[11px] text-(--color-text-dim)">
+          <div className="text-[11px] text-(--color-text-muted)">
             {count} voice line{count !== 1 ? 's' : ''}
             {!hasCustom && ' (default)'}
           </div>
@@ -189,13 +189,17 @@ function SoundCategory({
             {clips.map((clip, idx) => (
               <div
                 key={clip.id ?? `default-${idx}`}
-                className="flex items-center justify-between rounded transition-colors hover:bg-white/[0.03]"
-                style={{ padding: '5px 8px' }}
+                className="group flex items-center justify-between rounded transition-colors"
+                style={{
+                  padding: '6px 8px',
+                  borderLeft: idx === 0 ? '3px solid var(--color-warning)' : '3px solid transparent',
+                  background: idx === 0 ? 'rgba(240,168,48,0.06)' : undefined,
+                }}
               >
-                <span className="text-[11px] text-(--color-text-muted) truncate" style={{ maxWidth: 180 }}>
+                <span className="text-[11px] text-(--color-text-muted) truncate" style={{ maxWidth: 220 }}>
                   {clip.name}
                 </span>
-                <div className="flex items-center" style={{ gap: 4 }}>
+                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ gap: 4 }}>
                   {/* Play button */}
                   <button
                     type="button"
@@ -260,7 +264,7 @@ function SoundCategory({
                 <path d="M3 13H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
               <span className="text-[10px] text-(--color-text-dim)">
-                Drop audio files or click to upload
+                Drop audio files or <span className="text-(--color-accent) hover:underline">click to upload</span>
               </span>
             </div>
           </button>

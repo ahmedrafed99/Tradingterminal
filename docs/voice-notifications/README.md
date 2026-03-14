@@ -95,10 +95,13 @@ Controls:
 - **On/Off toggle** — enables or disables all voice notifications
 - **Volume slider** — 0–100% range, applied to all sounds
 - **Voice Lines** — expandable per-category sections:
-  - Lists all clips with **play** and **delete** buttons
+  - First clip (next-to-play) highlighted with a golden left accent border (`--color-warning`)
+  - **Play** and **delete** buttons appear on hover per clip row
   - **Upload zone** — click to browse or drag & drop audio files (accepts multiple, any audio format)
   - Shows "(default)" when no custom clips are uploaded
   - Removing all custom clips restores the default sound
+
+The settings modal is top-aligned (`items-start` with `8vh` top margin) so expanding voice line categories grows the modal downward only.
 
 ---
 

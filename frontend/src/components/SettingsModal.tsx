@@ -67,7 +67,7 @@ export function SettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setSettingsOpen(false)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden">
+    <Modal onClose={() => setSettingsOpen(false)} backdropClassName="!items-start" className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden" style={{ marginTop: '8vh' }}>
         {/* Header */}
         <div className="border-b border-white/5" style={{ padding: '18px 24px 0 24px' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
