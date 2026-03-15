@@ -15,7 +15,7 @@ Default clips are located in `frontend/public/sounds/{category}/1.mp3` (served b
 | `stop_filled/` | Stop-loss order filled |
 | `position_closed/` | Manual close (Close button or chart X) |
 
-User-uploaded voice lines are stored in **IndexedDB** (`voice-lines` database) and take priority over default clips when present.
+User-uploaded voice lines are stored in **IndexedDB** (`voice-lines` database) and appear alongside the default clip (default always remains in the list).
 
 ---
 
@@ -24,9 +24,9 @@ User-uploaded voice lines are stored in **IndexedDB** (`voice-lines` database) a
 **File:** `frontend/src/services/audioService.ts`
 
 Singleton `audioService` that:
-1. **Loads** user-uploaded clips from IndexedDB on startup, falling back to default static files
-2. **Cycles** sequentially through available clips on each `play()` call (1 → 2 → 3 → 1 …)
-3. **Persists** `enabled` (boolean) and `volume` (0–1) in `localStorage` key `sound-settings`
+1. **Loads** default clip + user-uploaded clips from IndexedDB on startup
+2. **Cycles** sequentially through available clips on each `play()` call (1 → 2 → 3 → 1 …), or plays only the first clip when rotation is disabled
+3. **Persists** `enabled`, `volume`, `rotate` (per-category), and `clipOrder` (per-category) in `localStorage` key `sound-settings`
 
 ### API
 
@@ -38,12 +38,14 @@ audioService.playClip(name, index)   // play a specific clip (0-based)
 // Clip management
 audioService.addClips(category, files)   // upload File[] to IndexedDB
 audioService.removeClip(category, id)    // delete a clip by IDB id
+audioService.reorderClip(category, from, to) // move clip from index to index
 audioService.getClips(name)              // returns { id?, name }[]
 audioService.getClipCount(name)
 
 // Settings
 audioService.getEnabled() / setEnabled(boolean)
 audioService.getVolume()  / setVolume(number)  // 0–1
+audioService.getRotate(name) / setRotate(name, boolean)  // per-category rotation
 
 // Events
 audioService.onChange(fn)   // subscribe to clip list changes, returns unsubscribe fn
@@ -95,11 +97,13 @@ Controls:
 - **On/Off toggle** — enables or disables all voice notifications
 - **Volume slider** — 0–100% range, applied to all sounds
 - **Voice Lines** — expandable per-category sections:
+  - Default clip always present; uploaded clips appear alongside it
   - First clip (next-to-play) highlighted with a golden left accent border (`--color-warning`)
+  - **Rotate toggle** — appears when 2+ clips exist; when off, always plays the first clip
+  - **Drag to reorder** — grab the 6-dot handle to rearrange clip play order (persisted in localStorage)
+  - Clip rows highlight on hover
   - **Play** and **delete** buttons appear on hover per clip row
   - **Upload zone** — click to browse or drag & drop audio files (accepts multiple, any audio format)
-  - Shows "(default)" when no custom clips are uploaded
-  - Removing all custom clips restores the default sound
 
 The settings modal is top-aligned (`items-start` with `8vh` top margin) so expanding voice line categories grows the modal downward only.
 

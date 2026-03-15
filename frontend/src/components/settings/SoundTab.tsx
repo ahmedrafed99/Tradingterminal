@@ -130,9 +130,12 @@ function SoundCategory({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dropIdx, setDropIdx] = useState<number | null>(null);
   const clips = audioService.getClips(name);
   const count = clips.length;
   const hasCustom = clips.some(c => c.id !== undefined);
+  const rotate = audioService.getRotate(name);
 
   async function handleFiles(files: FileList | File[]) {
     const audioFiles = Array.from(files).filter(f => f.type.startsWith('audio/'));
@@ -143,6 +146,8 @@ function SoundCategory({
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
+    // Ignore internal clip reorder drags
+    if (e.dataTransfer.types.includes('text/x-clip-reorder')) return;
     if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
   }
 
@@ -161,7 +166,6 @@ function SoundCategory({
           <div className="text-xs text-white">{label}</div>
           <div className="text-[11px] text-(--color-text-muted)">
             {count} voice line{count !== 1 ? 's' : ''}
-            {!hasCustom && ' (default)'}
           </div>
         </div>
         <svg
@@ -184,19 +188,90 @@ function SoundCategory({
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
         >
-          {/* Clip list */}
+          {/* Rotate toggle */}
+          {count > 1 && (
+            <div className="flex items-center justify-between" style={{ marginBottom: 8, padding: '4px 8px' }}>
+              <span className="text-[11px] text-(--color-text-muted)">Rotate clips</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={rotate}
+                onClick={() => audioService.setRotate(name, !rotate)}
+                className="relative rounded-full cursor-pointer transition-colors"
+                style={{
+                  width: 32,
+                  height: 18,
+                  background: rotate ? 'var(--color-accent)' : 'var(--color-hover-toolbar)',
+                }}
+              >
+                <span
+                  className="absolute rounded-full bg-white transition-all"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    top: 2,
+                    left: rotate ? 16 : 2,
+                  }}
+                />
+              </button>
+            </div>
+          )}
+
+          {/* Clip list (drag to reorder) */}
           <div className="flex flex-col" style={{ gap: 2, marginBottom: 8 }}>
             {clips.map((clip, idx) => (
               <div
                 key={clip.id ?? `default-${idx}`}
-                className="group flex items-center justify-between rounded transition-colors"
+                draggable={count > 1}
+                onDragStart={e => {
+                  setDragIdx(idx);
+                  e.dataTransfer.effectAllowed = 'move';
+                  e.dataTransfer.setData('text/x-clip-reorder', String(idx));
+                }}
+                onDragEnd={() => { setDragIdx(null); setDropIdx(null); }}
+                onDragOver={e => {
+                  if (!e.dataTransfer.types.includes('text/x-clip-reorder')) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  setDropIdx(idx);
+                }}
+                onDragLeave={() => setDropIdx(null)}
+                onDrop={e => {
+                  if (!e.dataTransfer.types.includes('text/x-clip-reorder')) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const from = dragIdx;
+                  setDragIdx(null);
+                  setDropIdx(null);
+                  if (from !== null && from !== idx) {
+                    audioService.reorderClip(name, from, idx);
+                  }
+                }}
+                className="group flex items-center justify-between rounded transition-colors hover:bg-(--color-hover-row)/40"
                 style={{
                   padding: '6px 8px',
                   borderLeft: idx === 0 ? '3px solid var(--color-warning)' : '3px solid transparent',
                   background: idx === 0 ? 'rgba(240,168,48,0.06)' : undefined,
+                  opacity: dragIdx === idx ? 0.4 : 1,
+                  borderTop: dropIdx === idx && dragIdx !== null && dragIdx > idx
+                    ? '2px solid var(--color-accent)' : undefined,
+                  borderBottom: dropIdx === idx && dragIdx !== null && dragIdx < idx
+                    ? '2px solid var(--color-accent)' : undefined,
+                  cursor: count > 1 ? 'grab' : undefined,
                 }}
               >
-                <span className="text-[11px] text-(--color-text-muted) truncate" style={{ maxWidth: 220 }}>
+                {/* Drag handle */}
+                {count > 1 && (
+                  <svg width="8" height="12" viewBox="0 0 8 12" fill="none" style={{ opacity: 0.3, marginRight: 6, flexShrink: 0 }}>
+                    <circle cx="2" cy="2" r="1" fill="currentColor" />
+                    <circle cx="6" cy="2" r="1" fill="currentColor" />
+                    <circle cx="2" cy="6" r="1" fill="currentColor" />
+                    <circle cx="6" cy="6" r="1" fill="currentColor" />
+                    <circle cx="2" cy="10" r="1" fill="currentColor" />
+                    <circle cx="6" cy="10" r="1" fill="currentColor" />
+                  </svg>
+                )}
+                <span className="text-[11px] text-(--color-text-muted) truncate" style={{ maxWidth: 200, flex: 1 }}>
                   {clip.name}
                 </span>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ gap: 4 }}>

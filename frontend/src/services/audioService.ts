@@ -24,9 +24,11 @@ export interface ClipRecord {
 interface SoundSettings {
   enabled: boolean;
   volume: number; // 0–1
+  rotate: Record<string, boolean>; // per-category rotation toggle
+  clipOrder: Record<string, string[]>; // per-category ordered keys (id or 'default')
 }
 
-const DEFAULT_SETTINGS: SoundSettings = { enabled: true, volume: 0.8 };
+const DEFAULT_SETTINGS: SoundSettings = { enabled: true, volume: 0.8, rotate: {}, clipOrder: {} };
 
 // ── IndexedDB helpers ──────────────────────────────────────────────
 
@@ -118,6 +120,8 @@ class AudioService {
         return {
           enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : DEFAULT_SETTINGS.enabled,
           volume: typeof parsed.volume === 'number' ? parsed.volume : DEFAULT_SETTINGS.volume,
+          rotate: typeof parsed.rotate === 'object' && parsed.rotate !== null ? parsed.rotate : {},
+          clipOrder: typeof parsed.clipOrder === 'object' && parsed.clipOrder !== null ? parsed.clipOrder : {},
         };
       }
     } catch { /* ignore */ }
@@ -128,25 +132,44 @@ class AudioService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
   }
 
+  /** Unique key for a clip entry (used for ordering) */
+  private clipKey(clip: { id?: number }): string {
+    return clip.id !== undefined ? String(clip.id) : 'default';
+  }
+
   private async init(): Promise<void> {
     for (const name of SOUND_NAMES) {
       this.indices.set(name, 0);
+      // Always include the default clip first
+      const list: { audio: HTMLAudioElement; id?: number; name: string }[] = [
+        { audio: this.createAudio(`/sounds/${name}/1.mp3`), name: 'Default' },
+      ];
+      // Append any user-uploaded clips
       const records = await getAllClips(name);
-      if (records.length > 0) {
-        // Use user-uploaded clips
-        this.clips.set(
-          name,
-          records.map(r => ({
-            audio: this.createAudio(URL.createObjectURL(r.blob)),
-            id: r.id,
-            name: r.name,
-          })),
-        );
+      for (const r of records) {
+        list.push({
+          audio: this.createAudio(URL.createObjectURL(r.blob)),
+          id: r.id,
+          name: r.name,
+        });
+      }
+      // Apply saved order if available
+      const savedOrder = this.settings.clipOrder[name];
+      if (savedOrder && savedOrder.length > 0) {
+        const byKey = new Map(list.map(c => [this.clipKey(c), c]));
+        const sorted: typeof list = [];
+        for (const key of savedOrder) {
+          const clip = byKey.get(key);
+          if (clip) {
+            sorted.push(clip);
+            byKey.delete(key);
+          }
+        }
+        // Append any clips not in saved order (newly added)
+        for (const clip of byKey.values()) sorted.push(clip);
+        this.clips.set(name, sorted);
       } else {
-        // Fall back to default static file
-        this.clips.set(name, [
-          { audio: this.createAudio(`/sounds/${name}/1.mp3`), name: 'Default' },
-        ]);
+        this.clips.set(name, list);
       }
     }
   }
@@ -165,9 +188,10 @@ class AudioService {
     const list = this.clips.get(name);
     if (!list || list.length === 0) return;
 
-    const idx = this.indices.get(name) ?? 0;
+    const shouldRotate = this.settings.rotate[name] !== false; // default true
+    const idx = shouldRotate ? (this.indices.get(name) ?? 0) : 0;
     const { audio } = list[idx];
-    this.indices.set(name, (idx + 1) % list.length);
+    if (shouldRotate) this.indices.set(name, (idx + 1) % list.length);
 
     audio.currentTime = 0;
     audio.volume = this.settings.volume;
@@ -195,16 +219,10 @@ class AudioService {
 
   async addClips(category: SoundName, files: File[]): Promise<void> {
     const currentList = this.clips.get(category) ?? [];
-    // If only the default clip exists, clear it — user clips replace defaults
-    const isDefault = currentList.length === 1 && currentList[0].id === undefined;
 
     for (const file of files) {
       const id = await addClip({ category, name: file.name, blob: file });
       const url = URL.createObjectURL(file);
-      if (isDefault && currentList.length > 0) {
-        // Replace default with first uploaded clip
-        currentList.splice(0, currentList.length);
-      }
       currentList.push({ audio: this.createAudio(url), id, name: file.name });
     }
 
@@ -218,20 +236,26 @@ class AudioService {
     const list = this.clips.get(category) ?? [];
     const idx = list.findIndex(c => c.id === clipId);
     if (idx !== -1) {
-      // Revoke the object URL to free memory
       const src = list[idx].audio.src;
       if (src.startsWith('blob:')) URL.revokeObjectURL(src);
       list.splice(idx, 1);
     }
 
-    // If all custom clips removed, restore default
-    if (list.length === 0) {
-      list.push({ audio: this.createAudio(`/sounds/${category}/1.mp3`), name: 'Default' });
-    }
-
     this.clips.set(category, list);
-    // Reset index to avoid out-of-bounds
     this.indices.set(category, 0);
+    this.notify();
+  }
+
+  reorderClip(category: SoundName, fromIndex: number, toIndex: number): void {
+    const list = this.clips.get(category);
+    if (!list || fromIndex === toIndex) return;
+    if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) return;
+    const [item] = list.splice(fromIndex, 1);
+    list.splice(toIndex, 0, item);
+    this.indices.set(category, 0);
+    // Persist order
+    this.settings.clipOrder[category] = list.map(c => this.clipKey(c));
+    this.saveSettings();
     this.notify();
   }
 
@@ -248,6 +272,17 @@ class AudioService {
 
   getVolume(): number {
     return this.settings.volume;
+  }
+
+  getRotate(name: SoundName): boolean {
+    return this.settings.rotate[name] !== false; // default true
+  }
+
+  setRotate(name: SoundName, rotate: boolean): void {
+    this.settings.rotate[name] = rotate;
+    if (!rotate) this.indices.set(name, 0); // reset to first clip
+    this.saveSettings();
+    this.notify();
   }
 
   setVolume(volume: number): void {
