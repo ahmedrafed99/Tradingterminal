@@ -1,5 +1,6 @@
 import { useStore } from '../../../store/useStore';
 import { DEFAULT_ARROWPATH_COLOR } from '../../../types/drawing';
+import { matchesShortcut, getEffectiveShortcuts } from '../../../constants/shortcuts';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
 import { CLOSE_BG, CLOSE_BG_HOVER } from './labelUtils';
@@ -137,8 +138,9 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
 
 export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
   const { state, chart, container, primitive } = ctx;
+  const shortcuts = getEffectiveShortcuts(useStore.getState().customShortcuts);
 
-  if (e.key === 'Escape') {
+  if (matchesShortcut(e, shortcuts['drawing.cancel'])) {
     if (state.ctrlDragSelect) {
       state.ctrlDragSelect = null;
       primitive.clearSelectionRect();
@@ -220,7 +222,7 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
     }
   }
 
-  if (e.key === 'Delete' || e.key === 'Backspace') {
+  if (matchesShortcut(e, shortcuts['drawing.delete'])) {
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     const s = useStore.getState();
@@ -234,7 +236,7 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
     }
   }
 
-  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+  if (matchesShortcut(e, shortcuts['drawing.undo'])) {
     if (e.defaultPrevented) return;
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;

@@ -362,11 +362,17 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 
 ### Keyboard shortcuts
 
-| Key | Action |
-|-----|--------|
-| `Escape` | Cancel Ctrl+drag selection → cancel in-progress drag (reverts to original position) → cancel resize → cancel tool → clear multi-selection → deselect |
-| `Delete` / `Backspace` | Remove selected drawing(s) — single or bulk delete (guarded: not in input/textarea) |
-| `Ctrl+Z` / `Cmd+Z` | Undo last drawing mutation including bulk deletes (see `drawing-tools/undo/README.md`) |
+Shortcuts are **configurable** via Settings → Shortcuts tab. Stored in `customShortcuts` (Zustand, persisted to localStorage). Defaults shown below.
+
+Registry: `frontend/src/constants/shortcuts.ts` — central `SHORTCUT_DEFS` array with `KeyCombo` types, `matchesShortcut()` helper, `formatKeyCombo()` display formatter.
+
+| Key | Action | Configurable |
+|-----|--------|:---:|
+| `Escape` | Cancel Ctrl+drag selection → cancel in-progress drag → cancel resize → cancel tool → clear selection → deselect | Yes |
+| `Delete` / `Backspace` | Remove selected drawing(s) — single or bulk delete (guarded: not in input/textarea) | Yes |
+| `Ctrl+Z` / `Cmd+Z` | Undo last drawing mutation including bulk deletes | Yes |
+| `Ctrl+Drag` | Multi-select drawings via area selection | No |
+| `Ctrl+Hold` | Horizontal snap for free draw / arrow path | No |
 
 ### Cursor management
 
