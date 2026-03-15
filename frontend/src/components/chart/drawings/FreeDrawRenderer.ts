@@ -2,7 +2,7 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { FreeDrawDrawing } from '../../../types/drawing';
-import { COLOR_LABEL_TEXT } from '../../../constants/colors';
+import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { hitTestArrowPath } from './hitTesting';
 
 /** Convert freedraw data points → CSS pixel points using anchor + barSpacing. */
@@ -19,7 +19,7 @@ function toPixelPoints(
   for (const p of drawing.points) {
     const x = anchorX + p.barOffset * barSpacing;
     const y = series.priceToCoordinate(p.price);
-    if (y === null) continue;
+    if (y === null) return null;  // all points must be valid to preserve shape
     result.push({ x, y });
   }
   return result.length >= 2 ? result : null;
@@ -63,7 +63,7 @@ class FreeDrawRendererImpl implements IPrimitivePaneRenderer {
       if (this._selected) {
         const hr = Math.round(4 * vpr);
         ctx.fillStyle = COLOR_LABEL_TEXT;
-        ctx.strokeStyle = '#1e3a5f';
+        ctx.strokeStyle = COLOR_HANDLE_STROKE;
         ctx.lineWidth = Math.round(1.5 * vpr);
         const first = cssPts[0];
         const last = cssPts[cssPts.length - 1];

@@ -117,9 +117,9 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
     state.drawingDrag = {
       drawingId: drawing.id, type: 'arrowpath',
       startX: x, startY: y, origPrice: 0,
-      origP1: { time: drawing.anchorTime, price: 0 }, // origP1.time stores anchorTime
-      origP2: { time: 0, price: 0 },
-      origPoints: drawing.points.map((p) => ({ time: p.barOffset, price: p.price })),
+      origP1: { time: 0, price: 0 }, origP2: { time: 0, price: 0 },
+      origAnchorTime: drawing.anchorTime,
+      origBarOffsets: drawing.points.map((p) => ({ barOffset: p.barOffset, price: p.price })),
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
   } else if (drawing.type === 'freedraw') {
@@ -128,9 +128,9 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
     state.drawingDrag = {
       drawingId: drawing.id, type: 'freedraw',
       startX: x, startY: y, origPrice: 0,
-      origP1: { time: drawing.anchorTime, price: 0 }, // origP1.time stores anchorTime
-      origP2: { time: 0, price: 0 },
-      origPoints: drawing.points.map((p) => ({ time: p.barOffset, price: p.price })),
+      origP1: { time: 0, price: 0 }, origP2: { time: 0, price: 0 },
+      origAnchorTime: drawing.anchorTime,
+      origBarOffsets: drawing.points.map((p) => ({ barOffset: p.barOffset, price: p.price })),
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
   }
@@ -168,8 +168,9 @@ export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
   // Anchor = nearest bar time (snap is fine for the anchor reference point)
   const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
-  const anchorTime = anchorTimeRaw ? (anchorTimeRaw as number) : 0;
-  const anchorPixelX = anchorTimeRaw ? (chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x) : x;
+  if (!anchorTimeRaw) return; // off visible time range — bail out
+  const anchorTime = anchorTimeRaw as number;
+  const anchorPixelX = chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x;
   const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
 
   state.freeDrawCreation = {
@@ -226,24 +227,14 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
           p2: { time: state.drawingDrag.origP2.time + dt, price: state.drawingDrag.origP2.price + dp },
         }, true);
       }
-    } else if (state.drawingDrag.type === 'arrowpath' && state.drawingDrag.origPoints) {
+    } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
       const data = getDataPos(chart, series, x, y);
       if (data) {
         const dt = data.time - state.drawingDrag.startTime;
         const dp = data.price - state.drawingDrag.startPrice;
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          anchorTime: state.drawingDrag.origP1.time + dt,
-          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price + dp })),
-        }, true);
-      }
-    } else if (state.drawingDrag.type === 'freedraw' && state.drawingDrag.origPoints) {
-      const data = getDataPos(chart, series, x, y);
-      if (data) {
-        const dt = data.time - state.drawingDrag.startTime;
-        const dp = data.price - state.drawingDrag.startPrice;
-        useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          anchorTime: state.drawingDrag.origP1.time + dt, // shift anchor
-          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price + dp })),
+          anchorTime: (state.drawingDrag.origAnchorTime ?? 0) + dt,
+          points: state.drawingDrag.origBarOffsets.map((p) => ({ barOffset: p.barOffset, price: p.price + dp })),
         }, true);
       }
     }
@@ -370,12 +361,9 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       } else if (state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
         prev.p1 = { ...state.drawingDrag.origP1 };
         prev.p2 = { ...state.drawingDrag.origP2 };
-      } else if (state.drawingDrag.type === 'arrowpath' && state.drawingDrag.origPoints) {
-        prev.anchorTime = state.drawingDrag.origP1.time;
-        prev.points = state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price }));
-      } else if (state.drawingDrag.type === 'freedraw' && state.drawingDrag.origPoints) {
-        prev.anchorTime = state.drawingDrag.origP1.time;
-        prev.points = state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price }));
+      } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
+        prev.anchorTime = state.drawingDrag.origAnchorTime;
+        prev.points = state.drawingDrag.origBarOffsets.map((p) => ({ ...p }));
       }
       useStore.getState().pushDrawingUndo({ type: 'update', drawingId: state.drawingDrag.drawingId, previous: prev });
     }
@@ -463,8 +451,9 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         if (!state.arrowPathCreation) {
           // First click: compute anchor
           const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
-          const anchorTime = anchorTimeRaw ? (anchorTimeRaw as number) : 0;
-          const anchorPixelX = anchorTimeRaw ? (chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x) : x;
+          if (!anchorTimeRaw) return; // off visible time range — bail out
+          const anchorTime = anchorTimeRaw as number;
+          const anchorPixelX = chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x;
           const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
           const barOffset = (x - anchorPixelX) / barSpacing;
           state.arrowPathCreation = {

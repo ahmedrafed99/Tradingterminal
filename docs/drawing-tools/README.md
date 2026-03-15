@@ -89,7 +89,7 @@ interface FreeDrawDrawing extends DrawingBase {
   points: { barOffset: number; price: number }[];  // continuous brush stroke
 }
 
-type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | FreeDrawDrawing;
+type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
 
 interface HLineTemplate {
   id: string;
@@ -301,7 +301,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - **Tool stays active** after each stroke so the user can draw multiple consecutive strokes without re-selecting
 - Escape or right-click cancels in-progress stroke
 - **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (pixel distance / bar spacing) instead of `coordinateToTime()` which snaps to discrete bar positions. On render: `pixelX = timeToCoordinate(anchorTime) + barOffset * currentBarSpacing`
-- Selected state shows start and end node handles (black fill, dark blue border — same style as arrow path)
+- Selected state shows start and end node handles (`COLOR_LABEL_TEXT` fill, `COLOR_HANDLE_STROKE` border — same style as arrow path)
 - Edit toolbar shows only color + stroke width (no text, template, or extend controls)
 
 ### Ruler measurement (click-move-click, ephemeral)

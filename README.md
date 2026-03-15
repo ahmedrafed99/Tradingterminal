@@ -219,6 +219,7 @@ Canonical color and style values. **Do not add new values — pick from this tab
 |-------|-------|
 | All borders | `#2a2e39` |
 | Focus ring | `#1a3a6e` |
+| Handle stroke | `#1e3a5f` |
 
 ### Interactive States
 

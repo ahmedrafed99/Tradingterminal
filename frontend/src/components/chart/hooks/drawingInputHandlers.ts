@@ -174,15 +174,10 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
           price: state.drawingDrag.origPrice, startTime: state.drawingDrag.origStartTime,
         }, true);
-      } else if (state.drawingDrag.type === 'arrowpath' && state.drawingDrag.origPoints) {
+      } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          anchorTime: state.drawingDrag.origP1.time,
-          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price })),
-        }, true);
-      } else if (state.drawingDrag.type === 'freedraw' && state.drawingDrag.origPoints) {
-        useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          anchorTime: state.drawingDrag.origP1.time,
-          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price })),
+          anchorTime: state.drawingDrag.origAnchorTime,
+          points: state.drawingDrag.origBarOffsets.map((p) => ({ ...p })),
         }, true);
       } else {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {

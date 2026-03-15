@@ -38,7 +38,8 @@ export interface DrawingState {
     origPrice: number;
     origP1: { time: number; price: number };
     origP2: { time: number; price: number };
-    origPoints?: { time: number; price: number }[];
+    origAnchorTime?: number;
+    origBarOffsets?: { barOffset: number; price: number }[];
     startTime: number;
     startPrice: number;
     origStartTime: number;
@@ -117,7 +118,6 @@ export function getDataPos(
   if (time === null || price === null) return null;
   return { time: time as number, price: price as number };
 }
-
 
 /** Re-enable chart scroll/scale and reset cursor to crosshair. */
 export function resetChartInteraction(ctx: DrawingContext): void {
