@@ -17,6 +17,7 @@ import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
 import { RulerPaneView } from './RulerRenderer';
+import { FreeDrawPaneView } from './FreeDrawRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -339,6 +340,59 @@ class RulerDragPreviewPaneView implements IPrimitivePaneView {
 }
 
 // ---------------------------------------------------------------------------
+// Free draw preview renderer: live brush stroke preview during creation
+// ---------------------------------------------------------------------------
+class FreeDrawPreviewRenderer implements IPrimitivePaneRenderer {
+  private _points: { x: number; y: number }[];
+  private _color: string;
+  private _strokeWidth: number;
+
+  constructor(points: { x: number; y: number }[], color: string, strokeWidth: number) {
+    this._points = points;
+    this._color = color;
+    this._strokeWidth = strokeWidth;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx }) => {
+      const pts = this._points;
+      if (pts.length < 2) return;
+
+      ctx.beginPath();
+      ctx.strokeStyle = this._color;
+      ctx.lineWidth = this._strokeWidth;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+    });
+  }
+}
+
+class FreeDrawPreviewPaneView implements IPrimitivePaneView {
+  private _points: { x: number; y: number }[];
+  private _color: string;
+  private _strokeWidth: number;
+
+  constructor(points: { x: number; y: number }[], color: string, strokeWidth: number) {
+    this._points = points;
+    this._color = color;
+    this._strokeWidth = strokeWidth;
+  }
+
+  zOrder(): 'top' {
+    return 'top';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new FreeDrawPreviewRenderer(this._points, this._color, this._strokeWidth);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Price axis label for drawings (shows price on the right Y-axis scale)
 // ---------------------------------------------------------------------------
 function contrastTextColor(hex: string): string {
@@ -437,7 +491,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private _drawings: Drawing[] = [];
   private _selectedId: string | null = null;
-  private _paneViews: (HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView)[] = [];
+  private _paneViews: (HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView)[] = [];
 
   // Drag preview (oval creation)
   private _dragPreview: DragPreviewPaneView | null = null;
@@ -447,6 +501,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   // Ruler drag preview
   private _rulerDragPreview: RulerDragPreviewPaneView | null = null;
+
+  // Free draw creation preview
+  private _freeDrawPreview: FreeDrawPreviewPaneView | null = null;
 
   // Price axis labels for drawings
   private _decimals = 2;
@@ -530,6 +587,18 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  /** Show a polyline preview during free draw creation */
+  setFreeDrawPreview(cssPoints: { x: number; y: number }[], color: string, strokeWidth: number): void {
+    this._freeDrawPreview = new FreeDrawPreviewPaneView(cssPoints, color, strokeWidth);
+    this._requestUpdate?.();
+  }
+
+  /** Clear the free draw preview */
+  clearFreeDrawPreview(): void {
+    this._freeDrawPreview = null;
+    this._requestUpdate?.();
+  }
+
   private _rebuildViews(): void {
     if (!this._series || !this._chart) {
       this._paneViews = [];
@@ -543,8 +612,10 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         return new OvalPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'ruler') {
         return new RulerPaneView(d, selected, this._series!, this._chart!, this._decimals);
-      } else {
+      } else if (d.type === 'arrowpath') {
         return new ArrowPathPaneView(d, selected, this._series!, this._chart!);
+      } else {
+        return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }
     });
   }
@@ -559,6 +630,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (this._dragPreview) extras.push(this._dragPreview);
     if (this._arrowPathPreview) extras.push(this._arrowPathPreview);
     if (this._rulerDragPreview) extras.push(this._rulerDragPreview);
+    if (this._freeDrawPreview) extras.push(this._freeDrawPreview);
     if (extras.length > 0) return [...this._paneViews, ...extras];
     return this._paneViews;
   }
@@ -678,6 +750,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (view instanceof ArrowPathPaneView) {
         hit = view.hitTest(x, y);
       } else if (view instanceof RulerPaneView) {
+        hit = view.hitTest(x, y);
+      } else if (view instanceof FreeDrawPaneView) {
         hit = view.hitTest(x, y);
       }
       if (hit) {

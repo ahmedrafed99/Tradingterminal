@@ -32,7 +32,7 @@ export interface DrawingState {
 
   drawingDrag: {
     drawingId: string;
-    type: 'hline' | 'oval' | 'arrowpath' | 'ruler';
+    type: 'hline' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
     startX: number;
     startY: number;
     origPrice: number;
@@ -46,14 +46,26 @@ export interface DrawingState {
   drawingDragOccurred: boolean;
 
   arrowPathCreation: {
-    points: { time: number; price: number }[];
+    anchorTime: number;
+    anchorPixelX: number;
+    barSpacing: number;
+    points: { barOffset: number; price: number }[];
     cssPoints: { x: number; y: number }[];
   } | null;
 
   arrowPathNodeDrag: {
     drawingId: string;
     nodeIndex: number;
-    origPoints: { time: number; price: number }[];
+    anchorTime: number;  // needed to compute barOffset for the dragged node
+    origPoints: { barOffset: number; price: number }[];
+  } | null;
+
+  freeDrawCreation: {
+    anchorTime: number;         // time of nearest bar to first point
+    anchorPixelX: number;       // pixel x of anchor at creation time
+    barSpacing: number;         // bar spacing at creation time
+    points: { barOffset: number; price: number }[];
+    cssPoints: { x: number; y: number }[];
   } | null;
 
   chartPanning: boolean;
@@ -81,6 +93,7 @@ export function createDrawingState(): DrawingState {
     drawingDragOccurred: false,
     arrowPathCreation: null,
     arrowPathNodeDrag: null,
+    freeDrawCreation: null,
     chartPanning: false,
     overlayHitCaptured: false,
   };
@@ -104,6 +117,7 @@ export function getDataPos(
   if (time === null || price === null) return null;
   return { time: time as number, price: price as number };
 }
+
 
 /** Re-enable chart scroll/scale and reset cursor to crosshair. */
 export function resetChartInteraction(ctx: DrawingContext): void {

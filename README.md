@@ -28,7 +28,7 @@ docs/
 ├── chart-trading/        — + button, order lines, preview overlay, drag, labels
 ├── chart-screenshot/     — Screenshot capture + clipboard
 ├── chart-layout/         — Dual chart + crosshair sync
-├── drawing-tools/        — HLine, oval, arrow path, renderers, templates
+├── drawing-tools/        — HLine, oval, arrow path, free draw, renderers, templates
 │   └── undo/             — Ctrl+Z undo stack for drawings
 ├── order-panel/          — Order entry sidebar, market/limit, buy/sell
 │   └── bracket-settings/ — Preset UI: SL, multi-TP, conditions
@@ -41,6 +41,7 @@ docs/
 ├── journal/              — Trade journaling with screenshots
 ├── news-display/         — Economic calendar + chart markers
 ├── settings-persistence/ — File-based settings backup (survives cache clears)
+├── video-recording/      — Chart video recording for journaling
 ├── voice-notifications/  — Audible voice clips on order/TP/SL fills
 └── frontend/             — Full index: all components, services, store slices, types
 ```
@@ -80,6 +81,7 @@ docs/
 | Conditional orders (candle-close triggers)  | `docs/conditional-orders/` |
 | Condition deployment (Render / Docker)      | `docs/conditional-orders/` → Deployment |
 | Voice notifications on fills                | `docs/voice-notifications/` |
+| Chart video recording                       | `docs/video-recording/` |
 
 ---
 

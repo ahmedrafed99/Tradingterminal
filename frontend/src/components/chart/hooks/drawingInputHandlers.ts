@@ -30,13 +30,14 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
   if (state.arrowPathCreation) {
     e.stopPropagation();
     const { x, y } = getMousePos(e, container);
-    const data = getDataPos(chart, series, x, y);
-    if (data) {
+    const price = series.coordinateToPrice(y);
+    if (price !== null) {
+      const barOffset = (x - state.arrowPathCreation.anchorPixelX) / state.arrowPathCreation.barSpacing;
       const last = state.arrowPathCreation.points[state.arrowPathCreation.points.length - 1];
-      const dx = Math.abs(data.time - last.time);
-      const dy = Math.abs(data.price - last.price);
-      if (dx > 0.0001 || dy > 0.0001) {
-        state.arrowPathCreation.points.push(data);
+      const dbo = Math.abs(barOffset - last.barOffset);
+      const dp = Math.abs((price as number) - last.price);
+      if (dbo > 0.01 || dp > 0.0001) {
+        state.arrowPathCreation.points.push({ barOffset, price: price as number });
       }
     }
 
@@ -46,6 +47,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
       addDrawing({
         id: crypto.randomUUID(),
         type: 'arrowpath',
+        anchorTime: state.arrowPathCreation.anchorTime,
         points: [...state.arrowPathCreation.points],
         color: apDef?.color ?? DEFAULT_ARROWPATH_COLOR,
         strokeWidth: apDef?.strokeWidth ?? 2,
@@ -55,6 +57,15 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     }
     state.arrowPathCreation = null;
     primitive.clearArrowPathPreview();
+    resetChartInteraction(ctx);
+    setActiveTool('select');
+    return;
+  }
+
+  // Free draw in progress: cancel
+  if (state.freeDrawCreation) {
+    state.freeDrawCreation = null;
+    primitive.clearFreeDrawPreview();
     resetChartInteraction(ctx);
     setActiveTool('select');
     return;
@@ -90,7 +101,7 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
   if (pts.length >= 2) {
     const last = pts[pts.length - 1];
     const prev = pts[pts.length - 2];
-    if (Math.abs(last.time - prev.time) < 0.0001 && Math.abs(last.price - prev.price) < 0.0001) {
+    if (Math.abs(last.barOffset - prev.barOffset) < 0.01 && Math.abs(last.price - prev.price) < 0.0001) {
       pts.pop();
       state.arrowPathCreation.cssPoints.pop();
     }
@@ -102,6 +113,7 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
     addDrawing({
       id: crypto.randomUUID(),
       type: 'arrowpath',
+      anchorTime: state.arrowPathCreation.anchorTime,
       points: [...state.arrowPathCreation.points],
       color: dblApDef?.color ?? DEFAULT_ARROWPATH_COLOR,
       strokeWidth: dblApDef?.strokeWidth ?? 2,
@@ -135,6 +147,13 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
       primitive.clearRulerDragPreview();
       return;
     }
+    if (state.freeDrawCreation) {
+      state.freeDrawCreation = null;
+      primitive.clearFreeDrawPreview();
+      resetChartInteraction(ctx);
+      useStore.getState().setActiveTool('select');
+      return;
+    }
     if (state.arrowPathCreation) {
       state.arrowPathCreation = null;
       primitive.clearArrowPathPreview();
@@ -144,7 +163,7 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
     }
     if (state.arrowPathNodeDrag) {
       useStore.getState().updateDrawing(state.arrowPathNodeDrag.drawingId, {
-        points: state.arrowPathNodeDrag.origPoints,
+        points: [...state.arrowPathNodeDrag.origPoints],
       }, true);
       state.arrowPathNodeDrag = null;
       resetChartInteraction(ctx);
@@ -157,7 +176,13 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
         }, true);
       } else if (state.drawingDrag.type === 'arrowpath' && state.drawingDrag.origPoints) {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          points: state.drawingDrag.origPoints,
+          anchorTime: state.drawingDrag.origP1.time,
+          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price })),
+        }, true);
+      } else if (state.drawingDrag.type === 'freedraw' && state.drawingDrag.origPoints) {
+        useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
+          anchorTime: state.drawingDrag.origP1.time,
+          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price })),
         }, true);
       } else {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
@@ -217,7 +242,7 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
   const { state, container, primitive, refs } = ctx;
 
   // Re-assert grabbing during ANY drag operation
-  if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.chartPanning
+  if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.freeDrawCreation || state.chartPanning
       || refs.orderDragState.current || refs.previewDragState.current || refs.posDrag.current) {
     container.style.cursor = 'grabbing';
     return;

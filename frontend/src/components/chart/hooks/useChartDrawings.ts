@@ -9,6 +9,7 @@ import {
   onResizeMouseDown,
   onDrawingDragMouseDown,
   onOvalMouseDown,
+  onFreeDrawMouseDown,
   onMouseMove,
   onMouseUp,
 } from './drawingHandlers';
@@ -93,10 +94,12 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
     const handleDragDown = (e: MouseEvent) => onDrawingDragMouseDown(e, ctx);
     const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
+    const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
 
     container.addEventListener('mousedown', handleResize);
     container.addEventListener('mousedown', handleDragDown);
     container.addEventListener('mousedown', handleOvalDown);
+    container.addEventListener('mousedown', handleFreeDrawDown);
 
     // ── Overlay label hit testing ──
     const onOverlayHitTest = (e: MouseEvent) => {
@@ -141,7 +144,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       queueMicrotask(() => {
         if (!state.drawingDrag && !state.ovalResize && !state.ovalDrag
             && !state.arrowPathNodeDrag && !state.arrowPathCreation
-            && !state.rulerCreation && !state.overlayHitCaptured) {
+            && !state.rulerCreation && !state.freeDrawCreation && !state.overlayHitCaptured) {
           state.chartPanning = true;
           container.style.cursor = 'grabbing';
         }
@@ -177,6 +180,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       unsubCursor();
       state.arrowPathCreation = null;
       state.arrowPathNodeDrag = null;
+      state.freeDrawCreation = null;
       state.rulerCreation = null;
       state.rulerDisplayActive = false;
       chart.unsubscribeClick(handleClick);
@@ -184,6 +188,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       container.removeEventListener('mousedown', handleDragDown);
       container.removeEventListener('mousedown', onOverlayHitTest);
       container.removeEventListener('mousedown', handleOvalDown);
+      container.removeEventListener('mousedown', handleFreeDrawDown);
       container.removeEventListener('dblclick', handleDbl);
       container.removeEventListener('contextmenu', handleCtx);
       container.removeEventListener('mousemove', handleHover);

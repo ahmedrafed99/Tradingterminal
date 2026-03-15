@@ -1,6 +1,6 @@
 # Drawing Tools Feature
 
-Chart annotation system with horizontal line, oval, arrow path, and ruler tools, floating edit toolbar, text labels, drag-to-move, hline templates (save/load/export/import), and localStorage persistence.
+Chart annotation system with horizontal line, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, hline templates (save/load/export/import), and localStorage persistence.
 
 ---
 
@@ -22,6 +22,7 @@ Render Layer    DrawingsPrimitive (ISeriesPrimitive orchestrator)
                     ├── HLinePaneView → HLineRendererImpl
                     ├── OvalPaneView → OvalRendererImpl
                     ├── ArrowPathPaneView → ArrowPathRendererImpl
+                    ├── FreeDrawPaneView → FreeDrawRendererImpl
                     └── RulerDragPreviewRenderer (ephemeral measurement)
 
 Hit Testing     hitTesting.ts (geometry utilities)
@@ -45,7 +46,7 @@ Hit Testing     hitTesting.ts (geometry utilities)
 | `frontend/src/types/drawing.ts` | Drawing, DrawingTool, DrawingText, HLineTemplate types + constants |
 
 ```ts
-type DrawingTool = 'select' | 'hline' | 'oval' | 'arrowpath' | 'ruler';
+type DrawingTool = 'select' | 'hline' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
 
 interface DrawingText {
   content: string;
@@ -78,10 +79,17 @@ interface OvalDrawing extends DrawingBase {
 
 interface ArrowPathDrawing extends DrawingBase {
   type: 'arrowpath';
-  points: { time: number; price: number }[];  // polyline nodes
+  anchorTime: number;  // time of nearest bar to first point (for pan positioning)
+  points: { barOffset: number; price: number }[];  // barOffset = fractional bars from anchor
 }
 
-type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing;
+interface FreeDrawDrawing extends DrawingBase {
+  type: 'freedraw';
+  anchorTime: number;  // time of nearest bar to first point
+  points: { barOffset: number; price: number }[];  // continuous brush stroke
+}
+
+type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | FreeDrawDrawing;
 
 interface HLineTemplate {
   id: string;
@@ -92,13 +100,13 @@ interface HLineTemplate {
 }
 ```
 
-Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_ARROWPATH_COLOR = '#ff9800'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
+Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_ARROWPATH_COLOR = '#ff9800'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
 
 ### UI Components
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `frontend/src/components/chart/DrawingToolbar.tsx` | ~140 | Collapsible left-edge sidebar (select, hline, oval, arrowpath, ruler) — rendered once in `ChartArea`, not per chart |
+| `frontend/src/components/chart/DrawingToolbar.tsx` | ~180 | Collapsible left-edge sidebar (select, hline, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
 | `frontend/src/components/chart/DrawingEditToolbar.tsx` | ~680 | Floating edit popup with color, text, stroke, template, delete — scoped per chart via `contractId` prop |
 
 ### Primitive Renderers
@@ -109,9 +117,10 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, 
 | `frontend/src/components/chart/drawings/HLineRenderer.ts` | ~187 | Horizontal line renderer + hit test |
 | `frontend/src/components/chart/drawings/OvalRenderer.ts` | ~197 | Oval/ellipse renderer + 8-handle resize + hit test |
 | `frontend/src/components/chart/drawings/ArrowPathRenderer.ts` | ~200 | Arrow path polyline renderer + node drag + hit test |
+| `frontend/src/components/chart/drawings/FreeDrawRenderer.ts` | ~110 | Free draw brush stroke renderer + start/end handles + hit test |
 | `frontend/src/components/chart/drawings/RulerRenderer.ts` | ~230 | Ruler measurement renderer (used for persisted rulers) |
 | `frontend/src/components/chart/drawings/rulerMetrics.ts` | ~80 | Ruler metrics computation (price change, %, bars, time, volume) |
-| `frontend/src/components/chart/drawings/hitTesting.ts` | ~79 | Geometry hit-test utilities (hline, arrowpath, rect, oval) |
+| `frontend/src/components/chart/drawings/hitTesting.ts` | ~79 | Geometry hit-test utilities (hline, arrowpath/freedraw, rect, oval) |
 
 ### Modified Files
 
@@ -173,7 +182,8 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 | Oval | Ellipse | Click-and-drag to define bounding rectangle |
 | Arrow Path | Polyline with arrow | Click to place nodes, double-click to finalize (right-click also works) |
 | Ruler | Diagonal ruler | Click to start, move, click to finish — ephemeral measurement overlay |
-| Delete All | Trash bin | Removes all drawings from all charts. Only shown when drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
+| Free Draw | Pencil | Click-and-drag to draw freehand brush strokes. Tool stays active after each stroke for consecutive drawing. |
+| Delete All | Trash bin | Removes all drawings from all charts. Always visible; greyed out (disabled) when no drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
 
 ### DrawingEditToolbar
 
@@ -208,12 +218,13 @@ Template button only shown for hline drawings.
 
 ### DrawingsPrimitive (orchestrator)
 
-Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView`.
+Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView`.
 
 Key methods:
 - `setDrawings(drawings, selectedId)` — rebuilds views, calls `requestUpdate()`
 - `setDragPreview(x1, y1, x2, y2)` / `clearDragPreview()` — dashed ellipse during oval creation
 - `setArrowPathPreview(points)` / `clearArrowPathPreview()` — dashed polyline during arrow path creation
+- `setFreeDrawPreview(points, color, strokeWidth)` / `clearFreeDrawPreview()` — live brush stroke during free draw creation
 - `setRulerDragPreview(x1, y1, x2, y2, metrics, decimals)` / `clearRulerDragPreview()` — ruler rectangle + label preview
 - `getHandleAt(x, y)` — hit-test resize handles on selected oval/ruler
 - `hitTest(x, y)` — returns `PrimitiveHoveredItem` with `externalId` for click-to-select
@@ -251,9 +262,10 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 1. onResizeMouseDown    — resize handles on selected oval/ruler (most specific)
 2. onDrawingDragMouseDown — drag-to-move any drawing
 3. onOvalMouseDown      — oval creation when tool is 'oval'
+4. onFreeDrawMouseDown  — free draw creation when tool is 'freedraw'
 ```
 
-Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path and ruler use click-based state machines in `onOvalMouseUp`.
+Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path and ruler use click-based state machines in `onMouseUp`.
 
 ### Horizontal line placement
 
@@ -278,6 +290,19 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Right-click also finalizes (adds final point at cursor, creates drawing if >= 2 points)
 - Escape cancels creation
 - Arrow tip drawn at the last point
+- **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (same approach as free draw) so nodes can be placed between candle bars without snapping
+
+### Free draw (drag-to-draw)
+
+- Tool: `freedraw`
+- `mousedown` records anchor bar time, bar spacing, and first point; disables chart scroll; shows live CSS preview
+- `mousemove` adds points (3px minimum distance between points to avoid over-sampling); updates preview in real-time
+- `mouseup` finalizes the stroke as a `FreeDrawDrawing` with `anchorTime` + `barOffset/price` points
+- **Tool stays active** after each stroke so the user can draw multiple consecutive strokes without re-selecting
+- Escape or right-click cancels in-progress stroke
+- **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (pixel distance / bar spacing) instead of `coordinateToTime()` which snaps to discrete bar positions. On render: `pixelX = timeToCoordinate(anchorTime) + barOffset * currentBarSpacing`
+- Selected state shows start and end node handles (black fill, dark blue border — same style as arrow path)
+- Edit toolbar shows only color + stroke width (no text, template, or extend controls)
 
 ### Ruler measurement (click-move-click, ephemeral)
 
@@ -325,7 +350,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 
 ### Cursor management
 
-- Drawing tool active (`hline`/`oval`/`arrowpath`/`ruler`): `crosshair`
+- Drawing tool active (`hline`/`oval`/`arrowpath`/`ruler`/`freedraw`): `crosshair`
 - Select tool: `none` (default — hides cursor over chart)
 - Hovering resize handle: directional resize cursor (`nwse-resize`, `ns-resize`, etc.)
 - During drag: cursor unchanged (stays as whatever it was)

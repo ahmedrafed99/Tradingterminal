@@ -1,6 +1,6 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
-import { DEFAULT_OVAL_COLOR } from '../../../types/drawing';
+import { DEFAULT_OVAL_COLOR, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
@@ -28,6 +28,7 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
       state.arrowPathNodeDrag = {
         drawingId: drawing.id,
         nodeIndex,
+        anchorTime: drawing.anchorTime,
         origPoints: drawing.points.map((p) => ({ ...p })),
       };
       container.style.cursor = 'grabbing';
@@ -116,8 +117,20 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
     state.drawingDrag = {
       drawingId: drawing.id, type: 'arrowpath',
       startX: x, startY: y, origPrice: 0,
-      origP1: { time: 0, price: 0 }, origP2: { time: 0, price: 0 },
-      origPoints: drawing.points.map((p) => ({ ...p })),
+      origP1: { time: drawing.anchorTime, price: 0 }, // origP1.time stores anchorTime
+      origP2: { time: 0, price: 0 },
+      origPoints: drawing.points.map((p) => ({ time: p.barOffset, price: p.price })),
+      startTime: data.time, startPrice: data.price, origStartTime: 0,
+    };
+  } else if (drawing.type === 'freedraw') {
+    const data = getDataPos(chart, series, x, y);
+    if (!data) return;
+    state.drawingDrag = {
+      drawingId: drawing.id, type: 'freedraw',
+      startX: x, startY: y, origPrice: 0,
+      origP1: { time: drawing.anchorTime, price: 0 }, // origP1.time stores anchorTime
+      origP2: { time: 0, price: 0 },
+      origPoints: drawing.points.map((p) => ({ time: p.barOffset, price: p.price })),
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
   }
@@ -139,6 +152,38 @@ export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   if (!data) return;
   state.ovalDrag = { startX: x, startY: y, startTime: data.time, startPrice: data.price, tool: 'oval' };
   chart.applyOptions({ handleScroll: false, handleScale: false });
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+/** Mousedown: start free draw brush stroke. */
+export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, chart, series, container } = ctx;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
+  const tool = useStore.getState().activeTool;
+  if (tool !== 'freedraw') return;
+  const { x, y } = getMousePos(e, container);
+  const price = series.coordinateToPrice(y);
+  if (price === null) return;
+
+  // Anchor = nearest bar time (snap is fine for the anchor reference point)
+  const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
+  const anchorTime = anchorTimeRaw ? (anchorTimeRaw as number) : 0;
+  const anchorPixelX = anchorTimeRaw ? (chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x) : x;
+  const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+
+  state.freeDrawCreation = {
+    anchorTime,
+    anchorPixelX,
+    barSpacing,
+    points: [{ barOffset: (x - anchorPixelX) / barSpacing, price: price as number }],
+    cssPoints: [{ x, y }],
+  };
+  chart.applyOptions({ handleScroll: false, handleScale: false });
+
+  const fdDef = useStore.getState().drawingDefaults['freedraw'];
+  ctx.primitive.setFreeDrawPreview([{ x, y }], fdDef?.color ?? DEFAULT_FREEDRAW_COLOR, fdDef?.strokeWidth ?? 2);
+
   e.stopPropagation();
   e.preventDefault();
 }
@@ -187,7 +232,18 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
         const dt = data.time - state.drawingDrag.startTime;
         const dp = data.price - state.drawingDrag.startPrice;
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          points: state.drawingDrag.origPoints.map((p) => ({ time: p.time + dt, price: p.price + dp })),
+          anchorTime: state.drawingDrag.origP1.time + dt,
+          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price + dp })),
+        }, true);
+      }
+    } else if (state.drawingDrag.type === 'freedraw' && state.drawingDrag.origPoints) {
+      const data = getDataPos(chart, series, x, y);
+      if (data) {
+        const dt = data.time - state.drawingDrag.startTime;
+        const dp = data.price - state.drawingDrag.startPrice;
+        useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
+          anchorTime: state.drawingDrag.origP1.time + dt, // shift anchor
+          points: state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price + dp })),
         }, true);
       }
     }
@@ -200,11 +256,16 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   if (state.arrowPathNodeDrag) {
     container.style.cursor = 'grabbing';
     const { x, y } = getMousePos(e, container);
-    const data = getDataPos(chart, series, x, y);
-    if (data) {
-      const newPoints = state.arrowPathNodeDrag.origPoints.map((p) => ({ ...p }));
-      newPoints[state.arrowPathNodeDrag.nodeIndex] = data;
-      useStore.getState().updateDrawing(state.arrowPathNodeDrag.drawingId, { points: newPoints }, true);
+    const price = series.coordinateToPrice(y);
+    if (price !== null) {
+      const anchorX = chart.timeScale().timeToCoordinate(state.arrowPathNodeDrag.anchorTime as unknown as Time);
+      if (anchorX !== null) {
+        const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+        const barOffset = (x - anchorX) / barSpacing;
+        const newPoints = state.arrowPathNodeDrag.origPoints.map((p) => ({ ...p }));
+        newPoints[state.arrowPathNodeDrag.nodeIndex] = { barOffset, price: price as number };
+        useStore.getState().updateDrawing(state.arrowPathNodeDrag.drawingId, { points: newPoints }, true);
+      }
     }
     e.stopPropagation();
     e.preventDefault();
@@ -256,6 +317,29 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Free draw creation: add points as mouse moves
+  if (state.freeDrawCreation) {
+    const { x, y } = getMousePos(e, container);
+    // Only add point if far enough from last point (3px minimum distance)
+    const last = state.freeDrawCreation.cssPoints[state.freeDrawCreation.cssPoints.length - 1];
+    const dx = x - last.x;
+    const dy = y - last.y;
+    if (dx * dx + dy * dy < 9) return;
+    const price = series.coordinateToPrice(y);
+    if (price !== null) {
+      const barOffset = (x - state.freeDrawCreation.anchorPixelX) / state.freeDrawCreation.barSpacing;
+      state.freeDrawCreation.points.push({ barOffset, price: price as number });
+      state.freeDrawCreation.cssPoints.push({ x, y });
+      const fdDef = useStore.getState().drawingDefaults['freedraw'];
+      primitive.setFreeDrawPreview(
+        state.freeDrawCreation.cssPoints,
+        fdDef?.color ?? DEFAULT_FREEDRAW_COLOR,
+        fdDef?.strokeWidth ?? 2,
+      );
+    }
+    return;
+  }
+
   // Oval creation drag preview
   if (!state.ovalDrag) return;
   const { x, y } = getMousePos(e, container);
@@ -287,7 +371,11 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         prev.p1 = { ...state.drawingDrag.origP1 };
         prev.p2 = { ...state.drawingDrag.origP2 };
       } else if (state.drawingDrag.type === 'arrowpath' && state.drawingDrag.origPoints) {
-        prev.points = state.drawingDrag.origPoints.map((p) => ({ ...p }));
+        prev.anchorTime = state.drawingDrag.origP1.time;
+        prev.points = state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price }));
+      } else if (state.drawingDrag.type === 'freedraw' && state.drawingDrag.origPoints) {
+        prev.anchorTime = state.drawingDrag.origP1.time;
+        prev.points = state.drawingDrag.origPoints.map((p) => ({ barOffset: p.time, price: p.price }));
       }
       useStore.getState().pushDrawingUndo({ type: 'update', drawingId: state.drawingDrag.drawingId, previous: prev });
     }
@@ -335,6 +423,34 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Free draw creation: mouseup finalizes the stroke
+  if (state.freeDrawCreation && e.button === 0) {
+    const { x, y } = getMousePos(e, container);
+    const price = series.coordinateToPrice(y);
+    if (price !== null) {
+      const barOffset = (x - state.freeDrawCreation.anchorPixelX) / state.freeDrawCreation.barSpacing;
+      state.freeDrawCreation.points.push({ barOffset, price: price as number });
+    }
+    primitive.clearFreeDrawPreview();
+    chart.applyOptions({ handleScroll: true, handleScale: true });
+    if (state.freeDrawCreation.points.length >= 2 && contract) {
+      const fdDef = useStore.getState().drawingDefaults['freedraw'];
+      useStore.getState().addDrawing({
+        id: crypto.randomUUID(),
+        type: 'freedraw',
+        anchorTime: state.freeDrawCreation.anchorTime,
+        points: [...state.freeDrawCreation.points],
+        color: fdDef?.color ?? DEFAULT_FREEDRAW_COLOR,
+        strokeWidth: fdDef?.strokeWidth ?? 2,
+        text: null,
+        contractId: String(contract.id),
+      });
+    }
+    state.freeDrawCreation = null;
+    // Keep freedraw tool active so user can draw multiple strokes
+    return;
+  }
+
   // Arrow path creation: left-click adds nodes
   if (useStore.getState().activeTool === 'arrowpath' && e.button === 0) {
     const rect = container.getBoundingClientRect();
@@ -342,13 +458,24 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     const y = e.clientY - rect.top;
     if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
         && container.contains(e.target as Node)) {
-      const data = getDataPos(chart, series, x, y);
-      if (data && contract !== null) {
+      const price = series.coordinateToPrice(y);
+      if (price !== null && contract !== null) {
         if (!state.arrowPathCreation) {
-          state.arrowPathCreation = { points: [data], cssPoints: [{ x, y }] };
+          // First click: compute anchor
+          const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
+          const anchorTime = anchorTimeRaw ? (anchorTimeRaw as number) : 0;
+          const anchorPixelX = anchorTimeRaw ? (chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x) : x;
+          const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+          const barOffset = (x - anchorPixelX) / barSpacing;
+          state.arrowPathCreation = {
+            anchorTime, anchorPixelX, barSpacing,
+            points: [{ barOffset, price: price as number }],
+            cssPoints: [{ x, y }],
+          };
           chart.applyOptions({ handleScroll: false, handleScale: false });
         } else {
-          state.arrowPathCreation.points.push(data);
+          const barOffset = (x - state.arrowPathCreation.anchorPixelX) / state.arrowPathCreation.barSpacing;
+          state.arrowPathCreation.points.push({ barOffset, price: price as number });
           state.arrowPathCreation.cssPoints.push({ x, y });
         }
         primitive.setArrowPathPreview(state.arrowPathCreation.cssPoints);

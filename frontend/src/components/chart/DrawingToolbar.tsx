@@ -38,6 +38,15 @@ function ArrowPathIcon() {
   );
 }
 
+function BrushIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="14 2 18 6 7 17 3 17 3 13 14 2" />
+      <line x1="1" y1="22" x2="19" y2="22" />
+    </svg>
+  );
+}
+
 function RulerIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -79,6 +88,7 @@ const TOOLS: { id: DrawingTool; icon: React.FC; label: string }[] = [
   { id: 'oval', icon: OvalIcon, label: 'Oval' },
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
   { id: 'ruler', icon: RulerIcon, label: 'Ruler' },
+  { id: 'freedraw', icon: BrushIcon, label: 'Free Draw' },
 ];
 
 export function DrawingToolbar() {
@@ -137,19 +147,20 @@ export function DrawingToolbar() {
               <Icon />
             </button>
           ))}
-          {drawings.length > 0 && (
-            <>
-              <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
-              <button
-                onClick={clearAllDrawings}
-                className="flex items-center justify-center text-(--color-text-muted) hover:text-red-400 hover:bg-(--color-border)/50 transition-colors"
-                style={{ width: 36, height: 32 }}
-                title="Delete all drawings"
-              >
-                <TrashIcon />
-              </button>
-            </>
-          )}
+          <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
+          <button
+            onClick={clearAllDrawings}
+            disabled={drawings.length === 0}
+            className={`flex items-center justify-center transition-colors ${
+              drawings.length > 0
+                ? 'text-(--color-text-muted) hover:text-red-400 hover:bg-(--color-border)/50'
+                : 'text-(--color-text-muted) disabled:opacity-50 cursor-default'
+            }`}
+            style={{ width: 36, height: 32 }}
+            title="Delete all drawings"
+          >
+            <TrashIcon />
+          </button>
         </div>
       )}
 

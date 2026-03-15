@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Drawing tool identifiers
 // ---------------------------------------------------------------------------
-export type DrawingTool = 'select' | 'hline' | 'oval' | 'arrowpath' | 'ruler';
+export type DrawingTool = 'select' | 'hline' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
 
 // ---------------------------------------------------------------------------
 // Text configuration for drawings
@@ -56,7 +56,8 @@ export interface OvalDrawing extends DrawingBase {
 // ---------------------------------------------------------------------------
 export interface ArrowPathDrawing extends DrawingBase {
   type: 'arrowpath';
-  points: { time: number; price: number }[];  // minimum 2 points
+  anchorTime: number;  // time of nearest bar to first point (for pan positioning)
+  points: { barOffset: number; price: number }[];  // barOffset = fractional bars from anchor
 }
 
 // ---------------------------------------------------------------------------
@@ -79,9 +80,18 @@ export interface RulerDrawing extends DrawingBase {
 }
 
 // ---------------------------------------------------------------------------
+// Free Draw drawing (freehand brush strokes)
+// ---------------------------------------------------------------------------
+export interface FreeDrawDrawing extends DrawingBase {
+  type: 'freedraw';
+  anchorTime: number;  // time of nearest bar to first point (used for pan positioning)
+  points: { barOffset: number; price: number }[];  // barOffset = fractional bars from anchor (continuous)
+}
+
+// ---------------------------------------------------------------------------
 // Union type
 // ---------------------------------------------------------------------------
-export type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing;
+export type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
 
 // ---------------------------------------------------------------------------
 // Horizontal line template (saved style presets)
@@ -103,4 +113,5 @@ export const DEFAULT_HLINE_COLOR = COLOR_TEXT_MUTED;
 export const DEFAULT_OVAL_COLOR = '#ff9800';
 export const DEFAULT_ARROWPATH_COLOR = '#f7c948';
 export const DEFAULT_RULER_COLOR = COLOR_ACCENT;
+export const DEFAULT_FREEDRAW_COLOR = '#ffffff';
 export const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4] as const;

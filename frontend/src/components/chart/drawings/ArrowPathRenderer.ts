@@ -5,6 +5,26 @@ import type { ArrowPathDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT } from '../../../constants/colors';
 import { hitTestArrowPath } from './hitTesting';
 
+/** Convert arrowpath data points → CSS pixel points using anchor + barSpacing. */
+function toPixelPoints(
+  drawing: ArrowPathDrawing,
+  chart: IChartApiBase<Time>,
+  series: ISeriesApi<SeriesType>,
+): { x: number; y: number }[] | null {
+  const anchorX = chart.timeScale().timeToCoordinate(drawing.anchorTime as unknown as Time);
+  if (anchorX === null) return null;
+  const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+
+  const result: { x: number; y: number }[] = [];
+  for (const p of drawing.points) {
+    const x = anchorX + p.barOffset * barSpacing;
+    const y = series.priceToCoordinate(p.price);
+    if (y === null) return null;  // all points must be valid for arrow path
+    result.push({ x, y });
+  }
+  return result.length >= 2 ? result : null;
+}
+
 class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
   private _drawing: ArrowPathDrawing;
   private _selected: boolean;
@@ -25,17 +45,11 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
-      const pts = this._drawing.points;
-      if (pts.length < 2) return;
+      const cssPts = toPixelPoints(this._drawing, this._chart, this._series);
+      if (!cssPts) return;
 
-      // Convert data coords → device pixel coords
-      const devPts: { x: number; y: number }[] = [];
-      for (const p of pts) {
-        const cx = this._chart.timeScale().timeToCoordinate(p.time as unknown as Time);
-        const cy = this._series.priceToCoordinate(p.price);
-        if (cx === null || cy === null) return;
-        devPts.push({ x: cx * hpr, y: cy * vpr });
-      }
+      // Convert CSS → device pixel coords
+      const devPts = cssPts.map((p) => ({ x: p.x * hpr, y: p.y * vpr }));
 
       // Draw polyline
       ctx.beginPath();
@@ -155,26 +169,19 @@ export class ArrowPathPaneView implements IPrimitivePaneView {
   }
 
   hitTest(mouseX: number, mouseY: number): boolean {
-    const cssPoints: { x: number; y: number }[] = [];
-    for (const p of this._drawing.points) {
-      const x = this._chart.timeScale().timeToCoordinate(p.time as unknown as Time);
-      const y = this._series.priceToCoordinate(p.price);
-      if (x === null || y === null) return false;
-      cssPoints.push({ x, y });
-    }
-    return hitTestArrowPath(mouseX, mouseY, cssPoints);
+    const cssPts = toPixelPoints(this._drawing, this._chart, this._series);
+    if (!cssPts) return false;
+    return hitTestArrowPath(mouseX, mouseY, cssPts);
   }
 
   /** Hit-test node handles. Returns 'node-0', 'node-1', etc. or null. */
   hitTestHandle(mx: number, my: number): string | null {
     if (!this._selected) return null;
+    const cssPts = toPixelPoints(this._drawing, this._chart, this._series);
+    if (!cssPts) return null;
     const tol = 6;
-    for (let i = 0; i < this._drawing.points.length; i++) {
-      const p = this._drawing.points[i];
-      const x = this._chart.timeScale().timeToCoordinate(p.time as unknown as Time);
-      const y = this._series.priceToCoordinate(p.price);
-      if (x === null || y === null) continue;
-      if (Math.abs(mx - x) <= tol && Math.abs(my - y) <= tol) return `node-${i}`;
+    for (let i = 0; i < cssPts.length; i++) {
+      if (Math.abs(mx - cssPts[i].x) <= tol && Math.abs(my - cssPts[i].y) <= tol) return `node-${i}`;
     }
     return null;
   }

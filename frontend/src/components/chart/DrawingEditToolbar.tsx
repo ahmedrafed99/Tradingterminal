@@ -741,32 +741,35 @@ export function DrawingEditToolbar({
         )}
       </div>
 
-      <Divider />
-
-      {/* Text */}
-      <div className="relative">
-        <button
-          onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
-          className={`${btnBase} ${showText ? btnActive : btnHover}`}
-          style={{ fontWeight: 700, fontSize: 15, fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif" }}
-          title="Text"
-        >
-          T
-          {/* Text color dot */}
-          <div style={{
-            position: 'absolute', bottom: 4, right: 4,
-            width: 8, height: 8, borderRadius: '50%',
-            background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
-          }} />
-        </button>
-        {showText && (
-          <TextPopover
-            drawing={drawing}
-            onUpdate={(patch) => updateDrawing(drawing.id, patch)}
-            onClose={() => setShowText(false)}
-          />
-        )}
-      </div>
+      {/* Text (not shown for freedraw) */}
+      {drawing.type !== 'freedraw' && (
+        <>
+          <Divider />
+          <div className="relative">
+            <button
+              onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
+              className={`${btnBase} ${showText ? btnActive : btnHover}`}
+              style={{ fontWeight: 700, fontSize: 15, fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif" }}
+              title="Text"
+            >
+              T
+              {/* Text color dot */}
+              <div style={{
+                position: 'absolute', bottom: 4, right: 4,
+                width: 8, height: 8, borderRadius: '50%',
+                background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
+              }} />
+            </button>
+            {showText && (
+              <TextPopover
+                drawing={drawing}
+                onUpdate={(patch) => updateDrawing(drawing.id, patch)}
+                onClose={() => setShowText(false)}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       <Divider />
 
