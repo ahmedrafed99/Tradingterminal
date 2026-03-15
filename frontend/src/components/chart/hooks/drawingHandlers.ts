@@ -458,12 +458,14 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
 
   // Free draw creation: mouseup finalizes the stroke
   if (state.freeDrawCreation && e.button === 0) {
-    const { x, y: rawY } = getMousePos(e, container);
-    const y = e.ctrlKey ? state.freeDrawCreation.cssPoints[0].y : rawY;
-    const price = series.coordinateToPrice(y);
-    if (price !== null) {
-      const barOffset = (x - state.freeDrawCreation.anchorPixelX) / state.freeDrawCreation.barSpacing;
-      state.freeDrawCreation.points.push({ barOffset, price: price as number });
+    // Add final point (skip if Ctrl-snapping to avoid vertical jump at end)
+    if (!e.ctrlKey) {
+      const { x, y } = getMousePos(e, container);
+      const price = series.coordinateToPrice(y);
+      if (price !== null) {
+        const barOffset = (x - state.freeDrawCreation.anchorPixelX) / state.freeDrawCreation.barSpacing;
+        state.freeDrawCreation.points.push({ barOffset, price: price as number });
+      }
     }
     primitive.clearFreeDrawPreview();
     chart.applyOptions({ handleScroll: true, handleScale: true });
