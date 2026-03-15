@@ -181,6 +181,18 @@ export class HLinePaneView implements IPrimitivePaneView {
     return true;
   }
 
+  getBoundingBox(): { x1: number; y1: number; x2: number; y2: number } | null {
+    const y = this._series.priceToCoordinate(this._drawing.price);
+    if (y === null) return null;
+    const chartWidth = this._chart.timeScale().width();
+    let startX = 0;
+    if (!this._drawing.extendLeft && this._drawing.startTime) {
+      const sx = this._chart.timeScale().timeToCoordinate(this._drawing.startTime as unknown as Time);
+      if (sx !== null) startX = sx;
+    }
+    return { x1: startX, y1: y - 5, x2: chartWidth, y2: y + 5 };
+  }
+
   get drawingId(): string {
     return this._drawing.id;
   }

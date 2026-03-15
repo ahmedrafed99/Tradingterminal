@@ -7,7 +7,8 @@ type UndoEntry =
   | { type: 'add'; drawingId: string }
   | { type: 'update'; drawingId: string; previous: Partial<Drawing> }
   | { type: 'remove'; drawing: Drawing }
-  | { type: 'clear'; drawings: Drawing[] };
+  | { type: 'clear'; drawings: Drawing[] }
+  | { type: 'bulkRemove'; drawings: Drawing[] };
 
 interface DrawingStyleDefaults {
   color: string;
@@ -17,16 +18,17 @@ interface DrawingStyleDefaults {
 export interface DrawingsState {
   activeTool: DrawingTool;
   drawingToolbarOpen: boolean;
-  selectedDrawingId: string | null;
+  selectedDrawingIds: string[];
   drawings: Drawing[];
   drawingUndoStack: UndoEntry[];
   drawingDefaults: Record<string, DrawingStyleDefaults>;
   setActiveTool: (tool: DrawingTool) => void;
   setDrawingToolbarOpen: (open: boolean) => void;
-  setSelectedDrawingId: (id: string | null) => void;
+  setSelectedDrawingIds: (ids: string[]) => void;
   addDrawing: (drawing: Drawing) => void;
   updateDrawing: (id: string, patch: Partial<Drawing>, skipUndo?: boolean) => void;
   removeDrawing: (id: string) => void;
+  removeDrawings: (ids: string[]) => void;
   pushDrawingUndo: (entry: UndoEntry) => void;
   undoDrawing: () => void;
   clearAllDrawings: () => void;
@@ -61,13 +63,13 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
   // Drawings
   activeTool: 'select' as DrawingTool,
   drawingToolbarOpen: false,
-  selectedDrawingId: null,
+  selectedDrawingIds: [] as string[],
   drawings: [] as Drawing[],
   drawingUndoStack: [] as UndoEntry[],
   drawingDefaults: {} as Record<string, DrawingStyleDefaults>,
-  setActiveTool: (activeTool) => set({ activeTool, selectedDrawingId: null }),
+  setActiveTool: (activeTool) => set({ activeTool, selectedDrawingIds: [] }),
   setDrawingToolbarOpen: (drawingToolbarOpen) => set({ drawingToolbarOpen }),
-  setSelectedDrawingId: (selectedDrawingId) => set({ selectedDrawingId }),
+  setSelectedDrawingIds: (selectedDrawingIds) => set({ selectedDrawingIds }),
   addDrawing: (drawing) =>
     set((s) => ({
       drawings: [...s.drawings, drawing],
@@ -113,10 +115,21 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
       const drawing = s.drawings.find((d) => d.id === id);
       return {
         drawings: s.drawings.filter((d) => d.id !== id),
-        selectedDrawingId: s.selectedDrawingId === id ? null : s.selectedDrawingId,
+        selectedDrawingIds: s.selectedDrawingIds.filter((sid) => sid !== id),
         drawingUndoStack: drawing
           ? [...s.drawingUndoStack, { type: 'remove', drawing }].slice(-50)
           : s.drawingUndoStack,
+      };
+    }),
+  removeDrawings: (ids) =>
+    set((s) => {
+      const idSet = new Set(ids);
+      const removed = s.drawings.filter((d) => idSet.has(d.id));
+      if (removed.length === 0) return s;
+      return {
+        drawings: s.drawings.filter((d) => !idSet.has(d.id)),
+        selectedDrawingIds: [],
+        drawingUndoStack: [...s.drawingUndoStack, { type: 'bulkRemove', drawings: removed }].slice(-50),
       };
     }),
   undoDrawing: () =>
@@ -129,7 +142,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           return {
             drawingUndoStack: stack,
             drawings: s.drawings.filter((d) => d.id !== entry.drawingId),
-            selectedDrawingId: s.selectedDrawingId === entry.drawingId ? null : s.selectedDrawingId,
+            selectedDrawingIds: s.selectedDrawingIds.filter((id) => id !== entry.drawingId),
           };
         case 'update':
           return {
@@ -148,6 +161,11 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
             drawingUndoStack: stack,
             drawings: entry.drawings,
           };
+        case 'bulkRemove':
+          return {
+            drawingUndoStack: stack,
+            drawings: [...s.drawings, ...entry.drawings],
+          };
         default:
           return { drawingUndoStack: stack };
       }
@@ -157,7 +175,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
       if (s.drawings.length === 0) return s;
       return {
         drawings: [],
-        selectedDrawingId: null,
+        selectedDrawingIds: [],
         drawingUndoStack: [...s.drawingUndoStack, { type: 'clear', drawings: s.drawings }].slice(-50),
       };
     }),

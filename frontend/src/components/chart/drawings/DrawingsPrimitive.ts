@@ -393,6 +393,66 @@ class FreeDrawPreviewPaneView implements IPrimitivePaneView {
 }
 
 // ---------------------------------------------------------------------------
+// Selection rectangle renderer: dashed rectangle during Ctrl+drag multi-select
+// ---------------------------------------------------------------------------
+class SelectionRectRenderer implements IPrimitivePaneRenderer {
+  private _x1: number;
+  private _y1: number;
+  private _x2: number;
+  private _y2: number;
+
+  constructor(x1: number, y1: number, x2: number, y2: number) {
+    this._x1 = x1;
+    this._y1 = y1;
+    this._x2 = x2;
+    this._y2 = y2;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx }) => {
+      const left = Math.min(this._x1, this._x2);
+      const top = Math.min(this._y1, this._y2);
+      const w = Math.abs(this._x2 - this._x1);
+      const h = Math.abs(this._y2 - this._y1);
+      if (w < 1 && h < 1) return;
+
+      // Semi-transparent fill
+      ctx.fillStyle = 'rgba(41, 98, 255, 0.08)';
+      ctx.fillRect(left, top, w, h);
+
+      // Dashed border
+      ctx.strokeStyle = 'rgba(41, 98, 255, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(left, top, w, h);
+      ctx.setLineDash([]);
+    });
+  }
+}
+
+class SelectionRectPaneView implements IPrimitivePaneView {
+  private _x1: number;
+  private _y1: number;
+  private _x2: number;
+  private _y2: number;
+
+  constructor(x1: number, y1: number, x2: number, y2: number) {
+    this._x1 = x1;
+    this._y1 = y1;
+    this._x2 = x2;
+    this._y2 = y2;
+  }
+
+  zOrder(): 'top' {
+    return 'top';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new SelectionRectRenderer(this._x1, this._y1, this._x2, this._y2);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Price axis label for drawings (shows price on the right Y-axis scale)
 // ---------------------------------------------------------------------------
 function contrastTextColor(hex: string): string {
@@ -490,7 +550,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _requestUpdate: (() => void) | null = null;
 
   private _drawings: Drawing[] = [];
-  private _selectedId: string | null = null;
+  private _selectedIds: string[] = [];
   private _paneViews: (HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView)[] = [];
 
   // Drag preview (oval creation)
@@ -533,10 +593,13 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._priceAxisViewPool = [];
   }
 
+  // Selection rectangle preview
+  private _selectionRect: SelectionRectPaneView | null = null;
+
   /** Called by React when store drawings change */
-  setDrawings(drawings: Drawing[], selectedId: string | null): void {
+  setDrawings(drawings: Drawing[], selectedIds: string[]): void {
     this._drawings = drawings;
-    this._selectedId = selectedId;
+    this._selectedIds = selectedIds;
     this._rebuildViews();
     this._requestUpdate?.();
   }
@@ -605,7 +668,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       return;
     }
     this._paneViews = this._drawings.map((d) => {
-      const selected = d.id === this._selectedId;
+      const selected = this._selectedIds.includes(d.id);
       if (d.type === 'hline') {
         return new HLinePaneView(d, selected, this._series!, this._chart! as IChartApiBase<never>);
       } else if (d.type === 'oval') {
@@ -631,6 +694,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (this._arrowPathPreview) extras.push(this._arrowPathPreview);
     if (this._rulerDragPreview) extras.push(this._rulerDragPreview);
     if (this._freeDrawPreview) extras.push(this._freeDrawPreview);
+    if (this._selectionRect) extras.push(this._selectionRect);
     if (extras.length > 0) return [...this._paneViews, ...extras];
     return this._paneViews;
   }
@@ -658,7 +722,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         minimumFractionDigits: this._decimals,
         maximumFractionDigits: this._decimals,
       });
-      const selected = d.id === this._selectedId;
+      const selected = this._selectedIds.includes(d.id);
       items.push({ poolIdx: i, y, text, color: d.color, selected });
     }
 
@@ -701,10 +765,10 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   priceAxisPaneViews(): readonly IPrimitivePaneView[] {
-    if (!this._series || !this.visible || !this._selectedId) return this._emptyPaneViews;
+    if (!this._series || !this.visible || this._selectedIds.length !== 1) return this._emptyPaneViews;
 
     // Only render custom pane view for the selected hline
-    const selected = this._drawings.find((d) => d.id === this._selectedId && d.type === 'hline');
+    const selected = this._drawings.find((d) => d.id === this._selectedIds[0] && d.type === 'hline');
     if (!selected || selected.type !== 'hline') return this._emptyPaneViews;
 
     // Use cached de-overlapped Y from priceAxisViews(), fall back to raw coordinate
@@ -736,6 +800,36 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       }
     }
     return null;
+  }
+
+  /** Show a dashed selection rectangle during Ctrl+drag */
+  setSelectionRect(x1: number, y1: number, x2: number, y2: number): void {
+    this._selectionRect = new SelectionRectPaneView(x1, y1, x2, y2);
+    this._requestUpdate?.();
+  }
+
+  /** Clear the selection rectangle */
+  clearSelectionRect(): void {
+    this._selectionRect = null;
+    this._requestUpdate?.();
+  }
+
+  /** Return IDs of drawings whose bounding box overlaps the given rectangle */
+  getDrawingsInRect(x1: number, y1: number, x2: number, y2: number): string[] {
+    const selLeft = Math.min(x1, x2);
+    const selRight = Math.max(x1, x2);
+    const selTop = Math.min(y1, y2);
+    const selBottom = Math.max(y1, y2);
+    const ids: string[] = [];
+    for (const view of this._paneViews) {
+      const bb = view.getBoundingBox();
+      if (!bb) continue;
+      // AABB overlap check
+      if (bb.x1 <= selRight && bb.x2 >= selLeft && bb.y1 <= selBottom && bb.y2 >= selTop) {
+        ids.push(view.drawingId);
+      }
+    }
+    return ids;
   }
 
   hitTest(x: number, y: number): PrimitiveHoveredItem | null {

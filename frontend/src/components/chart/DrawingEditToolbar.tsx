@@ -674,11 +674,12 @@ export function DrawingEditToolbar({
 }: {
   contractId: string | undefined;
 }) {
-  const selectedId = useStore((s) => s.selectedDrawingId);
+  const selectedIds = useStore((s) => s.selectedDrawingIds);
   const drawings = useStore((s) => s.drawings);
   const updateDrawing = useStore((s) => s.updateDrawing);
   const removeDrawing = useStore((s) => s.removeDrawing);
-  const setSelectedDrawingId = useStore((s) => s.setSelectedDrawingId);
+  const removeDrawings = useStore((s) => s.removeDrawings);
+  const setSelectedDrawingIds = useStore((s) => s.setSelectedDrawingIds);
 
   const [showColor, setShowColor] = useState(false);
   const [showText, setShowText] = useState(false);
@@ -687,15 +688,60 @@ export function DrawingEditToolbar({
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
+  const isMulti = selectedIds.length > 1;
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
+  const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
   const closeAll = () => { setShowColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); };
 
-  if (!drawing) return null;
+  if (!drawing && !isMulti) return null;
+  if (isMulti && multiDrawings.length === 0) return null;
 
   const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text-muted) transition-colors duration-150";
   const btnHover = "hover:bg-(--color-hover-toolbar) hover:text-(--color-text)";
   const btnActive = "bg-(--color-hover-toolbar) text-white";
+
+  // Multi-selection: simplified toolbar with count + delete
+  if (isMulti) {
+    return (
+      <div
+        ref={toolbarRef}
+        className="absolute z-40 flex items-center pointer-events-auto animate-toolbar-in"
+        style={{
+          left: '10%',
+          top: '10%',
+          padding: '4px 6px',
+          gap: 4,
+          background: 'var(--color-panel)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 8,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <span className="text-xs text-(--color-text-muted)" style={{ padding: '0 8px' }}>
+          {multiDrawings.length} selected
+        </span>
+        <Divider />
+        <button
+          onClick={() => { removeDrawings(selectedIds); setSelectedDrawingIds([]); }}
+          className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
+          title="Delete selected"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  if (!drawing) return null;
 
   return (
     <div
@@ -846,7 +892,7 @@ export function DrawingEditToolbar({
 
       {/* Delete */}
       <button
-        onClick={() => { removeDrawing(drawing.id); setSelectedDrawingId(null); }}
+        onClick={() => { removeDrawing(drawing.id); setSelectedDrawingIds([]); }}
         className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
         title="Delete"
       >

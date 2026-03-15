@@ -135,6 +135,12 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
   const { state, chart, container, primitive } = ctx;
 
   if (e.key === 'Escape') {
+    if (state.ctrlDragSelect) {
+      state.ctrlDragSelect = null;
+      primitive.clearSelectionRect();
+      resetChartInteraction(ctx);
+      return;
+    }
     if (state.rulerCreation) {
       state.rulerCreation = null;
       primitive.clearRulerDragPreview();
@@ -205,8 +211,8 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
         state.ovalDrag = null;
         chart.applyOptions({ handleScroll: true, handleScale: true });
       }
-    } else if (s.selectedDrawingId) {
-      s.setSelectedDrawingId(null);
+    } else if (s.selectedDrawingIds.length > 0) {
+      s.setSelectedDrawingIds([]);
     }
   }
 
@@ -214,9 +220,13 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     const s = useStore.getState();
-    if (s.selectedDrawingId) {
-      s.removeDrawing(s.selectedDrawingId);
-      s.setSelectedDrawingId(null);
+    if (s.selectedDrawingIds.length > 0) {
+      if (s.selectedDrawingIds.length === 1) {
+        s.removeDrawing(s.selectedDrawingIds[0]);
+      } else {
+        s.removeDrawings(s.selectedDrawingIds);
+      }
+      s.setSelectedDrawingIds([]);
     }
   }
 
@@ -237,6 +247,10 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
   const { state, container, primitive, refs } = ctx;
 
   // Re-assert grabbing during ANY drag operation
+  if (state.ctrlDragSelect) {
+    container.style.cursor = 'crosshair';
+    return;
+  }
   if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.freeDrawCreation || state.chartPanning
       || refs.orderDragState.current || refs.previewDragState.current || refs.posDrag.current) {
     container.style.cursor = 'grabbing';
@@ -246,8 +260,8 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
   const st = useStore.getState();
   const { x, y } = getMousePos(e, container);
 
-  // Resize handles (only in select mode with selection)
-  if (st.activeTool === 'select' && st.selectedDrawingId) {
+  // Resize handles (only in select mode with single selection)
+  if (st.activeTool === 'select' && st.selectedDrawingIds.length === 1) {
     const hit = primitive.getHandleAt(x, y);
     if (hit) {
       container.style.cursor = HANDLE_CURSOR;

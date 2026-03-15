@@ -186,6 +186,19 @@ export class ArrowPathPaneView implements IPrimitivePaneView {
     return null;
   }
 
+  getBoundingBox(): { x1: number; y1: number; x2: number; y2: number } | null {
+    const cssPts = toPixelPoints(this._drawing, this._chart, this._series);
+    if (!cssPts) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of cssPts) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { x1: minX, y1: minY, x2: maxX, y2: maxY };
+  }
+
   get drawingId(): string {
     return this._drawing.id;
   }

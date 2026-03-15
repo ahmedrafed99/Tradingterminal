@@ -6,6 +6,7 @@ import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR, createDrawingState } from './drawingInteraction';
 import type { DrawingContext } from './drawingInteraction';
 import {
+  onCtrlDragSelectDown,
   onResizeMouseDown,
   onDrawingDragMouseDown,
   onOvalMouseDown,
@@ -40,16 +41,16 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const filtered = contractId != null
       ? storeState.drawings.filter((d) => String(d.contractId) === String(contractId))
       : [];
-    primitive.setDrawings(filtered, storeState.selectedDrawingId);
+    primitive.setDrawings(filtered, storeState.selectedDrawingIds);
 
     // Subscribe to store changes for live sync
     const unsub = useStore.subscribe((s, prev) => {
-      if (s.drawings !== prev.drawings || s.selectedDrawingId !== prev.selectedDrawingId) {
+      if (s.drawings !== prev.drawings || s.selectedDrawingIds !== prev.selectedDrawingIds) {
         const cid = contract?.id;
         const f = cid != null
           ? s.drawings.filter((d) => String(d.contractId) === String(cid))
           : [];
-        primitive.setDrawings(f, s.selectedDrawingId);
+        primitive.setDrawings(f, s.selectedDrawingIds);
       }
     });
 
@@ -57,7 +58,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const handleClick = (param: { point?: { x: number; y: number }; hoveredObjectId?: unknown }) => {
       if (!param.point) return;
       if (state.drawingDragOccurred) { state.drawingDragOccurred = false; return; }
-      const { activeTool, addDrawing, setActiveTool, setSelectedDrawingId, drawingDefaults } = useStore.getState();
+      const { activeTool, addDrawing, setActiveTool, setSelectedDrawingIds, drawingDefaults } = useStore.getState();
 
       if (activeTool === 'hline') {
         const price = series.coordinateToPrice(param.point.y);
@@ -81,9 +82,9 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
 
       if (activeTool === 'select') {
         if (param.hoveredObjectId && typeof param.hoveredObjectId === 'string') {
-          setSelectedDrawingId(param.hoveredObjectId);
+          setSelectedDrawingIds([param.hoveredObjectId]);
         } else {
-          setSelectedDrawingId(null);
+          setSelectedDrawingIds([]);
         }
       }
     };
@@ -91,11 +92,13 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     chart.subscribeClick(handleClick);
 
     // ── Mousedown handlers (ordered by priority) ──
+    const handleCtrlSelect = (e: MouseEvent) => onCtrlDragSelectDown(e, ctx);
     const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
     const handleDragDown = (e: MouseEvent) => onDrawingDragMouseDown(e, ctx);
     const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
     const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
 
+    container.addEventListener('mousedown', handleCtrlSelect);
     container.addEventListener('mousedown', handleResize);
     container.addEventListener('mousedown', handleDragDown);
     container.addEventListener('mousedown', handleOvalDown);
@@ -144,7 +147,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       queueMicrotask(() => {
         if (!state.drawingDrag && !state.ovalResize && !state.ovalDrag
             && !state.arrowPathNodeDrag && !state.arrowPathCreation
-            && !state.rulerCreation && !state.freeDrawCreation && !state.overlayHitCaptured) {
+            && !state.rulerCreation && !state.freeDrawCreation && !state.overlayHitCaptured
+            && !state.ctrlDragSelect) {
           state.chartPanning = true;
           container.style.cursor = 'grabbing';
         }
@@ -183,7 +187,9 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       state.freeDrawCreation = null;
       state.rulerCreation = null;
       state.rulerDisplayActive = false;
+      state.ctrlDragSelect = null;
       chart.unsubscribeClick(handleClick);
+      container.removeEventListener('mousedown', handleCtrlSelect);
       container.removeEventListener('mousedown', handleResize);
       container.removeEventListener('mousedown', handleDragDown);
       container.removeEventListener('mousedown', onOverlayHitTest);

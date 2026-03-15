@@ -14,7 +14,7 @@ UI Layer        DrawingToolbar (tool selection)
                     └── ColorPopover, TextPopover, StrokePopover, TemplatePopover
 
 State Layer     Zustand DrawingsState slice (persisted to localStorage)
-                    activeTool, drawings[], selectedDrawingId, drawingToolbarOpen
+                    activeTool, drawings[], selectedDrawingIds[], drawingToolbarOpen
                 Zustand HLineTemplatesState slice (persisted to localStorage)
                     hlineTemplates[]
 
@@ -138,15 +138,16 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, 
 interface DrawingsState {
   activeTool: DrawingTool;           // ephemeral, default 'select'
   drawingToolbarOpen: boolean;       // persisted
-  selectedDrawingId: string | null;  // ephemeral
+  selectedDrawingIds: string[];      // ephemeral — empty=none, single=edit toolbar, multi=bulk toolbar
   drawings: Drawing[];               // persisted
 
   setActiveTool: (tool: DrawingTool) => void;     // also clears selection
   setDrawingToolbarOpen: (open: boolean) => void;
-  setSelectedDrawingId: (id: string | null) => void;
+  setSelectedDrawingIds: (ids: string[]) => void;
   addDrawing: (drawing: Drawing) => void;
   updateDrawing: (id: string, patch: Partial<Drawing>) => void;
-  removeDrawing: (id: string) => void;             // also clears selection if removed
+  removeDrawing: (id: string) => void;             // also filters from selectedDrawingIds
+  removeDrawings: (ids: string[]) => void;         // bulk delete, single 'bulkRemove' undo entry
   clearAllDrawings: () => void;                    // removes all drawings, undoable via Ctrl+Z
 }
 
@@ -221,13 +222,15 @@ Template button only shown for hline drawings.
 Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView`.
 
 Key methods:
-- `setDrawings(drawings, selectedId)` — rebuilds views, calls `requestUpdate()`
+- `setDrawings(drawings, selectedIds)` — rebuilds views, calls `requestUpdate()`
 - `setDragPreview(x1, y1, x2, y2)` / `clearDragPreview()` — dashed ellipse during oval creation
 - `setArrowPathPreview(points)` / `clearArrowPathPreview()` — dashed polyline during arrow path creation
 - `setFreeDrawPreview(points, color, strokeWidth)` / `clearFreeDrawPreview()` — live brush stroke during free draw creation
 - `setRulerDragPreview(x1, y1, x2, y2, metrics, decimals)` / `clearRulerDragPreview()` — ruler rectangle + label preview
 - `getHandleAt(x, y)` — hit-test resize handles on selected oval/ruler
 - `hitTest(x, y)` — returns `PrimitiveHoveredItem` with `externalId` for click-to-select
+- `setSelectionRect(x1, y1, x2, y2)` / `clearSelectionRect()` — dashed blue rectangle during Ctrl+drag multi-select
+- `getDrawingsInRect(x1, y1, x2, y2)` — returns IDs of drawings whose bounding box overlaps the rectangle (AABB overlap)
 - `priceAxisViews()` — returns price axis labels for all HLines with **de-overlap stacking**: labels are sorted by Y coordinate and pushed apart (18px gap) so close HLines stack vertically instead of overlapping
 
 ### HLineRenderer
@@ -259,10 +262,11 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 ### Event listener priority
 
 ```
-1. onResizeMouseDown    — resize handles on selected oval/ruler (most specific)
-2. onDrawingDragMouseDown — drag-to-move any drawing
-3. onOvalMouseDown      — oval creation when tool is 'oval'
-4. onFreeDrawMouseDown  — free draw creation when tool is 'freedraw'
+1. onCtrlDragSelectDown — Ctrl+drag area selection for multi-select
+2. onResizeMouseDown    — resize handles on selected oval/ruler (most specific)
+3. onDrawingDragMouseDown — drag-to-move any drawing
+4. onOvalMouseDown      — oval creation when tool is 'oval'
+5. onFreeDrawMouseDown  — free draw creation when tool is 'freedraw'
 ```
 
 Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path and ruler use click-based state machines in `onMouseUp`.
@@ -319,8 +323,22 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 ### Click-to-select
 
 - `chart.subscribeClick()` handler
-- If `hoveredObjectId` from `hitTest()` → `setSelectedDrawingId(id)`
-- If no hovered object → `setSelectedDrawingId(null)` (deselect)
+- If `hoveredObjectId` from `hitTest()` → `setSelectedDrawingIds([id])`
+- If no hovered object → `setSelectedDrawingIds([])` (deselect)
+
+### Multi-select (Ctrl+drag area selection)
+
+- Tool: `select`, requires `Ctrl` key held
+- `mousedown` with Ctrl → records start point, disables chart pan/scroll
+- `mousemove` → renders dashed blue selection rectangle via `primitive.setSelectionRect()` (semi-transparent `rgba(41, 98, 255, 0.08)` fill + dashed `rgba(41, 98, 255, 0.6)` border)
+- `mouseup` → calls `primitive.getDrawingsInRect()` which checks AABB overlap of each drawing's `getBoundingBox()` against the selection rectangle → sets `selectedDrawingIds` with all matched IDs
+- Each PaneView provides `getBoundingBox()`: HLine uses price ± 5px tolerance × chart width, Oval/Ruler use their p1/p2 screen coords, ArrowPath/FreeDraw compute min/max of all CSS pixel points
+- When multiple drawings are selected:
+  - A simplified edit toolbar appears showing "{N} selected" + Delete button
+  - Delete/Backspace key bulk-deletes all selected drawings (single `bulkRemove` undo entry)
+  - Ctrl+Z undoes the bulk delete, restoring all removed drawings
+- Escape cancels in-progress Ctrl+drag or clears multi-selection
+- Clicking empty space or a single drawing resets to single/no selection
 
 ### Drag-to-move
 
@@ -344,9 +362,9 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 
 | Key | Action |
 |-----|--------|
-| `Escape` | Cancel in-progress drag (reverts to original position) → cancel resize → cancel tool → deselect |
-| `Delete` / `Backspace` | Remove selected drawing (guarded: not in input/textarea) |
-| `Ctrl+Z` / `Cmd+Z` | Undo last drawing mutation (see `drawing-tools/undo/README.md`) |
+| `Escape` | Cancel Ctrl+drag selection → cancel in-progress drag (reverts to original position) → cancel resize → cancel tool → clear multi-selection → deselect |
+| `Delete` / `Backspace` | Remove selected drawing(s) — single or bulk delete (guarded: not in input/textarea) |
+| `Ctrl+Z` / `Cmd+Z` | Undo last drawing mutation including bulk deletes (see `drawing-tools/undo/README.md`) |
 
 ### Cursor management
 
@@ -372,9 +390,13 @@ User clicks chart → handleClick fires
                   → LWC redraws → HLineRenderer.draw() renders line
 
 User clicks drawing → hitTest returns externalId
-                    → store.setSelectedDrawingId(id)
+                    → store.setSelectedDrawingIds([id])
                     → DrawingEditToolbar appears above drawing
                     → primitive.setDrawings() marks it selected → handles appear
+
+User Ctrl+drags    → selection rectangle rendered on canvas
+                   → mouseup → getDrawingsInRect() → setSelectedDrawingIds(ids)
+                   → DrawingEditToolbar shows simplified "{N} selected" + Delete
 
 User edits in toolbar → store.updateDrawing(id, patch)
                       → subscriber → primitive.setDrawings() → requestUpdate() → redraw

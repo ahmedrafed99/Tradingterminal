@@ -69,6 +69,11 @@ export interface DrawingState {
     cssPoints: { x: number; y: number }[];
   } | null;
 
+  ctrlDragSelect: {
+    startX: number;
+    startY: number;
+  } | null;
+
   chartPanning: boolean;
   overlayHitCaptured: boolean;
 }
@@ -95,6 +100,7 @@ export function createDrawingState(): DrawingState {
     arrowPathCreation: null,
     arrowPathNodeDrag: null,
     freeDrawCreation: null,
+    ctrlDragSelect: null,
     chartPanning: false,
     overlayHitCaptured: false,
   };

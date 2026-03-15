@@ -190,6 +190,15 @@ export class OvalPaneView implements IPrimitivePaneView {
     return { p1: this._drawing.p1, p2: this._drawing.p2 };
   }
 
+  getBoundingBox(): { x1: number; y1: number; x2: number; y2: number } | null {
+    const x1 = this._chart.timeScale().timeToCoordinate(this._drawing.p1.time as unknown as Time);
+    const y1 = this._series.priceToCoordinate(this._drawing.p1.price);
+    const x2 = this._chart.timeScale().timeToCoordinate(this._drawing.p2.time as unknown as Time);
+    const y2 = this._series.priceToCoordinate(this._drawing.p2.price);
+    if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
+    return { x1: Math.min(x1, x2), y1: Math.min(y1, y2), x2: Math.max(x1, x2), y2: Math.max(y1, y2) };
+  }
+
   get drawingId(): string {
     return this._drawing.id;
   }

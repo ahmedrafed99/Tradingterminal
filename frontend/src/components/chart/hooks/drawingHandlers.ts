@@ -9,12 +9,29 @@ import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from
 // Mouse-down handlers
 // ═══════════════════════════════════════════════════════════════════
 
+/** Mousedown: Ctrl+drag area selection for multi-select. */
+export function onCtrlDragSelectDown(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, chart, container } = ctx;
+  if (!e.ctrlKey || e.button !== 0) return;
+  const st = useStore.getState();
+  if (st.activeTool !== 'select') return;
+  // Don't start if another interaction is in progress
+  if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
+      || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
+
+  const { x, y } = getMousePos(e, container);
+  state.ctrlDragSelect = { startX: x, startY: y };
+  chart.applyOptions({ handleScroll: false, handleScale: false });
+  e.stopPropagation();
+  e.preventDefault();
+}
+
 /** Mousedown: start oval/ruler resize by handle. */
 export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, primitive } = ctx;
   const st = useStore.getState();
-  if (st.activeTool !== 'select' || !st.selectedDrawingId) return;
-  const drawing = st.drawings.find((d) => d.id === st.selectedDrawingId);
+  if (st.activeTool !== 'select' || st.selectedDrawingIds.length !== 1) return;
+  const drawing = st.drawings.find((d) => d.id === st.selectedDrawingIds[0]);
   if (!drawing || (drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler')) return;
 
   const { x, y } = getMousePos(e, container);
@@ -135,7 +152,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
     };
   }
 
-  st.setSelectedDrawingId(drawing.id);
+  st.setSelectedDrawingIds([drawing.id]);
   container.style.cursor = 'grabbing';
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.preventDefault();
@@ -195,6 +212,13 @@ export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
 export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, primitive, contract, refs } = ctx;
+
+  // Ctrl+drag area selection
+  if (state.ctrlDragSelect) {
+    const { x, y } = getMousePos(e, container);
+    primitive.setSelectionRect(state.ctrlDragSelect.startX, state.ctrlDragSelect.startY, x, y);
+    return;
+  }
 
   // Drawing drag-to-move
   if (state.drawingDrag) {
@@ -343,6 +367,21 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
 
 export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, primitive, contract, refs } = ctx;
+
+  // Ctrl+drag area selection end
+  if (state.ctrlDragSelect) {
+    const { x, y } = getMousePos(e, container);
+    const ids = primitive.getDrawingsInRect(
+      state.ctrlDragSelect.startX, state.ctrlDragSelect.startY, x, y
+    );
+    primitive.clearSelectionRect();
+    state.ctrlDragSelect = null;
+    resetChartInteraction(ctx);
+    if (ids.length > 0) {
+      useStore.getState().setSelectedDrawingIds(ids);
+    }
+    return;
+  }
 
   // Dismiss ephemeral ruler on any left click after it's shown
   if (state.rulerDisplayActive && e.button === 0) {
