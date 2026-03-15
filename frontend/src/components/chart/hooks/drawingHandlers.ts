@@ -339,8 +339,8 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   // Free draw creation: add points as mouse moves
   if (state.freeDrawCreation) {
     const { x, y: rawY } = getMousePos(e, container);
-    // Ctrl = snap to horizontal (lock Y to first point)
-    const y = e.ctrlKey ? state.freeDrawCreation.cssPoints[0].y : rawY;
+    // Ctrl = snap to horizontal (lock Y to last point)
+    const y = e.ctrlKey ? state.freeDrawCreation.cssPoints[state.freeDrawCreation.cssPoints.length - 1].y : rawY;
     // Only add point if far enough from last point (3px minimum distance)
     const last = state.freeDrawCreation.cssPoints[state.freeDrawCreation.cssPoints.length - 1];
     const dx = x - last.x;

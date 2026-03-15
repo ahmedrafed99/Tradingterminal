@@ -304,7 +304,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - `mousemove` adds points (3px minimum distance between points to avoid over-sampling); updates preview in real-time
 - `mouseup` finalizes the stroke as a `FreeDrawDrawing` with `anchorTime` + `barOffset/price` points
 - **Tool stays active** after each stroke so the user can draw multiple consecutive strokes without re-selecting
-- **Ctrl = horizontal snap**: holding Ctrl while drawing locks Y to the first point's Y, forcing a perfectly horizontal stroke
+- **Ctrl = horizontal snap**: holding Ctrl while drawing locks Y to the last point's Y, forcing a perfectly horizontal continuation from the current position
 - Escape or right-click cancels in-progress stroke
 - **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (pixel distance / bar spacing) instead of `coordinateToTime()` which snaps to discrete bar positions. On render: `pixelX = timeToCoordinate(anchorTime) + barOffset * currentBarSpacing`
 - Selected state shows start and end node handles (`COLOR_LABEL_TEXT` fill, `COLOR_HANDLE_STROKE` border — same style as arrow path)
