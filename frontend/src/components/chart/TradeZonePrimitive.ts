@@ -129,6 +129,7 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
   private _chart: IChartApiBase<Time>;
   private _periodSec: number;
   private _decimals: number;
+  private _extendRight: boolean;
 
   constructor(
     zones: TradeZone[],
@@ -136,19 +137,21 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     chart: IChartApiBase<Time>,
     periodSec: number,
     decimals: number,
+    extendRight: boolean,
   ) {
     this._zones = zones;
     this._series = series;
     this._chart = chart;
     this._periodSec = periodSec;
     this._decimals = decimals;
+    this._extendRight = extendRight;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useBitmapCoordinateSpace(
-      ({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
+      ({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr, bitmapSize }) => {
         for (const zone of this._zones) {
-          this._drawZone(ctx, zone, vpr, hpr);
+          this._drawZone(ctx, zone, vpr, hpr, bitmapSize.width);
         }
       },
     );
@@ -159,6 +162,7 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     zone: TradeZone,
     vpr: number,
     hpr: number,
+    canvasWidth: number,
   ): void {
     const entryTs = Math.floor(
       new Date(zone.entryTrade.creationTimestamp).getTime() / 1000,
@@ -196,7 +200,8 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
 
     const rectLeft = Math.min(x1, x2);
     const rectTop = Math.min(y1, y2);
-    const rectW = Math.abs(x2 - x1);
+    const rectRight = this._extendRight ? canvasWidth : Math.max(x1, x2);
+    const rectW = rectRight - rectLeft;
     const rectH = Math.abs(y2 - y1) || Math.round(2 * vpr); // min 2px if same price
 
     // Semi-transparent fill
@@ -358,6 +363,7 @@ class TradeZonePaneView implements IPrimitivePaneView {
       chart,
       this._primitive.getPeriodSec(),
       this._primitive.getDecimals(),
+      this._primitive.getExtendRight(),
     );
   }
 }
@@ -371,6 +377,7 @@ export class TradeZonePrimitive implements ISeriesPrimitive<Time> {
   private _zones: TradeZone[] = [];
   private _periodSec = 60;
   private _decimals = 2;
+  private _extendRight = false;
   private _paneView: TradeZonePaneView;
   private _paneViewsArr: readonly IPrimitivePaneView[];
   private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
@@ -421,6 +428,15 @@ export class TradeZonePrimitive implements ISeriesPrimitive<Time> {
 
   getDecimals(): number {
     return this._decimals;
+  }
+
+  setExtendRight(extend: boolean): void {
+    this._extendRight = extend;
+    this._requestUpdate?.();
+  }
+
+  getExtendRight(): boolean {
+    return this._extendRight;
   }
 
   paneViews(): readonly IPrimitivePaneView[] {

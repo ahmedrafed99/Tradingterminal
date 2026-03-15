@@ -66,7 +66,8 @@ When a trade ID is in `visibleTradeIds`, `useChartWidgets` renders trade zone ov
 - `useChartWidgets` merges `sessionTrades` + `displayTrades` (deduplicated by ID) before calling `matchTrades()`. This ensures clicks from the Trades tab work regardless of which date preset is active — `displayTrades` may contain trades outside the current CME session.
 - `matchTrades()` finds exit trades by ID, then resolves their entry counterpart via `buildEntryMap()` (FIFO). Each matched pair produces a `TradeZone` rendered as an entry/exit rectangle.
 - Profitable zones are green, losing zones are red.
-- The subscription reacts to changes in `visibleTradeIds`, `sessionTrades`, and `displayTrades`.
+- When `chartSettings.extendTradeZoneRight` is enabled (via Settings → Trading tab), the trade zone rectangle extends to the right edge of the chart instead of stopping at the exit candle.
+- The subscription reacts to changes in `visibleTradeIds`, `sessionTrades`, `displayTrades`, and `chartSettings.extendTradeZoneRight`.
 
 ## Shared Utility
 

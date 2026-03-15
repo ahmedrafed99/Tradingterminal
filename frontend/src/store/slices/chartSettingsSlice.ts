@@ -20,6 +20,9 @@ export interface ChartSettingsState {
     bgColor: string;
     gradientTopColor: string;
     gradientBottomColor: string;
+
+    // Trading
+    extendTradeZoneRight: boolean;
   };
   setChartSettings: (patch: Partial<ChartSettingsState['chartSettings']>) => void;
 }
@@ -46,6 +49,8 @@ export const CHART_SETTINGS_DEFAULTS: ChartSettingsState['chartSettings'] = {
   bgColor: '#000000',
   gradientTopColor: '#1e222d',
   gradientBottomColor: '#000000',
+
+  extendTradeZoneRight: false,
 };
 
 export const createChartSettingsSlice = (set: Set): ChartSettingsSlice => ({

@@ -72,6 +72,7 @@ Opened via "Settings..." from the quick popover. Category sidebar on the left, s
 │                │                                         │
 │  ● Bars        │  CANDLES                                │
 │    Canvas      │                                         │
+│    Trading     │                                         │
 │                │  ☑ Body     [■ up] [■ down]             │
 │                │  ☑ Borders  [■ up] [■ down]             │
 │                │  ☑ Wick     [■ up] [■ down]             │
@@ -114,6 +115,16 @@ Chart background.
 | Gradient bottom | Colour swatch (shown when type = gradient) | `#000000` | `chartSettings.gradientBottomColor` |
 
 Layout: inline row — dropdown + colour swatch(es) side by side, no separate labels.
+
+#### 3. Trading
+
+Trade marker appearance — controls how entry/exit trade zones render on the chart.
+
+| Setting | Control | Default | Store key |
+|---------|---------|---------|-----------|
+| Extend zone right | Checkbox | `false` | `chartSettings.extendTradeZoneRight` |
+
+When enabled, the trade zone rectangle (drawn between entry and exit prices) extends horizontally to the right edge of the chart instead of stopping at the exit candle. The dashed horizontal lines at entry/exit price levels also extend accordingly. Inspired by the HLine drawing's `extendLeft` toggle.
 
 ---
 
@@ -167,6 +178,9 @@ chartSettings: {
   bgColor: string;            // '#000000'
   gradientTopColor: string;   // '#1e222d'
   gradientBottomColor: string; // '#000000'
+
+  // Trading
+  extendTradeZoneRight: boolean; // false
 }
 ```
 
@@ -214,6 +228,11 @@ All Lightweight Charts options are hot-updatable — no chart recreation needed.
 - Reset defaults button restores `CHART_SETTINGS_DEFAULTS`
 - Persist all settings via Zustand `persist` middleware
 - Apply settings to chart in real time via `useEffect`
+
+### Phase 3 (implemented)
+- Trading category with trade marker settings
+- "Extend zone right" toggle — extends trade zone rectangles to the right edge of the chart
+- Setting reactively applied via `useChartWidgets` store subscription → `TradeZonePrimitive.setExtendRight()`
 
 ### Out of scope (future)
 - Per-chart settings in dual-chart mode (currently shared)

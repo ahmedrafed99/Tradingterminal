@@ -4,7 +4,7 @@ import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
 import { Modal } from '../shared/Modal';
 import { ColorPopover } from './ColorPopover';
 
-type Category = 'bars' | 'canvas';
+type Category = 'bars' | 'canvas' | 'trading';
 
 const FONT = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
@@ -31,6 +31,15 @@ function CanvasIcon() {
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="2" width="12" height="12" rx="1.5" />
       <path d="M2 10l3-3 2 2 4-4 3 3" opacity="0.5" />
+    </svg>
+  );
+}
+
+function TradingIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 11l4-6 3 4 3-5" />
+      <polyline points="11 4 14 4 14 7" strokeWidth="1.2" />
     </svg>
   );
 }
@@ -218,6 +227,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   const categories: { id: Category; label: string; icon: React.ReactNode }[] = [
     { id: 'bars', label: 'Bars', icon: <BarsIcon /> },
     { id: 'canvas', label: 'Canvas', icon: <CanvasIcon /> },
+    { id: 'trading', label: 'Trading', icon: <TradingIcon /> },
   ];
 
   return (
@@ -288,6 +298,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
         <div style={{ flex: 1, padding: '16px 24px', overflowY: 'auto' }}>
           {category === 'bars' && <BarsPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'canvas' && <CanvasPanel settings={chartSettings} onChange={setChartSettings} />}
+          {category === 'trading' && <TradingPanel settings={chartSettings} onChange={setChartSettings} />}
         </div>
       </div>
 
@@ -406,6 +417,32 @@ function BarsPanel({ settings, onChange }: { settings: Settings; onChange: OnCha
 // ---------------------------------------------------------------------------
 // Canvas Panel
 // ---------------------------------------------------------------------------
+function TradingPanel({ settings, onChange }: { settings: Settings; onChange: OnChange }) {
+  return (
+    <>
+      <SectionHeader>Trade Markers</SectionHeader>
+
+      <Checkbox
+        checked={settings.extendTradeZoneRight}
+        onChange={(v) => onChange({ extendTradeZoneRight: v })}
+        label="Extend zone right"
+      />
+      <div
+        style={{
+          fontSize: 11,
+          color: 'var(--color-text-muted)',
+          marginTop: 6,
+          marginLeft: 24,
+          lineHeight: 1.4,
+          fontFamily: FONT,
+        }}
+      >
+        Extend the trade zone rectangle to the right edge of the chart
+      </div>
+    </>
+  );
+}
+
 function CanvasPanel({ settings, onChange }: { settings: Settings; onChange: OnChange }) {
   return (
     <>

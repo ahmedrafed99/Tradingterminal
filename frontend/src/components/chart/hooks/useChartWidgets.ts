@@ -31,6 +31,7 @@ export function useChartWidgets(
 
     primitive.setPeriod(periodSec);
     primitive.setDecimals(decimals);
+    primitive.setExtendRight(useStore.getState().chartSettings.extendTradeZoneRight);
 
     function rebuild() {
       if (!primitive || !contractId) {
@@ -59,6 +60,9 @@ export function useChartWidgets(
         s.displayTrades !== prev.displayTrades
       ) {
         rebuild();
+      }
+      if (s.chartSettings.extendTradeZoneRight !== prev.chartSettings.extendTradeZoneRight) {
+        primitive.setExtendRight(s.chartSettings.extendTradeZoneRight);
       }
     });
     return () => {
