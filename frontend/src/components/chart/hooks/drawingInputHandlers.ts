@@ -29,7 +29,11 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
   // Arrow path in progress: finalize it
   if (state.arrowPathCreation) {
     e.stopPropagation();
-    const { x, y } = getMousePos(e, container);
+    const { x, y: rawY } = getMousePos(e, container);
+    // Ctrl = snap to horizontal (lock Y to last placed node)
+    const y = e.ctrlKey
+      ? state.arrowPathCreation.cssPoints[state.arrowPathCreation.cssPoints.length - 1].y
+      : rawY;
     const price = series.coordinateToPrice(y);
     if (price !== null) {
       const barOffset = (x - state.arrowPathCreation.anchorPixelX) / state.arrowPathCreation.barSpacing;

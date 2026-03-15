@@ -314,7 +314,11 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   // Arrow path creation preview
   if (state.arrowPathCreation) {
     const { x, y } = getMousePos(e, container);
-    primitive.setArrowPathPreview([...state.arrowPathCreation.cssPoints, { x, y }]);
+    // Ctrl = snap to horizontal (lock Y to last placed node)
+    const snapY = e.ctrlKey
+      ? state.arrowPathCreation.cssPoints[state.arrowPathCreation.cssPoints.length - 1].y
+      : y;
+    primitive.setArrowPathPreview([...state.arrowPathCreation.cssPoints, { x, y: snapY }]);
     return;
   }
 
@@ -334,7 +338,9 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
 
   // Free draw creation: add points as mouse moves
   if (state.freeDrawCreation) {
-    const { x, y } = getMousePos(e, container);
+    const { x, y: rawY } = getMousePos(e, container);
+    // Ctrl = snap to horizontal (lock Y to first point)
+    const y = e.ctrlKey ? state.freeDrawCreation.cssPoints[0].y : rawY;
     // Only add point if far enough from last point (3px minimum distance)
     const last = state.freeDrawCreation.cssPoints[state.freeDrawCreation.cssPoints.length - 1];
     const dx = x - last.x;
@@ -452,7 +458,8 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
 
   // Free draw creation: mouseup finalizes the stroke
   if (state.freeDrawCreation && e.button === 0) {
-    const { x, y } = getMousePos(e, container);
+    const { x, y: rawY } = getMousePos(e, container);
+    const y = e.ctrlKey ? state.freeDrawCreation.cssPoints[0].y : rawY;
     const price = series.coordinateToPrice(y);
     if (price !== null) {
       const barOffset = (x - state.freeDrawCreation.anchorPixelX) / state.freeDrawCreation.barSpacing;
@@ -482,7 +489,11 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
   if (useStore.getState().activeTool === 'arrowpath' && e.button === 0) {
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    let y = e.clientY - rect.top;
+    // Ctrl = snap to horizontal (lock Y to last placed node)
+    if (e.ctrlKey && state.arrowPathCreation) {
+      y = state.arrowPathCreation.cssPoints[state.arrowPathCreation.cssPoints.length - 1].y;
+    }
     if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
         && container.contains(e.target as Node)) {
       const price = series.coordinateToPrice(y);
