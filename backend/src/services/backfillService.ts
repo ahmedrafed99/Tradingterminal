@@ -272,12 +272,23 @@ async function resolveActiveContract(symbol: string): Promise<string | null> {
     };
 
     const contracts = result.contracts ?? [];
-    // Find the active contract matching our product
-    const active = contracts.find(
-      (c) => c.activeContract && c.id.startsWith(`CON.F.US.${product}.`),
-    );
-    return active?.id ?? null;
-  } catch {
+    const matching = contracts.filter((c) => c.id.startsWith(`CON.F.US.${product}.`));
+
+    // Prefer the one explicitly marked active
+    const active = matching.find((c) => c.activeContract);
+    if (active) return active.id;
+
+    // Rollover fallback: pick the latest contract alphabetically (e.g. M26 > H26)
+    if (matching.length > 0) {
+      matching.sort((a, b) => b.id.localeCompare(a.id));
+      console.log(`[auto-sync] No active flag for ${symbol}, falling back to ${matching[0].id}`);
+      return matching[0].id;
+    }
+
+    console.log(`[auto-sync] No contracts found for ${symbol} (product: ${product})`);
+    return null;
+  } catch (err) {
+    console.log(`[auto-sync] Failed to resolve contract for ${symbol}: ${err instanceof Error ? err.message : err}`);
     return null;
   }
 }

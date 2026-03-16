@@ -108,6 +108,8 @@ Auto-sync starts on backend boot (10s delay for auth) and runs every 30 minutes.
 - Not connected to the exchange
 - A manual sync/fetch is already running
 
+**Contract rollover resilience**: If no contract has the `activeContract` flag set (can happen briefly during quarterly rollovers), the resolver falls back to the latest contract alphabetically (e.g. `M26` > `H26`). All resolution failures are logged with `[auto-sync]` prefix.
+
 ### Manual Sync
 
 A "Sync Now" button in the Database settings tab triggers an immediate sync. Uses the same logic as auto-sync.
