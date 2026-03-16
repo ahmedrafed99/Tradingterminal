@@ -34,6 +34,14 @@ export function useChartBars(
   const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
   const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
 
+  // Bump to force historical bar reload on market hub reconnect
+  const [reconnectCount, setReconnectCount] = useState(0);
+  useEffect(() => {
+    const handler = () => setReconnectCount((c) => c + 1);
+    realtimeService.onMarketReconnect(handler);
+    return () => { realtimeService.offMarketReconnect(handler); };
+  }, []);
+
   // -- Historical bars loading --
   useEffect(() => {
     if (!contract || !refs.series.current) return;
@@ -139,7 +147,7 @@ export function useChartBars(
       cancelled = true;
       if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
     };
-  }, [contract, timeframe]);
+  }, [contract, timeframe, reconnectCount]);
 
   // -- Real-time quote subscription --
   useEffect(() => {

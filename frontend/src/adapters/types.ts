@@ -115,6 +115,8 @@ export interface RealtimeAdapter {
   offTrade(handler: TradeHandler): void;
   onUserReconnect(handler: () => void): void;
   offUserReconnect(handler: () => void): void;
+  onMarketReconnect(handler: () => void): void;
+  offMarketReconnect(handler: () => void): void;
 
   // Utility
   ping(): Promise<number>;

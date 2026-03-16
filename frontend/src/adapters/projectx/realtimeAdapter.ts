@@ -41,6 +41,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   private subscribedOrderAccounts: Set<string> = new Set();
   private connectingPromise: Promise<void> | null = null;
   private userReconnectHandlers: (() => void)[] = [];
+  private marketReconnectHandlers: (() => void)[] = [];
 
   async connect() {
     if (this.isConnected()) return;
@@ -157,6 +158,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
       for (const contractId of this.subscribedDepth) {
         this.marketHub?.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
       }
+      this.marketReconnectHandlers.forEach((h) => h());
     });
     this.userHub.onreconnected(() => {
       for (const accountId of this.subscribedOrderAccounts) {
@@ -264,6 +266,9 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
 
   onUserReconnect(handler: () => void)  { this.userReconnectHandlers.push(handler); }
   offUserReconnect(handler: () => void) { this.userReconnectHandlers = this.userReconnectHandlers.filter((h) => h !== handler); }
+
+  onMarketReconnect(handler: () => void)  { this.marketReconnectHandlers.push(handler); }
+  offMarketReconnect(handler: () => void) { this.marketReconnectHandlers = this.marketReconnectHandlers.filter((h) => h !== handler); }
 
   /** Measure WebSocket round-trip latency in ms. Returns -1 if not connected. */
   async ping(): Promise<number> {

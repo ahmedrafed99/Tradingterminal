@@ -58,5 +58,7 @@ export const realtimeService = {
   offTrade:            (h: TH)      => adapter().offTrade(h),
   onUserReconnect:     (h: () => void) => adapter().onUserReconnect(h),
   offUserReconnect:    (h: () => void) => adapter().offUserReconnect(h),
+  onMarketReconnect:   (h: () => void) => adapter().onMarketReconnect(h),
+  offMarketReconnect:  (h: () => void) => adapter().offMarketReconnect(h),
   ping:                ()           => adapter().ping(),
 };
