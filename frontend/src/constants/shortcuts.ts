@@ -26,6 +26,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'drawing.undo',     label: 'Undo',                category: 'Drawing', defaults: [{ key: 'z', ctrl: true }], rebindable: true },
   { id: 'drawing.ctrlDrag', label: 'Multi-select (drag)', category: 'Drawing', defaults: [{ key: 'Ctrl+Drag' }], rebindable: false },
   { id: 'drawing.ctrlSnap', label: 'Horizontal snap',     category: 'Drawing', defaults: [{ key: 'Ctrl+Hold' }], rebindable: false },
+  { id: 'drawing.shiftRuler', label: 'Quick ruler (drag)', category: 'Drawing', defaults: [{ key: 'Shift+Drag' }], rebindable: false },
 ];
 
 /** Default combos keyed by shortcut ID */

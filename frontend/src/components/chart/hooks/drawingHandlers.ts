@@ -26,6 +26,24 @@ export function onCtrlDragSelectDown(e: MouseEvent, ctx: DrawingContext): void {
   e.preventDefault();
 }
 
+/** Mousedown: Shift+drag to quick-ruler (from any tool). */
+export function onShiftRulerDown(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, chart, series, container } = ctx;
+  if (!e.shiftKey || e.button !== 0) return;
+  // Don't start if another interaction is in progress
+  if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
+      || state.arrowPathCreation || state.freeDrawCreation || state.rulerCreation || state.ctrlDragSelect) return;
+
+  const { x, y } = getMousePos(e, container);
+  const data = getDataPos(chart, series, x, y);
+  if (!data) return;
+
+  state.rulerCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price, shiftDrag: true };
+  chart.applyOptions({ handleScroll: false, handleScale: false });
+  e.stopPropagation();
+  e.preventDefault();
+}
+
 /** Mousedown: start oval/ruler resize by handle. */
 export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, primitive } = ctx;
@@ -386,6 +404,29 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     if (ids.length > 0) {
       useStore.getState().setSelectedDrawingIds(ids);
     }
+    return;
+  }
+
+  // Shift+drag ruler: finalize on mouseup
+  if (state.rulerCreation?.shiftDrag && e.button === 0) {
+    const { x, y } = getMousePos(e, container);
+    const dx = Math.abs(x - state.rulerCreation.startX);
+    const dy = Math.abs(y - state.rulerCreation.startY);
+    if (dx > 5 || dy > 5) {
+      // Show the ephemeral ruler result
+      const data = getDataPos(chart, series, x, y);
+      if (data && contract) {
+        const p1 = { time: state.rulerCreation.startTime, price: state.rulerCreation.startPrice };
+        const metrics = computeRulerMetrics(refs.bars.current, p1, data);
+        const dec = contract.tickSize.toString().split('.')[1]?.length ?? 0;
+        primitive.setRulerDragPreview(state.rulerCreation.startX, state.rulerCreation.startY, x, y, metrics, dec);
+        state.rulerDisplayActive = true;
+      }
+    } else {
+      primitive.clearRulerDragPreview();
+    }
+    state.rulerCreation = null;
+    chart.applyOptions({ handleScroll: true, handleScale: true });
     return;
   }
 

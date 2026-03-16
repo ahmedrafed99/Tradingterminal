@@ -16,6 +16,7 @@ export interface DrawingState {
   rulerCreation: {
     startX: number; startY: number;
     startTime: number; startPrice: number;
+    shiftDrag?: boolean;  // true when started via Shift+drag shortcut (finalizes on mouseup)
   } | null;
   rulerDisplayActive: boolean;
 
