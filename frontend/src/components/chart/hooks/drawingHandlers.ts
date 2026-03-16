@@ -39,6 +39,7 @@ export function onShiftRulerDown(e: MouseEvent, ctx: DrawingContext): void {
   if (!data) return;
 
   state.rulerCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price, shiftDrag: true };
+  useStore.getState().setActiveTool('ruler');
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.stopPropagation();
   e.preventDefault();
@@ -427,6 +428,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     }
     state.rulerCreation = null;
     chart.applyOptions({ handleScroll: true, handleScale: true });
+    useStore.getState().setActiveTool('select');
     return;
   }
 
