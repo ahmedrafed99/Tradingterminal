@@ -6,7 +6,7 @@ import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR, createDrawingState } from './drawingInteraction';
 import type { DrawingContext } from './drawingInteraction';
 import {
-  onShiftRulerDown,
+  onShiftRulerKey,
   onCtrlDragSelectDown,
   onResizeMouseDown,
   onDrawingDragMouseDown,
@@ -92,15 +92,18 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
 
     chart.subscribeClick(handleClick);
 
+    // ── Shift-hold ruler activation ──
+    const handleShiftKey = (e: KeyboardEvent) => onShiftRulerKey(e, ctx);
+    window.addEventListener('keydown', handleShiftKey);
+    window.addEventListener('keyup', handleShiftKey);
+
     // ── Mousedown handlers (ordered by priority) ──
-    const handleShiftRuler = (e: MouseEvent) => onShiftRulerDown(e, ctx);
     const handleCtrlSelect = (e: MouseEvent) => onCtrlDragSelectDown(e, ctx);
     const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
     const handleDragDown = (e: MouseEvent) => onDrawingDragMouseDown(e, ctx);
     const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
     const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
 
-    container.addEventListener('mousedown', handleShiftRuler);
     container.addEventListener('mousedown', handleCtrlSelect);
     container.addEventListener('mousedown', handleResize);
     container.addEventListener('mousedown', handleDragDown);
@@ -151,7 +154,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         if (!state.drawingDrag && !state.ovalResize && !state.ovalDrag
             && !state.arrowPathNodeDrag && !state.arrowPathCreation
             && !state.rulerCreation && !state.freeDrawCreation && !state.overlayHitCaptured
-            && !state.ctrlDragSelect && !e.shiftKey) {
+            && !state.ctrlDragSelect) {
           state.chartPanning = true;
           container.style.cursor = 'grabbing';
         }
@@ -192,7 +195,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       state.rulerDisplayActive = false;
       state.ctrlDragSelect = null;
       chart.unsubscribeClick(handleClick);
-      container.removeEventListener('mousedown', handleShiftRuler);
+      window.removeEventListener('keydown', handleShiftKey);
+      window.removeEventListener('keyup', handleShiftKey);
       container.removeEventListener('mousedown', handleCtrlSelect);
       container.removeEventListener('mousedown', handleResize);
       container.removeEventListener('mousedown', handleDragDown);

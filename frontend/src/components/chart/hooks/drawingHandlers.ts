@@ -26,23 +26,28 @@ export function onCtrlDragSelectDown(e: MouseEvent, ctx: DrawingContext): void {
   e.preventDefault();
 }
 
-/** Mousedown: Shift+drag to quick-ruler (from any tool). */
-export function onShiftRulerDown(e: MouseEvent, ctx: DrawingContext): void {
-  const { state, chart, series, container } = ctx;
-  if (!e.shiftKey || e.button !== 0) return;
-  // Don't start if another interaction is in progress
-  if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
-      || state.arrowPathCreation || state.freeDrawCreation || state.rulerCreation || state.ctrlDragSelect) return;
+/** Keyboard: Shift hold activates ruler tool, Shift release restores select. */
+export function onShiftRulerKey(e: KeyboardEvent, ctx: DrawingContext): void {
+  const { state } = ctx;
+  const st = useStore.getState();
 
-  const { x, y } = getMousePos(e, container);
-  const data = getDataPos(chart, series, x, y);
-  if (!data) return;
+  if (e.type === 'keydown' && e.key === 'Shift') {
+    // Don't activate if another interaction is in progress
+    if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
+        || state.arrowPathCreation || state.freeDrawCreation || state.ctrlDragSelect) return;
+    // Only activate from select tool (avoid overriding other tools)
+    if (st.activeTool !== 'select' && st.activeTool !== 'ruler') return;
+    if (st.activeTool !== 'ruler') {
+      st.setActiveTool('ruler');
+    }
+  }
 
-  state.rulerCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price, shiftDrag: true };
-  useStore.getState().setActiveTool('ruler');
-  chart.applyOptions({ handleScroll: false, handleScale: false });
-  e.stopPropagation();
-  e.preventDefault();
+  if (e.type === 'keyup' && e.key === 'Shift') {
+    // Only restore if ruler is active and no ruler creation is in progress
+    if (st.activeTool === 'ruler' && !state.rulerCreation && !state.rulerDisplayActive) {
+      st.setActiveTool('select');
+    }
+  }
 }
 
 /** Mousedown: start oval/ruler resize by handle. */
@@ -405,30 +410,6 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     if (ids.length > 0) {
       useStore.getState().setSelectedDrawingIds(ids);
     }
-    return;
-  }
-
-  // Shift+drag ruler: finalize on mouseup
-  if (state.rulerCreation?.shiftDrag && e.button === 0) {
-    const { x, y } = getMousePos(e, container);
-    const dx = Math.abs(x - state.rulerCreation.startX);
-    const dy = Math.abs(y - state.rulerCreation.startY);
-    if (dx > 5 || dy > 5) {
-      // Show the ephemeral ruler result
-      const data = getDataPos(chart, series, x, y);
-      if (data && contract) {
-        const p1 = { time: state.rulerCreation.startTime, price: state.rulerCreation.startPrice };
-        const metrics = computeRulerMetrics(refs.bars.current, p1, data);
-        const dec = contract.tickSize.toString().split('.')[1]?.length ?? 0;
-        primitive.setRulerDragPreview(state.rulerCreation.startX, state.rulerCreation.startY, x, y, metrics, dec);
-        state.rulerDisplayActive = true;
-      }
-    } else {
-      primitive.clearRulerDragPreview();
-    }
-    state.rulerCreation = null;
-    chart.applyOptions({ handleScroll: true, handleScale: true });
-    useStore.getState().setActiveTool('select');
     return;
   }
 
