@@ -61,7 +61,7 @@ Data is stored under **base symbols** (`NQ`, `ES`) rather than specific contract
 
 When the backfill service fetches bars from `CON.F.US.ENQ.H26`, it stores them under `contract_id = 'NQ'`. When H26 expires and the user rolls to M26, new fetches continue appending to `NQ` seamlessly.
 
-**Key finding**: The ProjectX API does **not** serve bars for expired contracts. Data must be captured while the contract is still active. Historical data was backfilled from a purchased CSV (FirstRate Data / BacktestMarket).
+**Key finding**: The ProjectX API **does** serve bars for expired contracts, but only retains ~10 days of data after expiry. Historical data was backfilled from a purchased CSV (FirstRate Data / BacktestMarket).
 
 ### Approximate Storage
 
@@ -172,6 +172,14 @@ Response:
 { "jobId": "fetch_1773067836999_1", "estimatedPages": 1 }
 ```
 
+### `POST /database/fetch/sync-all`
+
+Trigger an immediate sync of all stored symbols. Uses the same logic as auto-sync: resolves the active contract for each symbol in the DB and fetches new bars. Runs in the background — returns immediately.
+
+```json
+{ "success": true }
+```
+
 ### `GET /database/fetch/progress`
 
 Poll for active fetch job status.
@@ -250,7 +258,7 @@ Sections are separated by 28px vertical gap (no explicit dividers). Delete butto
 
 ### Behavior
 
-- **Sync Now**: triggers an immediate sync using the current active contract
+- **Sync Now**: triggers an immediate sync of all stored symbols (calls `POST /database/fetch/sync-all`)
 - **Auto-sync**: runs every 30 minutes in the background, no user action needed
 - **Cancel**: stops after current page (only visible during sync)
 - **Status section**: refreshes on mount and after each completed job

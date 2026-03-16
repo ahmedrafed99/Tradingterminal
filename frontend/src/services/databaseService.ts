@@ -54,6 +54,10 @@ export const databaseService = {
     return res.data;
   },
 
+  async syncAll(): Promise<void> {
+    await api.post('/database/fetch/sync-all');
+  },
+
   async getProgress(): Promise<FetchProgressOrIdle> {
     const res = await api.get<FetchProgressOrIdle>('/database/fetch/progress');
     return res.data;

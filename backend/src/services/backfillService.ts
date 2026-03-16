@@ -293,7 +293,7 @@ async function resolveActiveContract(symbol: string): Promise<string | null> {
   }
 }
 
-async function autoSyncAll(): Promise<void> {
+export async function autoSyncAll(): Promise<void> {
   if (!isConnected()) return;
   if (currentJob?.status === 'running') return; // don't interfere with manual fetch
 

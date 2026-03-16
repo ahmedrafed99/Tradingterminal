@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useStore } from '../../store/useStore';
 import {
   databaseService,
   type DatabaseStatus,
@@ -11,8 +10,6 @@ const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) upperca
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function DatabaseTab() {
-  const { contract } = useStore();
-
   const [status, setStatus] = useState<DatabaseStatus | null>(null);
   const [progress, setProgress] = useState<FetchProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,11 +80,10 @@ export function DatabaseTab() {
   const isFetching = progress?.status === 'running';
 
   async function handleSync() {
-    if (!contract) return;
     setError(null);
     setLoading(true);
     try {
-      await databaseService.startFetch({ contractId: contract.id, mode: 'sync' });
+      await databaseService.syncAll();
       startPolling();
       setProgress({
         jobId: '', status: 'running', pagesCompleted: 0, pagesTotal: 1,
@@ -223,7 +219,7 @@ export function DatabaseTab() {
           <div className="flex items-center" style={{ gap: 10 }}>
             <button
               onClick={handleSync}
-              disabled={isFetching || loading || !contract || !hasData}
+              disabled={isFetching || loading || !hasData}
               className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
               style={{ padding: '7px 18px' }}
             >

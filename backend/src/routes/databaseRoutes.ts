@@ -59,6 +59,22 @@ router.post(
 );
 
 // ---------------------------------------------------------------------------
+// POST /database/fetch/sync-all — trigger immediate sync of all stored symbols
+// ---------------------------------------------------------------------------
+
+router.post('/fetch/sync-all', requireConnection, async (_req, res) => {
+  try {
+    backfillService.autoSyncAll().catch((err) => {
+      console.error('[sync-all] Failed:', err instanceof Error ? err.message : err);
+    });
+    res.json({ success: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(400).json({ success: false, errorMessage: msg });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /database/fetch/progress
 // ---------------------------------------------------------------------------
 
