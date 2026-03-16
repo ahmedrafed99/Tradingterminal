@@ -80,6 +80,7 @@ and the preview toggle that overlays ghost lines on the chart.
 - SL values: `text-[#a62a3d]` (draft: `text-[#c4475a]`), TP values: `text-[#22835b]` (draft: `text-[#3aa876]`), conditions: `text-[#4a80b0]`
 - Plus icon opens new preset; hover reveals edit (pencil) and delete (trash) icons per preset
 - Delete button: `hover:text-[#f23645]`, auto-deselects if deleting the active preset
+- **Suspended state**: When a position is open (`suspendPreset` sets `activePresetId` to null and stores the previous id in `suspendedPresetId`), the config summary remains visible but dimmed (`opacity-35`, `pointer-events-none`) to prevent layout shift. The dropdown still shows the suspended preset name. When the position closes, `restorePreset` re-activates the preset and the summary returns to full opacity.
 
 ### `PreviewCheckbox`
 - Toggles `previewEnabled` in Zustand

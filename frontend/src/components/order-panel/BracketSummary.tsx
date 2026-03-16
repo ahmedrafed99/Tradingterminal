@@ -16,19 +16,23 @@ function formatAction(action: ConditionAction, tps: TakeProfitLevel[]): string {
 
 export function BracketSummary() {
   const {
-    bracketPresets, activePresetId, setActivePresetId, setEditingPresetId,
+    bracketPresets, activePresetId, suspendedPresetId, setActivePresetId, setEditingPresetId,
     deletePreset, draftSlPoints, draftTpPoints,
   } = useStore();
 
   const activePreset = bracketPresets.find((p) => p.id === activePresetId) ?? null;
-  const config = activePreset?.config;
+  // Show suspended preset config (dimmed) so layout doesn't shift when position opens
+  const suspendedPreset = suspendedPresetId ? bracketPresets.find((p) => p.id === suspendedPresetId) ?? null : null;
+  const displayPreset = activePreset ?? suspendedPreset;
+  const isSuspended = !activePreset && !!suspendedPreset;
+  const config = displayPreset?.config;
 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const closeDropdown = useCallback(() => setOpen(false), []);
   useClickOutside(containerRef, open, closeDropdown);
 
-  const displayName = activePreset ? activePreset.name : 'None';
+  const displayName = displayPreset ? displayPreset.name : 'None';
 
   return (
     <div>
@@ -120,9 +124,9 @@ export function BracketSummary() {
         )}
       </div>
 
-      {/* Config summary when preset is active */}
+      {/* Config summary when preset is active (dimmed when suspended during open position) */}
       {config && (
-        <div className="bg-(--color-input) border border-(--color-border) rounded text-xs space-y-2.5" style={{ padding: 12, marginTop: 6 }}>
+        <div className={`bg-(--color-input) border border-(--color-border) rounded text-xs space-y-2.5${isSuspended ? ' opacity-35 pointer-events-none' : ''}`} style={{ padding: 12, marginTop: 6 }}>
           {/* SL */}
           {(() => {
             const slPts = draftSlPoints ?? config.stopLoss.points;

@@ -435,11 +435,10 @@ export function OrderPanel() {
 
   return (
     <div
-      className="flex flex-col bg-(--color-panel) border-r border-(--color-border)"
+      className="flex flex-col bg-(--color-panel) border-r border-(--color-border) overflow-y-auto"
       style={{ width: 240, minWidth: 240, padding: 12 }}
     >
-      {/* Controls — never scrolls, stays pinned */}
-      <div className="shrink-0 flex flex-col" style={{ gap: 20 }}>
+      <div className="flex flex-col" style={{ gap: 20 }}>
         {/* Instrument */}
         <div className="relative">
           <div className="flex items-center mb-1">
@@ -467,10 +466,8 @@ export function OrderPanel() {
 
         {/* Buy / Sell */}
         <BuySellButtons />
-      </div>
 
-      {/* Position — grows downward, never pushes controls above */}
-      <div className="overflow-y-auto" style={{ marginTop: 20 }}>
+        {/* Position */}
         <PositionDisplay />
       </div>
 
