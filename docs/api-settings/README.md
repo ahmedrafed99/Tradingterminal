@@ -1,8 +1,8 @@
-# Feature: API Settings
+# Feature: Data Feed Settings
 
-A modal dialog accessible via the gear icon ⚙ in the top bar.
-Lets the user enter credentials, choose environment, and manage the
-connection to the ProjectX Gateway.
+A modal dialog accessible via the gear icon in the top bar.
+Lets the user select a data feed provider, enter credentials, and manage the
+connection to the exchange gateway.
 
 ---
 
@@ -11,17 +11,21 @@ connection to the ProjectX Gateway.
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  Settings                                           [✕]  │
-│  API   Database   Sound                                  │
-│  ───                                                     │
+│  Data Feed   Database   Sound   Shortcuts   Recording    │
+│  ─────────                                               │
 ├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  PROVIDER                                                │
+│  [ TopstepX by ProjectX              ▾]                  │
 │                                                          │
 │  ● Connected · https://api.topstepx.com                  │
 │                                                          │
-│  CONNECTION                                              │
+│  CREDENTIALS                                             │
 │  Username                                                │
 │  [ your-projectx-username                ]               │
 │  API Key                                                 │
 │  [ ••••••••••••••••                      ]               │
+│  [✓] Remember credentials                               │
 │  Gateway URL                                             │
 │  [ https://api.topstepx.com             ]                │
 │                                                          │
@@ -34,32 +38,32 @@ connection to the ProjectX Gateway.
 └──────────────────────────────────────────────────────────┘
 ```
 
-The modal uses a tabbed layout shared with the Database and Sound tabs. Design matches the BracketSettingsModal language: `bg-(--color-surface)`, `border-(--color-border)`, translucent glass inputs (`bg-white/[0.05] border-white/10`), soft accent buttons, 28px section spacing.
+The modal uses a tabbed layout shared with the Database, Sound, Shortcuts, and Recording tabs. Design matches the BracketSettingsModal language: `bg-(--color-surface)`, `border-(--color-border)`, translucent glass inputs (`bg-white/[0.05] border-white/10`), soft accent buttons, 28px section spacing.
 
 ---
 
 ## Components
 
 ### `SettingsModal`
-Top-level modal with three tabs (API, Database, Sound). Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use translucent glass styling (`bg-white/[0.05] border border-white/10`) matching the BracketSettingsModal design language.
+Top-level modal with five tabs (Data Feed, Database, Sound, Shortcuts, Recording). Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use translucent glass styling (`bg-white/[0.05] border border-white/10`) matching the BracketSettingsModal design language.
 
-### `CredentialsForm` (API tab)
+### Data Feed tab
+- **Provider** dropdown — selects exchange data feed (currently: "TopstepX by ProjectX"). Disabled while connected.
 - **Username** text input
 - **API Key** password input
+- **Remember credentials** checkbox — when enabled, username and API key are persisted to the backend settings file and auto-filled on next app load. Unchecking clears saved credentials immediately.
 - **Gateway URL** — defaults to `https://api.topstepx.com`
 - **Condition Server URL** — always editable, defaults to `http://localhost:3001`
-- Credentials sent to proxy `POST /auth/connect` — **never stored in
-  the browser or localStorage**
+- Credentials sent to proxy `POST /auth/connect` — only persisted to the backend settings file when "Remember credentials" is checked
 
 ### `ConnectionStatus`
 - Displays current state: Connected / Connecting / Disconnected / Error
-- Shows account name when connected
+- Shows gateway URL when connected
 - Error message if login failed (e.g. "Invalid API key")
 
 ### `ConnectButton` / `DisconnectButton`
-- **Connect**: submits credentials → proxy authenticates → SignalR connects
-- **Disconnect**: calls proxy `POST /auth/disconnect` → clears server-side
-  token → SignalR hub disconnected
+- **Connect**: submits credentials → proxy authenticates → SignalR connects. If "Remember credentials" is checked, saves credentials to backend settings file on success.
+- **Disconnect**: tears down SignalR WebSocket connections first, then calls proxy `POST /auth/disconnect` → clears server-side token
 
 ---
 
@@ -89,11 +93,14 @@ POST /auth/connect  ───►  POST /api/Auth/loginKey  ───►  { token
 
 ```ts
 interface AuthState {
-  isConnected: boolean
-  username: string
-  environment: 'demo' | 'live'
-  setConnected: (v: boolean) => void
-  setEnvironment: (e: Environment) => void
+  connected: boolean
+  baseUrl: string
+  rememberCredentials: boolean
+  savedUserName: string
+  savedApiKey: string
+  setConnected: (connected: boolean, baseUrl?: string) => void
+  setRememberCredentials: (on: boolean) => void
+  setSavedCredentials: (userName: string, apiKey: string) => void
 }
 ```
 
@@ -111,8 +118,9 @@ interface AuthState {
 
 ## Behavior
 
-1. App opens → frontend calls `GET /auth/status`
-2. If proxy has a live token → TopBar shows connected; accounts loaded
-3. If no token → TopBar shows disconnected; Settings modal prompts user
-4. On successful connect → accounts list fetched; SignalR hubs opened
-5. On disconnect (manual or SignalR drop) → orders / positions cleared from store
+1. App opens → full trading UI renders immediately (empty state, no connection gate)
+2. Frontend calls `GET /auth/status` — if proxy has a live token, sets connected and loads accounts/data
+3. If no token → UI stays in empty state; user opens Settings → Data Feed to connect
+4. On successful connect → accounts list fetched; SignalR hubs opened; chart subscriptions start
+5. On disconnect → SignalR WebSocket connections torn down first, then proxy token cleared, accounts/orders/positions cleared from store
+6. On reconnect (connect after disconnect) → SignalR subscriptions (quotes, depth, user events) re-established automatically via `connected` dependency in effects

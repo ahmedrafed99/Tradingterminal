@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { accountService } from '../services/accountService';
+import { realtimeService } from '../services/realtimeService';
 import { useStore } from '../store/useStore';
 import { DatabaseTab } from './settings/DatabaseTab';
 import { SoundTab } from './settings/SoundTab';
@@ -10,24 +11,29 @@ import { Modal } from './shared/Modal';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
-type SettingsTab = 'api' | 'database' | 'sound' | 'shortcuts' | 'recording';
+type SettingsTab = 'datafeed' | 'database' | 'sound' | 'shortcuts' | 'recording';
 
 const TABS: { id: SettingsTab; label: string }[] = [
-  { id: 'api', label: 'API' },
+  { id: 'datafeed', label: 'Data Feed' },
   { id: 'database', label: 'Database' },
   { id: 'sound', label: 'Sound' },
   { id: 'shortcuts', label: 'Shortcuts' },
   { id: 'recording', label: 'Recording' },
 ];
 
+const DATA_FEED_PROVIDERS = [
+  { id: 'topstepx', label: 'TopstepX by ProjectX' },
+];
+
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
-  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl } = useStore();
+  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials, savedUserName, savedApiKey, setSavedCredentials } = useStore();
 
-  const [tab, setTab] = useState<SettingsTab>('api');
-  const [userName, setUserName] = useState('');
-  const [apiKey, setApiKey]     = useState('');
+  const [tab, setTab] = useState<SettingsTab>('datafeed');
+  const [provider, setProvider] = useState('topstepx');
+  const [userName, setUserName] = useState(rememberCredentials ? savedUserName : '');
+  const [apiKey, setApiKey]     = useState(rememberCredentials ? savedApiKey : '');
   const [url, setUrl]           = useState(baseUrl || DEFAULT_BASE_URL);
   const [condUrl, setCondUrl]    = useState(conditionServerUrl);
   const [loading, setLoading]   = useState(false);
@@ -46,6 +52,9 @@ export function SettingsModal() {
       await authService.connect(userName.trim(), apiKey.trim(), url.trim() || undefined);
       const status = await authService.getStatus();
       setConnected(true, status.baseUrl);
+      if (rememberCredentials) {
+        setSavedCredentials(userName.trim(), apiKey.trim());
+      }
       const accounts = await accountService.searchAccounts();
       setAccounts(accounts);
       setSettingsOpen(false);
@@ -60,6 +69,7 @@ export function SettingsModal() {
     setError(null);
     setLoading(true);
     try {
+      await realtimeService.disconnect();
       await authService.disconnect();
       setConnected(false);
       setAccounts([]);
@@ -112,10 +122,26 @@ export function SettingsModal() {
 
         {/* Body */}
         <div className="overflow-y-auto flex-1">
-          {tab === 'api' && (
+          {tab === 'datafeed' && (
             <>
               <div style={{ padding: '20px 24px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {/* Provider selector */}
+                  <div>
+                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Provider</div>
+                    <select
+                      value={provider}
+                      onChange={(e) => setProvider(e.target.value)}
+                      disabled={connected || loading}
+                      className={INPUT_CLS}
+                      style={{ padding: '10px 14px', appearance: 'none', cursor: 'pointer' }}
+                    >
+                      {DATA_FEED_PROVIDERS.map((p) => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Status pill */}
                   <div className="flex items-center" style={{ gap: 8 }}>
                     <span
@@ -128,7 +154,7 @@ export function SettingsModal() {
 
                   {/* Connection Fields */}
                   <div>
-                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Connection</div>
+                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Credentials</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       <label className="block">
                         <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Username</span>
@@ -154,6 +180,16 @@ export function SettingsModal() {
                           className={INPUT_CLS}
                           style={{ padding: '10px 14px' }}
                         />
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={rememberCredentials}
+                          onChange={(e) => setRememberCredentials(e.target.checked)}
+                          className="accent-(--color-accent)"
+                        />
+                        <span className="text-[11px] text-(--color-text-muted)">Remember credentials</span>
                       </label>
 
                       <label className="block">

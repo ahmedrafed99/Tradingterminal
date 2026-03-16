@@ -27,6 +27,7 @@ export function useChartBars(
   timeframe: Timeframe,
 ): { loading: boolean; error: string | null } {
 
+  const connected = useStore((s) => s.connected);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,7 +143,7 @@ export function useChartBars(
 
   // -- Real-time quote subscription --
   useEffect(() => {
-    if (!contract || !refs.series.current) return;
+    if (!connected || !contract || !refs.series.current) return;
 
     const contractId = contract.id;
     const periodSec = getCandlePeriodSeconds(timeframe);
@@ -222,7 +223,7 @@ export function useChartBars(
       realtimeService.offQuote(handleQuote);
       realtimeService.unsubscribeQuotes(contractId);
     };
-  }, [contract, timeframe]);
+  }, [connected, contract, timeframe]);
 
   // -- Volume profile depth subscription --
   useEffect(() => {
@@ -230,7 +231,7 @@ export function useChartBars(
     if (!vp) return;
 
     vp.setEnabled(vpEnabled);
-    if (!vpEnabled || !contract) {
+    if (!connected || !vpEnabled || !contract) {
       vp.clear();
       return;
     }
@@ -265,7 +266,7 @@ export function useChartBars(
       vp.clear();
       vp.setEnabled(false);
     };
-  }, [contract, vpEnabled]);
+  }, [connected, contract, vpEnabled]);
 
   // -- VP color sync (separate so color changes don't re-subscribe depth) --
   useEffect(() => {

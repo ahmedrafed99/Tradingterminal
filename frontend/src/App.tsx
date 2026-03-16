@@ -151,50 +151,34 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-(--color-bg) text-(--color-text)">
-      {connected && <TopBar />}
+      <TopBar />
 
       {/* Main content area */}
       <main className="flex-1 flex flex-row min-h-0">
-        {connected ? (
-          <>
-            <OrderPanel />
-            <div className="flex-1 flex flex-col min-h-0">
-              <ChartToolbar />
-              <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
-                <div
-                  style={{ flex: 1 - bottomPanelRatio }}
-                  className="flex flex-col min-h-0 overflow-hidden"
-                >
-                  <ChartArea />
-                </div>
-                <VerticalSeparator
-                  containerRef={splitContainerRef}
-                  onDrag={(mouseRatio) => {
-                    setBottomPanelRatio(1 - mouseRatio);
-                  }}
-                />
-                <div
-                  style={{ flex: bottomPanelRatio, minHeight: 40 }}
-                  className="overflow-hidden"
-                >
-                  <BottomPanel />
-                </div>
-              </div>
+        <OrderPanel />
+        <div className="flex-1 flex flex-col min-h-0">
+          <ChartToolbar />
+          <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
+            <div
+              style={{ flex: 1 - bottomPanelRatio }}
+              className="flex flex-col min-h-0 overflow-hidden"
+            >
+              <ChartArea />
             </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-3">
-              <p className="text-(--color-text-dim) text-sm">Not connected</p>
-              <button
-                onClick={() => setSettingsOpen(true)}
-                className="text-sm rounded-lg bg-(--color-accent) text-white hover:bg-(--color-accent-hover) transition-colors" style={{ padding: '10px 28px' }}
-              >
-                Connect to TopstepX
-              </button>
+            <VerticalSeparator
+              containerRef={splitContainerRef}
+              onDrag={(mouseRatio) => {
+                setBottomPanelRatio(1 - mouseRatio);
+              }}
+            />
+            <div
+              style={{ flex: bottomPanelRatio, minHeight: 40 }}
+              className="overflow-hidden"
+            >
+              <BottomPanel />
             </div>
           </div>
-        )}
+        </div>
       </main>
 
       {settingsOpen && (

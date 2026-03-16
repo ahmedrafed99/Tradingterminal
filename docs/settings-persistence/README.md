@@ -63,7 +63,7 @@ On startup, the file-based settings take priority over localStorage. On every st
 | Chart layout | `dualChart`, `secondTimeframe`, `splitRatio` |
 | Bookmarked timeframes | `pinnedTimeframes`, `timeframe` |
 | Pinned instruments | `pinnedInstruments` |
-| Connection | `baseUrl`, `activeAccountId` |
+| Connection | `baseUrl`, `activeAccountId`, `rememberCredentials`, `savedUserName`, `savedApiKey` |
 | Order panel | `orderSize`, `orderContract` |
 | Volume profile | `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor` |
 | Bottom panel | `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab` |

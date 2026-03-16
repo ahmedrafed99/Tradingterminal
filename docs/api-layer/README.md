@@ -55,9 +55,9 @@ Routes are exchange-agnostic — they call `getAdapter().domain.method()` instea
 ### `authService.ts`
 
 ```ts
-connect(username: string, apiKey: string, env: 'demo' | 'live'): Promise<void>
+connect(username: string, apiKey: string, baseUrl?: string): Promise<void>
 disconnect(): Promise<void>
-getStatus(): Promise<{ connected: boolean; environment: string }>
+getStatus(): Promise<{ connected: boolean; baseUrl: string }>
 ```
 
 ### `accountService.ts`

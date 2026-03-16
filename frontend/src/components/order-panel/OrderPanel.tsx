@@ -183,10 +183,16 @@ export function OrderPanel() {
   const subscribedAccountRef = useRef<number | null>(null);
   const bracketRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Reset subscription guard when connection state changes (disconnect → reconnect)
+  const connected = useStore((s) => s.connected);
+  useEffect(() => {
+    if (!connected) subscribedAccountRef.current = null;
+  }, [connected]);
+
   // Subscribe to user hub events (orders, positions) when account changes
   // Also fetch current positions + orders via REST (SignalR may not send a snapshot)
   useEffect(() => {
-    if (activeAccountId == null) return;
+    if (!connected || activeAccountId == null) return;
     if (subscribedAccountRef.current === activeAccountId) return;
 
     subscribedAccountRef.current = activeAccountId;
@@ -194,7 +200,7 @@ export function OrderPanel() {
 
     // Hydrate positions + orders from REST so we don't depend on SignalR initial batch
     hydratePositionsAndOrders(activeAccountId);
-  }, [activeAccountId]);
+  }, [connected, activeAccountId]);
 
   // Re-fetch open orders + positions on user hub reconnect (events may have been missed)
   useEffect(() => {
