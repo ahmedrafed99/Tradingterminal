@@ -16,6 +16,7 @@ import credentialRoutes from './routes/credentialRoutes';
 import newsRoutes from './routes/newsRoutes';
 import conditionRoutes from './routes/conditionRoutes';
 import databaseRoutes from './routes/databaseRoutes';
+import drawingRoutes from './routes/drawingRoutes';
 import WebSocket from 'ws';
 import * as conditionEngine from './services/conditionEngine';
 import * as databaseService from './services/databaseService';
@@ -45,6 +46,7 @@ app.use('/credentials', credentialRoutes);
 app.use('/news', newsRoutes);
 app.use('/conditions', conditionRoutes);
 app.use('/database', databaseRoutes);
+app.use('/drawings', drawingRoutes);
 
 // Health check — useful for smoke testing
 app.get('/health', (_req, res) => {
@@ -120,7 +122,12 @@ async function autoConnect(): Promise<void> {
 
   let credentials: Record<string, string>;
   if (process.env.AUTO_CONNECT_CREDENTIALS) {
-    credentials = JSON.parse(process.env.AUTO_CONNECT_CREDENTIALS);
+    try {
+      credentials = JSON.parse(process.env.AUTO_CONNECT_CREDENTIALS);
+    } catch {
+      console.error('[auto-connect] AUTO_CONNECT_CREDENTIALS is not valid JSON');
+      return;
+    }
   } else {
     // Legacy env vars
     const username = process.env.TOPSTEP_USERNAME;

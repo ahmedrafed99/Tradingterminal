@@ -1,189 +1,318 @@
-# Claude Trader
+# Claude Trader — NQ 50K Challenge
 
-Autonomous trading module — Claude executes trades via the Trading Terminal's backend API.
+Autonomous NQ/MNQ trading system operated by Claude to pass TopStepX's 50K Trading Combine.
 
-## IMPORTANT: Read This Every New Conversation
+---
 
-Claude — when you start a new session and the user asks you to trade or check trades:
+## Challenge Rules
 
-1. **Read this entire file first** to recover full context
-2. **Check memory files** at `C:\Users\Ahmed\.claude\projects\c--Users-Ahmed-Projects-TradingTerminal\memory\`
-3. **Check open positions/orders** before doing anything: `GET /positions/open?accountId=20109518` and `GET /orders/open?accountId=20109518`
-4. **Check account balance** to know current drawdown status: `GET /accounts`
-5. **Update this file** after every trade action (entry, SL move, close, new trade). Keep the trade log and status section current.
-6. **Act autonomously** — the user wants you to make trading decisions without asking. Move stops, trail profits, close positions, place trades — just do it and report.
-7. **Cancel orphaned orders** — SL/TP orders are NOT OCO-linked. When one fills, cancel the other immediately.
-8. **Native bracket orders DON'T WORK** on this account — always place entry first, then separate SL (Stop) and TP (Limit) orders.
+| Parameter | Value |
+|-----------|-------|
+| Account size | $50,000 |
+| Profit target | $3,000 (pass at $53,000) |
+| Max drawdown | $2,000 (floor at $48,000) |
+| Consistency rule | Best single trade P&L < 50% of target (**$1,500 max**) |
+| Rebill cycle | 30 days |
+| Instrument | MNQ (Micro E-mini Nasdaq-100), $2/point |
 
-## Account
+### Account IDs
 
-| Field | Value |
-|-------|-------|
-| Account ID | `20109518` |
-| Account Name | 50KTC-V2-93360-44037915 |
-| Type | TopStepX Prop Firm Challenge (Practice/Sim) |
-| Starting Balance | $50,000.00 |
-| Rebill | Monthly (auto-reset) |
+| Account | ID | Purpose |
+|---------|----|---------|
+| Practice (150K) | `20130833` | Testing, strategy validation |
+| Challenge (50K) | `20292418` | Live challenge attempt |
 
-## Challenge Conditions
+---
 
-| Rule | Value |
-|------|-------|
-| **Max Drawdown** | $2,000 (from starting balance) |
-| **Profit Target** | $3,000 (reach $53,000 to pass) |
-| **Deadline** | End of current month |
-| **Min Drawdown Floor** | $48,000 (balance cannot drop below this) |
-| **Pass Threshold** | $53,000 |
+## Strategy: Mean-Reversion Scalps at Key Levels
 
-## Current Status (2026-03-13)
+### Why Mean Reversion
 
-| Metric | Value |
-|--------|-------|
-| Current Balance | $48,377.18 |
-| P&L from Start | -$1,622.82 |
-| Drawdown Used | $1,622.82 / $2,000 (81%) |
-| Drawdown Remaining | **$377.18** |
-| Needed to Pass | $4,622.82 |
-| Days Left in Month | ~18 |
+NQ mean-reverts ~60-70% of the time during RTH, especially in the first 90 minutes. Breakouts that fail (the majority) provide high-probability fade entries. This strategy avoids chasing momentum — instead it waits for price to overextend, then fades back to value.
 
-## Risk Management Rules
+### Core Thesis
 
-1. **Always use SL + TP** on every entry (no naked positions)
-2. **Minimum R:R**: 2:1 always
-3. **Max concurrent positions**: 1
-4. **No trading during low-liquidity windows**: Avoid 5–6 PM ET daily close/open
-5. **Stop trading for the day after 2 consecutive losses**
-6. **Move to breakeven** once +25 pts in profit
+1. **Identify the range** — Use the first 15 minutes of RTH (9:30-9:45 AM ET) to establish the opening range high/low
+2. **Fade failed breakouts** — When price breaks above/below the range and reverses, enter in the reversal direction
+3. **Target the midpoint** — Take profit at the range midpoint or VWAP area
+4. **Tight risk** — Stop loss beyond the breakout extreme (typically 10-15 MNQ points)
 
-## Position Sizing (Scale with Cushion)
+### Setup Criteria (all must be met)
 
-Risk per trade = ~10-15% of drawdown cushion. R:R stays 2:1 minimum.
+1. **Time window**: 9:45 AM - 11:30 AM ET (after opening range forms, before lunch chop)
+2. **Opening range defined**: At least 15min of RTH price action to establish high/low
+3. **Failed breakout signal**: Price breaks range extreme by 5+ points, then reverses back inside on the same or next 1-min candle
+4. **Entry trigger**: Enter on the reversal candle close back inside the range
+5. **Volume confirmation**: Breakout candle should have above-average volume (sign of stop runs)
 
-| Drawdown Cushion | Max Risk | Size | Instrument | SL | TP |
-|-----------------|----------|------|------------|----|----|
-| < $500 | $50 | 1 MNQ | MNQ ($0.50/tick) | 25 pts | 50 pts |
-| $500–$1,000 | $100 | 1 MNQ (50pt SL) or 2 MNQ (25pt SL) | MNQ | 25–50 pts | 50–100 pts |
-| $1,000–$2,000 | $150–200 | 2–3 MNQ | MNQ | 25–50 pts | 50–100 pts |
-| > $2,000 (in profit) | $200–400 | 1–2 MES ($1.25/tick) or 4+ MNQ | MES or MNQ | 25–50 pts | 50–100 pts |
-| > $3,000 (near target) | Conservative | Reduce size, protect gains | MNQ | Tight | Tight |
+### Position Sizing
 
-## Preferred Trading Windows (all times ET)
+| Phase | Size | Max risk/trade | Max daily loss |
+|-------|------|----------------|----------------|
+| Start ($50,000-$50,500) | 1 MNQ | $30 (15pt SL) | $100 |
+| Building ($50,500-$51,000) | 1-2 MNQ | $40 (15-20pt SL) | $150 |
+| Midway ($51,000-$52,000) | 2-3 MNQ | $60 (15-20pt SL) | $200 |
+| Final push ($52,000-$53,000) | 1-2 MNQ | $30 (conservative) | $100 |
 
-| Window | Time (ET) | Time (UTC) | Priority | Notes |
-|--------|-----------|------------|----------|-------|
-| **RTH Open** | 9:30–11:30 AM | 14:30–16:30 | Primary | Best volume, cleanest trends |
-| **Econ Data** | 8:30 AM | 13:30 | Secondary | CPI/PPI/NFP days only |
-| **London Open** | 3:00–4:00 AM | 8:00–9:00 | Secondary | Sets daily trend sometimes |
+**Risk rules:**
+- Never risk more than 1% of current balance per trade ($500 absolute max)
+- Scale DOWN when approaching drawdown floor ($48,500 balance = 1 MNQ max, 10pt SL)
+- Scale DOWN in final push to protect gains
+- No single trade P&L can exceed $1,500 (consistency rule)
 
-**Avoid:** 12–2 PM (lunch chop), 4–6 PM (close/reset), 8 PM–2 AM (low liquidity overnight)
+### Trade Management
 
-## Available API Commands
+**Entry:**
+- Market order with bracket (SL + TP attached atomically)
+- SL: 10-20 points beyond breakout extreme
+- TP: Range midpoint or 1:2 R:R minimum
 
-### Authentication
-```
-POST /auth/connect        — Connect to gateway
-POST /auth/disconnect     — Disconnect
-GET  /auth/status         — Check connection
-```
+**Invalidation (scratch the trade immediately if ANY occur):**
+- **Reclaim**: 2 consecutive 1-min closes back above/below the level you faded (e.g. shorted at resistance, 2 closes back above it = buyers are in control, get out)
+- **Higher high / lower low**: Price makes a new high (if short) or new low (if long) after entry — momentum is against you, don't wait for SL
+- **Volume surge against**: A candle with 2x+ average volume closes against your direction — institutional flow is opposing the trade
 
-### Order Execution
-```
-POST  /orders/place       — Place order (Market/Limit/Stop/TrailingStop)
-POST  /orders/cancel      — Cancel order
-PATCH /orders/modify      — Modify order
-GET   /orders/open        — List open orders
-```
+**During trade (if not invalidated):**
+- If price moves 50% to target, trail SL to breakeven
+- If trade stalls for 5+ minutes with no progress, consider scratch (exit at breakeven)
 
-#### Place Order Payload
-```json
-{
-  "accountId": 20109518,
-  "contractId": "CON.F.US.MNQ.H26",
-  "type": 2,              // 1=Limit, 2=Market, 4=Stop, 5=TrailingStop
-  "side": 0,              // 0=Buy, 1=Sell
-  "size": 1,
-  "stopLossBracket": { "ticks": 120, "type": 2 },
-  "takeProfitBracket": { "ticks": 240, "type": 2 }
-}
-```
+**Exit rules:**
+- Invalidation triggered → flatten at market immediately (don't wait for SL)
+- TP hit (auto via bracket)
+- SL hit (auto via bracket)
+- Time stop: Close any open trade by 11:30 AM ET (lunch = noise)
+- Emergency: Flatten immediately if approaching daily loss limit
 
-### Positions & Accounts
-```
-GET /accounts             — List accounts (balance, canTrade)
-GET /positions/open       — Open positions
+### Secondary Setups
+
+When the opening range fade isn't available:
+
+1. **VWAP bounce** — Price pulls back to VWAP area during trend day, bounces with confirmation candle. Enter with 10pt SL, target previous high/low.
+
+2. **Double bottom/top on 5-min** — Two rejections at same level within 30 min. Enter on second bounce with SL 5pts below the double bottom/above double top.
+
+3. **Afternoon reversal (2:00-3:00 PM ET)** — If market has trended strongly all morning, look for exhaustion reversal after 2 PM. Smaller size (1 MNQ), wider SL (20pt).
+
+---
+
+## Trading Schedule
+
+| Time (ET) | Activity |
+|-----------|----------|
+| 9:15-9:30 AM | Pre-market: check overnight levels, identify support/resistance |
+| 9:30-9:45 AM | Opening range formation — NO TRADES, just observe |
+| 9:45-11:30 AM | **Primary window** — fade failed breakouts, VWAP bounces |
+| 11:30 AM-1:30 PM | Lunch — NO TRADES (low volume chop) |
+| 1:30-2:00 PM | Assess if afternoon setup developing |
+| 2:00-3:30 PM | **Secondary window** — afternoon reversal only if strong signal |
+| 3:30-4:00 PM | Close all positions, end of day |
+
+---
+
+## Tool Reference
+
+All tools in `backend/claude-tools.sh`. Use `curl` commands directly (avoids permission issues with `source`).
+
+### Account Management
+```bash
+curl -s "http://localhost:3001/accounts"                          # Check all balances
+curl -s "http://localhost:3001/positions/open?accountId=ACCT_ID"  # Open positions
+curl -s "http://localhost:3001/orders/open?accountId=ACCT_ID"     # Open orders
 ```
 
 ### Market Data
-```
-POST /market/bars                   — OHLCV candle history
-GET  /market/contracts/search       — Search contracts
-GET  /market/contracts/available    — All contracts
-```
-
-### Trade History
-```
-GET /trades/search        — Filled trades with P&L
+```bash
+# Last N bars: unit 2=Minute, unitNumber=candle size
+# 1 bar (latest price):
+curl -s -X POST "http://localhost:3001/market/bars" -H "Content-Type: application/json" -d '{"contractId":"CON.F.US.MNQ.H26","live":false,"unit":2,"unitNumber":1,"startTime":"2026-03-16T00:00:00.000Z","endTime":"2026-03-16T23:59:00.000Z","limit":1,"includePartialBar":true}'
+# Change limit for more bars, unitNumber for 5-min etc.
 ```
 
-### Conditional Orders
-```
-POST   /conditions          — Create candle-close condition
-PATCH  /conditions/:id      — Update
-DELETE /conditions/:id      — Delete
-GET    /conditions/events   — SSE stream (triggered/failed/expired)
-```
+### Order Placement
+```bash
+# Market buy with bracket (15pt SL = -60 ticks, 40pt TP = 160 ticks)
+curl -s -X POST "http://localhost:3001/orders/place" -H "Content-Type: application/json" -d '{"accountId":"ACCT_ID","contractId":"CON.F.US.MNQ.H26","type":2,"side":0,"size":1,"stopLossBracket":{"ticks":-60,"type":4},"takeProfitBracket":{"ticks":160,"type":1}}'
 
-## Instrument Reference
+# Market sell with bracket
+curl -s -X POST "http://localhost:3001/orders/place" -H "Content-Type: application/json" -d '{"accountId":"ACCT_ID","contractId":"CON.F.US.MNQ.H26","type":2,"side":1,"size":1,"stopLossBracket":{"ticks":60,"type":4},"takeProfitBracket":{"ticks":-160,"type":1}}'
 
-| Symbol | Contract ID | Tick Size | Tick Value | Notes |
-|--------|------------|-----------|------------|-------|
-| MNQ | CON.F.US.MNQ.H26 | 0.25 | $0.50 | Micro Nasdaq — primary |
-| MES | CON.F.US.MES.H26 | 0.25 | $1.25 | Micro S&P |
-| MYM | CON.F.US.MYM.H26 | 1.0 | $0.50 | Micro Dow |
-| MGC | CON.F.US.MGC.J26 | 0.10 | $1.00 | Micro Gold |
-| MNQ (full) | CON.F.US.ENQ.H26 | 0.25 | $5.00 | E-mini Nasdaq (10x MNQ) |
+# Limit buy at level with bracket (PREFERRED — enter at the level, not after confirmation)
+curl -s -X POST "http://localhost:3001/orders/place" -H "Content-Type: application/json" -d '{"accountId":"ACCT_ID","contractId":"CON.F.US.MNQ.H26","type":1,"side":0,"size":1,"limitPrice":PRICE,"stopLossBracket":{"ticks":-60,"type":4},"takeProfitBracket":{"ticks":160,"type":1}}'
 
-## Enums
+# Limit sell at level with bracket
+curl -s -X POST "http://localhost:3001/orders/place" -H "Content-Type: application/json" -d '{"accountId":"ACCT_ID","contractId":"CON.F.US.MNQ.H26","type":1,"side":1,"size":1,"limitPrice":PRICE,"stopLossBracket":{"ticks":60,"type":4},"takeProfitBracket":{"ticks":-160,"type":1}}'
 
-```
-OrderType:   1=Limit, 2=Market, 4=Stop, 5=TrailingStop
-OrderSide:   0=Buy, 1=Sell
-OrderStatus: 0=Open, 1=Closed, 2=Cancelled, 3=Error
+# Cancel order
+curl -s -X POST "http://localhost:3001/orders/cancel" -H "Content-Type: application/json" -d '{"accountId":"ACCT_ID","orderId":"ORDER_ID"}'
 ```
 
-## Trade Log
+### Bracket Tick Math
+- 1 point = 4 ticks (0.25 tick size)
+- LONG: SL ticks **negative**, TP ticks **positive**
+- SHORT: SL ticks **positive**, TP ticks **negative**
+- Examples: 10pts = 40 ticks, 15pts = 60 ticks, 20pts = 80 ticks, 25pts = 100 ticks
 
-Track all trades placed by Claude here.
+### Drawing on Chart
+```bash
+# Horizontal line with label (appears on chart via frontend polling)
+curl -s -X POST "http://localhost:3001/drawings/add" -H "Content-Type: application/json" -d '{"type":"hline","price":PRICE,"color":"#COLOR","strokeWidth":1,"text":{"content":"LABEL","color":"#COLOR","fontSize":12,"bold":false,"italic":false,"hAlign":"left","vAlign":"bottom"},"contractId":"CON.F.US.MNQ.H26","startTime":0,"extendLeft":true}'
+# Colors: red=#ef5350 green=#26a69a blue=#2962ff orange=#f0a830 muted=#787b86
+```
 
-| # | Date | Instrument | Side | Size | Entry | SL | TP | Result | P&L |
-|---|------|-----------|------|------|-------|----|----|--------|-----|
-| 1 | 2026-03-12 23:34 UTC | MNQ (MNQH6) | SHORT | 1 | 24,583.00 | BE (24,583) | 24,533.00 (-50pt) | **WIN** | +$99.26 |
-| 2 | 2026-03-13 00:00 UTC | MNQ (MNQH6) | SHORT | 1 | 24,517.50 | BE (24,517.50) | 24,467.50 (-50pt) | **BE** | -$1.24 |
+### Account IDs
+- Practice: `20130833`
+- Challenge: `20292418`
 
-**Trade #1 Notes:**
-- Thesis: Strong bearish trend, NQ dropped 350+ pts on the session. Shorting into overnight fade.
-- Risk: $50 (25 pts x $2/pt). Reward: $100 (50 pts). R:R = 2:1.
-- SL Order ID: 2628681938 (Buy Stop @ 24608)
-- TP Order ID: 2628682028 (Buy Limit @ 24533)
-- **IMPORTANT:** These are NOT OCO-linked. If one fills, manually cancel the other.
-- **UPDATE 23:47 UTC:** SL moved to breakeven (24,583) after price moved +38pts in our favor. Free trade now.
+---
 
-## Lessons Learned
+## Autonomous Execution (MUST USE)
 
-Track what works and what doesn't so future sessions can improve.
+Claude MUST use this autonomous loop when trading. The user may not be at the PC — do not wait for permission or confirmation. Run commands individually (never chain with `&&`) so they auto-approve.
 
-1. **Native bracket orders fail** — gateway error "Brackets cannot be used with Position Brackets." Always place separate SL/TP orders after fill.
-2. **Move to breakeven early** — once +25 pts in profit, move SL to entry. Protects the thin drawdown cushion.
-3. **Overnight session is viable for trend continuation** — the bearish trend from RTH carried into the overnight on 2026-03-12.
-4. **MNQ is the right instrument** for this account — $0.50/tick keeps risk controllable with $277 drawdown remaining.
+### Startup Procedure
 
-## Maintenance Checklist
+When a new conversation starts and you are told to trade (or you read this doc and it's during trading hours):
 
-Do this at the START of every new conversation:
+1. **Read this README first** — `docs/claude-trader/README.md`
+2. **Read state file** — `docs/claude-trader/state.json` (persists between cycles)
+3. **Read journal** — `docs/claude-trader/journal.csv` for lessons from past trades
+4. **Check the time** — run `date -u` and convert to ET (UTC-4 during DST Mar-Nov, UTC-5 otherwise)
+5. **Check balance** — run `curl -s http://localhost:3001/accounts`
+6. **Draw key levels** on the chart (support, resistance, OR high/low)
+7. **Start the trading loop** via `/loop 1m` with a short cron prompt
 
-- [ ] Read this README fully
-- [ ] Check memory files for user preferences and feedback
-- [ ] Query positions, orders, balance via API
-- [ ] Update the "Current Status" section with fresh numbers
-- [ ] Update the trade log with any trades that closed since last session
-- [ ] If drawdown cushion changes significantly, adjust risk management rules
+### Trading Loop (every 1 minute via cron)
+
+The cron prompt should be **short** — just tell Claude to run the trading cycle. All the logic is in this README.
+
+**Cron setup:**
+```
+/loop 1m Run trading cycle per docs/claude-trader/README.md
+```
+
+**Each cycle:**
+
+```
+CYCLE START
+│
+├─ 1. CHECK EVENTS (synced to candle close)
+│   ├─ watch_check ACCT_ID  (waits for :01/:31, compares state, prints events)
+│   ├─ If EVENT: POSITION_OPENED → take snapshot, switch to monitoring mode
+│   ├─ If EVENT: SL_HIT / TP_HIT / POSITION_CLOSED → log to journal, reassess
+│   └─ If NO_CHANGE → continue to scan/manage
+│
+├─ 2. CHECK TIME
+│   └─ Outside 9:45 AM - 3:30 PM ET? → skip (but flatten at 3:50 PM if holding)
+│
+├─ 3. RISK GATE (check BEFORE any trade)
+│   ├─ Balance < $48,500? → NO TRADING, flatten if holding
+│   ├─ Daily loss > $150? → STOP TRADING for the day
+│   ├─ 3 consecutive losses? → PAUSE 30 min
+│   └─ Best trade P&L > $1,200? → Reduce TP targets
+│
+├─ 4. IF HOLDING A POSITION → MANAGE IT
+│   ├─ Fetch last 2 1-min bars for invalidation check
+│   ├─ 2 consecutive closes against thesis? → FLATTEN immediately
+│   ├─ Trail SL to breakeven if 50%+ to target
+│   ├─ Time stop: flatten if held > 15 min with no progress
+│   └─ Flatten everything by 3:50 PM ET
+│
+├─ 5. IF FLAT → SCAN FOR SETUP
+│   ├─ Fetch last 1 bar (current price) — only fetch more bars when analyzing structure
+│   ├─ 9:30-9:45 AM? → Just record opening range high/low, no trades
+│   ├─ Identify key levels (OR high/low, day high/low, S/R flips)
+│   ├─ **PREFER LIMIT ORDERS AT THE LEVEL** — don't market order after confirmation
+│   ├─ Place limit order with bracket at identified level
+│   ├─ Take snapshot: watch_snapshot ACCT_ID
+│   └─ If no setup → do nothing, wait for next cycle
+│
+├─ 6. UPDATE STATE FILE
+│   └─ Write state.json with: opening range, trade count, daily P&L, last action time
+│
+CYCLE END
+```
+
+### Trade Watcher (file-based, in claude-tools.sh)
+
+The watcher compares position/order snapshots to detect fills, SL/TP hits, and position closes without modifying the backend. It syncs to :01 and :31 of each minute (1s after candle close and mid-candle).
+
+```bash
+# Save current state snapshot
+watch_snapshot ACCT_ID
+
+# Check for changes since last snapshot (syncs to :01/:31)
+watch_check ACCT_ID
+# Outputs: EVENT: POSITION_OPENED LONG size=1 price=24700
+#          EVENT: POSITION_CLOSED SHORT price=24650
+#          EVENT: SL_HIT price=24715
+#          EVENT: TP_HIT price=24660
+#          EVENT: ORDER_FILLED id=123 limit=24700
+#          NO_CHANGE
+```
+
+**Workflow:**
+1. Place limit order → `watch_snapshot` to record state
+2. Cron fires → `watch_check` detects fill → switch to position management
+3. Position closes (SL/TP) → `watch_check` detects → log to journal, scan for next setup
+
+### State File: `docs/claude-trader/state.json`
+
+Persists between cycles and conversations. Create if missing.
+
+```json
+{
+  "date": "2026-03-16",
+  "account": "challenge",
+  "openingRange": { "high": 24750, "low": 24650, "formed": true },
+  "dailyPnL": 0,
+  "tradeCount": 0,
+  "consecutiveLosses": 0,
+  "bestTradePnL": 0,
+  "lastTradeTime": null,
+  "paused": false,
+  "pauseUntil": null,
+  "notes": ""
+}
+```
+
+Reset this file each new trading day (when `date` doesn't match today).
+
+### Key Lessons (from 2026-03-16)
+
+1. **Use LIMIT orders at the level** — don't market order after confirmation. Confirmation costs 10+ points of slippage and makes SL too tight.
+2. **Trade WITH the trend** — don't buy support in a downtrend or sell resistance in an uptrend. Check 5-min structure first.
+3. **Invalidation is mandatory** — if 2 consecutive 1-min closes go against the thesis, flatten immediately. Don't wait for SL.
+4. **Be aware of time-of-day volume** — 1 PM ET (end of lunch) often has volume spikes that blow through levels.
+5. **Don't over-fetch data** — 1 bar for price check, more bars only when analyzing structure for a setup.
+6. **Journal every trade** — write to `journal.csv` (challenge) or `journal-practice.csv` immediately after each trade closes.
+
+---
+
+## Risk Management Guardrails
+
+1. **Daily loss limit**: Stop trading if down $150+ in a day (75% of single-day safe loss)
+2. **Consecutive losses**: After 3 consecutive losses, stop for 30 minutes minimum
+3. **Drawdown proximity**: If balance drops below $48,500, reduce to 1 MNQ and 10pt SL max
+4. **Consistency check**: Track running best-trade P&L — if approaching $1,200, reduce TP targets
+5. **No revenge trading**: After a loss, next trade must meet ALL setup criteria (no forcing)
+6. **No overnight holds**: Flatten everything before 4:00 PM ET
+
+---
+
+## Progress Tracking
+
+Target: $50,000 → $53,000 ($3,000 profit)
+
+| Date | Starting Balance | Ending Balance | Trades | W/L | Notes |
+|------|-----------------|----------------|--------|-----|-------|
+| — | — | — | — | — | — |
+
+---
+
+## Lessons from Previous Attempt
+
+From blown account (20109518):
+- **Wider stops needed** — got stopped out on noise multiple times
+- **Wait 15min after open** — first 15min is chaotic, not tradeable
+- **Fade first breakout** — opening range breakouts fail more often than they succeed
+- **Don't overtrade** — 2-4 quality trades per day is enough
