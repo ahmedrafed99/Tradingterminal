@@ -47,7 +47,7 @@ export function matchesShortcut(e: KeyboardEvent, combos: KeyCombo[]): boolean {
     const hasCtrl = e.ctrlKey || e.metaKey;
 
     if (
-      e.key.toLowerCase() === c.key.toLowerCase() &&
+      e.key?.toLowerCase() === c.key.toLowerCase() &&
       hasCtrl === wantCtrl &&
       e.shiftKey === wantShift &&
       e.altKey === wantAlt

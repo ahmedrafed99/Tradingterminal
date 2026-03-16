@@ -7,11 +7,8 @@ export interface AuthState {
   connected: boolean;
   baseUrl: string;
   rememberCredentials: boolean;
-  savedUserName: string;
-  savedApiKey: string;
   setConnected: (connected: boolean, baseUrl?: string) => void;
   setRememberCredentials: (on: boolean) => void;
-  setSavedCredentials: (userName: string, apiKey: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -37,14 +34,10 @@ export const createConnectionSlice = (set: Set): ConnectionSlice => ({
   connected: false,
   baseUrl: 'https://api.topstepx.com',
   rememberCredentials: false,
-  savedUserName: '',
-  savedApiKey: '',
   setConnected: (connected, baseUrl) =>
     set((s) => ({ connected, baseUrl: baseUrl ?? s.baseUrl })),
   setRememberCredentials: (on) =>
-    set(on ? { rememberCredentials: true } : { rememberCredentials: false, savedUserName: '', savedApiKey: '' }),
-  setSavedCredentials: (userName, apiKey) =>
-    set({ savedUserName: userName, savedApiKey: apiKey }),
+    set({ rememberCredentials: on }),
 
   // Accounts
   accounts: [],

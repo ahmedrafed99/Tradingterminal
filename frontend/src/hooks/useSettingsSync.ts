@@ -38,8 +38,6 @@ function getPersistedState() {
     secondContract: s.secondContract,
     orderContract: s.orderContract,
     rememberCredentials: s.rememberCredentials,
-    savedUserName: s.savedUserName,
-    savedApiKey: s.savedApiKey,
   };
 }
 

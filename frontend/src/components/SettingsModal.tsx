@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { authService } from '../services/authService';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
+import { credentialService } from '../services/credentialService';
 import { useStore } from '../store/useStore';
 import { DatabaseTab } from './settings/DatabaseTab';
 import { SoundTab } from './settings/SoundTab';
@@ -28,12 +29,12 @@ const DATA_FEED_PROVIDERS = [
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
-  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials, savedUserName, savedApiKey, setSavedCredentials } = useStore();
+  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials } = useStore();
 
   const [tab, setTab] = useState<SettingsTab>('datafeed');
   const [provider, setProvider] = useState('topstepx');
-  const [userName, setUserName] = useState(rememberCredentials ? savedUserName : '');
-  const [apiKey, setApiKey]     = useState(rememberCredentials ? savedApiKey : '');
+  const [userName, setUserName] = useState('');
+  const [apiKey, setApiKey]     = useState('');
   const [url, setUrl]           = useState(baseUrl || DEFAULT_BASE_URL);
   const [condUrl, setCondUrl]    = useState(conditionServerUrl);
   const [loading, setLoading]   = useState(false);
@@ -42,6 +43,18 @@ export function SettingsModal() {
   // Sync url fields when store values change
   useEffect(() => { setUrl(baseUrl || DEFAULT_BASE_URL); }, [baseUrl]);
   useEffect(() => { setCondUrl(conditionServerUrl); }, [conditionServerUrl]);
+
+  // Load saved credentials from encrypted backend storage when modal opens
+  useEffect(() => {
+    if (settingsOpen && rememberCredentials) {
+      credentialService.load().then((creds) => {
+        if (creds) {
+          setUserName(creds.userName);
+          setApiKey(creds.apiKey);
+        }
+      }).catch(() => {}); // silent — user can re-enter manually
+    }
+  }, [settingsOpen]);
 
   if (!settingsOpen) return null;
 
@@ -53,7 +66,7 @@ export function SettingsModal() {
       const status = await authService.getStatus();
       setConnected(true, status.baseUrl);
       if (rememberCredentials) {
-        setSavedCredentials(userName.trim(), apiKey.trim());
+        await credentialService.save(userName.trim(), apiKey.trim());
       }
       const accounts = await accountService.searchAccounts();
       setAccounts(accounts);
@@ -71,11 +84,12 @@ export function SettingsModal() {
     try {
       await realtimeService.disconnect();
       await authService.disconnect();
-      setConnected(false);
-      setAccounts([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Disconnect failed');
     } finally {
+      // Always clean up state — even if one service threw, the connection is torn down
+      setConnected(false);
+      setAccounts([]);
       setLoading(false);
     }
   }
@@ -186,7 +200,13 @@ export function SettingsModal() {
                         <input
                           type="checkbox"
                           checked={rememberCredentials}
-                          onChange={(e) => setRememberCredentials(e.target.checked)}
+                          onChange={(e) => {
+                            const on = e.target.checked;
+                            setRememberCredentials(on);
+                            if (!on) {
+                              credentialService.clear().catch(() => {});
+                            }
+                          }}
                           className="accent-(--color-accent)"
                         />
                         <span className="text-[11px] text-(--color-text-muted)">Remember credentials</span>

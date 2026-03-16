@@ -52,6 +52,7 @@ export default defineConfig({
       '/orders':  { target: BACKEND, changeOrigin: true },
       '/trades':  { target: BACKEND, changeOrigin: true },
       '/settings':{ target: BACKEND, changeOrigin: true },
+      '/credentials':{ target: BACKEND, changeOrigin: true },
       '/health':  { target: BACKEND, changeOrigin: true },
       '/news':    { target: BACKEND, changeOrigin: true },
       '/database':{ target: BACKEND, changeOrigin: true },
