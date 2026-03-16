@@ -135,7 +135,7 @@ export function TradesTab() {
 
   const [sortCol, setSortCol] = useState<SortColumn>('time');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
   const toggleSort = useCallback((col: SortColumn) => {
     if (col === sortCol) {
@@ -146,7 +146,7 @@ export function TradesTab() {
     }
   }, [sortCol, sortDir]);
 
-  const toggleExpand = useCallback((entryId: number) => {
+  const toggleExpand = useCallback((entryId: string) => {
     setExpandedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(entryId)) next.delete(entryId);
@@ -164,7 +164,7 @@ export function TradesTab() {
 
   // Group closing trades by their matched entry
   const groups = useMemo(() => {
-    const byEntry = new Map<number, Trade[]>();
+    const byEntry = new Map<string, Trade[]>();
     const unmatched: Trade[] = [];
 
     for (const t of closingTrades) {

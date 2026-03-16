@@ -163,7 +163,7 @@ export function useOrderDrag(
         }
       }
 
-      const params: { accountId: number; orderId: number; stopPrice?: number; limitPrice?: number } = {
+      const params: { accountId: string; orderId: string; stopPrice?: number; limitPrice?: number } = {
         accountId,
         orderId: order.id,
       };

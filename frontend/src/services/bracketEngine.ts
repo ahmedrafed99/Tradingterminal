@@ -16,7 +16,7 @@ const DEV = import.meta.env.DEV;
 // ---------------------------------------------------------------------------
 
 export interface PendingEntryConfig {
-  accountId: number;
+  accountId: string;
   contractId: string;
   entrySide: OrderSide;
   entrySize: number;
@@ -33,7 +33,7 @@ interface NormalizedTP {
 }
 
 interface ActiveSession {
-  accountId: number;
+  accountId: string;
   contractId: string;
   entrySide: OrderSide;
   entryPrice: number;
@@ -43,8 +43,8 @@ interface ActiveSession {
   /** Normalized TP sizes that were actually used for placement */
   normalizedTPs: NormalizedTP[];
 
-  slOrderId: number | null;
-  tpOrderIds: Map<number, number>; // tpIndex → orderId
+  slOrderId: string | null;
+  tpOrderIds: Map<number, string>; // tpIndex → orderId
   filledTPs: Set<number>;
   pendingActions: ConditionAction[];
   /** Condition IDs that have already fired (one-shot price triggers) */
@@ -59,14 +59,14 @@ class BracketEngine {
   // Phase 1: armed before order is placed (no orderId yet)
   private armedConfig: PendingEntryConfig | null = null;
   // Phase 2: orderId confirmed, waiting for fill
-  private confirmedOrderId: number | null = null;
+  private confirmedOrderId: string | null = null;
   // Buffer: fill events received between arm and confirm
   private bufferedFills: RealtimeOrder[] = [];
 
   private session: ActiveSession | null = null;
 
   /** Order IDs that the bracket engine already played sounds for (prevents ad-hoc double-play on partial fills). */
-  private handledFillIds = new Set<number>();
+  private handledFillIds = new Set<string>();
 
   // Price-based condition monitoring
   private _priceUnsubscribe: (() => void) | null = null;
@@ -94,7 +94,7 @@ class BracketEngine {
    * Step 2: Call AFTER placeOrder returns with the orderId.
    * Checks buffered fills in case the fill arrived before this call.
    */
-  confirmEntryOrderId(orderId: number) {
+  confirmEntryOrderId(orderId: string) {
     if (!this.armedConfig) return;
     this.confirmedOrderId = orderId;
     if (DEV) console.log('[BracketEngine] Confirmed orderId', orderId);
@@ -126,7 +126,7 @@ class BracketEngine {
 
   /** Clear everything (position closed, manual reset, etc.).
    *  Returns the set of order IDs being cancelled so callers can avoid double-cancelling. */
-  clearSession(): Set<number> {
+  clearSession(): Set<string> {
     // Cancel any remaining SL + TP orders on the exchange before clearing
     const snapshot = this.session;
     this.armedConfig = null;
@@ -141,7 +141,7 @@ class BracketEngine {
     }
     this._awaitingNativeSL = null;
 
-    const handledIds = new Set<number>();
+    const handledIds = new Set<string>();
     if (snapshot) {
       if (snapshot.slOrderId !== null) handledIds.add(snapshot.slOrderId);
       for (const [tpIdx, orderId] of snapshot.tpOrderIds) {
@@ -160,12 +160,12 @@ class BracketEngine {
   }
 
   /** Returns true if this order was already handled (sound played) by the bracket engine. */
-  wasHandled(orderId: number): boolean {
+  wasHandled(orderId: string): boolean {
     return this.handledFillIds.has(orderId);
   }
 
   /** Update a TP's tracked size after external modification (e.g. +/- overlay buttons) */
-  updateTPSize(orderId: number, newSize: number): void {
+  updateTPSize(orderId: string, newSize: number): void {
     if (!this.session) return;
     for (const [tpIdx, oid] of this.session.tpOrderIds) {
       if (oid === orderId) {
@@ -282,7 +282,7 @@ class BracketEngine {
     }, 3000);
   }
 
-  private findNativeSLInStore(oppositeSide: OrderSide): number | null {
+  private findNativeSLInStore(oppositeSide: OrderSide): string | null {
     if (!this.session) return null;
     const orders = useStore.getState().openOrders;
     const match = orders.find(
@@ -630,7 +630,7 @@ class BracketEngine {
   }
 
   /** Check if an order still exists in the store (not yet cancelled by the gateway). */
-  private isOrderStillOpen(orderId: number): boolean {
+  private isOrderStillOpen(orderId: string): boolean {
     return useStore.getState().openOrders.some((o) => o.id === orderId);
   }
 

@@ -12,11 +12,11 @@ const BracketSchema = z.object({
 });
 
 const PlaceOrderSchema = z.object({
-  accountId: z.number().int().positive(),
+  accountId: z.string().min(1),
   contractId: z.string().min(1),
   type: z.nativeEnum(OrderType),
   side: z.nativeEnum(OrderSide),
-  size: z.number().int().positive(), // TODO Phase 6: allow fractional quantities for crypto (remove .int())
+  size: z.number().positive(),
   limitPrice: z.number().optional(),
   stopPrice: z.number().optional(),
   stopLossBracket: BracketSchema.optional(),
@@ -24,21 +24,21 @@ const PlaceOrderSchema = z.object({
 });
 
 const CancelOrderSchema = z.object({
-  accountId: z.number().int().positive(),
-  orderId: z.number().int().positive(),
+  accountId: z.string().min(1),
+  orderId: z.string().min(1),
 });
 
 const ModifyOrderSchema = z.object({
-  accountId: z.number().int().positive(),
-  orderId: z.number().int().positive(),
-  size: z.number().int().positive().optional(),
+  accountId: z.string().min(1),
+  orderId: z.string().min(1),
+  size: z.number().positive().optional(),
   limitPrice: z.number().optional(),
   stopPrice: z.number().optional(),
   trailPrice: z.number().optional(),
 });
 
 const OpenOrdersQuery = z.object({
-  accountId: z.string().regex(/^\d+$/, 'accountId must be a number'),
+  accountId: z.string().min(1),
 });
 
 // POST /orders/place
@@ -61,7 +61,7 @@ router.patch('/modify', validateBody(ModifyOrderSchema), withConnection(async (r
 
 // GET /orders/open?accountId=12345
 router.get('/open', validateQuery(OpenOrdersQuery), withConnection(async (req, res) => {
-  const accountId = Number(req.query['accountId']);
+  const accountId = req.query['accountId'] as string;
   const data = await getAdapter().orders.searchOpen(accountId);
   res.json(data);
 }));

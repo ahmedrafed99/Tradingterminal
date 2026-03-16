@@ -16,10 +16,10 @@ export interface AuthState {
 // ---------------------------------------------------------------------------
 export interface AccountsState {
   accounts: Account[];
-  activeAccountId: number | null;
+  activeAccountId: string | null;
   setAccounts: (accounts: Account[]) => void;
-  setActiveAccountId: (id: number) => void;
-  updateAccount: (partial: { id: number } & Partial<Account>) => void;
+  setActiveAccountId: (id: string) => void;
+  updateAccount: (partial: { id: string } & Partial<Account>) => void;
 }
 
 export type ConnectionSlice = AuthState & AccountsState;

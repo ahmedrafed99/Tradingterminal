@@ -6,8 +6,8 @@ import type { Duplex } from 'stream';
 // Auth
 // ---------------------------------------------------------------------------
 export interface ConnectParams {
-  username: string;
-  apiKey: string;
+  exchange: string;
+  credentials: Record<string, string>;
   baseUrl?: string;
 }
 
@@ -40,16 +40,16 @@ export interface ExchangeMarketData {
 // ---------------------------------------------------------------------------
 export interface ExchangeOrders {
   place(params: Record<string, unknown>): Promise<unknown>;
-  cancel(params: { accountId: number; orderId: number }): Promise<unknown>;
+  cancel(params: { accountId: string; orderId: string }): Promise<unknown>;
   modify(params: Record<string, unknown>): Promise<unknown>;
-  searchOpen(accountId: number): Promise<unknown>;
+  searchOpen(accountId: string): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------
 // Positions
 // ---------------------------------------------------------------------------
 export interface ExchangePositions {
-  searchOpen(accountId: number): Promise<unknown>;
+  searchOpen(accountId: string): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ export interface ExchangePositions {
 // ---------------------------------------------------------------------------
 export interface ExchangeTrades {
   search(params: {
-    accountId: number;
+    accountId: string;
     startTimestamp: string;
     endTimestamp?: string;
   }): Promise<unknown>;
@@ -86,5 +86,5 @@ export interface ExchangeAdapter {
   readonly orders: ExchangeOrders;
   readonly positions: ExchangePositions;
   readonly trades: ExchangeTrades;
-  readonly realtime: ExchangeRealtime;
+  readonly realtime?: ExchangeRealtime;
 }

@@ -4,7 +4,7 @@ import cors from 'cors';
 import express from 'express';
 
 import { getAdapter, setAdapter, isConnected } from './adapters/registry';
-import { createProjectXAdapter } from './adapters/projectx';
+import { createAdapter } from './adapters/factory';
 import authRoutes from './routes/authRoutes';
 import accountRoutes from './routes/accountRoutes';
 import marketDataRoutes from './routes/marketDataRoutes';
@@ -61,7 +61,12 @@ app.use('/hubs', (req, res, next) => {
     res.status(401).json({ success: false, errorMessage: 'Not connected' });
     return;
   }
-  getAdapter().realtime.negotiateMiddleware(req, res, next);
+  const { realtime } = getAdapter();
+  if (realtime?.negotiateMiddleware) {
+    realtime.negotiateMiddleware(req, res, next);
+  } else {
+    res.status(404).json({ success: false, errorMessage: 'This exchange does not support SignalR hubs' });
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -91,7 +96,13 @@ server.on('upgrade', (req, socket, head) => {
     socket.destroy();
     return;
   }
-  getAdapter().realtime.handleUpgrade(req, socket, head);
+  const { realtime } = getAdapter();
+  if (realtime?.handleUpgrade) {
+    realtime.handleUpgrade(req, socket, head);
+  } else {
+    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+    socket.destroy();
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -102,16 +113,28 @@ server.on('upgrade', (req, socket, head) => {
 // ---------------------------------------------------------------------------
 
 async function autoConnect(): Promise<void> {
-  const username = process.env.TOPSTEP_USERNAME;
-  const apiKey = process.env.TOPSTEP_PASSWORD;
-  if (!username || !apiKey) return;
+  // Generic: AUTO_CONNECT_EXCHANGE + AUTO_CONNECT_CREDENTIALS (JSON)
+  // Legacy: TOPSTEP_USERNAME + TOPSTEP_PASSWORD → projectx
+  const exchange = process.env.AUTO_CONNECT_EXCHANGE ?? (process.env.TOPSTEP_USERNAME ? 'projectx' : '');
+  if (!exchange) return;
 
-  console.log(`[auto-connect] Connecting as ${username}...`);
+  let credentials: Record<string, string>;
+  if (process.env.AUTO_CONNECT_CREDENTIALS) {
+    credentials = JSON.parse(process.env.AUTO_CONNECT_CREDENTIALS);
+  } else {
+    // Legacy env vars
+    const username = process.env.TOPSTEP_USERNAME;
+    const apiKey = process.env.TOPSTEP_PASSWORD;
+    if (!username || !apiKey) return;
+    credentials = { username, apiKey };
+  }
+
+  console.log(`[auto-connect] Connecting to ${exchange}...`);
   try {
-    const adapter = createProjectXAdapter();
-    await adapter.auth.connect({ username, apiKey });
-    setAdapter(adapter);
-    console.log('[auto-connect] Connected successfully');
+    const adapter = createAdapter(exchange);
+    await adapter.auth.connect({ exchange, credentials });
+    setAdapter(exchange, adapter);
+    console.log(`[auto-connect] Connected to ${exchange} successfully`);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[auto-connect] Failed:', msg);

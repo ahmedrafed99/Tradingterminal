@@ -20,7 +20,7 @@ async function tryEndpoint(path: string, body: Record<string, unknown>): Promise
 
 export const projectXPositions: ExchangePositions = {
   async searchOpen(accountId) {
-    const body = { accountId };
+    const body = { accountId: Number(accountId) };
 
     // Try known endpoint patterns in order
     const endpoints = [

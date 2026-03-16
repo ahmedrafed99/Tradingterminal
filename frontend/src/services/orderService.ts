@@ -3,7 +3,7 @@ import { retryAsync } from '../utils/retry';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
 
 export interface Order {
-  id: number;
+  id: string;
   contractId: string;
   type: OrderType;
   side: OrderSide;
@@ -20,7 +20,7 @@ export interface OrderBracket {
 }
 
 export interface PlaceOrderParams {
-  accountId: number;
+  accountId: string;
   contractId: string;
   type: OrderType;
   side: OrderSide;
@@ -32,8 +32,8 @@ export interface PlaceOrderParams {
 }
 
 export interface ModifyOrderParams {
-  accountId: number;
-  orderId: number;
+  accountId: string;
+  orderId: string;
   size?: number;
   limitPrice?: number;
   stopPrice?: number;
@@ -52,15 +52,15 @@ function assertSuccess(data: GatewayResponse) {
 }
 
 export const orderService = {
-  async placeOrder(params: PlaceOrderParams): Promise<{ orderId: number }> {
+  async placeOrder(params: PlaceOrderParams): Promise<{ orderId: string }> {
     return retryAsync(async () => {
-      const res = await api.post<GatewayResponse & { orderId: number }>('/orders/place', params);
+      const res = await api.post<GatewayResponse & { orderId: number | string }>('/orders/place', params);
       assertSuccess(res.data);
-      return { orderId: res.data.orderId };
+      return { orderId: String(res.data.orderId) };
     });
   },
 
-  async cancelOrder(accountId: number, orderId: number): Promise<void> {
+  async cancelOrder(accountId: string, orderId: string): Promise<void> {
     console.log('[orderService] cancelOrder →', { accountId, orderId });
     await retryAsync(async () => {
       const res = await api.post<GatewayResponse>('/orders/cancel', { accountId, orderId });
@@ -76,13 +76,13 @@ export const orderService = {
     });
   },
 
-  async searchOpenOrders(accountId: number): Promise<Order[]> {
+  async searchOpenOrders(accountId: string): Promise<Order[]> {
     const res = await retryAsync(() =>
       api.get<GatewayResponse & { orders: Order[] }>(
         `/orders/open?accountId=${accountId}`,
       ),
     );
     assertSuccess(res.data);
-    return res.data.orders ?? [];
+    return (res.data.orders ?? []).map((o) => ({ ...o, id: String(o.id) }));
   },
 };

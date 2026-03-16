@@ -1,8 +1,8 @@
 # Feature: API Layer
 
-All communication with the ProjectX Gateway is centralised here.
-The frontend never calls ProjectX directly — it calls the local Express proxy,
-which adds the JWT and forwards the request.
+All communication with exchange gateways is centralised here.
+The frontend never calls exchanges directly — it calls the local Express proxy,
+which adds credentials and forwards the request.
 
 ---
 
@@ -10,12 +10,20 @@ which adds the JWT and forwards the request.
 
 ```
 frontend/src/services/
-├── authService.ts          ← connect / disconnect / status
+├── authService.ts          ← connect / disconnect / status / listExchanges
 ├── accountService.ts       ← list accounts
 ├── marketDataService.ts    ← bars history + contract search
 ├── orderService.ts         ← place / cancel / modify / list
-├── realtimeService.ts      ← SignalR hub manager
+├── realtimeService.ts      ← realtime hub manager (delegates to active adapter)
+├── positionService.ts      ← open positions (REST)
+├── tradeService.ts         ← trade history
 └── persistenceService.ts   ← load / save settings to backend file
+
+frontend/src/adapters/
+├── types.ts                ← Canonical types (Quote, RealtimeOrder, etc.) + RealtimeAdapter interface
+├── registry.ts             ← get/set active RealtimeAdapter
+└── projectx/
+    └── realtimeAdapter.ts  ← ProjectX SignalR implementation (normalizes IDs to strings)
 
 backend/src/
 ├── index.ts                ← Express app, mounts routes + adapter realtime handlers
@@ -25,17 +33,19 @@ backend/src/
 ├── types/enums.ts          ← OrderType, OrderSide enums
 ├── adapters/
 │   ├── types.ts            ← ExchangeAdapter interface (auth, accounts, orders, etc.)
-│   ├── registry.ts         ← Singleton: getAdapter / setAdapter / isConnected
+│   ├── registry.ts         ← Multi-adapter map: getAdapter(id?) / setAdapter(id, adapter)
+│   ├── factory.ts          ← createAdapter(exchange) — routes to correct factory
 │   └── projectx/           ← ProjectX implementation of ExchangeAdapter
 │       ├── index.ts        ← createProjectXAdapter() factory
 │       ├── auth.ts         ← JWT token store + /api/Auth/loginKey
 │       ├── accounts.ts     ← /api/Account/search
 │       ├── marketData.ts   ← bars + contract search/available/byId
-│       ├── orders.ts       ← place / cancel / modify / searchOpen
-│       ├── trades.ts       ← /api/Trade/search
+│       ├── orders.ts       ← place / cancel / modify / searchOpen (converts string IDs → numeric)
+│       ├── positions.ts    ← /api/Position/searchOpen (converts string IDs → numeric)
+│       ├── trades.ts       ← /api/Trade/search (converts string IDs → numeric)
 │       └── realtime.ts     ← SignalR negotiate proxy + WS upgrade handler
 ├── routes/
-│   ├── authRoutes.ts       ← creates adapter on connect, clears on disconnect
+│   ├── authRoutes.ts       ← multi-exchange connect/disconnect/status/exchanges/default
 │   ├── accountRoutes.ts
 │   ├── marketDataRoutes.ts
 │   ├── orderRoutes.ts
@@ -46,7 +56,52 @@ backend/src/
     └── user-settings.json  ← persisted settings (gitignored, auto-created)
 ```
 
-Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` (currently hardcoded to ProjectX). All authenticated routes use `withConnection()` middleware from `middleware/withConnection.ts` (auth guard — returns 401 if no adapter connected). Input validation uses `validateBody()` / `validateQuery()` from `validate.ts` with Zod schemas.
+Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` via `createAdapter(exchange)` from `factory.ts`. All authenticated routes use `withConnection()` middleware from `middleware/withConnection.ts` (auth guard — returns 401 if no adapter connected). Input validation uses `validateBody()` / `validateQuery()` from `validate.ts` with Zod schemas.
+
+---
+
+## Multi-Exchange Architecture
+
+### ID System
+
+All entity IDs (accounts, orders, positions, trades) are **strings** throughout the entire codebase. This supports exchanges that use non-numeric IDs (hex addresses, UUIDs). ProjectX adapters convert numeric IDs to strings at the boundary:
+- **Backend**: `String(id)` / `Number(id)` in `backend/src/adapters/projectx/*.ts`
+- **Frontend REST**: `String(id)` mapping in `accountService`, `orderService`, `positionService`, `tradeService`
+- **Frontend SignalR**: `String(id)` in `realtimeAdapter.ts` event handlers
+
+### Adapter Registry
+
+The backend registry (`adapters/registry.ts`) is a `Map<string, ExchangeAdapter>`:
+- `setAdapter(exchangeId, adapter)` — register a connected exchange
+- `getAdapter(exchangeId?)` — get by ID, or default if omitted
+- `removeAdapter(exchangeId)` — disconnect specific exchange
+- `isConnected(exchangeId?)` — check specific or any
+- `listConnected()` — all connected exchange IDs
+- First connected exchange becomes the default; `setDefaultExchangeId()` to change
+
+### Adapter Factory
+
+`adapters/factory.ts` maps exchange names to factory functions:
+```ts
+createAdapter('projectx')  → createProjectXAdapter()
+// Future: createAdapter('hyperliquid') → createHyperliquidAdapter()
+```
+
+### ConnectParams
+
+Generic credential model — each adapter reads what it needs:
+```ts
+interface ConnectParams {
+  exchange: string;
+  credentials: Record<string, string>;  // exchange-specific key/value pairs
+  baseUrl?: string;
+}
+```
+ProjectX adapter reads `credentials.username` and `credentials.apiKey`.
+
+### ExchangeRealtime (optional)
+
+The `realtime` field on `ExchangeAdapter` is optional. Exchanges that don't use SignalR (e.g. crypto with raw WebSockets) can omit it. The server's hub proxy and WS upgrade handler check for existence before delegating.
 
 ---
 
@@ -55,17 +110,16 @@ Routes are exchange-agnostic — they call `getAdapter().domain.method()` instea
 ### `authService.ts`
 
 ```ts
-connect(username: string, apiKey: string, baseUrl?: string): Promise<void>
-disconnect(): Promise<void>
-getStatus(): Promise<{ connected: boolean; baseUrl: string }>
+connect(userName: string, apiKey: string, baseUrl?: string, exchange?: string): Promise<void>
+disconnect(exchange?: string): Promise<void>
+getStatus(): Promise<AuthStatus>
+listExchanges(): Promise<{ exchanges: string[]; connected: string[] }>
 ```
 
 ### `accountService.ts`
 
 ```ts
-searchAccounts(): Promise<Account[]>
-// GET /proxy/accounts
-// → POST https://…/api/Account/search
+searchAccounts(): Promise<Account[]>   // IDs stringified at boundary
 ```
 
 ### `marketDataService.ts`
@@ -99,49 +153,49 @@ Prevents duplicate requests when multiple components (chart toolbars, order pane
 
 ```ts
 placeOrder(params: {
-  accountId: number
+  accountId: string
   contractId: string
   type: 1|2|4|5               // Limit|Market|Stop|TrailingStop
   side: 0|1                   // Bid(buy)|Ask(sell)
-  size: number
+  size: number                // fractional allowed (crypto)
   limitPrice?: number
   stopPrice?: number
   stopLossBracket?: { ticks: number; type: number }
   takeProfitBracket?: { ticks: number; type: number }
-}): Promise<{ orderId: number }>
+}): Promise<{ orderId: string }>
 
-cancelOrder(accountId: number, orderId: number): Promise<void>
+cancelOrder(accountId: string, orderId: string): Promise<void>
 
 modifyOrder(params: {
-  accountId: number
-  orderId: number
+  accountId: string
+  orderId: string
   size?: number
   limitPrice?: number
   stopPrice?: number
   trailPrice?: number
 }): Promise<void>
 
-searchOpenOrders(accountId: number): Promise<Order[]>
+searchOpenOrders(accountId: string): Promise<Order[]>   // IDs stringified at boundary
 ```
 
 ### `realtimeService.ts`
 
-Singleton that manages both SignalR hub connections (Market + User).
-Connects through the backend proxy at `/hubs/*` — JWT is injected server-side.
+Singleton that delegates to whichever `RealtimeAdapter` is registered.
+Currently connects through the backend proxy at `/hubs/*` — JWT is injected server-side.
 
 ```ts
 connect(): Promise<void>
 disconnect(): Promise<void>
 isConnected(): boolean
 
-// Market Hub subscriptions
+// Market subscriptions
 subscribeQuotes(contractId: string): void   // Also subscribes to SubscribeContractTrades
-unsubscribeQuotes(contractId: string): void // Also unsubscribes from trades
+unsubscribeQuotes(contractId: string): void
 subscribeDepth(contractId: string): void    // Volume profile data
 unsubscribeDepth(contractId: string): void
 
-// User Hub subscriptions
-subscribeUserEvents(accountId: number): void
+// User subscriptions
+subscribeUserEvents(accountId: string): void
 
 // Event handlers (register/unregister)
 onQuote(handler):    void    offQuote(handler):    void
@@ -151,7 +205,7 @@ onPosition(handler): void    offPosition(handler): void
 onAccount(handler):  void    offAccount(handler):  void
 onTrade(handler):    void    offTrade(handler):    void
 
-// Reconnect callback (fires after user hub reconnects and resubscribes)
+// Reconnect callback
 onUserReconnect(handler: () => void): void
 offUserReconnect(handler: () => void): void
 
@@ -163,13 +217,15 @@ ping(): Promise<number>   // WebSocket round-trip latency in ms
 
 **Handler signatures:**
 ```ts
-QuoteHandler    = (contractId: string, data: GatewayQuote) => void
+QuoteHandler    = (contractId: string, data: Quote) => void
 DepthHandler    = (contractId: string, entries: DepthEntry[]) => void
 OrderHandler    = (order: RealtimeOrder, action: number) => void
 PositionHandler = (position: RealtimePosition, action: number) => void
 AccountHandler  = (account: RealtimeAccount, action: number) => void
 TradeHandler    = (trade: RealtimeTrade, action: number) => void
 ```
+
+All IDs in realtime events are strings (converted from ProjectX numeric IDs in the adapter).
 
 Automatically resubscribes all active subscriptions on reconnect.
 Fires `userReconnectHandlers` after user hub reconnect (used by `OrderPanel` to re-fetch open orders and infer positions).
@@ -183,11 +239,15 @@ All routes call the active `ExchangeAdapter` via `getAdapter()` from the adapter
 
 ### Auth
 
-| Method | Path | Body | Adapter call |
+| Method | Path | Body | Description |
 |--------|------|------|-------------|
-| POST | /auth/connect | { username, apiKey, baseUrl? } | `createProjectXAdapter()` → `adapter.auth.connect()` → `setAdapter()` |
-| POST | /auth/disconnect | — | `adapter.auth.disconnect()` → `clearAdapter()` |
-| GET | /auth/status | — | `adapter.auth.getStatus()` |
+| POST | /auth/connect | { exchange?, credentials?, userName?, apiKey?, baseUrl? } | Creates adapter via factory, connects, registers in registry |
+| POST | /auth/disconnect | { exchange? } | Disconnect specific exchange or all |
+| GET | /auth/status | — | Connected exchanges + status from each adapter |
+| GET | /auth/exchanges | — | List available + connected exchange types |
+| POST | /auth/default | { exchange } | Set the default exchange for unqualified requests |
+
+Legacy fields (`userName`, `apiKey`, `baseUrl`) are supported for backward compatibility and mapped into `credentials`.
 
 ### Accounts
 
@@ -208,9 +268,9 @@ All routes call the active `ExchangeAdapter` via `getAdapter()` from the adapter
 
 | Method | Path | Body | Adapter call |
 |--------|------|------|-------------|
-| POST | /orders/place | order params | `adapter.orders.place(params)` |
-| POST | /orders/cancel | { accountId, orderId } | `adapter.orders.cancel(params)` |
-| PATCH | /orders/modify | modify params | `adapter.orders.modify(params)` |
+| POST | /orders/place | order params (accountId: string) | `adapter.orders.place(params)` |
+| POST | /orders/cancel | { accountId: string, orderId: string } | `adapter.orders.cancel(params)` |
+| PATCH | /orders/modify | modify params (IDs: string) | `adapter.orders.modify(params)` |
 | GET | /orders/open?accountId= | — | `adapter.orders.searchOpen(accountId)` |
 
 ### Trades
@@ -230,16 +290,31 @@ No adapter call — these endpoints read/write directly to the local filesystem.
 
 ### WebSocket / SignalR
 
-The adapter provides two realtime handlers mounted by `index.ts`:
+The adapter optionally provides two realtime handlers mounted by `index.ts`:
 - **HTTP negotiate**: `app.use('/hubs', adapter.realtime.negotiateMiddleware)` — proxies SignalR negotiate calls
 - **WS upgrade**: `server.on('upgrade', adapter.realtime.handleUpgrade)` — proxies WebSocket connections, injecting JWT as query param
+
+Both check if `adapter.realtime` exists before delegating — exchanges without SignalR (e.g. crypto) can omit realtime entirely.
+
+### Auto-Connect
+
+Environment variables for headless/remote deployment:
+```bash
+# Generic (any exchange)
+AUTO_CONNECT_EXCHANGE=projectx
+AUTO_CONNECT_CREDENTIALS={"username":"...","apiKey":"..."}
+
+# Legacy (ProjectX only, still supported)
+TOPSTEP_USERNAME=...
+TOPSTEP_PASSWORD=...
+```
 
 ### ProjectX Base URLs
 
 | Environment | REST Base URL |
 |-------------|---------------|
 | Default | `https://api.topstepx.com` |
-| Custom | Pass `baseUrl` in the connect payload |
+| Custom | Pass `baseUrl` in connect payload or credentials |
 
 SignalR RTC URL is derived automatically: `api.topstepx.com` → `rtc.topstepx.com`.
 

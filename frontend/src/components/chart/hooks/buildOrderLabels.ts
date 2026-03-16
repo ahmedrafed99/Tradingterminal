@@ -10,7 +10,7 @@ import { darken, LABEL_TEXT, LABEL_BG, CLOSE_BG, computeOrderLineColor, BUY_COLO
 import { COLOR_SELL } from '../../../constants/colors';
 
 interface Position {
-  accountId: number;
+  accountId: string;
   contractId: string;
   averagePrice: number;
   size: number;
@@ -27,7 +27,7 @@ export function buildOrderLabels(
   contract: Contract,
   openOrders: Order[],
   positions: Position[],
-  activeAccountId: number | null,
+  activeAccountId: string | null,
   qoPendingPreview: unknown,
   previewHideEntry: boolean,
   previewSide: OrderSide,
@@ -40,7 +40,7 @@ export function buildOrderLabels(
   );
 
   // TP size +/- button sub-element refs (keyed by orderId)
-  const tpSizeButtons = new Map<number, {
+  const tpSizeButtons = new Map<string, {
     minusEl: HTMLDivElement; plusEl: HTMLDivElement;
     countEl: HTMLDivElement; sizeCell: HTMLDivElement;
     sizeBg: string;
@@ -70,7 +70,7 @@ export function buildOrderLabels(
         return isLong ? bP - aP : aP - bP;
       });
 
-    let targetOrderId: number | null = null;
+    let targetOrderId: string | null = null;
     let targetNewSize: number | null = null;
 
     if (delta === 1) {
@@ -335,7 +335,7 @@ export function buildOrderLabels(
     const onTpSizeHover = (e: MouseEvent) => {
       const mx = e.clientX;
       const my = e.clientY;
-      let foundId: number | null = null;
+      let foundId: string | null = null;
 
       for (const [oid, btns] of tpSizeButtons) {
         const rect = btns.sizeCell.getBoundingClientRect();

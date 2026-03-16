@@ -101,7 +101,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const updateOverlayRef = useRef<() => void>(() => {});
 
   // TP size +/- redistribution
-  const hoveredTpOrderIdRef = useRef<number | null>(null);
+  const hoveredTpOrderIdRef = useRef<string | null>(null);
   const tpRedistInFlightRef = useRef(false);
 
   // Scroll button

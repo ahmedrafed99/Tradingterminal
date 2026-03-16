@@ -29,8 +29,8 @@ export interface DepthEntry {
 }
 
 export interface RealtimeOrder {
-  id: number;
-  accountId: number;
+  id: string;
+  accountId: string;
   contractId: string;
   symbolId?: string;
   status: OrderStatus;
@@ -45,8 +45,8 @@ export interface RealtimeOrder {
 }
 
 export interface RealtimePosition {
-  id: number;
-  accountId: number;
+  id: string;
+  accountId: string;
   contractId: string;
   type: PositionType;
   size: number;          // 0 when closed
@@ -54,7 +54,7 @@ export interface RealtimePosition {
 }
 
 export interface RealtimeAccount {
-  id: number;
+  id: string;
   name: string;
   balance: number;
   canTrade: boolean;
@@ -63,15 +63,15 @@ export interface RealtimeAccount {
 }
 
 export interface RealtimeTrade {
-  id: number;
-  accountId: number;
+  id: string;
+  accountId: string;
   contractId: string;
   price: number;
   fees: number;
   side: OrderSide;
   size: number;
   voided: boolean;
-  orderId: number;
+  orderId: string;
 }
 
 // ── Handler type aliases ──────────────────────────────────────────────────
@@ -98,7 +98,7 @@ export interface RealtimeAdapter {
   unsubscribeDepth(contractId: string): void;
 
   // User subscriptions
-  subscribeUserEvents(accountId: number): void;
+  subscribeUserEvents(accountId: string): void;
 
   // Event registration
   onQuote(handler: QuoteHandler): void;

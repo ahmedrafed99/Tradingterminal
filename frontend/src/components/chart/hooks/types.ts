@@ -110,7 +110,7 @@ export interface ChartRefs {
   posDragLabel: React.MutableRefObject<HTMLDivElement | null>;
 
   // TP size +/- redistribution
-  hoveredTpOrderId: React.MutableRefObject<number | null>;
+  hoveredTpOrderId: React.MutableRefObject<string | null>;
   tpRedistInFlight: React.MutableRefObject<boolean>;
 
   // Scroll button

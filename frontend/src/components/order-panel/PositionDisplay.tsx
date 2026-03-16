@@ -84,7 +84,7 @@ function MoveToBEButton({
   entryPrice,
   disabled,
 }: {
-  accountId: number | null;
+  accountId: string | null;
   contractId: string;
   positionSide: 'long' | 'short';
   size: number;
@@ -153,7 +153,7 @@ function ClosePositionButton({
   side,
   size,
 }: {
-  accountId: number | null;
+  accountId: string | null;
   contractId: string;
   side: OrderSide;
   size: number;

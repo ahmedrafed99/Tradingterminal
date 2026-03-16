@@ -38,7 +38,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   private subscribedQuotes: Set<string> = new Set();
   private subscribedDepth: Set<string> = new Set();
   private lastQuote: Map<string, Quote> = new Map();
-  private subscribedOrderAccounts: Set<number> = new Set();
+  private subscribedOrderAccounts: Set<string> = new Set();
   private connectingPromise: Promise<void> | null = null;
   private userReconnectHandlers: (() => void)[] = [];
 
@@ -116,26 +116,35 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
       this.depthHandlers.forEach((h) => h(contractId, valid));
     });
 
-    // User hub events — may arrive as a single array arg OR spread args
+    // User hub events — may arrive as a single array arg OR spread args.
+    // ProjectX delivers numeric IDs; normalize to strings at the boundary.
     this.userHub.on('GatewayUserOrder', (...args: unknown[]) => {
       const items = normalizeUserHubArgs<RealtimeOrder>(args);
       for (const item of items) {
-        this.orderHandlers.forEach((h) => h(item.data, item.action));
+        const d = item.data;
+        const order: RealtimeOrder = { ...d, id: String(d.id), accountId: String(d.accountId) };
+        this.orderHandlers.forEach((h) => h(order, item.action));
       }
     });
     this.userHub.on('GatewayUserPosition', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimePosition>(args)) {
-        this.positionHandlers.forEach((h) => h(item.data, item.action));
+        const d = item.data;
+        const pos: RealtimePosition = { ...d, id: String(d.id), accountId: String(d.accountId) };
+        this.positionHandlers.forEach((h) => h(pos, item.action));
       }
     });
     this.userHub.on('GatewayUserAccount', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeAccount>(args)) {
-        this.accountHandlers.forEach((h) => h(item.data, item.action));
+        const d = item.data;
+        const acct: RealtimeAccount = { ...d, id: String(d.id) };
+        this.accountHandlers.forEach((h) => h(acct, item.action));
       }
     });
     this.userHub.on('GatewayUserTrade', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeTrade>(args)) {
-        this.tradeHandlers.forEach((h) => h(item.data, item.action));
+        const d = item.data;
+        const trade: RealtimeTrade = { ...d, id: String(d.id), accountId: String(d.accountId), orderId: String(d.orderId) };
+        this.tradeHandlers.forEach((h) => h(trade, item.action));
       }
     });
 
@@ -221,18 +230,19 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
 
   // ── User hub subscriptions ────────────────────────────────────────────
 
-  subscribeUserEvents(accountId: number) {
+  subscribeUserEvents(accountId: string) {
     this.subscribedOrderAccounts.add(accountId);
     if (this.userHub?.state === signalR.HubConnectionState.Connected) {
       this.flushUserSubscriptions(accountId);
     }
   }
 
-  private flushUserSubscriptions(accountId: number) {
+  private flushUserSubscriptions(accountId: string) {
+    const numericId = Number(accountId);
     this.userHub?.invoke('SubscribeAccounts').catch(console.error);
-    this.userHub?.invoke('SubscribeOrders', accountId).catch(console.error);
-    this.userHub?.invoke('SubscribePositions', accountId).catch(console.error);
-    this.userHub?.invoke('SubscribeTrades', accountId).catch(console.error);
+    this.userHub?.invoke('SubscribeOrders', numericId).catch(console.error);
+    this.userHub?.invoke('SubscribePositions', numericId).catch(console.error);
+    this.userHub?.invoke('SubscribeTrades', numericId).catch(console.error);
   }
 
   // ── Event handlers ────────────────────────────────────────────────────

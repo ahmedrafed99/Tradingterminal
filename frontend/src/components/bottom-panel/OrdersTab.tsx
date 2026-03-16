@@ -17,9 +17,9 @@ const cols = 'grid-cols-[0.7fr_0.8fr_1fr_0.5fr_1fr_0.4fr]';
 export function OrdersTab() {
   const openOrders = useStore((s) => s.openOrders);
   const activeAccountId = useStore((s) => s.activeAccountId);
-  const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  const handleCancel = async (orderId: number) => {
+  const handleCancel = async (orderId: string) => {
     if (activeAccountId == null) return;
     setCancellingId(orderId);
     try {

@@ -528,8 +528,8 @@ export function useQuickOrder(
         if (bracketsArmed || nativeBrackets) {
           // Keep preview lines until entry fills/cancels, then remove.
           // Also detect individual bracket leg cancellations from the orders tab.
-          let seenSlId: number | null = null;
-          let seenTpId: number | null = null; // at most 1 Suspended TP exists pre-fill (0-1 TP path)
+          let seenSlId: string | null = null;
+          let seenTpId: string | null = null; // at most 1 Suspended TP exists pre-fill (0-1 TP path)
           pendingFillUnsub = useStore.subscribe((state) => {
             const o = state.openOrders.find((ord) => ord.id === orderId);
             // Entry filled/cancelled → full cleanup

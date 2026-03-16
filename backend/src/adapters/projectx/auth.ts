@@ -41,8 +41,14 @@ export function authHeaders() {
 // ExchangeAuth implementation
 // ---------------------------------------------------------------------------
 export const projectXAuth: ExchangeAuth = {
-  async connect({ username, apiKey, baseUrl = DEFAULT_BASE_URL }: ConnectParams) {
-    store.baseUrl = baseUrl.replace(/\/$/, '');
+  async connect({ credentials, baseUrl }: ConnectParams) {
+    const username = credentials['username'];
+    const apiKey = credentials['apiKey'];
+    if (!username || !apiKey) {
+      throw new Error('ProjectX requires "username" and "apiKey" credentials.');
+    }
+
+    store.baseUrl = (baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, '');
     store.token = null;
 
     const url = `${store.baseUrl}/api/Auth/loginKey`;

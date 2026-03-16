@@ -4,9 +4,10 @@ import { getBaseUrl, authHeaders } from './auth';
 
 export const projectXTrades: ExchangeTrades = {
   async search(params) {
+    const body = { ...params, accountId: Number(params.accountId) };
     const response = await axios.post(
       `${getBaseUrl()}/api/Trade/search`,
-      params,
+      body,
       { headers: authHeaders() },
     );
     return response.data;

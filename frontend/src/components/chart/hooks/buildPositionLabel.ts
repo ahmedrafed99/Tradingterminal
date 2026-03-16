@@ -10,7 +10,7 @@ import type { ChartRefs } from './types';
 import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
 
 interface Position {
-  accountId: number;
+  accountId: string;
   contractId: string;
   averagePrice: number;
   size: number;
@@ -26,7 +26,7 @@ export function buildPositionLabel(
   refs: ChartRefs,
   contract: Contract,
   positions: Position[],
-  activeAccountId: number | null,
+  activeAccountId: string | null,
 ): (() => void)[] {
   const pnlUpdaters: (() => void)[] = [];
 

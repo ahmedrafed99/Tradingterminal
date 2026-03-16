@@ -24,7 +24,7 @@ export interface Condition {
   orderType: 'market' | 'limit';
   orderPrice?: number;
   orderSize: number;
-  accountId: number;
+  accountId: string;
   bracket?: ConditionBracket;
   expiresAt?: string;
   label?: string;

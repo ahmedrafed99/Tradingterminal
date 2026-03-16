@@ -11,7 +11,7 @@ export interface OrdersState {
   openOrders: Order[];
   setOpenOrders: (orders: Order[]) => void;
   upsertOrder: (order: Order) => void;
-  removeOrder: (orderId: number) => void;
+  removeOrder: (orderId: string) => void;
 }
 
 // ---------------------------------------------------------------------------

@@ -2,21 +2,26 @@ import axios from 'axios';
 import type { ExchangeOrders } from '../types';
 import { getBaseUrl, authHeaders } from './auth';
 
+/** ProjectX uses numeric IDs — convert at boundary. */
+const toNum = (id: string) => Number(id);
+
 export const projectXOrders: ExchangeOrders = {
   async place(params) {
+    const body = { ...params, accountId: toNum(params.accountId as string) };
     const response = await axios.post(
       `${getBaseUrl()}/api/Order/place`,
-      params,
+      body,
       { headers: authHeaders() },
     );
     return response.data;
   },
 
   async cancel(params) {
-    console.log('[backend][orders] cancel request:', params);
+    const body = { accountId: toNum(params.accountId), orderId: toNum(params.orderId) };
+    console.log('[backend][orders] cancel request:', body);
     const response = await axios.post(
       `${getBaseUrl()}/api/Order/cancel`,
-      params,
+      body,
       { headers: authHeaders() },
     );
     console.log('[backend][orders] cancel response:', response.data);
@@ -24,9 +29,14 @@ export const projectXOrders: ExchangeOrders = {
   },
 
   async modify(params) {
+    const body = {
+      ...params,
+      accountId: toNum(params.accountId as string),
+      orderId: toNum(params.orderId as string),
+    };
     const response = await axios.post(
       `${getBaseUrl()}/api/Order/modify`,
-      params,
+      body,
       { headers: authHeaders() },
     );
     return response.data;
@@ -35,7 +45,7 @@ export const projectXOrders: ExchangeOrders = {
   async searchOpen(accountId) {
     const response = await axios.post(
       `${getBaseUrl()}/api/Order/searchOpen`,
-      { accountId },
+      { accountId: toNum(accountId) },
       { headers: authHeaders() },
     );
     return response.data;

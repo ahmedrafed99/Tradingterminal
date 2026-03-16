@@ -14,7 +14,7 @@ export const BracketSchema = z.object({
   enabled: z.boolean(),
   sl: z.object({ points: z.number().positive() }).optional(),
   tp: z
-    .array(z.object({ points: z.number().positive(), size: z.number().int().positive().optional() }))
+    .array(z.object({ points: z.number().positive(), size: z.number().positive().optional() }))
     .optional(),
 });
 
@@ -28,8 +28,8 @@ export const CreateConditionSchema = z.object({
   orderSide: OrderSideEnum,
   orderType: OrderTypeEnum,
   orderPrice: z.number().optional(),  // required when orderType === 'limit'
-  orderSize: z.number().int().positive(),
-  accountId: z.number(),
+  orderSize: z.number().positive(),
+  accountId: z.string(),
   bracket: BracketSchema.optional(),
   expiresAt: z.string().optional(),   // ISO 8601 datetime
   label: z.string().optional(),       // user-defined label

@@ -29,7 +29,7 @@ const BracketSettingsModal = lazy(() => import('./BracketSettingsModal').then(m 
  * store, we derive the position from the stop loss order (direction, size) and
  * recent opening trades (entry price).
  */
-async function inferPositionsFromOrders(accountId: number, orders: Order[]) {
+async function inferPositionsFromOrders(accountId: string, orders: Order[]) {
   // Group protective orders by contractId
   const contracts = new Map<string, { slOrder?: Order; tpOrders: Order[] }>();
   for (const o of orders) {
@@ -106,7 +106,7 @@ async function inferPositionsFromOrders(accountId: number, orders: Order[]) {
     const avgPrice = weightedPrice / totalSize;
 
     const syntheticPos: import('../../adapters/types').RealtimePosition = {
-      id: -Date.now(), // synthetic ID
+      id: `synth-${Date.now()}`, // synthetic ID
       accountId,
       contractId,
       type: posType,
@@ -122,7 +122,7 @@ async function inferPositionsFromOrders(accountId: number, orders: Order[]) {
 }
 
 /** Fetch open orders + positions and merge into store. */
-function hydratePositionsAndOrders(accountId: number) {
+function hydratePositionsAndOrders(accountId: string) {
   // Try REST position endpoint first (may not exist on all gateways)
   positionService.searchOpenPositions(accountId).then((positions) => {
     const st = useStore.getState();
@@ -180,7 +180,7 @@ export function OrderPanel() {
     }
   }, [orderLinkedToChart, linkedContract, setOrderContract]);
 
-  const subscribedAccountRef = useRef<number | null>(null);
+  const subscribedAccountRef = useRef<string | null>(null);
   const bracketRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset subscription guard when connection state changes (disconnect → reconnect)

@@ -6,12 +6,12 @@ import { withConnection, getAdapter } from '../middleware/withConnection';
 const router = Router();
 
 const OpenPositionsQuery = z.object({
-  accountId: z.string().regex(/^\d+$/, 'accountId must be a number'),
+  accountId: z.string().min(1),
 });
 
 // GET /positions/open?accountId=12345
 router.get('/open', validateQuery(OpenPositionsQuery), withConnection(async (req, res) => {
-  const accountId = Number(req.query['accountId']);
+  const accountId = req.query['accountId'] as string;
   const data = await getAdapter().positions.searchOpen(accountId);
   res.json(data);
 }));
