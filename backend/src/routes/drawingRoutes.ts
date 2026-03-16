@@ -27,6 +27,12 @@ router.get('/pending', (_req, res) => {
   res.json({ drawings });
 });
 
+// POST /drawings/clear-chart — queue a command to clear all drawings from the chart
+router.post('/clear-chart', (_req, res) => {
+  pendingDrawings.push({ _command: 'clearAll' });
+  res.json({ success: true });
+});
+
 // DELETE /drawings/clear — clear the queue
 router.delete('/clear', (_req, res) => {
   pendingDrawings = [];

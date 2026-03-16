@@ -270,3 +270,18 @@ watch_check() {
   echo "$cur_pos" > "$prev_pos"
   echo "$cur_ord" > "$prev_ord"
 }
+
+# ─── Background Alerts ───────────────────────────────────────────────────────
+SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts"
+
+# Price alert (background): alert_price <target> <above|below>
+# Exits when price crosses target. Run in background.
+alert_price() {
+  bash "$SCRIPTS_DIR/price-alert.sh" "$1" "$2" "${3:-CON.F.US.MNQ.H26}"
+}
+
+# Order fill alert (background): alert_fill [accountId]
+# Exits when any order fills or position changes. Run in background.
+alert_fill() {
+  bash "$SCRIPTS_DIR/order-fill-alert.sh" "${1:-$ACCT}"
+}

@@ -8,16 +8,29 @@
       "Bash(git status:*)",
       "Bash(grep *)",
       "WebSearch",
+      "Bash(source /c/Users/Ahmed/Projects/TradingTerminal/backend/claude-tools.sh *)",
       "Bash(source /c/Users/Ahmed/Projects/TradingTerminal/backend/claude-tools.sh)",
       "Bash(status)",
       "Bash(price)",
       "Bash(bars *)",
       "Bash(pos)",
       "Bash(orders)",
-      "Bash(market buy:*)",
-      "Bash(stop sell:*)",
-      "Bash(limit sell:*)",
-      "Bash(bal)"
+      "Bash(market *)",
+      "Bash(stop *)",
+      "Bash(limit *)",
+      "Bash(bal)",
+      "Bash(sleep *)",
+      "Bash(source c:/Users/Ahmed/Projects/TradingTerminal/backend/claude-tools.sh)",
+      "Bash(echo \"Account: $ACCT\")",
+      "Bash(curl -s -X POST \"$BASE/orders/place\" -H \"Content-Type: application/json\" -d '{\"\"accountId\"\":\"\"20130833\"\",\"\"contractId\"\":\"\"CON.F.US.MNQ.H26\"\",\"\"type\"\":2,\"\"side\"\":0,\"\"size\"\":1}')",
+      "Bash(cancelall)",
+      "Bash(marketb sell:*)",
+      "Bash(trades)",
+      "Bash(node -e \"let d='''''''';process.stdin.on\\(''''data'''',c=>d+=c\\);process.stdin.on\\(''''end'''',\\(\\)=>{const b=JSON.parse\\(d\\).bars||[];b.forEach\\(x=>console.log\\(x.t.slice\\(11,16\\),''''\\\\tO:''''+x.o,''''\\\\tH:''''+x.h,''''\\\\tL:''''+x.l,''''\\\\tC:''''+x.c,''''\\\\tV:''''+x.v\\)\\)}\\)\")",
+      "Bash(node -e \"let d='''''''';process.stdin.on\\(''''data'''',c=>d+=c\\);process.stdin.on\\(''''end'''',\\(\\)=>{const b=JSON.parse\\(d\\).bars||[];b.forEach\\(x=>console.log\\(x.t.slice\\(11,16\\),''''O:''''+x.o,''''H:''''+x.h,''''L:''''+x.l,''''C:''''+x.c,''''V:''''+x.v\\)\\)}\\)\")",
+      "Bash(find /c/Users/Ahmed/Projects/TradingTerminal/frontend/src -type f -name *drawing* -o -name *hline*)",
+      "Bash(bash c:/Users/Ahmed/Projects/TradingTerminal/backend/scripts/price-alert.sh *)",
+      "Bash(bash c:/Users/Ahmed/Projects/TradingTerminal/backend/scripts/order-fill-alert.sh *)"
     ]
   }
 }

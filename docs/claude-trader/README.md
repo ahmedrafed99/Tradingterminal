@@ -181,79 +181,108 @@ When a new conversation starts and you are told to trade (or you read this doc a
 6. **Draw key levels** on the chart (support, resistance, OR high/low)
 7. **Start the trading loop** via `/loop 1m` with a short cron prompt
 
-### Trading Loop (every 1 minute via cron)
+### Trading Flow (event-driven, NOT cron-based)
 
-The cron prompt should be **short** — just tell Claude to run the trading cycle. All the logic is in this README.
-
-**Cron setup:**
-```
-/loop 1m Run trading cycle per docs/claude-trader/README.md
-```
-
-**Each cycle:**
+Trading is driven by **background alerts**, not periodic polling. You act when notified, not on a timer.
 
 ```
-CYCLE START
+SETUP PHASE (you do this once, then wait)
 │
-├─ 1. CHECK EVENTS (synced to candle close)
-│   ├─ watch_check ACCT_ID  (waits for :01/:31, compares state, prints events)
-│   ├─ If EVENT: POSITION_OPENED → take snapshot, switch to monitoring mode
-│   ├─ If EVENT: SL_HIT / TP_HIT / POSITION_CLOSED → log to journal, reassess
-│   └─ If NO_CHANGE → continue to scan/manage
+├─ 1. CHECK TIME
+│   └─ Outside 9:45 AM - 3:30 PM ET? → don't place new trades (flatten at 3:50 PM)
 │
-├─ 2. CHECK TIME
-│   └─ Outside 9:45 AM - 3:30 PM ET? → skip (but flatten at 3:50 PM if holding)
-│
-├─ 3. RISK GATE (check BEFORE any trade)
-│   ├─ Balance < $48,500? → NO TRADING, flatten if holding
-│   ├─ Daily loss > $150? → STOP TRADING for the day
+├─ 2. RISK GATE
+│   ├─ Balance < $48,500? → NO TRADING
+│   ├─ Daily loss > $150? → STOP for the day
 │   ├─ 3 consecutive losses? → PAUSE 30 min
 │   └─ Best trade P&L > $1,200? → Reduce TP targets
 │
-├─ 4. IF HOLDING A POSITION → MANAGE IT
-│   ├─ Fetch last 2 1-min bars for invalidation check
-│   ├─ 2 consecutive closes against thesis? → FLATTEN immediately
-│   ├─ Trail SL to breakeven if 50%+ to target
-│   ├─ Time stop: flatten if held > 15 min with no progress
-│   └─ Flatten everything by 3:50 PM ET
+├─ 3. ANALYZE STRUCTURE
+│   ├─ Fetch 5-min bars for trend direction
+│   ├─ Fetch 1-min bars for entry levels
+│   ├─ Identify key levels (OR high/low, S/R flips, day high/low)
+│   └─ Determine trade direction (WITH the trend)
 │
-├─ 5. IF FLAT → SCAN FOR SETUP
-│   ├─ Fetch last 1 bar (current price) — only fetch more bars when analyzing structure
-│   ├─ 9:30-9:45 AM? → Just record opening range high/low, no trades
-│   ├─ Identify key levels (OR high/low, day high/low, S/R flips)
-│   ├─ **PREFER LIMIT ORDERS AT THE LEVEL** — don't market order after confirmation
-│   ├─ Place limit order with bracket at identified level
-│   ├─ Take snapshot: watch_snapshot ACCT_ID
-│   └─ If no setup → do nothing, wait for next cycle
+├─ 4. PLACE LIMIT ORDER + DRAW LEVELS
+│   ├─ Place limit order with bracket at the level (add 2-3pt buffer)
+│   ├─ Clear old drawings, draw entry/SL/TP levels on chart
+│   └─ Update state.json
 │
-├─ 6. UPDATE STATE FILE
-│   └─ Write state.json with: opening range, trade count, daily P&L, last action time
+├─ 5. START ALERTS (then do nothing)
+│   ├─ alert_fill ACCT_ID          → watches for fill or position close
+│   ├─ alert_price TP_LEVEL dir    → watches if price hits TP without filling you
+│   └─ WAIT — do not poll, do not check price, just wait for notification
 │
-CYCLE END
+ALERT FIRES → ACT
+│
+├─ If "ORDER FILLED → POSITION_OPENED":
+│   └─ Restart alert_fill to watch for SL/TP exit → WAIT again
+│
+├─ If "POSITION_CLOSED" / "SL_HIT" / "TP_HIT":
+│   ├─ Log trade to journal CSV
+│   ├─ Check risk gates (daily loss, consecutive losses)
+│   └─ Go back to SETUP PHASE for next trade
+│
+├─ If price alert fires (TP hit without fill):
+│   ├─ Cancel the stale limit order
+│   └─ Go back to SETUP PHASE — the move happened without you
+│
+└─ If 3:50 PM ET:
+    └─ Flatten any position, cancel any orders, stop for the day
 ```
 
-### Trade Watcher (file-based, in claude-tools.sh)
+**IMPORTANT: Do NOT manually poll positions or orders while alerts are running.**
+The alerts detect changes automatically. Manually checking positions will NOT interfere
+with the alert scripts (they use their own snapshots), but it's unnecessary.
 
-The watcher compares position/order snapshots to detect fills, SL/TP hits, and position closes without modifying the backend. It syncs to :01 and :31 of each minute (1s after candle close and mid-candle).
+### Alert System (background scripts, event-driven)
+
+Instead of polling every minute via cron, use **background alert scripts** that run silently
+and only notify you when something happens. No cron needed.
+
+Two scripts in `backend/scripts/`:
+
+#### 1. Order Fill Alert — `alert_fill [accountId]`
+Watches open orders and positions. Exits and notifies when anything changes (fill, SL/TP hit, position close).
 
 ```bash
-# Save current state snapshot
-watch_snapshot ACCT_ID
-
-# Check for changes since last snapshot (syncs to :01/:31)
-watch_check ACCT_ID
-# Outputs: EVENT: POSITION_OPENED LONG size=1 price=24700
-#          EVENT: POSITION_CLOSED SHORT price=24650
-#          EVENT: SL_HIT price=24715
-#          EVENT: TP_HIT price=24660
-#          EVENT: ORDER_FILLED id=123 limit=24700
-#          NO_CHANGE
+# Run in background — notifies when order fills or position closes
+alert_fill 20130833
 ```
 
-**Workflow:**
-1. Place limit order → `watch_snapshot` to record state
-2. Cron fires → `watch_check` detects fill → switch to position management
-3. Position closes (SL/TP) → `watch_check` detects → log to journal, scan for next setup
+#### 2. Price Alert — `alert_price <target> <above|below>`
+Watches price. Exits and notifies when price crosses the target level.
+
+```bash
+# Notify when price drops to/below 24660
+alert_price 24660 below
+
+# Notify when price rises to/above 24740
+alert_price 24740 above
+```
+
+Both are in `claude-tools.sh` and call scripts in `backend/scripts/`.
+
+### Alert Workflow (MUST USE instead of cron)
+
+**When placing a limit order:**
+1. Analyze structure, identify level, place limit order with bracket
+2. Draw levels on chart (clear old drawings first)
+3. Start **two background alerts**:
+   - `alert_fill ACCT_ID` — detects when order fills or position closes
+   - `alert_price TP_LEVEL <above|below>` — detects if price hits TP area without filling you
+4. **Do nothing** — wait for an alert to fire
+5. When alert fires:
+   - **Order filled** → restart `alert_fill` to watch for SL/TP exit
+   - **SL/TP hit** → log to journal, reassess, place new setup
+   - **Price hit TP without filling you** → cancel the stale limit, find new setup
+
+**Rules:**
+- Never use cron for polling — alerts are event-driven
+- Never manually poll positions/orders while alerts run
+- Always run BOTH alerts (fill + price at TP) when a limit order is waiting
+- When order fills, restart `alert_fill` to watch for exit
+- Don't edit backend files while alerts are running (restart causes false positives)
 
 ### State File: `docs/claude-trader/state.json`
 
@@ -285,6 +314,9 @@ Reset this file each new trading day (when `date` doesn't match today).
 4. **Be aware of time-of-day volume** — 1 PM ET (end of lunch) often has volume spikes that blow through levels.
 5. **Don't over-fetch data** — 1 bar for price check, more bars only when analyzing structure for a setup.
 6. **Journal every trade** — write to `journal.csv` (challenge) or `journal-practice.csv` immediately after each trade closes.
+7. **Cancel unfilled limits when the move happens without you** — if price reaches your TP level but your limit never filled, the setup played out. Cancel the limit immediately and look for a new setup. Use a price alert at the TP level alongside the order fill alert — if the price alert fires first, cancel the order.
+8. **Don't edit backend files while alerts are running** — backend restart causes brief disconnect that triggers false positives in the order fill alert.
+9. **Clear and redraw chart levels on each new trade** — don't leave stale drawings. Use `/drawings/clear-chart` then draw fresh levels.
 
 ---
 

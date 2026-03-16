@@ -20,7 +20,9 @@ async function tryEndpoint(path: string, body: Record<string, unknown>): Promise
 
 export const projectXPositions: ExchangePositions = {
   async searchOpen(accountId) {
-    const body = { accountId: Number(accountId) };
+    const n = Number(accountId);
+    if (!Number.isFinite(n)) throw new Error(`Invalid numeric ID: "${accountId}"`);
+    const body = { accountId: n };
 
     // Try known endpoint patterns in order
     const endpoints = [
@@ -34,7 +36,7 @@ export const projectXPositions: ExchangePositions = {
       try {
         const data = await tryEndpoint(endpoint, body);
         if (data.success) {
-          console.log(`[positions] ✓ ${endpoint} succeeded`);
+
           return data;
         }
         console.log(`[positions] ${endpoint} returned success=false (errorCode=${data.errorCode}, msg=${data.errorMessage})`);

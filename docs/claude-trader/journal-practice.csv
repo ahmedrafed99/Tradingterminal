@@ -1,1 +1,2 @@
 Date,Time (ET),Account,Direction,Entry,SL,TP,Size,Exit Price,P&L,Fees,Result,Setup,Invalidation,Notes
+2026-03-16,1:33 PM,20130833,LONG,24690.00,24675.00,24730.00,1,24675.00,-30.00,0.74,LOSS,Limit long at 24690 pullback support in uptrend from 24617,SL hit — pullback went deeper than expected,"Uptrend higher lows were 24674→24691→24707→24709 but the pullback broke through 24690 support. The alert system worked — notified on position close. Need to place limit at stronger levels or widen SL."
