@@ -286,9 +286,14 @@ export function OrderPanel() {
             audioService.play('position_closed');
           } else if (!bracketEngine.hasActiveSession() && !bracketEngine.wasHandled(order.id)) {
             // Ad-hoc orders (bracket engine handles its own sounds)
-            if (order.customTag?.endsWith('-SL')) {
+            // Fall back to order type when customTag is absent (e.g. bracket-placed SL after page refresh)
+            const isSl = order.customTag?.endsWith('-SL') ??
+              (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
+            const isTp = order.customTag?.endsWith('-TP') ??
+              (order.type === OrderType.Limit);
+            if (isSl) {
               audioService.play('stop_filled');
-            } else if (order.customTag?.endsWith('-TP')) {
+            } else if (isTp) {
               audioService.play('target_filled');
             } else {
               audioService.play('order_filled');
@@ -430,10 +435,11 @@ export function OrderPanel() {
 
   return (
     <div
-      className="flex flex-col bg-(--color-panel) border-r border-(--color-border) overflow-y-auto"
+      className="flex flex-col bg-(--color-panel) border-r border-(--color-border)"
       style={{ width: 240, minWidth: 240, padding: 12 }}
     >
-      <div className="flex flex-col" style={{ gap: 20 }}>
+      {/* Controls — never scrolls, stays pinned */}
+      <div className="shrink-0 flex flex-col" style={{ gap: 20 }}>
         {/* Instrument */}
         <div className="relative">
           <div className="flex items-center mb-1">
@@ -461,8 +467,10 @@ export function OrderPanel() {
 
         {/* Buy / Sell */}
         <BuySellButtons />
+      </div>
 
-        {/* Position */}
+      {/* Position — grows downward, never pushes controls above */}
+      <div className="overflow-y-auto" style={{ marginTop: 20 }}>
         <PositionDisplay />
       </div>
 

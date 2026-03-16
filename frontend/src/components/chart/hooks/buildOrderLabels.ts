@@ -62,6 +62,13 @@ export function buildOrderLabels(
 
     const newClickedSize = clickedSize + delta;
 
+    // Only steal/give to other TPs when there are no unallocated contracts
+    const curPos = positions.find(
+      (p) => p.accountId === acct && String(p.contractId) === String(contract.id) && p.size > 0,
+    );
+    const totalTpSize = allTps.reduce((sum, o) => sum + o.size, 0);
+    const unallocated = (curPos?.size ?? 0) - totalTpSize;
+
     const otherTps = allTps
       .filter(o => o.id !== clickedOrderId)
       .sort((a, b) => {
@@ -70,21 +77,10 @@ export function buildOrderLabels(
         return isLong ? bP - aP : aP - bP;
       });
 
-    let targetOrderId: string | null = null;
-    let targetNewSize: number | null = null;
-
-    if (delta === 1) {
-      const donor = otherTps.find(o => o.size > 1);
-      if (donor) {
-        targetOrderId = donor.id;
-        targetNewSize = donor.size - 1;
-      }
-    } else {
-      const recipient = otherTps[0];
-      if (recipient) {
-        targetOrderId = recipient.id;
-        targetNewSize = recipient.size + 1;
-      }
+    // Block increase when all contracts are allocated
+    if (delta === 1 && unallocated <= 0) {
+      refs.tpRedistInFlight.current = false;
+      return;
     }
 
     try {
@@ -94,21 +90,6 @@ export function buildOrderLabels(
       showToast('error', 'Failed to modify TP size', errorMessage(err));
       refs.tpRedistInFlight.current = false;
       return;
-    }
-
-    if (targetOrderId != null && targetNewSize != null) {
-      try {
-        await orderService.modifyOrder({ accountId: acct, orderId: targetOrderId, size: targetNewSize });
-        bracketEngine.updateTPSize(targetOrderId, targetNewSize);
-      } catch (err) {
-        showToast('warning', 'Partial TP resize failed, reverting', errorMessage(err));
-        try {
-          await orderService.modifyOrder({ accountId: acct, orderId: clickedOrderId, size: clickedSize });
-          bracketEngine.updateTPSize(clickedOrderId, clickedSize);
-        } catch {
-          showToast('error', 'TP sizes may be inconsistent', 'Check open orders and adjust manually.');
-        }
-      }
     }
 
     refs.tpRedistInFlight.current = false;
@@ -224,8 +205,7 @@ export function buildOrderLabels(
       const totalTpSize = allTps.reduce((sum, o) => sum + o.size, 0);
       const unallocated = pos.size - totalTpSize;
       const minusDisabled = oSize <= 1;
-      const othersHaveSpare = allTps.some(o => o.id !== orderId && o.size > 1);
-      const plusDisabled = !othersHaveSpare && unallocated <= 0;
+      const plusDisabled = unallocated <= 0;
       const isLong = pos.type === PositionType.Long;
 
       const sizeCell = cells[1];

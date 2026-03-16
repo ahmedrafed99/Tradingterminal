@@ -77,13 +77,13 @@ Tracks manual close actions by contractId. Called **before** `placeOrder()` to a
 
 ### Ad-Hoc Orders (`OrderPanel.tsx`)
 
-When no bracket session is active and the order wasn't handled by the bracket engine or manual close tracker, classifies by `customTag`:
+When no bracket session is active and the order wasn't handled by the bracket engine or manual close tracker, classifies by `customTag` with a type-based fallback (handles bracket-placed SL orders that lack a customTag, e.g. after page refresh):
 
-| Custom Tag | Sound |
-|------------|-------|
-| Ends with `-SL` | `stop_filled` |
-| Ends with `-TP` | `target_filled` |
-| None (entry) | `order_filled` |
+| Custom Tag | Fallback (no tag) | Sound |
+|------------|-------------------|-------|
+| Ends with `-SL` | `Stop` / `TrailingStop` order type | `stop_filled` |
+| Ends with `-TP` | `Limit` order type | `target_filled` |
+| None + Market type | — | `order_filled` |
 
 ---
 
