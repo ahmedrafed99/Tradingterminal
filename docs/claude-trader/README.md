@@ -24,26 +24,93 @@ Autonomous NQ/MNQ trading system operated by Claude to pass TopStepX's 50K Tradi
 
 ---
 
-## Strategy: Mean-Reversion Scalps at Key Levels
+## Strategy (Default)
 
-### Why Mean Reversion
+Trade using general technical analysis — support/resistance, trend structure, key levels. Be non-biased. Use limit orders at levels with brackets. The Price Action Strategy below is an advanced system to apply only when explicitly told to.
 
-NQ mean-reverts ~60-70% of the time during RTH, especially in the first 90 minutes. Breakouts that fail (the majority) provide high-probability fade entries. This strategy avoids chasing momentum — instead it waits for price to overextend, then fades back to value.
+---
 
-### Core Thesis
+## Price Action Strategy (apply ONLY when told to)
 
-1. **Identify the range** — Use the first 15 minutes of RTH (9:30-9:45 AM ET) to establish the opening range high/low
-2. **Fade failed breakouts** — When price breaks above/below the range and reverses, enter in the reversal direction
-3. **Target the midpoint** — Take profit at the range midpoint or VWAP area
-4. **Tight risk** — Stop loss beyond the breakout extreme (typically 10-15 MNQ points)
+### Core Concept
 
-### Setup Criteria (all must be met)
+We don't care about up or down. We care about **move sequences** — price moves from level to level. These levels are the extremes of trends where reversals happen. We trace what price does and only trade confirmed moves.
 
-1. **Time window**: 9:45 AM - 11:30 AM ET (after opening range forms, before lunch chop)
-2. **Opening range defined**: At least 15min of RTH price action to establish high/low
-3. **Failed breakout signal**: Price breaks range extreme by 5+ points, then reverses back inside on the same or next 1-min candle
-4. **Entry trigger**: Enter on the reversal candle close back inside the range
-5. **Volume confirmation**: Breakout candle should have above-average volume (sign of stop runs)
+**Gain** = 2 consecutive closes above a level.
+**Lose** = 2 consecutive closes below a level.
+One close and back doesn't count.
+
+### Definitions
+
+**Level that made the low:**
+1. Start at the low candle
+2. Scan backwards (left) for the **first UP candle** (close > open) before the low
+3. Mark the **body** of that candle (open to close) — that's the level zone (has a top and bottom)
+
+**Level that made the high:**
+1. Start at the high candle
+2. Scan backwards (left) for the **first DOWN candle** (close < open) before the high
+3. Mark the **body** of that candle (open to close) — that's the level zone (has a top and bottom)
+
+**Previous low** (relative to a given low):
+1. Start from the low, find its "level that made the low" zone
+2. Scan backwards through swing lows
+3. Find the first swing low **L(n)** that is **higher** than the zone (it didn't break through)
+4. **L(n+1)** — the next swing low after L(n) — is the **previous low** (the first low that broke under the zone)
+
+**Previous high** (relative to a given high):
+1. Start from the high, find its "level that made the high" zone
+2. Scan backwards through swing highs
+3. Find the first swing high **H(n)** that is **lower** than the zone (it didn't break through)
+4. **H(n+1)** — the next swing high after H(n) — is the **previous high** (the first high that broke above the zone)
+
+Each previous low/high also has its own "level that made it" — the structure is recursive.
+
+**Timeframes to check:** 1-min, 3-min, 15-min, and 4-hour. These give the best reactions.
+
+### Long Setups
+
+**Long Scenario 1 — Reclaim the zone (small move):**
+1. Price drops below the **bottom** of level that made the low (sweep)
+2. Price **gains** (2 consecutive closes above) the bottom
+3. LONG → target: **top** of level that made the low
+
+**Long Scenario 2 — Full sequence (traced move):**
+1. Price **gains top** of level that made the low → breakout confirmed
+2. Price pushes up, **tests bottom** of level that made the previous low → target is in play
+3. Price pulls back down, **holds bottom** of level that made the low → support confirmed (level flip)
+4. LONG at the bottom of level that made the low
+5. Target: **top** of level that made the previous low
+
+The logic: price already traced the path — broke out, touched the next level, came back, held. We ride the second push with confirmed support and confirmed target.
+
+### Short Setups
+
+**Short Scenario 1 — Lose the zone (small move):**
+1. Price pushes above the **top** of level that made the high (sweep)
+2. Price **loses** (2 consecutive closes below) the top
+3. SHORT → target: **bottom** of level that made the high
+
+**Short Scenario 2 — Full sequence (traced move):**
+1. Price **loses bottom** of level that made the high → breakdown confirmed
+2. Price pushes down, **tests top** of level that made the previous high → target is in play
+3. Price pulls back up, **holds top** of level that made the high → resistance confirmed (level flip)
+4. SHORT at the top of level that made the high
+5. Target: **bottom** of level that made the previous high
+
+### Move Sequence (general flow)
+
+**From the low going up:**
+1. Price makes a low → find its "level that made the low"
+2. If price **gains** the level → expect move to test the **level that made the previous low**
+3. If price gains that too → continue up to the next level, and so on
+
+**From the high going down:**
+1. Price makes a high → find its "level that made the high"
+2. If price **loses** the level → expect move to test the **level that made the previous high**
+3. If price loses that too → continue down to the next level, and so on
+
+Price moves from level to level. We never trade blind — we trace what price does and enter on confirmed retests targeting the next level in the sequence.
 
 ### Position Sizing
 
@@ -63,35 +130,23 @@ NQ mean-reverts ~60-70% of the time during RTH, especially in the first 90 minut
 ### Trade Management
 
 **Entry:**
-- Market order with bracket (SL + TP attached atomically)
-- SL: 10-20 points beyond breakout extreme
-- TP: Range midpoint or 1:2 R:R minimum
+- Use **LIMIT orders at the failure zone** — not market orders after confirmation
+- Add 2-3pt buffer for better fill rate
+- Bracket attached (SL + TP atomically)
+- SL: beyond the sweep extreme (the wick past the failure zone)
+- TP: opposite failure zone, or at minimum 1:2 R:R
 
-**Invalidation (scratch the trade immediately if ANY occur):**
-- **Reclaim**: 2 consecutive 1-min closes back above/below the level you faded (e.g. shorted at resistance, 2 closes back above it = buyers are in control, get out)
-- **Higher high / lower low**: Price makes a new high (if short) or new low (if long) after entry — momentum is against you, don't wait for SL
-- **Volume surge against**: A candle with 2x+ average volume closes against your direction — institutional flow is opposing the trade
-
-**During trade (if not invalidated):**
-- If price moves 50% to target, trail SL to breakeven
-- If trade stalls for 5+ minutes with no progress, consider scratch (exit at breakeven)
+**Invalidation (scratch immediately if ANY occur):**
+- **Reclaim fails**: 2 consecutive 1-min closes back through the failure zone against your direction
+- **New extreme**: Price makes a new high (if short) or new low (if long) after entry
+- **Volume surge against**: A candle with 2x+ average volume closes against your direction
 
 **Exit rules:**
-- Invalidation triggered → flatten at market immediately (don't wait for SL)
+- Invalidation triggered → flatten at market immediately
 - TP hit (auto via bracket)
 - SL hit (auto via bracket)
-- Time stop: Close any open trade by 11:30 AM ET (lunch = noise)
-- Emergency: Flatten immediately if approaching daily loss limit
-
-### Secondary Setups
-
-When the opening range fade isn't available:
-
-1. **VWAP bounce** — Price pulls back to VWAP area during trend day, bounces with confirmation candle. Enter with 10pt SL, target previous high/low.
-
-2. **Double bottom/top on 5-min** — Two rejections at same level within 30 min. Enter on second bounce with SL 5pts below the double bottom/above double top.
-
-3. **Afternoon reversal (2:00-3:00 PM ET)** — If market has trended strongly all morning, look for exhaustion reversal after 2 PM. Smaller size (1 MNQ), wider SL (20pt).
+- Trail SL to breakeven if 50%+ to target
+- Flatten everything by 3:50 PM ET
 
 ---
 
