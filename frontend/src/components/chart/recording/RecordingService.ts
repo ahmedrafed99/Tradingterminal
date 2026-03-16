@@ -15,7 +15,8 @@ class RecordingService {
   private _startTime = 0;
   private _chartId = '';
   private _recorder: MediaRecorder | null = null;
-  private _chunks: Blob[] = [];
+  private _writable: FileSystemWritableFileStream | null = null;
+  private _writeError: Error | null = null;
   private _rafId = 0;
   private _compositeCanvas: HTMLCanvasElement | null = null;
   private _micStream: MediaStream | null = null;
@@ -54,6 +55,17 @@ class RecordingService {
     const canvases = container.querySelectorAll('canvas');
     if (canvases.length === 0) return false;
 
+    // Open file for streaming writes immediately
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `recording-${timestamp}.webm`;
+    try {
+      const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+      this._writable = await fileHandle.createWritable();
+    } catch (err) {
+      console.error('[Recording] Failed to open file for writing:', err);
+      return false;
+    }
+
     // Size the composite to the full container (includes price + time scales)
     const composite = document.createElement('canvas');
     composite.width = container.clientWidth * devicePixelRatio;
@@ -61,7 +73,7 @@ class RecordingService {
     this._compositeCanvas = composite;
 
     const ctx = composite.getContext('2d')!;
-    this._chunks = [];
+    this._writeError = null;
     this._chartId = chartId;
 
     // rAF loop — draw all canvases at their positions + overlays
@@ -92,9 +104,13 @@ class RecordingService {
         ctx.drawImage(c, x, y);
       }
 
-      // Paint overlays on the plot area
-      const plotWidth = currentEntry.chart.timeScale().width();
+      // Paint overlays on the plot area (scale for DPR so text renders at correct size)
+      const dpr = devicePixelRatio;
+      const plotWidth = currentEntry.chart.timeScale().width() * dpr;
+      ctx.save();
+      ctx.scale(dpr, dpr);
       paintOverlays(ctx, currentEntry, plotWidth, composite.height, { showPositions: true });
+      ctx.restore();
 
       this._rafId = requestAnimationFrame(loop);
     };
@@ -122,7 +138,12 @@ class RecordingService {
 
     this._recorder = new MediaRecorder(combinedStream, { mimeType, videoBitsPerSecond: 2_500_000 });
     this._recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) this._chunks.push(e.data);
+      if (e.data.size > 0 && this._writable && !this._writeError) {
+        this._writable.write(e.data).catch((err) => {
+          this._writeError = err;
+          console.error('[Recording] Write failed:', err);
+        });
+      }
     };
     this._recorder.start(1000);
 
@@ -148,32 +169,30 @@ class RecordingService {
       this._micStream = null;
     }
 
-    const blob = await new Promise<Blob>((resolve) => {
-      const recorder = this._recorder!;
-      recorder.onstop = () => {
-        resolve(new Blob(this._chunks, { type: recorder.mimeType }));
-      };
-      recorder.stop();
+    // Wait for MediaRecorder to flush final chunks
+    await new Promise<void>((resolve) => {
+      this._recorder!.onstop = () => resolve();
+      this._recorder!.stop();
     });
 
-    // Write directly to the user's chosen folder
-    if (this._dirHandle && blob.size > 0) {
+    // Close the file stream
+    if (this._writable) {
       try {
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const filename = `recording-${timestamp}.webm`;
-        const fileHandle = await this._dirHandle.getFileHandle(filename, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-      } catch {
-        // Write failed — non-critical
+        await this._writable.close();
+      } catch (err) {
+        console.error('[Recording] Failed to close file:', err);
       }
+      this._writable = null;
     }
 
-    this._chunks = [];
+    if (this._writeError) {
+      console.error('[Recording] Recording had write errors — file may be incomplete');
+      this._writeError = null;
+    }
+
     this._recorder = null;
     this._compositeCanvas = null;
-    this._dirHandle = null;
+    // Keep _dirHandle alive so next recording doesn't need re-pick
     this._state = 'idle';
     this._chartId = '';
     this.notify();

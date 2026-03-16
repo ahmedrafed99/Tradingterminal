@@ -134,3 +134,9 @@ body {
 .animate-toast-out {
   animation: toast-out 0.15s ease-in forwards;
 }
+
+/* Recording indicator pulse */
+@keyframes recording-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

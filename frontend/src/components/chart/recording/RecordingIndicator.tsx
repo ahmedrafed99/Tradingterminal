@@ -24,12 +24,6 @@ export function RecordingIndicator({ elapsed }: RecordingIndicatorProps) {
       >
         {formatTime(elapsed)}
       </span>
-      <style>{`
-        @keyframes recording-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-      `}</style>
     </span>
   );
 }
