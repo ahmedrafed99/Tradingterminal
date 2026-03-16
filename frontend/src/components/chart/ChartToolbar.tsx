@@ -7,7 +7,10 @@ import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screen
 import { addTimeBanner } from './screenshot/addTimeBanner';
 import { COLOR_PALETTE } from './ColorPopover';
 import { isFuturesMarketOpen } from '../../utils/marketHours';
-import { COLOR_TEXT_MUTED, COLOR_TEXT, COLOR_BG, COLOR_BORDER } from '../../constants/colors';
+import { COLOR_BG, COLOR_BORDER } from '../../constants/colors';
+import { paintOverlays } from './screenshot/paintOverlays';
+import { useRecording } from './recording/useRecording';
+import { RecordingIndicator } from './recording/RecordingIndicator';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -317,6 +320,10 @@ export function ChartToolbar() {
   const [snapshotOpen, setSnapshotOpen] = useState(false);
   const cameraRef = useRef<HTMLDivElement>(null);
 
+  // Recording state
+  const selectedChart = useStore((s) => s.selectedChart);
+  const { isRecording, elapsed, start: startRecording, stop: stopRecording } = useRecording();
+
   // Click outside to close dropdowns
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -348,44 +355,7 @@ export function ChartToolbar() {
     const ctx = canvas.getContext('2d');
     if (ctx) {
       const plotWidth = entry.chart.timeScale().width();
-
-      // Paint instrument label + OHLC, clipped to the plot area
-      // so text doesn't overshoot into the price scale on narrow charts (dual mode)
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, plotWidth, canvas.height);
-      ctx.clip();
-
-      const font = "12px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
-      const instrText = entry.instrumentEl?.textContent || '';
-      const ohlcText = entry.ohlcEl?.textContent || '';
-
-      ctx.font = `500 ${font}`;
-      let x = 10;
-      const y = 18;
-
-      if (instrText) {
-        ctx.fillStyle = COLOR_TEXT_MUTED;
-        ctx.fillText(instrText, x, y);
-        x += ctx.measureText(instrText).width + 10;
-      }
-      if (ohlcText) {
-        const metrics = ctx.measureText(ohlcText);
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(x - 3, y - 12, metrics.width + 6, 16);
-        ctx.fillStyle = COLOR_TEXT;
-        ctx.fillText(ohlcText, x, y);
-      }
-
-      ctx.restore();
-
-      // Paint position entry + its associated orders (SL/TP), but not preview brackets
-      if (options.showPositions) {
-        const lines = entry.orderLinesRef.current;
-        for (const line of lines) {
-          line.paintToCanvas(ctx, plotWidth);
-        }
-      }
+      paintOverlays(ctx, entry, plotWidth, canvas.height, { showPositions: options.showPositions });
     }
 
     return canvas;
@@ -450,6 +420,15 @@ export function ChartToolbar() {
   function handleCustomSnapshot() {
     setCameraOpen(false);
     setSnapshotOpen(true);
+  }
+
+  async function handleToggleRecording() {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      const withMic = localStorage.getItem('recording-mic-enabled') === 'true';
+      await startRecording(selectedChart, { withMic });
+    }
   }
 
   const isPinned = (tf: Timeframe) =>
@@ -677,6 +656,29 @@ export function ChartToolbar() {
           </div>
         )}
       </div>
+
+      <div className="w-px h-4 bg-(--color-border) mx-1" />
+
+      {/* Record button */}
+      <button
+        onClick={handleToggleRecording}
+        className={`h-full flex items-center justify-center rounded transition-colors ${
+          isRecording
+            ? 'text-(--color-sell) hover:bg-(--color-surface)'
+            : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-surface)'
+        }`}
+        style={{ paddingLeft: 12, paddingRight: 12 }}
+        title={isRecording ? 'Stop recording' : 'Record chart'}
+      >
+        {isRecording ? (
+          <RecordingIndicator elapsed={elapsed} />
+        ) : (
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <rect x="2" y="4" width="15" height="16" rx="2" />
+            <path d="M17 9l5-3v12l-5-3V9z" />
+          </svg>
+        )}
+      </button>
 
       <div className="w-px h-4 bg-(--color-border) mx-1" />
 

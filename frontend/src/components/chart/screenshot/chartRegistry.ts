@@ -17,6 +17,8 @@ export interface ChartEntry {
   tradeZonePrimitive: TradeZonePrimitive | null;
   instrumentEl: HTMLElement | null;
   ohlcEl: HTMLElement | null;
+  /** Container div — used by recording to access the live canvas */
+  containerEl: HTMLElement | null;
   /** Mutable ref to live order/position price lines (SL, TP, entry) */
   orderLinesRef: { current: PriceLevelLine[] };
   /** Mutable ref to parallel metadata for each order line */

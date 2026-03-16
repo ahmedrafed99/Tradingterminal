@@ -233,6 +233,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       tradeZonePrimitive,
       instrumentEl: instrumentLabelRef.current,
       ohlcEl: ohlcRef.current,
+      containerEl: containerRef.current,
       orderLinesRef,
       orderLineMetaRef,
       previewLinesRef,

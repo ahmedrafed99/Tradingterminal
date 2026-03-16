@@ -5,17 +5,19 @@ import { useStore } from '../store/useStore';
 import { DatabaseTab } from './settings/DatabaseTab';
 import { SoundTab } from './settings/SoundTab';
 import { ShortcutsTab } from './settings/ShortcutsTab';
+import { RecordingTab } from './settings/RecordingTab';
 import { Modal } from './shared/Modal';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
-type SettingsTab = 'api' | 'database' | 'sound' | 'shortcuts';
+type SettingsTab = 'api' | 'database' | 'sound' | 'shortcuts' | 'recording';
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'api', label: 'API' },
   { id: 'database', label: 'Database' },
   { id: 'sound', label: 'Sound' },
   { id: 'shortcuts', label: 'Shortcuts' },
+  { id: 'recording', label: 'Recording' },
 ];
 
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
@@ -233,6 +235,7 @@ export function SettingsModal() {
           {tab === 'database' && <DatabaseTab />}
           {tab === 'sound' && <SoundTab />}
           {tab === 'shortcuts' && <ShortcutsTab />}
+          {tab === 'recording' && <RecordingTab />}
         </div>
     </Modal>
   );
