@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
-import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba } from './ColorPopover';
+import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -21,6 +21,21 @@ function TextColorGrid({
   const customColors = useStore((s) => s.customColors);
   const addCustomColor = useStore((s) => s.addCustomColor);
   const removeCustomColor = useStore((s) => s.removeCustomColor);
+  const parsed = parseColorWithOpacity(color);
+  const [localOpacity, setLocalOpacity] = useState(parsed.opacity);
+
+  useEffect(() => {
+    setLocalOpacity(parseColorWithOpacity(color).opacity);
+  }, [color]);
+
+  const handleColorChange = (hex: string) => {
+    setColor(toRgba(hex, localOpacity));
+  };
+
+  const handleOpacityChange = (op: number) => {
+    setLocalOpacity(op);
+    setColor(toRgba(parsed.hex, op));
+  };
 
   // Save custom color only on final selection (native 'change'), not during drag
   useEffect(() => {
@@ -37,15 +52,15 @@ function TextColorGrid({
         {COLOR_PALETTE.flat().map((c, i) => (
           <button
             key={`txt-${c}-${i}`}
-            onClick={() => setColor(c)}
+            onClick={() => handleColorChange(c)}
             style={{
               width: 20,
               height: 20,
               background: c,
               borderRadius: 3,
-              border: c === color ? '2px solid #fff' : '1px solid var(--color-border)',
+              border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
               cursor: 'pointer',
-              boxShadow: c === color ? '0 0 0 1px var(--color-surface)' : 'none',
+              boxShadow: c === parsed.hex ? '0 0 0 1px var(--color-surface)' : 'none',
             }}
           />
         ))}
@@ -55,15 +70,15 @@ function TextColorGrid({
           {customColors.map((c, i) => (
             <div key={`txt-custom-${c}-${i}`} className="relative group">
               <button
-                onClick={() => setColor(c)}
+                onClick={() => handleColorChange(c)}
                 style={{
                   width: 20,
                   height: 20,
                   background: c,
                   borderRadius: 3,
-                  border: c === color ? '2px solid #fff' : '1px solid var(--color-border)',
+                  border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
                   cursor: 'pointer',
-                  boxShadow: c === color ? '0 0 0 1px var(--color-surface)' : 'none',
+                  boxShadow: c === parsed.hex ? '0 0 0 1px var(--color-surface)' : 'none',
                 }}
               />
               <button
@@ -105,10 +120,11 @@ function TextColorGrid({
       <input
         ref={customColorRef}
         type="color"
-        value={color}
-        onChange={(e) => setColor(e.target.value)}
+        value={parsed.hex}
+        onChange={(e) => handleColorChange(e.target.value)}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
       />
+      <OpacitySlider hex={parsed.hex} opacity={localOpacity} onChange={handleOpacityChange} />
     </div>
   );
 }
@@ -811,25 +827,13 @@ export function DrawingEditToolbar({
                 border: '1px solid var(--color-border)',
               }} />
             </button>
-            {showFillColor && (() => {
-              const rawFill = (drawing as import('../../types/drawing').RectDrawing).fillColor || 'rgba(255,152,0,0.15)';
-              const parsed = parseColorWithOpacity(rawFill);
-              return (
-                <ColorPopover
-                  current={parsed.hex}
-                  onChange={(hex) => {
-                    const newFill = toRgba(hex, parsed.opacity);
-                    updateDrawing(drawing.id, { fillColor: newFill } as Partial<Drawing>);
-                  }}
-                  onClose={() => setShowFillColor(false)}
-                  opacity={parsed.opacity}
-                  onOpacityChange={(op) => {
-                    const newFill = toRgba(parsed.hex, op);
-                    updateDrawing(drawing.id, { fillColor: newFill } as Partial<Drawing>);
-                  }}
-                />
-              );
-            })()}
+            {showFillColor && (
+              <ColorPopover
+                current={(drawing as import('../../types/drawing').RectDrawing).fillColor || 'rgba(255,152,0,0.15)'}
+                onChange={(color) => updateDrawing(drawing.id, { fillColor: color } as Partial<Drawing>)}
+                onClose={() => setShowFillColor(false)}
+              />
+            )}
           </div>
         </>
       )}

@@ -61,7 +61,7 @@ interface DrawingText {
 
 interface DrawingBase {
   id: string;
-  color: string;          // hex
+  color: string;          // rgba (supports opacity)
   strokeWidth: number;    // 1-4
   text: DrawingText | null;
   contractId: string;     // scope per instrument
@@ -202,7 +202,7 @@ Floating toolbar positioned above the selected drawing, rendered per chart insta
 
 **Layout:** `[ Pencil+color | T ] | [ ─ 1px ] | [ Template v ] | [ Trash ]`
 
-Template button only shown for hline drawings. Fill color button (bucket icon) only shown for rect drawings — includes an opacity slider (0-100%) for adjusting fill transparency.
+Template button only shown for hline drawings. Fill color button (bucket icon) only shown for rect drawings.
 
 - Vertical dividers between logical groups
 - 32x32px button targets with 6px border-radius
@@ -211,10 +211,10 @@ Template button only shown for hline drawings. Fill color button (bucket icon) o
 
 **Sub-popovers:**
 
-1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button. Supports optional opacity slider (shown for rect fill color) — horizontal track with checkerboard background, color gradient overlay, draggable thumb, and percentage label.
+1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button. Always includes an opacity slider (0-100%) — horizontal track with checkerboard background, color gradient overlay, draggable thumb, and percentage label. All colors are emitted as rgba strings.
 2. **TextPopover** (290px wide, `bg: #000`) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
    - Row 1: Color swatch (toggles palette with animated slide) + font size select (`bg: #111`) + **B** bold + *I* italic toggle buttons (active: `#f0a830` text + `#111` bg + `#434651` border, inactive: `#787b86` text, 0.15s transitions)
-   - Color grid: animated expand/collapse (`max-height` + `opacity` transition)
+   - Color grid: animated expand/collapse (`max-height` + `opacity` transition) with opacity slider
    - Row 2: Multiline textarea (`bg: #111`, `text: #d1d4dc`, `border: #2a2e39`, system-ui font)
    - Row 3: "TEXT ALIGNMENT" section label (`10px uppercase tracking-wider #787b86`) + toggle button groups for vertical (Top/Middle/Bottom) and horizontal (Left/Center/Right) separated by a `#2a2e39` divider
    - Row 4: Cancel (`bg: #1e222d`, hover `#363a45`) / Ok (`bg: #1a3a6e`, hover `#1e4a8a`) buttons

@@ -63,7 +63,7 @@ export function toRgba(hex: string, opacity: number): string {
 // ---------------------------------------------------------------------------
 // Opacity slider
 // ---------------------------------------------------------------------------
-function OpacitySlider({
+export function OpacitySlider({
   hex,
   opacity,
   onChange,
@@ -187,23 +187,18 @@ export function ColorPopover({
   current,
   onChange,
   onClose,
-  opacity: opacityProp,
-  onOpacityChange,
 }: {
   current: string;
   onChange: (color: string) => void;
   onClose: () => void;
-  /** When provided, shows an opacity slider (0-100). */
-  opacity?: number;
-  onOpacityChange?: (opacity: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const customColors = useStore((s) => s.customColors);
   const addCustomColor = useStore((s) => s.addCustomColor);
   const removeCustomColor = useStore((s) => s.removeCustomColor);
-  const showOpacity = opacityProp !== undefined && onOpacityChange !== undefined;
-  const [localOpacity, setLocalOpacity] = useState(opacityProp ?? 100);
+  const parsed = parseColorWithOpacity(current);
+  const [localOpacity, setLocalOpacity] = useState(parsed.opacity);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -212,6 +207,20 @@ export function ColorPopover({
     window.addEventListener('mousedown', handler);
     return () => window.removeEventListener('mousedown', handler);
   }, [onClose]);
+
+  // Sync opacity when current color changes externally
+  useEffect(() => {
+    setLocalOpacity(parseColorWithOpacity(current).opacity);
+  }, [current]);
+
+  const handleColorChange = (hex: string) => {
+    onChange(toRgba(hex, localOpacity));
+  };
+
+  const handleOpacityChange = (op: number) => {
+    setLocalOpacity(op);
+    onChange(toRgba(parsed.hex, op));
+  };
 
   // Save custom color only on final selection (native 'change'), not during drag
   useEffect(() => {
@@ -232,7 +241,7 @@ export function ColorPopover({
       {/* Color palette grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: customColors.length > 0 ? 4 : 8 }}>
         {COLOR_PALETTE.flat().map((c, i) => (
-          <ColorSwatch key={`${c}-${i}`} color={c} current={current} onClick={() => onChange(c)} />
+          <ColorSwatch key={`${c}-${i}`} color={c} current={parsed.hex} onClick={() => handleColorChange(c)} />
         ))}
       </div>
 
@@ -241,7 +250,7 @@ export function ColorPopover({
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 8 }}>
           {customColors.map((c, i) => (
             <div key={`custom-${c}-${i}`} className="relative group">
-              <ColorSwatch color={c} current={current} onClick={() => onChange(c)} />
+              <ColorSwatch color={c} current={parsed.hex} onClick={() => handleColorChange(c)} />
               <button
                 onClick={(e) => { e.stopPropagation(); removeCustomColor(i); }}
                 className="absolute opacity-0 group-hover:opacity-100"
@@ -283,22 +292,17 @@ export function ColorPopover({
       <input
         ref={customInputRef}
         type="color"
-        value={current}
-        onChange={(e) => onChange(e.target.value)}
+        value={parsed.hex}
+        onChange={(e) => handleColorChange(e.target.value)}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
       />
 
-      {/* Opacity slider (optional) */}
-      {showOpacity && (
-        <OpacitySlider
-          hex={current}
-          opacity={localOpacity}
-          onChange={(val) => {
-            setLocalOpacity(val);
-            onOpacityChange!(val);
-          }}
-        />
-      )}
+      {/* Opacity slider */}
+      <OpacitySlider
+        hex={parsed.hex}
+        opacity={localOpacity}
+        onChange={handleOpacityChange}
+      />
     </div>
   );
 }

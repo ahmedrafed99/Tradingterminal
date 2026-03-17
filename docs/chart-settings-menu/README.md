@@ -208,7 +208,7 @@ Default values match the hardcoded values in `chartTheme.ts` so nothing changes 
 | `frontend/src/components/chart/ChartSettingsButton.tsx` | Gear button + quick popover |
 | `frontend/src/components/chart/ChartSettingsModal.tsx` | Full settings modal with sidebar categories |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Mounts `ChartSettingsButton`, applies `chartSettings` via `useEffect` |
-| `frontend/src/components/chart/ColorPopover.tsx` | Colour picker popover (reused by modal swatches) |
+| `frontend/src/components/chart/ColorPopover.tsx` | Colour picker popover with opacity slider (reused by modal swatches, drawing toolbar, VP settings) |
 | `frontend/src/components/chart/hooks/useFpsCounter.ts` | RAF-based FPS measurement hook |
 | `frontend/src/store/slices/chartSettingsSlice.ts` | Store slice with defaults |
 | `frontend/src/store/useStore.ts` | Combined store — `chartSettings` persisted to `localStorage` |
