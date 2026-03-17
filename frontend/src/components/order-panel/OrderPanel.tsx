@@ -289,8 +289,7 @@ export function OrderPanel() {
             // Fall back to order type when customTag is absent (e.g. bracket-placed SL after page refresh)
             const isSl = order.customTag?.endsWith('-SL') ??
               (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
-            const isTp = order.customTag?.endsWith('-TP') ??
-              (order.type === OrderType.Limit);
+            const isTp = order.customTag?.endsWith('-TP') ?? false;
             if (isSl) {
               audioService.play('stop_filled');
             } else if (isTp) {
