@@ -5,11 +5,9 @@ import { SECTION_LABEL } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
 import { orderService, type Order } from '../../services/orderService';
 import { positionService } from '../../services/positionService';
-import { tradeService } from '../../services/tradeService';
 import { marketDataService } from '../../services/marketDataService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
-import { getCmeSessionStart } from '../../utils/cmeSession';
 import { showToast, errorMessage } from '../../utils/toast';
 import { audioService } from '../../services/audioService';
 import { consumeManualClose } from '../../services/manualCloseTracker';
@@ -56,14 +54,9 @@ async function inferPositionsFromOrders(accountId: string, orders: Order[]) {
 
   if (needsInference.length === 0) return;
 
-  // Fetch session trades to find entry price(s)
-  let trades;
-  try {
-    trades = await tradeService.searchTrades(accountId, getCmeSessionStart());
-  } catch (err) {
-    console.warn('[OrderPanel] Could not fetch trades for position inference:', err instanceof Error ? err.message : err);
-    return;
-  }
+  // Use session trades already loaded by App.tsx (avoids duplicate fetch)
+  const trades = useStore.getState().sessionTrades;
+  if (trades.length === 0) return;
 
   for (const contractId of needsInference) {
     const group = contracts.get(contractId)!;
@@ -399,9 +392,15 @@ export function OrderPanel() {
     return () => realtimeService.offPosition(handler);
   }, [upsertPosition, suspendPreset, restorePreset]);
 
-  // Seed lastPrice from latest bar so UP&L shows immediately (before first quote tick)
+  // Seed lastPrice from latest bar so UP&L shows immediately (before first quote tick).
+  // Skip if the chart already has the same contract loaded — the quote subscription will
+  // fill lastPrice almost immediately, making this extra bars fetch redundant.
+  const chartContract = useStore((s) => s.contract);
   useEffect(() => {
-    if (!orderContract) return;
+    if (!connected || !orderContract) return;
+    // Chart will subscribe to quotes for the same contract, so lastPrice will be set by the
+    // quote handler before the user notices. Only fetch bars when contracts differ.
+    if (chartContract && chartContract.id === orderContract.id) return;
     const now = new Date();
     const fiveMinAgo = new Date(now.getTime() - 5 * 60_000);
     marketDataService.retrieveBars({
@@ -418,7 +417,7 @@ export function OrderPanel() {
     }).catch((err) => {
       console.error('[OrderPanel] Last price seed failed:', err instanceof Error ? err.message : err);
     });
-  }, [orderContract, setLastPrice]);
+  }, [connected, orderContract, chartContract, setLastPrice]);
 
   // Update lastPrice from quote stream for P&L calculation
   useEffect(() => {

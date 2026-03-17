@@ -20,6 +20,7 @@ export interface InstrumentSearchResult {
  * and bookmark toggling. UI stays in the consumer components.
  */
 export function useInstrumentSearch(): InstrumentSearchResult {
+  const connected = useStore((s) => s.connected);
   const pinnedInstruments = useStore((s) => s.pinnedInstruments);
   const pinInstrument = useStore((s) => s.pinInstrument);
   const unpinInstrument = useStore((s) => s.unpinInstrument);
@@ -32,7 +33,7 @@ export function useInstrumentSearch(): InstrumentSearchResult {
 
   // Resolve pinned instrument symbols to Contract objects
   useEffect(() => {
-    if (pinnedInstruments.length === 0) {
+    if (!connected || pinnedInstruments.length === 0) {
       setBookmarks([]);
       return;
     }
@@ -45,11 +46,11 @@ export function useInstrumentSearch(): InstrumentSearchResult {
       if (!cancelled) setBookmarks(resolved.filter((c): c is Contract => c !== null));
     });
     return () => { cancelled = true; };
-  }, [pinnedInstruments]);
+  }, [connected, pinnedInstruments]);
 
   // Debounced search
   useEffect(() => {
-    if (!query.trim()) {
+    if (!connected || !query.trim()) {
       setResults([]);
       setSearching(false);
       return;
@@ -68,7 +69,7 @@ export function useInstrumentSearch(): InstrumentSearchResult {
       }
     }, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  }, [connected, query]);
 
   const isBookmarked = useCallback(
     (c: Contract) => pinnedInstruments.some((sym) => c.name.toUpperCase().startsWith(sym.toUpperCase())),

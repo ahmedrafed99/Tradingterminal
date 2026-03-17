@@ -62,7 +62,7 @@ Top-level modal with five tabs (Data Feed, Database, Sound, Shortcuts, Recording
 - Error message if login failed (e.g. "Invalid API key")
 
 ### `ConnectButton` / `DisconnectButton`
-- **Connect**: submits credentials → proxy authenticates → SignalR connects. If "Remember credentials" is checked, saves credentials to backend settings file on success.
+- **Connect**: submits credentials → proxy authenticates → sets `connected` with the entered URL (no separate `getStatus` call) → fetches accounts → SignalR connects. If "Remember credentials" is checked, saves credentials to backend settings file on success.
 - **Disconnect**: tears down SignalR WebSocket connections first, then calls proxy `POST /auth/disconnect` → clears server-side token
 
 ---
@@ -119,8 +119,8 @@ interface AuthState {
 ## Behavior
 
 1. App opens → full trading UI renders immediately (empty state, no connection gate)
-2. Frontend calls `GET /auth/status` — if proxy has a live token, sets connected and loads accounts/data
+2. Frontend calls `GET /auth/status` — if proxy has a live token, sets connected and loads accounts (single `searchAccounts` call in `App.tsx`)
 3. If no token → UI stays in empty state; user opens Settings → Data Feed to connect
-4. On successful connect → accounts list fetched; SignalR hubs opened; chart subscriptions start
+4. On successful connect → SettingsModal fetches accounts, sets `connected` using the entered URL (no extra `getStatus` call); NQ auto-loaded in a single search that sets both chart and order panel contracts; SignalR hubs opened; chart subscriptions start
 5. On disconnect → SignalR WebSocket connections torn down first, then proxy token cleared, accounts/orders/positions cleared from store
 6. On reconnect (connect after disconnect) → SignalR subscriptions (quotes, depth, user events) re-established automatically via `connected` dependency in effects

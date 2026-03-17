@@ -101,16 +101,13 @@ useEffect(() => {
 ```
 Selects the first account when accounts load or if the persisted ID is stale.
 
-### Reload accounts on connect
+### Clear accounts on disconnect
 ```ts
 useEffect(() => {
-  if (connected) {
-    accountService.searchAccounts().then(setAccounts);
-  } else {
-    setAccounts([]);
-  }
-}, [connected, setAccounts]);
+  if (!connected) useStore.getState().setAccounts([]);
+}, [connected]);
 ```
+Accounts are loaded by `App.tsx` on page refresh and by `SettingsModal` on user-initiated connect. TopBar only clears them on disconnect.
 
 ### Live balance via SignalR
 ```ts

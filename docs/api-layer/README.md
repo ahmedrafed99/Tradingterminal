@@ -119,7 +119,7 @@ listExchanges(): Promise<{ exchanges: string[]; connected: string[] }>
 ### `accountService.ts`
 
 ```ts
-searchAccounts(): Promise<Account[]>   // IDs stringified at boundary
+searchAccounts(): Promise<Account[]>   // IDs stringified at boundary, dedup()-wrapped
 ```
 
 ### `marketDataService.ts`
@@ -139,15 +139,19 @@ searchContracts(query: string): Promise<Contract[]>       // normalized with com
 listAvailableContracts(): Promise<Contract[]>              // normalized with computed fields
 ```
 
+**Connection gate**: Both `retrieveBars` and `searchContracts` calls are gated on `connected` state in all consumer hooks/components. No market data requests fire while disconnected.
+
 **`retrieveBars` cache** (keyed by `contractId:unit:unitNumber`, 60s TTL):
 1. In-memory `Map` (fastest, lost on refresh) → 2. `sessionStorage` (survives refresh) → 3. In-flight dedup → 4. Network fetch.
 Chart renders instantly on page refresh from sessionStorage cache.
 
 **`searchContracts` cache** (keyed by `QUERY:live`, 2min TTL):
 1. In-memory `Map` → 2. In-flight dedup → 3. Network fetch.
-Prevents duplicate requests when multiple components (chart toolbars, order panel) resolve the same pinned instruments concurrently.
+App.tsx resolves NQ in a single effect that sets both `contract` and `orderContract`. Pinned instrument resolution (`useInstrumentSearch`) hits the cache populated by this initial search.
 
-**`getStatus` / `loadSettings` / `searchTrades` / `conditionService.getAll` dedup**: All use in-flight promise dedup — concurrent calls (e.g. from React StrictMode double-mounting) share a single network request. `searchTrades` dedup is keyed by the full URL (account + timestamps).
+**`credentialService` cache**: `load()` caches credentials in memory after first fetch; `save()`/`clear()` update the cache. Avoids re-fetching on SettingsModal re-opens.
+
+**`getStatus` / `loadSettings` / `searchTrades` / `searchAccounts` / `conditionService.getAll` dedup**: All use in-flight promise dedup — concurrent calls (e.g. from React StrictMode double-mounting) share a single network request. `searchTrades` dedup is keyed by the full URL (account + timestamps).
 
 ### `orderService.ts`
 

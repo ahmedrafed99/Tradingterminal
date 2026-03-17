@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown } from './icons/ChevronDown';
-import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
 import { PositionType } from '../types/enums';
@@ -90,15 +89,10 @@ export function TopBar() {
     }
   }, [accounts, activeAccountId, setActiveAccountId]);
 
-  // Reload accounts when connection state becomes true
+  // Clear accounts on disconnect (accounts are loaded by SettingsModal on connect
+  // and by App on page refresh via getStatus + searchAccounts)
   useEffect(() => {
-    if (connected) {
-      accountService.searchAccounts().then((a) => useStore.getState().setAccounts(a)).catch((err) => {
-        console.error('[TopBar] Account search failed:', err instanceof Error ? err.message : err);
-      });
-    } else {
-      useStore.getState().setAccounts([]);
-    }
+    if (!connected) useStore.getState().setAccounts([]);
   }, [connected]);
 
 

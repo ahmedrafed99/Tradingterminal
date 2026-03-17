@@ -44,7 +44,7 @@ export function useChartBars(
 
   // -- Historical bars loading --
   useEffect(() => {
-    if (!contract || !refs.series.current) return;
+    if (!connected || !contract || !refs.series.current) return;
 
     const series = refs.series.current;
     let cancelled = false;
@@ -147,7 +147,7 @@ export function useChartBars(
       cancelled = true;
       if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
     };
-  }, [contract, timeframe, reconnectCount]);
+  }, [connected, contract, timeframe, reconnectCount]);
 
   // -- Real-time quote subscription --
   useEffect(() => {

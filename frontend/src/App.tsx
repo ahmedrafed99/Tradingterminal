@@ -8,6 +8,7 @@ import { ChartArea, ChartToolbar } from './components/chart';
 import { BottomPanel } from './components/bottom-panel/BottomPanel';
 import { OrderPanel } from './components/order-panel';
 import { authService } from './services/authService';
+import { accountService } from './services/accountService';
 import { marketDataService } from './services/marketDataService';
 import { tradeService } from './services/tradeService';
 import { realtimeService } from './services/realtimeService';
@@ -75,41 +76,36 @@ export default function App() {
   useEffect(() => {
     authService
       .getStatus()
-      .then((status) => {
+      .then(async (status) => {
         useStore.getState().setConnected(status.connected, status.baseUrl);
+        if (status.connected) {
+          const accounts = await accountService.searchAccounts();
+          useStore.getState().setAccounts(accounts);
+        }
       })
       .catch((err) => {
         console.warn('[App] Status check failed:', err instanceof Error ? err.message : err);
       });
   }, []);
 
-  // Auto-load NQ when connected and no contract selected (left chart)
+  // Auto-load NQ into chart and order panel when connected (single search)
   useEffect(() => {
-    if (!connected || contract) return;
+    if (!connected || !settingsHydrated) return;
+    const { contract: c, orderContract: oc } = useStore.getState();
+    if (c && oc) return; // both already set
     marketDataService
       .searchContracts('NQ')
       .then((contracts) => {
-        const active = contracts.find((c) => c.activeContract);
-        if (active) useStore.getState().setContract(active);
+        const active = contracts.find((ct) => ct.activeContract);
+        if (!active) return;
+        const state = useStore.getState();
+        if (!state.contract) state.setContract(active);
+        if (!state.orderContract) state.setOrderContract(active);
       })
       .catch((err) => {
         console.error('[App] Auto-load NQ failed:', err instanceof Error ? err.message : err);
       });
-  }, [connected, contract]);
-
-  // Auto-load NQ into order panel when connected and no order contract selected
-  useEffect(() => {
-    if (!connected || !settingsHydrated || orderContract) return;
-    marketDataService
-      .searchContracts('NQ')
-      .then((contracts) => {
-        const active = contracts.find((c) => c.activeContract);
-        if (active) useStore.getState().setOrderContract(active);
-      })
-      .catch((err) => {
-        console.error('[App] Auto-load order contract failed:', err instanceof Error ? err.message : err);
-      });
-  }, [connected, settingsHydrated, orderContract]);
+  }, [connected, settingsHydrated]);
 
   // Fetch session trades on connect (for TopBar RPNL) — runs regardless of bottom panel tab
   const activeAccountId = useStore((s) => s.activeAccountId);

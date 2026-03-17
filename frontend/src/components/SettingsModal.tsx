@@ -63,8 +63,7 @@ export function SettingsModal() {
     setLoading(true);
     try {
       await authService.connect(userName.trim(), apiKey.trim(), url.trim() || undefined);
-      const status = await authService.getStatus();
-      setConnected(true, status.baseUrl);
+      setConnected(true, url.trim() || undefined);
       if (rememberCredentials) {
         await credentialService.save(userName.trim(), apiKey.trim());
       }

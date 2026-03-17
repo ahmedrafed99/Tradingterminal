@@ -163,6 +163,10 @@ User clicks BUY
 
 **Reconnect resync**: On user hub reconnect, `OrderPanel` re-fetches open orders via `searchOpenOrders()` and replaces the store. This recovers from events missed during the disconnect window.
 
+**Position inference trades**: `inferPositionsFromOrders` reads `sessionTrades` from the store (loaded by `App.tsx`) instead of making its own `searchTrades` API call.
+
+**Last price seed optimization**: The `lastPrice` bars seed is skipped when the chart has the same contract loaded — the chart's quote subscription fills `lastPrice` almost immediately, making the extra bars fetch redundant. The seed only fires when the order panel contract differs from the chart contract.
+
 ---
 
 ## SignalR Order Event Handler — Bracket Leg Handling
