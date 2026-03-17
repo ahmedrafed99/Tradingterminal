@@ -13,7 +13,7 @@ export function PositionDisplay() {
   const { positions, orderContract, lastPrice, activeAccountId } = useStore();
   const pnlRef = useRef<number>(0);
 
-  const pos = orderContract ? positions.find((p) => String(p.contractId) === String(orderContract.id)) : undefined;
+  const pos = orderContract ? positions.find((p) => p.accountId === activeAccountId && String(p.contractId) === String(orderContract.id)) : undefined;
   const hasPos = pos != null && pos.size !== 0;
 
   if (!orderContract || !hasPos) {

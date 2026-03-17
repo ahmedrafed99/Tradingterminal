@@ -99,7 +99,7 @@ and the preview toggle that overlays ghost lines on the chart.
 ### `PositionDisplay`
 - Shows current net position for the active account + instrument
 - Net size and unrealised P&L from SignalR positions feed (both centred)
-- **contractId comparison** uses `String()` coercion — SignalR may send contractId as number while REST API returns string
+- **Position lookup** filters by both `activeAccountId` and `contractId` (with `String()` coercion — SignalR may send contractId as number while REST API returns string)
 - **Close** button: market order to flatten position, always visible when position exists. Shows error toast on failure.
 - **SL to BE** button: always visible when a position exists, disabled when not in profit. Shows error toast on failure. Three paths:
   1. **Bracket session active**: delegates to `bracketEngine.moveSLToBreakeven()` (modifies tracked SL order)
