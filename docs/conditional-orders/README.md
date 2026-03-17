@@ -232,6 +232,6 @@ bracket?: {
 - **Exchange-agnostic**: Only calls through the generic `ExchangeAdapter` interface. Only auto-connect env vars are exchange-specific.
 - **JSON file persistence**: `data/conditions.json` with in-memory array and debounced disk writes (500ms). Simple, no database needed.
 - **SSE for live updates**: Frontend opens an EventSource to the condition server. Events: `triggered`, `failed`, `expired`, `deleted`, `updated`.
-- **CORS `origin: true`**: Required so the frontend on your PC can talk to the remote backend.
+- **CORS restricted to `localhost:5173`**: Backend only accepts requests from the local dev frontend. Remote deployments should configure the allowed origin accordingly.
 - **Axios retry interceptor**: Render free tier cold-starts return error pages without CORS headers. The frontend's `getApi()` retries once after 2s on network errors, making cold-starts transparent to the user.
 - **Render deployment**: Dockerized backend deployed to Render free tier via Docker Hub image. No VPC/firewall config needed — just set env vars and deploy. Timeout bumped to 30s to accommodate cold-start wake-up.

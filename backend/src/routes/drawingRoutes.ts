@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 
 const router = Router();
 
 // In-memory queue of drawings waiting to be picked up by the frontend
+const MAX_PENDING_DRAWINGS = 200;
 let pendingDrawings: Record<string, unknown>[] = [];
 
 // POST /drawings/add — push a drawing into the queue
@@ -15,6 +17,9 @@ router.post('/add', (req, res) => {
   // Auto-generate id if not provided
   if (!drawing.id) {
     drawing.id = crypto.randomUUID();
+  }
+  if (pendingDrawings.length >= MAX_PENDING_DRAWINGS) {
+    pendingDrawings = pendingDrawings.slice(-Math.floor(MAX_PENDING_DRAWINGS / 2));
   }
   pendingDrawings.push(drawing);
   res.json({ success: true, id: drawing.id });

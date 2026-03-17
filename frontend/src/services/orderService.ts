@@ -61,10 +61,8 @@ export const orderService = {
   },
 
   async cancelOrder(accountId: string, orderId: string): Promise<void> {
-    console.log('[orderService] cancelOrder →', { accountId, orderId });
     await retryAsync(async () => {
       const res = await api.post<GatewayResponse>('/orders/cancel', { accountId, orderId });
-      console.log('[orderService] cancelOrder response:', res.data);
       assertSuccess(res.data);
     });
   },

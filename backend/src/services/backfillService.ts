@@ -311,14 +311,14 @@ export async function autoSyncAll(): Promise<void> {
     }
 
     // Skip if another job started while we were resolving
-    if (currentJob?.status === 'running') break;
+    if ((currentJob as FetchJob | null)?.status === 'running') break;
 
     try {
       console.log(`[auto-sync] Syncing ${entry.contractId} via ${activeContractId}`);
       await startFetch({ contractId: activeContractId, mode: 'sync' });
 
       // Wait for the job to finish before syncing the next symbol
-      while (currentJob?.status === 'running') {
+      while ((currentJob as FetchJob | null)?.status === 'running') {
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
 

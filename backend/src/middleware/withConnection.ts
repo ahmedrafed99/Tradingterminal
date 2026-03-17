@@ -23,7 +23,8 @@ export function withConnection(
       await handler(req, res);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
-      res.status(502).json({ success: false, errorMessage: msg });
+      console.error('[withConnection]', msg);
+      res.status(502).json({ success: false, errorMessage: 'Exchange request failed' });
     }
   };
 }

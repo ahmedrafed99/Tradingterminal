@@ -27,7 +27,7 @@ function connect(): void {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
-    console.log('[conditionTickForwarder] Connected to backend');
+    if (import.meta.env.DEV) console.log('[conditionTickForwarder] Connected to backend');
   };
 
   ws.onclose = () => {
@@ -76,7 +76,7 @@ function startForwarding(): void {
   };
 
   realtimeService.onQuote(quoteHandler);
-  console.log('[conditionTickForwarder] Started forwarding ticks');
+  if (import.meta.env.DEV) console.log('[conditionTickForwarder] Started forwarding ticks');
 }
 
 /**

@@ -13,7 +13,9 @@ const sseClients = new Set<Response>();
 
 export function addSSEClient(res: Response): void {
   sseClients.add(res);
-  res.on('close', () => sseClients.delete(res));
+  const cleanup = () => sseClients.delete(res);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
 }
 
 function broadcast(event: string, data: unknown): void {

@@ -143,7 +143,7 @@ export function OpacitySlider({
               width: 14,
               height: 14,
               borderRadius: '50%',
-              background: '#fff',
+              background: 'var(--color-text-bright)',
               border: '2px solid var(--color-border)',
               boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
               transition: 'left 0.05s',

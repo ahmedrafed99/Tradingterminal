@@ -44,7 +44,8 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
     res.json({ success: true, exchange });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    res.status(401).json({ success: false, errorMessage: msg });
+    console.error('[auth/connect]', msg);
+    res.status(401).json({ success: false, errorMessage: 'Authentication failed' });
   }
 });
 

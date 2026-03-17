@@ -110,6 +110,9 @@ export function processTick(contractId: string, price: number, timestampMs: numb
 // WebSocket client management
 // ---------------------------------------------------------------------------
 
+// Prune stale candle entries every 5 minutes
+setInterval(() => pruneStale(), 5 * 60 * 1000).unref();
+
 export function addClient(ws: WebSocket): void {
   clients.add(ws);
   console.log(`[tickAggregator] Frontend connected (${clients.size} client(s))`);
@@ -140,4 +143,18 @@ export function hasLiveClients(): boolean {
 /** Clear all candle state (e.g. on disconnect) */
 export function clear(): void {
   candles.clear();
+}
+
+/** Remove candle entries for contracts/timeframes no longer armed */
+export function pruneStale(): void {
+  const armed = store.getArmed();
+  const activeKeys = new Set<string>();
+  for (const c of armed) {
+    if (PERIOD_SEC[c.timeframe]) {
+      activeKeys.add(`${c.contractId}|${c.timeframe}`);
+    }
+  }
+  for (const key of candles.keys()) {
+    if (!activeKeys.has(key)) candles.delete(key);
+  }
 }

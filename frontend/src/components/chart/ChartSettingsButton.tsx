@@ -132,6 +132,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
       <button
         ref={btnRef}
         onClick={() => setOpen((v) => !v)}
+        className="hover:bg-(--color-surface) transition-colors cursor-pointer"
         style={{
           position: 'absolute',
           bottom: rect.b,
@@ -142,14 +143,9 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'transparent',
           border: 'none',
-          cursor: 'pointer',
           padding: 0,
-          transition: 'background 0.15s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
         title="Chart settings"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -184,24 +180,20 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
         >
           <button
             onClick={toggleInvert}
+            className="hover:bg-(--color-border) transition-colors cursor-pointer"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               width: '100%',
               padding: '6px 12px',
-              background: 'transparent',
               border: 'none',
               color: 'var(--color-text)',
               fontSize: 12,
               fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
-              cursor: 'pointer',
-              transition: 'background 0.15s',
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-border)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             {/* Checkmark — fades + scales in/out */}
             <svg
@@ -225,24 +217,20 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
           {/* More settings */}
           <button
             onClick={() => { setOpen(false); setModalOpen(true); }}
+            className="hover:bg-(--color-border) transition-colors cursor-pointer"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
               width: '100%',
               padding: '6px 12px',
-              background: 'transparent',
               border: 'none',
               color: 'var(--color-text)',
               fontSize: 12,
               fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
-              cursor: 'pointer',
-              transition: 'background 0.15s',
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-border)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
           >
             {/* Gear icon */}
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
