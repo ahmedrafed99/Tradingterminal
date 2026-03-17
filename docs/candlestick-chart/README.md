@@ -191,3 +191,11 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   to `null` when the mouse leaves a chart (16 ms clear timer). Does not gate on
   `dataMap` membership — syncs at any timestamp on the shared time scale,
   including whitespace regions beyond the last candle.
+- **VP hover RAF-batched**: The volume profile crosshair-move handler in
+  `useChartBars` RAF-batches `coordinateToPrice` calls so at most one runs per
+  frame. The RAF ID is tracked and cancelled in the effect cleanup to prevent
+  fire-after-dispose on unmount.
+- **Overlay label selector consolidation**: `useOverlayLabels` uses a single
+  `useShallow()` selector (from `zustand/react/shallow`) instead of 16
+  individual `useStore()` calls. This reduces store subscriptions from 16 to 1
+  and batches the shallow-equality check into a single comparison per update.

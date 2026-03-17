@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import type { ChartRefs } from './types';
@@ -22,23 +23,32 @@ export function useOverlayLabels(
   contract: Contract | null,
   isOrderChart: boolean,
 ): void {
-  // Store selectors needed for overlay label rebuild
-  const openOrders = useStore((s) => s.openOrders);
-  const positions = useStore((s) => s.positions);
-  const activeAccountId = useStore((s) => s.activeAccountId);
-  const previewEnabled = useStore((s) => s.previewEnabled);
-  const previewSide = useStore((s) => s.previewSide);
-  const previewHideEntry = useStore((s) => s.previewHideEntry);
-  const bracketPresets = useStore((s) => s.bracketPresets);
-  const activePresetId = useStore((s) => s.activePresetId);
-  const orderType = useStore((s) => s.orderType);
-  const limitPrice = useStore((s) => s.limitPrice);
-  const orderSize = useStore((s) => s.orderSize);
-  const draftSlPoints = useStore((s) => s.draftSlPoints);
-  const draftTpPoints = useStore((s) => s.draftTpPoints);
-  const adHocSlPoints = useStore((s) => s.adHocSlPoints);
-  const adHocTpLevels = useStore((s) => s.adHocTpLevels);
-  const qoPendingPreview = useStore((s) => s.qoPendingPreview);
+  // Single shallow-compared selector — one subscription instead of 16
+  const {
+    openOrders, positions, activeAccountId,
+    previewEnabled, previewSide, previewHideEntry,
+    bracketPresets, activePresetId,
+    orderType, limitPrice, orderSize,
+    draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels,
+    qoPendingPreview,
+  } = useStore(useShallow((s) => ({
+    openOrders: s.openOrders,
+    positions: s.positions,
+    activeAccountId: s.activeAccountId,
+    previewEnabled: s.previewEnabled,
+    previewSide: s.previewSide,
+    previewHideEntry: s.previewHideEntry,
+    bracketPresets: s.bracketPresets,
+    activePresetId: s.activePresetId,
+    orderType: s.orderType,
+    limitPrice: s.limitPrice,
+    orderSize: s.orderSize,
+    draftSlPoints: s.draftSlPoints,
+    draftTpPoints: s.draftTpPoints,
+    adHocSlPoints: s.adHocSlPoints,
+    adHocTpLevels: s.adHocTpLevels,
+    qoPendingPreview: s.qoPendingPreview,
+  })));
 
   // -- Label configuration + hit-target registration --
   useEffect(() => {

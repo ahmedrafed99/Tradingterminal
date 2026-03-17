@@ -308,18 +308,29 @@ export function useChartBars(
     const vp = refs.vpPrimitive.current;
     if (!chart || !vp || !vpEnabled) return;
 
+    let rafId = 0;
+
     function onCrosshairMove(param: import('lightweight-charts').MouseEventParams) {
       if (!vp) return;
       if (!param.point || !refs.series.current) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
         vp.setHoverPrice(null);
         return;
       }
-      const price = refs.series.current.coordinateToPrice(param.point.y);
-      vp.setHoverPrice(price != null ? price : null);
+      const y = param.point.y;
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          const price = refs.series.current?.coordinateToPrice(y) ?? null;
+          vp.setHoverPrice(price);
+        });
+      }
     }
 
     chart.subscribeCrosshairMove(onCrosshairMove);
     return () => {
+      cancelAnimationFrame(rafId);
       chart.unsubscribeCrosshairMove(onCrosshairMove);
       vp.setHoverPrice(null);
     };
