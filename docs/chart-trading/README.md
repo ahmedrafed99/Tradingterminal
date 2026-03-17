@@ -289,7 +289,7 @@ Each interactive element (button cell, draggable row) is registered in `hitTarge
 | 1 | Order row drag | Drag — starts order drag state (higher priority than position to win when overlapping, e.g. SL at breakeven) |
 | 2 | Position / preview row drag | Drag — starts position or preview drag state |
 
-A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit targets, checks `getBoundingClientRect()` vs mouse coordinates, skips hidden elements (`el.offsetParent === null`), and fires the first match. The `onHandleHover` mousemove handler checks hit targets to show `cursor: grab` for row-drag targets (priority ≥ 2) and `cursor: pointer` for button targets (priority 0/1).
+A container-level `mousedown` handler (`onOverlayHitTest`) iterates sorted hit targets, checks `getBoundingClientRect()` vs mouse coordinates, skips hidden elements (`el.offsetParent === null`), and fires the first match. This handler is registered **first** among all mousedown listeners (before drawing handlers) and uses `stopImmediatePropagation()` to prevent drawing interactions from capturing the same click — this ensures order/position line drags always win over drawings underneath. The `onHandleHover` mousemove handler checks hit targets to show `cursor: grab` for row-drag targets (priority ≥ 2) and `cursor: pointer` for button targets (priority 0/1).
 
 ### Plus button suppression on label hover
 

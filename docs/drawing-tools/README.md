@@ -285,12 +285,15 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 ### Event listener priority
 
 ```
-1. onCtrlDragSelectDown — Ctrl+drag area selection for multi-select
-2. onResizeMouseDown    — resize handles on selected oval/ruler (most specific)
-3. onDrawingDragMouseDown — drag-to-move any drawing
-4. onOvalMouseDown      — oval creation when tool is 'oval'
-5. onFreeDrawMouseDown  — free draw creation when tool is 'freedraw'
+1. onOverlayHitTest       — overlay label hit testing (order lines, position lines)
+2. onCtrlDragSelectDown   — Ctrl+drag area selection for multi-select
+3. onResizeMouseDown      — resize handles on selected oval/ruler (most specific)
+4. onDrawingDragMouseDown — drag-to-move any drawing
+5. onOvalMouseDown        — oval creation when tool is 'oval'
+6. onFreeDrawMouseDown    — free draw creation when tool is 'freedraw'
 ```
+
+Overlay hit testing is first so order/position line drags take priority over drawing interactions when they overlap. It uses `stopImmediatePropagation()` to prevent subsequent drawing handlers from firing on the same mousedown event.
 
 Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path, rect, and ruler use click-based state machines in `onMouseUp`.
 

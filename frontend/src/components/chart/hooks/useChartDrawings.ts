@@ -97,20 +97,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     window.addEventListener('keydown', handleShiftKey);
     window.addEventListener('keyup', handleShiftKey);
 
-    // ── Mousedown handlers (ordered by priority) ──
-    const handleCtrlSelect = (e: MouseEvent) => onCtrlDragSelectDown(e, ctx);
-    const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
-    const handleDragDown = (e: MouseEvent) => onDrawingDragMouseDown(e, ctx);
-    const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
-    const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
-
-    container.addEventListener('mousedown', handleCtrlSelect);
-    container.addEventListener('mousedown', handleResize);
-    container.addEventListener('mousedown', handleDragDown);
-    container.addEventListener('mousedown', handleOvalDown);
-    container.addEventListener('mousedown', handleFreeDrawDown);
-
-    // ── Overlay label hit testing ──
+    // ── Overlay label hit testing (must be BEFORE drawing handlers) ──
     const onOverlayHitTest = (e: MouseEvent) => {
       if (e.button !== 0) return;
       state.overlayHitCaptured = false;
@@ -125,7 +112,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) continue;
         if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
-          e.stopPropagation();
+          e.stopImmediatePropagation();
           e.preventDefault();
           state.overlayHitCaptured = true;
           target.handler(e);
@@ -134,6 +121,19 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       }
     };
     container.addEventListener('mousedown', onOverlayHitTest);
+
+    // ── Mousedown handlers (ordered by priority) ──
+    const handleCtrlSelect = (e: MouseEvent) => onCtrlDragSelectDown(e, ctx);
+    const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
+    const handleDragDown = (e: MouseEvent) => onDrawingDragMouseDown(e, ctx);
+    const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
+    const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
+
+    container.addEventListener('mousedown', handleCtrlSelect);
+    container.addEventListener('mousedown', handleResize);
+    container.addEventListener('mousedown', handleDragDown);
+    container.addEventListener('mousedown', handleOvalDown);
+    container.addEventListener('mousedown', handleFreeDrawDown);
 
     // ── Double-click + context menu ──
     const handleDbl = (e: MouseEvent) => onDblClick(e, ctx);
