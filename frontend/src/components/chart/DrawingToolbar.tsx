@@ -2,18 +2,9 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import type { DrawingTool } from '../../types/drawing';
 
-function CursorIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-      <path d="M13 13l6 6" />
-    </svg>
-  );
-}
-
 function HLineIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <line x1="3" y1="12" x2="21" y2="12" />
       <circle cx="3" cy="12" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="21" cy="12" r="1.5" fill="currentColor" stroke="none" />
@@ -23,7 +14,7 @@ function HLineIcon() {
 
 function RectIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="3" y="5" width="18" height="14" rx="1" />
     </svg>
   );
@@ -31,7 +22,7 @@ function RectIcon() {
 
 function OvalIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <ellipse cx="12" cy="12" rx="9" ry="7" />
     </svg>
   );
@@ -39,7 +30,7 @@ function OvalIcon() {
 
 function ArrowPathIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="4,18 10,10 16,14 20,6" />
       <polyline points="16,6 20,6 20,10" />
     </svg>
@@ -48,7 +39,7 @@ function ArrowPathIcon() {
 
 function BrushIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="14 2 18 6 7 17 3 17 3 13 14 2" />
       <line x1="1" y1="22" x2="19" y2="22" />
     </svg>
@@ -57,7 +48,7 @@ function BrushIcon() {
 
 function RulerIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <g transform="rotate(-45 12 12)">
         <rect x="1" y="8" width="22" height="8" rx="1.5" />
         <line x1="5.5" y1="8" x2="5.5" y2="12" />
@@ -72,7 +63,7 @@ function RulerIcon() {
 
 function TrashIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="3 6 5 6 21 6" />
       <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
       <path d="M10 11v6" />
@@ -91,8 +82,7 @@ function ChevronRight({ className }: { className?: string }) {
 }
 
 const TOOLS: { id: DrawingTool; icon: React.FC; label: string }[] = [
-  { id: 'select', icon: CursorIcon, label: 'Select' },
-  { id: 'hline', icon: HLineIcon, label: 'Horizontal Line' },
+{ id: 'hline', icon: HLineIcon, label: 'Horizontal Line' },
   { id: 'rect', icon: RectIcon, label: 'Rectangle' },
   { id: 'oval', icon: OvalIcon, label: 'Oval' },
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
@@ -150,7 +140,7 @@ export function DrawingToolbar() {
                   ? 'bg-(--color-border) text-white'
                   : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
               }`}
-              style={{ width: 36, height: 32 }}
+              style={{ width: 40, height: 36 }}
               title={label}
             >
               <Icon />
@@ -165,7 +155,7 @@ export function DrawingToolbar() {
                 ? 'text-(--color-text-muted) hover:text-red-400 hover:bg-(--color-border)/50'
                 : 'text-(--color-text-muted) disabled:opacity-50 cursor-default'
             }`}
-            style={{ width: 36, height: 32 }}
+            style={{ width: 40, height: 36 }}
             title="Delete all drawings"
           >
             <TrashIcon />

@@ -124,7 +124,7 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, 
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `frontend/src/components/chart/DrawingToolbar.tsx` | ~190 | Collapsible left-edge sidebar (select, hline, rect, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
+| `frontend/src/components/chart/DrawingToolbar.tsx` | ~180 | Collapsible left-edge sidebar (hline, rect, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
 | `frontend/src/components/chart/DrawingEditToolbar.tsx` | ~680 | Floating edit popup with color, text, stroke, template, delete — scoped per chart via `contractId` prop |
 
 ### Primitive Renderers
@@ -204,7 +204,6 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 
 | Tool | Icon | Behavior |
 |------|------|----------|
-| Select (cursor) | Arrow pointer | Click drawings to select, drag to move |
 | Horizontal Line | Line with endpoint dots | Click on chart to place at price level |
 | Rectangle | Rounded rect | Click to place first corner, move mouse, click to place diagonal corner |
 | Oval | Ellipse | Click-and-drag to define bounding rectangle |
