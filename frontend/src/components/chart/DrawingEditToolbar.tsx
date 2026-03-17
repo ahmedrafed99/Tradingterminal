@@ -796,11 +796,11 @@ export function DrawingEditToolbar({
               className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
               title="Fill color"
             >
-              {/* Bucket fill icon */}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2.5 21.5L12 12l3 3-7 7z" />
-                <path d="M12 12l7-7 3 3-7 7" />
-                <path d="M20 16c1.1 1.1 1.1 2.9 0 4s-2.9 1.1-4 0L20 16z" />
+              {/* Paint bucket + droplet icon */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" transform="matrix(-1,0,0,1,0,0)">
+                <path d="M17.0408 10.6406L9.69083 3.29062L8.82083 2.42063C8.53083 2.13063 8.05083 2.13063 7.76083 2.42063C7.47083 2.71062 7.47083 3.19062 7.76083 3.48062L8.63083 4.35062L3.00083 9.98062C2.36083 10.6206 2.02083 11.2706 2.00083 11.9206C1.98083 12.6106 2.32083 13.3006 3.00083 13.9906L7.01083 18.0006C8.35083 19.3306 9.69083 19.3306 11.0208 18.0006L17.0408 11.9806C17.2408 11.7806 17.3308 11.5106 17.3108 11.2506C17.3008 11.0306 17.2008 10.8006 17.0408 10.6406Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+
+                <path d="M19.85 13.2C19.5 12.82 18.86 12.82 18.5 13.2C18.07 13.67 15.9 15.98 15.9 17.75C15.9 19.5 17.32 20.92 19.17 20.92C21.02 20.92 22.44 19.5 22.44 17.75C22.44 15.98 20.28 13.67 19.85 13.2Z" />
               </svg>
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
