@@ -130,7 +130,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | `--color-label-text` | `#000000` | Label text (dark on light) |
 | `--color-label-close` | `#e0e0e0` | Close (X) button background |
 | `--color-label-close-hover` | `#b8b8b8` | Close (X) button hover (darkened) |
-| `--color-handle-stroke` | `#1e3a5f` | Drawing selection handle border (all renderers) |
+| `--color-handle-stroke` | `#4a90d9` | Drawing selection handle border (all renderers) |
 
 ---
 

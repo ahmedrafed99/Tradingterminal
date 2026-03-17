@@ -604,11 +604,13 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     const dy = Math.abs(y - state.rectCreation.startY);
     // If mouse moved enough → finalize (drag-release flow)
     if (dx > 5 || dy > 5) {
+      let createdId: string | null = null;
       const data = getDataPos(chart, series, x, y);
       if (data && contract !== null) {
         const rectDef = useStore.getState().drawingDefaults['rect'];
+        createdId = crypto.randomUUID();
         useStore.getState().addDrawing({
-          id: crypto.randomUUID(),
+          id: createdId,
           type: 'rect',
           p1: { time: state.rectCreation.startTime, price: state.rectCreation.startPrice },
           p2: { time: data.time, price: data.price },
@@ -623,6 +625,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       primitive.clearRectPreview();
       chart.applyOptions({ handleScroll: true, handleScale: true });
       useStore.getState().setActiveTool('select');
+      if (createdId) useStore.getState().setSelectedDrawingIds([createdId]);
     }
     // If not moved enough → keep rectCreation active (click-move-click flow, wait for second click)
     return;
@@ -665,13 +668,15 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
   primitive.clearDragPreview();
   chart.applyOptions({ handleScroll: true, handleScale: true });
 
+  let createdId: string | null = null;
   if (endData && contract) {
     const dx = Math.abs(x - state.ovalDrag.startX);
     const dy = Math.abs(y - state.ovalDrag.startY);
     if (dx > 5 || dy > 5) {
       const ovalDef = useStore.getState().drawingDefaults['oval'];
+      createdId = crypto.randomUUID();
       useStore.getState().addDrawing({
-        id: crypto.randomUUID(),
+        id: createdId,
         type: 'oval',
         p1: { time: state.ovalDrag.startTime, price: state.ovalDrag.startPrice },
         p2: { time: endData.time, price: endData.price },
@@ -685,4 +690,5 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
 
   state.ovalDrag = null;
   useStore.getState().setActiveTool('select');
+  if (createdId) useStore.getState().setSelectedDrawingIds([createdId]);
 }

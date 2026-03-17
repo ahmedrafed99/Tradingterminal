@@ -50,11 +50,13 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
       }
     }
 
-    const { addDrawing, drawingDefaults: ctxDef } = useStore.getState();
+    const { addDrawing, setSelectedDrawingIds, drawingDefaults: ctxDef } = useStore.getState();
     const apDef = ctxDef['arrowpath'];
+    let createdId: string | null = null;
     if (state.arrowPathCreation.points.length >= 2 && contract) {
+      createdId = crypto.randomUUID();
       addDrawing({
-        id: crypto.randomUUID(),
+        id: createdId,
         type: 'arrowpath',
         anchorTime: state.arrowPathCreation.anchorTime,
         points: [...state.arrowPathCreation.points],
@@ -68,6 +70,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     primitive.clearArrowPathPreview();
     resetChartInteraction(ctx);
     setActiveTool('select');
+    if (createdId) setSelectedDrawingIds([createdId]);
     return;
   }
 
@@ -125,11 +128,13 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
     }
   }
 
-  const { addDrawing, setActiveTool, drawingDefaults: dblDef } = useStore.getState();
+  const { addDrawing, setActiveTool, setSelectedDrawingIds, drawingDefaults: dblDef } = useStore.getState();
   const dblApDef = dblDef['arrowpath'];
+  let createdId: string | null = null;
   if (state.arrowPathCreation.points.length >= 2 && contract) {
+    createdId = crypto.randomUUID();
     addDrawing({
-      id: crypto.randomUUID(),
+      id: createdId,
       type: 'arrowpath',
       anchorTime: state.arrowPathCreation.anchorTime,
       points: [...state.arrowPathCreation.points],
@@ -143,6 +148,7 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
   primitive.clearArrowPathPreview();
   chart.applyOptions({ handleScroll: true, handleScale: true });
   setActiveTool('select');
+  if (createdId) setSelectedDrawingIds([createdId]);
 }
 
 // ═══════════════════════════════════════════════════════════════════

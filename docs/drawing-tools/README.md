@@ -233,9 +233,9 @@ Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | RectPa
 
 Key methods:
 - `setDrawings(drawings, selectedIds)` — rebuilds views, calls `requestUpdate()`
-- `setDragPreview(x1, y1, x2, y2)` / `clearDragPreview()` — dashed ellipse during oval creation
-- `setRectPreview(x1, y1, x2, y2)` / `clearRectPreview()` — dashed rect during rect click-click creation
-- `setArrowPathPreview(points)` / `clearArrowPathPreview()` — dashed polyline during arrow path creation
+- `setDragPreview(x1, y1, x2, y2)` / `clearDragPreview()` — ellipse preview with cardinal handles during oval creation
+- `setRectPreview(x1, y1, x2, y2)` / `clearRectPreview()` — rect preview with corner handles during rect creation
+- `setArrowPathPreview(points)` / `clearArrowPathPreview()` — polyline preview with node handles during arrow path creation
 - `setFreeDrawPreview(points, color, strokeWidth)` / `clearFreeDrawPreview()` — live brush stroke during free draw creation
 - `setRulerDragPreview(x1, y1, x2, y2, metrics, decimals)` / `clearRulerDragPreview()` — ruler rectangle + label preview
 - `getHandleAt(x, y)` — hit-test resize handles on selected rect/oval/ruler
@@ -302,7 +302,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 
 - Tool: `hline`
 - Click on chart → `series.coordinateToPrice(y)` → `addDrawing({type:'hline', price, ...})`
-- Auto-switches to select tool after placement
+- Auto-switches to select tool after placement and auto-selects the new drawing (edit toolbar appears immediately)
 
 ### Rectangle creation (two modes)
 
@@ -312,6 +312,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Both modes: preview uses saved style defaults (border color, fill color, stroke width). Escape or right-click cancels in-progress creation.
 - Sticky defaults: border color, stroke width, and fill color (including opacity) are remembered across drawings via `drawingDefaults['rect']`
 - Default fill: `rgba(255, 152, 0, 0.15)` (orange at 15% opacity), default stroke: `#ff9800`
+- Auto-selects the new drawing after creation (edit toolbar appears immediately)
 - Edit toolbar shows: border color picker, fill color picker with opacity slider, text, stroke width, delete
 
 ### Oval creation (drag-to-create)
@@ -319,7 +320,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Tool: `oval`
 - `mousedown` records start point, disables chart scroll
 - `mousemove` shows live ellipse preview via `primitive.setDragPreview()`
-- `mouseup` creates oval if drag distance > 5px, switches to select tool
+- `mouseup` creates oval if drag distance > 5px, switches to select tool and auto-selects the new drawing
 - Minimum drag threshold prevents accidental creation on clicks
 
 ### Arrow path creation (click-to-place nodes)
@@ -332,6 +333,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - **Ctrl = horizontal snap**: holding Ctrl locks Y to the last placed node's Y, forcing horizontal segments (applies to preview, node placement, and right-click finalize)
 - Escape cancels creation
 - Arrow tip drawn at the last point
+- Auto-selects the new drawing after creation (edit toolbar appears immediately)
 - **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (same approach as free draw) so nodes can be placed between candle bars without snapping
 
 ### Free draw (drag-to-draw)

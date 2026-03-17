@@ -79,8 +79,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           startTime: clickTime ? (clickTime as number) : 0,
           extendLeft: false,
         });
-        setSelectedDrawingIds([id]);
         setActiveTool('select');
+        setSelectedDrawingIds([id]);
         return;
       }
 

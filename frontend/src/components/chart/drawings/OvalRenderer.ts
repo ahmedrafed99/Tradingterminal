@@ -53,7 +53,7 @@ class OvalRendererImpl implements IPrimitivePaneRenderer {
 
       // Selection: 4 handles at ellipse cardinal points (top, bottom, left, right)
       if (this._selected) {
-        const hr = Math.round(4 * vpr);
+        const hr = Math.round(5 * vpr);
         const handles = [
           [cx, cy - ry], // top
           [cx, cy + ry], // bottom

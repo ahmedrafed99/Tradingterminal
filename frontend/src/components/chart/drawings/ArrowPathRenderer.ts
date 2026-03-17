@@ -92,7 +92,7 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
 
       // Selection handles at each node
       if (this._selected) {
-        const hr = Math.round(4 * vpr);
+        const hr = Math.round(5 * vpr);
         ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = COLOR_HANDLE_STROKE;
         ctx.lineWidth = Math.round(1.5 * vpr);

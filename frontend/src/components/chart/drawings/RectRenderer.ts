@@ -57,7 +57,7 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
 
       // Selection: 4 corner handles
       if (this._selected) {
-        const hr = Math.round(4 * vpr);
+        const hr = Math.round(5 * vpr);
         const handles = [
           [Math.min(x1, x2), Math.min(y1, y2)], // top-left
           [Math.max(x1, x2), Math.min(y1, y2)], // top-right

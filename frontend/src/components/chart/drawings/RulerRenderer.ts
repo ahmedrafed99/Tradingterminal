@@ -119,7 +119,7 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
 
       // Selection handles at 4 corners
       if (this._selected) {
-        const hr = Math.round(4 * vpr);
+        const hr = Math.round(5 * vpr);
         const handles = [
           [left, top],
           [left + w, top],
