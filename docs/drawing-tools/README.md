@@ -72,17 +72,24 @@ interface HLineDrawing extends DrawingBase {
   price: number;
 }
 
+interface AnchoredPoint {
+  time: number;           // snapped bar time (backward compat)
+  price: number;
+  anchorTime?: number;    // nearest bar time (sub-bar precision)
+  barOffset?: number;     // fractional bar offset from anchorTime
+}
+
 interface RectDrawing extends DrawingBase {
   type: 'rect';
-  p1: { time: number; price: number };  // diagonal corner 1
-  p2: { time: number; price: number };  // diagonal corner 2
-  fillColor: string;                    // rgba fill (supports opacity)
+  p1: AnchoredPoint;     // diagonal corner 1
+  p2: AnchoredPoint;     // diagonal corner 2
+  fillColor: string;     // rgba fill (supports opacity)
 }
 
 interface OvalDrawing extends DrawingBase {
   type: 'oval';
-  p1: { time: number; price: number };  // bounding rect corner 1
-  p2: { time: number; price: number };  // bounding rect corner 2
+  p1: AnchoredPoint;     // bounding rect corner 1
+  p2: AnchoredPoint;     // bounding rect corner 2
 }
 
 interface ArrowPathDrawing extends DrawingBase {
@@ -265,6 +272,7 @@ Draws a rectangle defined by two diagonal corners (p1, p2).
 - Hit test: proximity to any of the 4 edges via `hitTestRectEdges()` (6px tolerance)
 - Resize handles: 4 corner positions (nw/ne/sw/se) with 6px hit tolerance — dragging a corner moves it freely while the diagonally opposite corner stays fixed
 - Creation: click-click flow (first click = p1, mouse moves with dashed preview, second click = p2)
+- **Smooth rendering**: uses `AnchoredPoint` with `anchorTime` + `barOffset` for sub-bar precision — corners stay exactly where placed instead of snapping to bar centers
 
 ### OvalRenderer
 
@@ -275,6 +283,7 @@ Draws an ellipse inscribed in the bounding rectangle defined by p1 and p2.
 - Text label: positioned relative to ellipse center and radii
 - Hit test: normalized ellipse distance check `|d - 1.0| < tolerance / min(rx, ry)`
 - Resize handles: 4 positions (n, s, w, e) with 6px hit tolerance, free diagonal drag supported
+- **Smooth rendering**: same `AnchoredPoint` approach as rect — no horizontal snapping to bar centers
 
 ---
 

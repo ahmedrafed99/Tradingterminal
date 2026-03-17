@@ -115,17 +115,14 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
 
       // Selection handles
       if (this._selected) {
-        const hs = Math.round(5 * vpr);
+        const hr = Math.round(5 * vpr);
         ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = COLOR_HANDLE_STROKE;
         ctx.lineWidth = Math.round(1.5 * vpr);
-        const hPositions = [startX + hs / 2, (startX + bitmapSize.width) / 2, bitmapSize.width - hs / 2];
-        for (const hx of hPositions) {
-          ctx.beginPath();
-          ctx.arc(hx, y, hs / 2, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
-        }
+        ctx.beginPath();
+        ctx.arc(startX + hr, y, hr, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
       }
 
       // Text label

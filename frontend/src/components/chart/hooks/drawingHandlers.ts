@@ -3,7 +3,7 @@ import { useStore } from '../../../store/useStore';
 import { DEFAULT_OVAL_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import type { DrawingContext } from './drawingInteraction';
-import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
+import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
 
 // ═══════════════════════════════════════════════════════════════════
 // Mouse-down handlers
@@ -84,19 +84,36 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
   const p1 = drawing.p1;
   const p2 = drawing.p2;
-  const sx1 = chart.timeScale().timeToCoordinate(p1.time as unknown as Time);
+  const sx1 = pointToPixelX(p1, chart);
   const sy1 = series.priceToCoordinate(p1.price);
-  const sx2 = chart.timeScale().timeToCoordinate(p2.time as unknown as Time);
+  const sx2 = pointToPixelX(p2, chart);
   const sy2 = series.priceToCoordinate(p2.price);
   if (sx1 === null || sy1 === null || sx2 === null || sy2 === null) return;
 
+  // Determine which original point provides X data and which provides Y data for the fixed corner
+  const leftPt = sx1 < sx2 ? p1 : p2;
+  const rightPt = sx1 < sx2 ? p2 : p1;
+  const topPt = sy1 < sy2 ? p1 : p2;
+  const bottomPt = sy1 < sy2 ? p2 : p1;
+  const h = hit.handle;
+
+  // Fixed corner: take X-axis data (anchorTime/barOffset/time) from one point, price from another
+  let fixedCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
+  if (h === 'n' || h === 'nw' || h === 'w') {
+    fixedCorner = { ...rightPt, price: bottomPt.price };
+  } else if (h === 'ne') {
+    fixedCorner = { ...leftPt, price: bottomPt.price };
+  } else if (h === 'sw') {
+    fixedCorner = { ...rightPt, price: topPt.price };
+  } else {
+    // se, s, e
+    fixedCorner = { ...leftPt, price: topPt.price };
+  }
+
   state.ovalResize = {
     drawingId: drawing.id,
-    handle: hit.handle,
-    leftTime: sx1 < sx2 ? p1.time : p2.time,
-    rightTime: sx1 < sx2 ? p2.time : p1.time,
-    topPrice: sy1 < sy2 ? p1.price : p2.price,
-    bottomPrice: sy1 < sy2 ? p2.price : p1.price,
+    handle: h,
+    fixedCorner,
     origP1: { ...p1 },
     origP2: { ...p2 },
   };
@@ -198,7 +215,7 @@ export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const tool = useStore.getState().activeTool;
   if (tool !== 'rect') return;
   const { x, y } = getMousePos(e, container);
-  const data = getDataPos(chart, series, x, y);
+  const data = pixelToAnchoredPoint(chart, series, x, y);
   if (!data) return;
 
   chart.applyOptions({ handleScroll: false, handleScale: false });
@@ -207,7 +224,11 @@ export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
   // First click: start creation
   if (!state.rectCreation) {
-    state.rectCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price };
+    state.rectCreation = {
+      startX: x, startY: y,
+      startTime: data.time, startPrice: data.price,
+      startAnchorTime: data.anchorTime, startBarOffset: data.barOffset,
+    };
   }
 }
 
@@ -218,9 +239,9 @@ export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const tool = useStore.getState().activeTool;
   if (tool !== 'oval') return;
   const { x, y } = getMousePos(e, container);
-  const data = getDataPos(chart, series, x, y);
+  const data = pixelToAnchoredPoint(chart, series, x, y);
   if (!data) return;
-  state.ovalDrag = { startX: x, startY: y, startTime: data.time, startPrice: data.price, tool: 'oval' };
+  state.ovalDrag = { startX: x, startY: y, startTime: data.time, startPrice: data.price, startAnchorTime: data.anchorTime, startBarOffset: data.barOffset, tool: 'oval' };
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.stopPropagation();
   e.preventDefault();
@@ -299,9 +320,19 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
       if (data) {
         const dt = data.time - state.drawingDrag.startTime;
         const dp = data.price - state.drawingDrag.startPrice;
+        const o1 = state.drawingDrag.origP1;
+        const o2 = state.drawingDrag.origP2;
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
-          p1: { time: state.drawingDrag.origP1.time + dt, price: state.drawingDrag.origP1.price + dp },
-          p2: { time: state.drawingDrag.origP2.time + dt, price: state.drawingDrag.origP2.price + dp },
+          p1: {
+            time: o1.time + dt, price: o1.price + dp,
+            anchorTime: o1.anchorTime !== undefined ? o1.anchorTime + dt : undefined,
+            barOffset: o1.barOffset,
+          },
+          p2: {
+            time: o2.time + dt, price: o2.price + dp,
+            anchorTime: o2.anchorTime !== undefined ? o2.anchorTime + dt : undefined,
+            barOffset: o2.barOffset,
+          },
         }, true);
       }
     } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
@@ -344,25 +375,11 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   if (state.ovalResize) {
     container.style.cursor = 'grabbing';
     const { x, y } = getMousePos(e, container);
-    const data = getDataPos(chart, series, x, y);
+    const data = pixelToAnchoredPoint(chart, series, x, y);
     if (!data) return;
 
-    const { leftTime: lt, rightTime: rt, topPrice: tp, bottomPrice: bp } = state.ovalResize;
-    let newP1: { time: number; price: number };
-    let newP2: { time: number; price: number };
-    const h = state.ovalResize.handle;
-
-    // Cardinal handles (oval)
-    if (h === 'n')       { newP1 = { time: rt, price: bp }; newP2 = { time: data.time, price: data.price }; }
-    else if (h === 's')  { newP1 = { time: lt, price: tp }; newP2 = { time: data.time, price: data.price }; }
-    else if (h === 'e')  { newP1 = { time: lt, price: tp }; newP2 = { time: data.time, price: data.price }; }
-    else if (h === 'w')  { newP1 = { time: rt, price: bp }; newP2 = { time: data.time, price: data.price }; }
-    // Corner handles (rect)
-    else if (h === 'nw') { newP1 = { time: rt, price: bp }; newP2 = { time: data.time, price: data.price }; }
-    else if (h === 'ne') { newP1 = { time: lt, price: bp }; newP2 = { time: data.time, price: data.price }; }
-    else if (h === 'sw') { newP1 = { time: rt, price: tp }; newP2 = { time: data.time, price: data.price }; }
-    else if (h === 'se') { newP1 = { time: lt, price: tp }; newP2 = { time: data.time, price: data.price }; }
-    else return;
+    const newP1 = state.ovalResize.fixedCorner;
+    const newP2 = { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
 
     useStore.getState().updateDrawing(state.ovalResize.drawingId, { p1: newP1, p2: newP2 }, true);
     e.stopPropagation();
@@ -605,15 +622,18 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     // If mouse moved enough → finalize (drag-release flow)
     if (dx > 5 || dy > 5) {
       let createdId: string | null = null;
-      const data = getDataPos(chart, series, x, y);
+      const data = pixelToAnchoredPoint(chart, series, x, y);
       if (data && contract !== null) {
         const rectDef = useStore.getState().drawingDefaults['rect'];
         createdId = crypto.randomUUID();
         useStore.getState().addDrawing({
           id: createdId,
           type: 'rect',
-          p1: { time: state.rectCreation.startTime, price: state.rectCreation.startPrice },
-          p2: { time: data.time, price: data.price },
+          p1: {
+            time: state.rectCreation.startTime, price: state.rectCreation.startPrice,
+            anchorTime: state.rectCreation.startAnchorTime, barOffset: state.rectCreation.startBarOffset,
+          },
+          p2: { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset },
           color: rectDef?.color ?? DEFAULT_RECT_COLOR,
           strokeWidth: rectDef?.strokeWidth ?? 1,
           fillColor: rectDef?.fillColor ?? DEFAULT_RECT_FILL,
@@ -663,7 +683,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
   // Oval creation drag end
   if (!state.ovalDrag) return;
   const { x, y } = getMousePos(e, container);
-  const endData = getDataPos(chart, series, x, y);
+  const endData = pixelToAnchoredPoint(chart, series, x, y);
 
   primitive.clearDragPreview();
   chart.applyOptions({ handleScroll: true, handleScale: true });
@@ -678,8 +698,11 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       useStore.getState().addDrawing({
         id: createdId,
         type: 'oval',
-        p1: { time: state.ovalDrag.startTime, price: state.ovalDrag.startPrice },
-        p2: { time: endData.time, price: endData.price },
+        p1: {
+          time: state.ovalDrag.startTime, price: state.ovalDrag.startPrice,
+          anchorTime: state.ovalDrag.startAnchorTime, barOffset: state.ovalDrag.startBarOffset,
+        },
+        p2: { time: endData.time, price: endData.price, anchorTime: endData.anchorTime, barOffset: endData.barOffset },
         color: ovalDef?.color ?? DEFAULT_OVAL_COLOR,
         strokeWidth: ovalDef?.strokeWidth ?? 1,
         text: null,

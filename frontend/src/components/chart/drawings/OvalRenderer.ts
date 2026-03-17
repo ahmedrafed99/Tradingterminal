@@ -5,6 +5,17 @@ import type { OvalDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { hitTestOval } from './hitTesting';
 
+/** Convert an AnchoredPoint to CSS pixel X (sub-bar precision). */
+function ptX(point: { time: number; anchorTime?: number; barOffset?: number }, chart: IChartApiBase<Time>): number | null {
+  if (point.anchorTime !== undefined && point.barOffset !== undefined) {
+    const ax = chart.timeScale().timeToCoordinate(point.anchorTime as unknown as Time);
+    if (ax === null) return null;
+    const bs = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+    return ax + point.barOffset * bs;
+  }
+  return chart.timeScale().timeToCoordinate(point.time as unknown as Time);
+}
+
 class OvalRendererImpl implements IPrimitivePaneRenderer {
   private _drawing: OvalDrawing;
   private _selected: boolean;
@@ -25,9 +36,9 @@ class OvalRendererImpl implements IPrimitivePaneRenderer {
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
-      const cssX1 = this._chart.timeScale().timeToCoordinate(this._drawing.p1.time as unknown as Time);
+      const cssX1 = ptX(this._drawing.p1, this._chart);
       const cssY1 = this._series.priceToCoordinate(this._drawing.p1.price);
-      const cssX2 = this._chart.timeScale().timeToCoordinate(this._drawing.p2.time as unknown as Time);
+      const cssX2 = ptX(this._drawing.p2, this._chart);
       const cssY2 = this._series.priceToCoordinate(this._drawing.p2.price);
 
       if (cssX1 === null || cssY1 === null || cssX2 === null || cssY2 === null) return;
@@ -141,9 +152,9 @@ export class OvalPaneView implements IPrimitivePaneView {
   }
 
   hitTest(mouseX: number, mouseY: number): boolean {
-    const x1 = this._chart.timeScale().timeToCoordinate(this._drawing.p1.time as unknown as Time);
+    const x1 = ptX(this._drawing.p1, this._chart);
     const y1 = this._series.priceToCoordinate(this._drawing.p1.price);
-    const x2 = this._chart.timeScale().timeToCoordinate(this._drawing.p2.time as unknown as Time);
+    const x2 = ptX(this._drawing.p2, this._chart);
     const y2 = this._series.priceToCoordinate(this._drawing.p2.price);
 
     if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
@@ -160,9 +171,9 @@ export class OvalPaneView implements IPrimitivePaneView {
   hitTestHandle(mx: number, my: number): string | null {
     if (!this._selected) return null;
 
-    const x1 = this._chart.timeScale().timeToCoordinate(this._drawing.p1.time as unknown as Time);
+    const x1 = ptX(this._drawing.p1, this._chart);
     const y1 = this._series.priceToCoordinate(this._drawing.p1.price);
-    const x2 = this._chart.timeScale().timeToCoordinate(this._drawing.p2.time as unknown as Time);
+    const x2 = ptX(this._drawing.p2, this._chart);
     const y2 = this._series.priceToCoordinate(this._drawing.p2.price);
     if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
 
@@ -191,9 +202,9 @@ export class OvalPaneView implements IPrimitivePaneView {
   }
 
   getBoundingBox(): { x1: number; y1: number; x2: number; y2: number } | null {
-    const x1 = this._chart.timeScale().timeToCoordinate(this._drawing.p1.time as unknown as Time);
+    const x1 = ptX(this._drawing.p1, this._chart);
     const y1 = this._series.priceToCoordinate(this._drawing.p1.price);
-    const x2 = this._chart.timeScale().timeToCoordinate(this._drawing.p2.time as unknown as Time);
+    const x2 = ptX(this._drawing.p2, this._chart);
     const y2 = this._series.priceToCoordinate(this._drawing.p2.price);
     if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
     return { x1: Math.min(x1, x2), y1: Math.min(y1, y2), x2: Math.max(x1, x2), y2: Math.max(y1, y2) };

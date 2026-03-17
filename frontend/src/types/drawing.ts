@@ -43,13 +43,23 @@ export interface HLineDrawing extends DrawingBase {
 }
 
 // ---------------------------------------------------------------------------
+// Anchored point (sub-bar precision via anchorTime + barOffset)
+// ---------------------------------------------------------------------------
+export interface AnchoredPoint {
+  time: number;           // snapped bar time (backward compat + undo serialization)
+  price: number;
+  anchorTime?: number;    // nearest bar time (reference for offset calc)
+  barOffset?: number;     // fractional bar offset from anchorTime
+}
+
+// ---------------------------------------------------------------------------
 // Rectangle drawing
 // ---------------------------------------------------------------------------
 export interface RectDrawing extends DrawingBase {
   type: 'rect';
-  p1: { time: number; price: number };  // diagonal corner 1
-  p2: { time: number; price: number };  // diagonal corner 2
-  fillColor: string;                    // fill color (supports alpha, e.g. rgba)
+  p1: AnchoredPoint;     // diagonal corner 1
+  p2: AnchoredPoint;     // diagonal corner 2
+  fillColor: string;     // fill color (supports alpha, e.g. rgba)
 }
 
 // ---------------------------------------------------------------------------
@@ -57,8 +67,8 @@ export interface RectDrawing extends DrawingBase {
 // ---------------------------------------------------------------------------
 export interface OvalDrawing extends DrawingBase {
   type: 'oval';
-  p1: { time: number; price: number };  // bounding rect corner 1
-  p2: { time: number; price: number };  // bounding rect corner 2
+  p1: AnchoredPoint;     // bounding rect corner 1
+  p2: AnchoredPoint;     // bounding rect corner 2
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ export interface DrawingState {
   ovalDrag: {
     startX: number; startY: number;
     startTime: number; startPrice: number;
+    startAnchorTime?: number; startBarOffset?: number;
     tool: 'oval';
   } | null;
 
@@ -22,12 +23,9 @@ export interface DrawingState {
   ovalResize: {
     drawingId: string;
     handle: string;
-    leftTime: number;
-    rightTime: number;
-    topPrice: number;
-    bottomPrice: number;
-    origP1: { time: number; price: number };
-    origP2: { time: number; price: number };
+    fixedCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
+    origP1: { time: number; price: number; anchorTime?: number; barOffset?: number };
+    origP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
   } | null;
 
   drawingDrag: {
@@ -36,8 +34,8 @@ export interface DrawingState {
     startX: number;
     startY: number;
     origPrice: number;
-    origP1: { time: number; price: number };
-    origP2: { time: number; price: number };
+    origP1: { time: number; price: number; anchorTime?: number; barOffset?: number };
+    origP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
     origAnchorTime?: number;
     origBarOffsets?: { barOffset: number; price: number }[];
     startTime: number;
@@ -64,6 +62,7 @@ export interface DrawingState {
   rectCreation: {
     startX: number; startY: number;
     startTime: number; startPrice: number;
+    startAnchorTime?: number; startBarOffset?: number;
   } | null;
 
   freeDrawCreation: {
@@ -129,6 +128,37 @@ export function getDataPos(
   const price = series.coordinateToPrice(y);
   if (time === null || price === null) return null;
   return { time: time as number, price: price as number };
+}
+
+/** Convert an AnchoredPoint to CSS pixel X coordinate (sub-bar precision when available). */
+export function pointToPixelX(
+  point: { time: number; anchorTime?: number; barOffset?: number },
+  chart: IChartApi,
+): number | null {
+  if (point.anchorTime !== undefined && point.barOffset !== undefined) {
+    const anchorX = chart.timeScale().timeToCoordinate(point.anchorTime as unknown as Time);
+    if (anchorX === null) return null;
+    const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+    return anchorX + point.barOffset * barSpacing;
+  }
+  return chart.timeScale().timeToCoordinate(point.time as unknown as Time);
+}
+
+/** Build an AnchoredPoint from pixel coordinates (sub-bar precision). */
+export function pixelToAnchoredPoint(
+  chart: IChartApi,
+  series: ISeriesApi<'Candlestick'>,
+  x: number,
+  y: number,
+): { time: number; price: number; anchorTime: number; barOffset: number } | null {
+  const price = series.coordinateToPrice(y);
+  const snappedTime = chart.timeScale().coordinateToTime(x);
+  if (price === null || snappedTime === null) return null;
+  const anchorTime = snappedTime as number;
+  const anchorX = chart.timeScale().timeToCoordinate(snappedTime) ?? x;
+  const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+  const barOffset = (x - anchorX) / barSpacing;
+  return { time: anchorTime, price: price as number, anchorTime, barOffset };
 }
 
 /** Re-enable chart scroll/scale and reset cursor to crosshair. */
