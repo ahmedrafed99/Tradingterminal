@@ -16,10 +16,92 @@ const RetrieveBarsSchema = z.object({
   includePartialBar: z.boolean().optional(),
 });
 
-// POST /market/bars
+// ---------------------------------------------------------------------------
+// Quarterly futures contract rollover helpers
+// Quarterly months: H (Mar), M (Jun), U (Sep), Z (Dec)
+// ---------------------------------------------------------------------------
+
+const QUARTERLY_MONTHS = ['H', 'M', 'U', 'Z'] as const;
+
+/** Given a contract ID like CON.F.US.ENQ.M26, return the previous quarterly
+ *  contract ID (CON.F.US.ENQ.H26). Returns null for non-futures IDs. */
+function getPreviousContractId(contractId: string): string | null {
+  const match = contractId.match(/^(CON\.F\.US\.[^.]+\.)([HMUZ])(\d{2})$/);
+  if (!match) return null;
+
+  const prefix = match[1];       // CON.F.US.ENQ.
+  const monthCode = match[2];    // M
+  let year = parseInt(match[3]); // 26
+
+  const idx = QUARTERLY_MONTHS.indexOf(monthCode as typeof QUARTERLY_MONTHS[number]);
+  if (idx < 0) return null;
+
+  let prevIdx = idx - 1;
+  if (prevIdx < 0) {
+    prevIdx = QUARTERLY_MONTHS.length - 1; // wrap to Z
+    year -= 1;
+  }
+
+  if (year < 0) return null;
+  return `${prefix}${QUARTERLY_MONTHS[prevIdx]}${String(year).padStart(2, '0')}`;
+}
+
+// POST /market/bars — fetches from current contract, backfills from previous
+// contracts if the current one doesn't cover the full requested time range
 router.post('/bars', validateBody(RetrieveBarsSchema), withConnection(async (req, res) => {
-  const data = await getAdapter().marketData.retrieveBars(req.body);
-  res.json(data);
+  const adapter = getAdapter();
+  const { contractId, startTime, limit } = req.body;
+  const requestedStart = new Date(startTime).getTime();
+
+  // Fetch from the current (active) contract
+  const data = await adapter.marketData.retrieveBars(req.body) as {
+    bars?: Array<{ t: string; o: number; h: number; l: number; c: number; v: number }>;
+    success: boolean;
+  };
+
+  let allBars = data.bars ?? [];
+  const maxBars = limit ?? 20000;
+
+  // If bars don't reach back to startTime and we haven't hit the limit,
+  // fetch from previous contract(s) to fill the gap
+  if (allBars.length > 0 && allBars.length < maxBars) {
+    // API returns descending (newest first) — oldest bar is the last element
+    const oldestBarTime = new Date(allBars[allBars.length - 1].t).getTime();
+
+    if (oldestBarTime > requestedStart) {
+      let prevId = getPreviousContractId(contractId);
+      let remaining = maxBars - allBars.length;
+      let gapEnd = new Date(oldestBarTime - 60000).toISOString(); // 1 min before oldest
+
+      // Walk back through at most 2 previous contracts
+      for (let i = 0; i < 2 && prevId && remaining > 0; i++) {
+        try {
+          const prevData = await adapter.marketData.retrieveBars({
+            ...req.body,
+            contractId: prevId,
+            endTime: gapEnd,
+            limit: remaining,
+          }) as typeof data;
+
+          const prevBars = prevData.bars ?? [];
+          if (prevBars.length === 0) break;
+
+          allBars = allBars.concat(prevBars);
+          remaining -= prevBars.length;
+
+          // Move gap end further back if we still need more
+          const prevOldest = new Date(prevBars[prevBars.length - 1].t).getTime();
+          if (prevOldest <= requestedStart) break;
+          gapEnd = new Date(prevOldest - 60000).toISOString();
+          prevId = getPreviousContractId(prevId);
+        } catch {
+          break; // Previous contract may not exist in API
+        }
+      }
+    }
+  }
+
+  res.json({ ...data, bars: allBars });
 }));
 
 // GET /market/contracts/search?q=NQ

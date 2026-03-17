@@ -125,8 +125,21 @@ interface ChartState {
 
 | Action | Proxy Route | ProjectX Endpoint |
 |--------|------------|-------------------|
-| Load bars | GET /market/bars | POST /api/History/retrieveBars |
+| Load bars | POST /market/bars | POST /api/History/retrieveBars |
 | Real-time quote | SignalR market feed | /hubs/market → GotQuote |
+
+### Contract Rollover Backfill
+
+When loading historical bars, the backend fetches from the **current active
+contract** first. If the returned bars don't reach back to the requested
+`startTime` (common after a quarterly futures rollover), it automatically
+fetches the gap from **previous contracts** by decrementing the quarterly
+expiry code (e.g. `M26` → `H26` → `Z25`). Up to 2 previous contracts are
+queried. The merged result is returned as a single `bars` array so the chart
+always has a full lookback window regardless of when the last rollover occurred.
+
+Quarterly month codes: **H** (Mar), **M** (Jun), **U** (Sep), **Z** (Dec).
+Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
 
 ---
 
