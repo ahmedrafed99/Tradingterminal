@@ -35,6 +35,8 @@ export function onShiftRulerKey(e: KeyboardEvent, ctx: DrawingContext): void {
     // Don't activate if another interaction is in progress
     if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
         || state.arrowPathCreation || state.rectCreation || state.freeDrawCreation || state.ctrlDragSelect) return;
+    // Don't re-activate if a ruler was already drawn in this Shift hold
+    if (state.shiftRulerConsumed) return;
     // Only activate from select tool (avoid overriding other tools)
     if (st.activeTool !== 'select' && st.activeTool !== 'ruler') return;
     if (st.activeTool !== 'ruler') {
@@ -43,6 +45,8 @@ export function onShiftRulerKey(e: KeyboardEvent, ctx: DrawingContext): void {
   }
 
   if (e.type === 'keyup' && e.key === 'Shift') {
+    // Reset consumed flag so next Shift press can activate ruler again
+    state.shiftRulerConsumed = false;
     // Only restore if ruler is active and no ruler creation is in progress
     if (st.activeTool === 'ruler' && !state.rulerCreation && !state.rulerDisplayActive) {
       st.setActiveTool('select');
@@ -672,6 +676,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         } else {
           state.rulerCreation = null;
           state.rulerDisplayActive = true;
+          state.shiftRulerConsumed = true;
           chart.applyOptions({ handleScroll: true, handleScale: true });
           useStore.getState().setActiveTool('select');
         }

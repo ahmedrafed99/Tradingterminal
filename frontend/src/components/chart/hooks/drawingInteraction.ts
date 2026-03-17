@@ -19,6 +19,7 @@ export interface DrawingState {
     startTime: number; startPrice: number;
   } | null;
   rulerDisplayActive: boolean;
+  shiftRulerConsumed: boolean;
 
   ovalResize: {
     drawingId: string;
@@ -98,6 +99,7 @@ export function createDrawingState(): DrawingState {
     ovalDrag: null,
     rulerCreation: null,
     rulerDisplayActive: false,
+    shiftRulerConsumed: false,
     ovalResize: null,
     drawingDrag: null,
     drawingDragOccurred: false,
