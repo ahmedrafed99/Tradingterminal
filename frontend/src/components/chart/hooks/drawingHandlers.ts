@@ -1,6 +1,6 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
-import { DEFAULT_OVAL_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
+import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
@@ -457,7 +457,8 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   // Oval creation drag preview
   if (!state.ovalDrag) return;
   const { x, y } = getMousePos(e, container);
-  primitive.setDragPreview(state.ovalDrag.startX, state.ovalDrag.startY, x, y);
+  const ovalDef = useStore.getState().drawingDefaults['oval'];
+  primitive.setDragPreview(state.ovalDrag.startX, state.ovalDrag.startY, x, y, ovalDef?.fillColor ?? DEFAULT_OVAL_FILL);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -710,6 +711,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         p2: { time: endData.time, price: endData.price, anchorTime: endData.anchorTime, barOffset: endData.barOffset },
         color: ovalDef?.color ?? DEFAULT_OVAL_COLOR,
         strokeWidth: ovalDef?.strokeWidth ?? 1,
+        fillColor: ovalDef?.fillColor ?? DEFAULT_OVAL_FILL,
         text: null,
         contractId: String(contract.id),
       });

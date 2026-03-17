@@ -97,10 +97,11 @@ HTML elements always render above canvas content. Within the HTML layer, z-index
   crosshair label from clearing.
 
 ### Canvas Primitive Attachment Order (z-order, bottom to top)
-1. VolumeProfilePrimitive (volume profile bars)
-2. TradeZonePrimitive (entry/exit trade rectangles)
-3. CountdownPrimitive (current price + bar countdown)
-4. DrawingsPrimitive (drawing price labels, selected overrides current)
+1. CountdownPrimitive (current price + bar countdown)
+2. VolumeProfilePrimitive (volume profile bars)
+3. NewsEventsPrimitive (economic calendar markers at bottom of chart)
+4. TradeZonePrimitive (entry/exit trade rectangles)
+5. DrawingsPrimitive (drawing price labels, selected overrides current)
 
 ### Cursor Management
 - Custom white crosshair SVG cursor (stroke-width 2, `#ffffff`)

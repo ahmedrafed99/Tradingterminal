@@ -70,6 +70,8 @@ interface DrawingBase {
 interface HLineDrawing extends DrawingBase {
   type: 'hline';
   price: number;
+  startTime: number;      // timestamp where the line was placed
+  extendLeft: boolean;    // true = full width, false = starts at startTime going right
 }
 
 interface AnchoredPoint {
@@ -90,6 +92,7 @@ interface OvalDrawing extends DrawingBase {
   type: 'oval';
   p1: AnchoredPoint;     // bounding rect corner 1
   p2: AnchoredPoint;     // bounding rect corner 2
+  fillColor: string;     // rgba fill (supports opacity)
 }
 
 interface ArrowPathDrawing extends DrawingBase {
@@ -115,7 +118,7 @@ interface HLineTemplate {
 }
 ```
 
-Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_ARROWPATH_COLOR = '#ff9800'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
+Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_ARROWPATH_COLOR = '#f7c948'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
 
 ### UI Components
 
@@ -142,7 +145,7 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, 
 
 | File | Changes |
 |------|---------|
-| `frontend/src/store/useStore.ts` | DrawingsState slice + HLineTemplatesState slice |
+| `frontend/src/store/slices/drawingsSlice.ts` | DrawingsState slice + HLineTemplatesState slice |
 | `frontend/src/components/chart/ChartArea.tsx` | Renders single `DrawingToolbar` on left edge of chart area |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Primitive attachment, click/drag handlers, keyboard shortcuts, edit toolbar rendering |
 
@@ -156,16 +159,23 @@ interface DrawingsState {
   drawingToolbarOpen: boolean;       // persisted
   selectedDrawingIds: string[];      // ephemeral — empty=none, single=edit toolbar, multi=bulk toolbar
   drawings: Drawing[];               // persisted
+  drawingDefaults: Record<string, DrawingStyleDefaults>; // persisted — per-tool color/stroke/fill defaults
+  drawingUndoStack: UndoEntry[];     // ephemeral — max 50 entries
 
   setActiveTool: (tool: DrawingTool) => void;     // also clears selection
   setDrawingToolbarOpen: (open: boolean) => void;
   setSelectedDrawingIds: (ids: string[]) => void;
   addDrawing: (drawing: Drawing) => void;
-  updateDrawing: (id: string, patch: Partial<Drawing>) => void;
+  updateDrawing: (id: string, patch: Partial<Drawing>, skipUndo?: boolean) => void;
   removeDrawing: (id: string) => void;             // also filters from selectedDrawingIds
   removeDrawings: (ids: string[]) => void;         // bulk delete, single 'bulkRemove' undo entry
   clearAllDrawings: () => void;                    // removes all drawings, undoable via Ctrl+Z
+  pushDrawingUndo: (entry: UndoEntry) => void;
+  undoDrawing: () => void;                         // Ctrl+Z — pops last entry and reverses it
 }
+
+// UndoEntry types: 'add' | 'update' | 'remove' | 'clear' | 'bulkRemove'
+// Each stores the previous state needed to reverse the operation.
 
 interface HLineTemplatesState {
   hlineTemplates: HLineTemplate[];   // persisted
@@ -209,7 +219,7 @@ Floating toolbar positioned above the selected drawing, rendered per chart insta
 
 **Layout:** `[ Pencil+color | T ] | [ ─ 1px ] | [ Template v ] | [ Trash ]`
 
-Template button only shown for hline drawings. Fill color button (bucket icon) only shown for rect drawings.
+Template button only shown for hline drawings. Fill color button (bucket icon) shown for rect and oval drawings.
 
 - Vertical dividers between logical groups
 - 32x32px button targets with 6px border-radius
@@ -240,7 +250,7 @@ Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | RectPa
 
 Key methods:
 - `setDrawings(drawings, selectedIds)` — rebuilds views, calls `requestUpdate()`
-- `setDragPreview(x1, y1, x2, y2)` / `clearDragPreview()` — ellipse preview with cardinal handles during oval creation
+- `setDragPreview(x1, y1, x2, y2, fillColor?)` / `clearDragPreview()` — ellipse preview with fill + cardinal handles during oval creation
 - `setRectPreview(x1, y1, x2, y2)` / `clearRectPreview()` — rect preview with corner handles during rect creation
 - `setArrowPathPreview(points)` / `clearArrowPathPreview()` — polyline preview with node handles during arrow path creation
 - `setFreeDrawPreview(points, color, strokeWidth)` / `clearFreeDrawPreview()` — live brush stroke during free draw creation
@@ -278,7 +288,8 @@ Draws a rectangle defined by two diagonal corners (p1, p2).
 
 Draws an ellipse inscribed in the bounding rectangle defined by p1 and p2.
 
-- `ctx.ellipse(cx, cy, rx, ry, 0, 0, 2*PI)` + stroke
+- Fill: `drawing.fillColor` (rgba with opacity support)
+- `ctx.ellipse(cx, cy, rx, ry, 0, 0, 2*PI)` + fill + stroke
 - Selected: 4 circular handles (white fill, oval color stroke) at cardinal points (top, bottom, left, right)
 - Text label: positioned relative to ellipse center and radii
 - Hit test: normalized ellipse distance check `|d - 1.0| < tolerance / min(rx, ry)`
@@ -328,9 +339,12 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 
 - Tool: `oval`
 - `mousedown` records start point, disables chart scroll
-- `mousemove` shows live ellipse preview via `primitive.setDragPreview()`
+- `mousemove` shows live ellipse preview via `primitive.setDragPreview()` (includes fill color from defaults)
 - `mouseup` creates oval if drag distance > 5px, switches to select tool and auto-selects the new drawing
 - Minimum drag threshold prevents accidental creation on clicks
+- Sticky defaults: stroke color, stroke width, and fill color (including opacity) are remembered across ovals via `drawingDefaults['oval']`
+- Default fill: `rgba(255, 152, 0, 0.15)` (orange at 15% opacity), default stroke: `#ff9800`
+- Edit toolbar shows: border color picker, fill color picker with opacity slider, text, stroke width, delete
 
 ### Arrow path creation (click-to-place nodes)
 

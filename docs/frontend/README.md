@@ -6,7 +6,7 @@ Full index of shared components, constants, store slices, hooks, utilities, and 
 
 ## Zustand Store (`store/`)
 
-The store is split into **7 domain slices** combined in `useStore.ts` via Zustand's `persist` middleware with `partialize` for selective localStorage persistence.
+The store is split into **9 domain slices** combined in `useStore.ts` via Zustand's `persist` middleware with `partialize` for selective localStorage persistence.
 
 ```
 store/
@@ -22,6 +22,8 @@ store/
     ├── drawingsSlice.ts     ← drawing tools, templates, defaults, custom colors
     ├── layoutSlice.ts       ← dual chart, split ratio, bottom panel, VP settings
     ├── conditionsSlice.ts   ← conditional orders, condition server URL
+    ├── chartSettingsSlice.ts← bar colors, canvas background, FPS counter, trade zone settings
+    ├── shortcutsSlice.ts    ← custom keyboard shortcut bindings
     └── toastSlice.ts        ← toast notifications queue
 ```
 
@@ -89,6 +91,10 @@ The backdrop always uses `bg-black/60` (design token). Do **not** add a second b
 
 ## Constants (`constants/`)
 
+### `shortcuts.ts` — Keyboard Shortcut Definitions
+
+Defines `SHORTCUT_IDS` and default key combinations for configurable shortcuts (e.g. drawing tools, quick actions). Used by `shortcutsSlice.ts` and `ShortcutsTab.tsx`.
+
 ### `colors.ts` — Semantic Color Tokens (JS contexts)
 
 For **inline styles**, **canvas drawing**, and **JS logic** (not Tailwind classes — JIT needs literal strings).
@@ -143,6 +149,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 | `useClickOutside` | `hooks/useClickOutside.ts` | Close dropdowns/popovers on outside click | TopBar, BracketSummary, DatePresetSelector, ConditionsTab, InstrumentSelector, InstrumentSelectorPopover |
 | `useInstrumentSearch` | `hooks/useInstrumentSearch.ts` | Debounced contract search, bookmark resolution, `isBookmarked`, `toggleBookmark` | InstrumentSelector, InstrumentSelectorPopover |
 | `useSettingsSync` | `hooks/useSettingsSync.ts` | Two-way sync between Zustand store and backend file persistence | App.tsx |
+| `useRemoteDrawings` | `hooks/useRemoteDrawings.ts` | Polls `/drawings/pending` and syncs remote drawings into store. Supports `_command: 'clearAll'` | App.tsx |
 
 **Important**: `useInstrumentSearch` is a **data/logic hook only**. The two instrument selector components (InstrumentSelector and InstrumentSelectorPopover) have different UI — do not merge their visual implementations.
 
@@ -180,10 +187,22 @@ All services call the local Express proxy (never ProjectX directly). See `docs/a
 | `databaseService` | `services/databaseService.ts` | Local SQLite candle storage |
 | `newsService` | `services/newsService.ts` | Economic calendar events |
 | `audioService` | `services/audioService.ts` | Voice notification playback on fills |
+| `api` | `services/api.ts` | Base axios instance with error-handling interceptor |
+| `credentialService` | `services/credentialService.ts` | Load/save/clear encrypted credentials via backend |
+| `positionService` | `services/positionService.ts` | Open positions REST query (graceful degradation to SignalR-only) |
+| `conditionTickForwarder` | `services/conditionTickForwarder.ts` | WebSocket bridge forwarding quote ticks to condition engine |
+| `manualCloseTracker` | `services/manualCloseTracker.ts` | Tracks manual position closes to prevent wrong sound alerts |
 
 ---
 
 ## Types (`types/`)
+
+| File | Contents |
+|------|----------|
+| `types/enums.ts` | OrderType, OrderSide, OrderStatus, PositionType enums |
+| `types/bracket.ts` | BracketConfig, BracketCondition, ConditionTrigger, ConditionAction, BracketPreset |
+| `types/drawing.ts` | Drawing union type, DrawingBase, all drawing subtypes, DrawingText, AnchoredPoint, constants |
+| `types/news.ts` | EconomicEvent type for calendar markers |
 
 ### `OrderStatus` enum (`types/enums.ts`)
 

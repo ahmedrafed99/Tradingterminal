@@ -71,15 +71,15 @@ and the preview toggle that overlays ghost lines on the chart.
 
 ### `ContractsSpinner`
 - Integer input with circular `rounded-full` +/− buttons (`w-7 h-7`), min = 1
-- Button text: `text-base font-medium text-[#d1d4dc]`, uses proper minus sign `−`
+- Button text: `text-base font-medium text-(--color-text)`, uses proper minus sign `−`
 - Value stored as `orderSize` in Zustand
 
 ### `BracketSummary`
 - Preset dropdown (no chevron arrow) + read-only config summary (SL, TPs, conditions)
-- Dropdown styled like timeframe selector: `bg-black border-[#2a2e39] rounded-lg`, items `rounded-md`, selected item `text-[#f0a830] bg-[#1e222d]`, hover `bg-[#1e222d]`
-- SL values: `text-[#a62a3d]` (draft: `text-[#c4475a]`), TP values: `text-[#22835b]` (draft: `text-[#3aa876]`), conditions: `text-[#4a80b0]`
+- Dropdown styled like timeframe selector: `bg-black border-(--color-border) rounded-lg`, items `rounded-md`, selected item `text-(--color-warning) bg-(--color-hover-row)`, hover `bg-(--color-hover-row)`
+- SL values: `text-(--color-btn-sell-hover)` (draft: `text-(--color-sell)`), TP values: `text-(--color-btn-buy-hover)` (draft: `text-(--color-buy)`), conditions: `text-(--color-accent-text)`
 - Plus icon opens new preset; hover reveals edit (pencil) and delete (trash) icons per preset
-- Delete button: `hover:text-[#f23645]`, auto-deselects if deleting the active preset
+- Delete button: `hover:text-(--color-error)`, auto-deselects if deleting the active preset
 - **Suspended state**: When a position is open (`suspendPreset` sets `activePresetId` to null and stores the previous id in `suspendedPresetId`), the config summary remains visible but dimmed (`opacity-35`, `pointer-events-none`) to prevent layout shift. The dropdown still shows the suspended preset name. When the position closes, `restorePreset` re-activates the preset and the summary returns to full opacity.
 
 ### `PreviewCheckbox`
@@ -87,9 +87,9 @@ and the preview toggle that overlays ghost lines on the chart.
 - When enabled the `PreviewOverlay` in the chart renders ghost lines
 
 ### `BuySellButtons`
-- **Buy** (`bg-[#1b6b4a]`, hover `#22835b`): label `Buy +{size} {Market|Limit}`
-- **Sell** (`bg-[#8b2232]`, hover `#a62a3d`): label `Sell -{size} {Market|Limit}`
-- `text-[11px] font-bold text-[#d1d4dc]`, side-by-side layout
+- **Buy** (`bg-(--color-btn-buy)`, hover `bg-(--color-btn-buy-hover)`): label `Buy +{size} {Market|Limit}`
+- **Sell** (`bg-(--color-btn-sell)`, hover `bg-(--color-btn-sell-hover)`): label `Sell -{size} {Market|Limit}`
+- `text-[11px] font-bold text-(--color-text)`, side-by-side layout
 - Both use `activeAccountId`, `activeContractId`, `orderSize`, and the active
   bracket configuration from the store
 - Buttons disabled when: not connected, no instrument selected, **or market is closed**
@@ -105,7 +105,7 @@ and the preview toggle that overlays ghost lines on the chart.
   1. **Bracket session active**: delegates to `bracketEngine.moveSLToBreakeven()` (modifies tracked SL order)
   2. **Existing SL order found** (stop type 4/5 on same contract): modifies it to entry price via `orderService.modifyOrder()`
   3. **No SL exists** (naked position): places a new stop order at entry price via `orderService.placeOrder()` (sell stop for long, buy stop for short)
-- Button styling matches Buy/Sell: `py-2.5 text-[11px] font-bold`, outlined variant (`border-[#363a45]`)
+- Button styling matches Buy/Sell: `py-2.5 text-[11px] font-bold`, outlined variant (`border-(--color-hover-toolbar)`)
 
 ---
 
@@ -121,15 +121,50 @@ interface OrderPanelState {
   limitPrice: number | null
   orderSize: number                   // contracts
   previewEnabled: boolean
-  previewSide: 0 | 1                  // Long / Short for preview lines
+  previewSide: OrderSide              // Long / Short for preview lines
   previewHideEntry: boolean           // true when limit order placed with preview
   bracketPresets: BracketPreset[]
   activePresetId: string | null
+  suspendedPresetId: string | null    // preset suspended while position is open
+  lastPrice: number | null
+
+  // Draft overrides (ephemeral — for preview line dragging)
+  draftSlPoints: number | null
+  draftTpPoints: (number | null)[]
+  setDraftSlPoints: (p: number | null) => void
+  setDraftTpPoints: (idx: number, p: number | null) => void
+  clearDraftOverrides: () => void
+
+  // Ad-hoc brackets (no preset selected — +SL/+TP from entry label)
+  adHocSlPoints: number | null
+  adHocTpLevels: { points: number; size: number }[]
+  setAdHocSlPoints: (p: number | null) => void
+  addAdHocTp: (points: number, size: number) => void
+  removeAdHocTp: (index: number) => void
+  updateAdHocTpPoints: (index: number, points: number) => void
+  clearAdHocBrackets: () => void
+
+  // Quick Order pending preview (tracks SL/TP while entry is pending fill)
+  qoPendingPreview: {
+    entryPrice: number; slPrice: number | null;
+    tpPrices: number[]; side: OrderSide;
+    orderSize: number; tpSizes: number[];
+  } | null
+  setQoPendingPreview: (preview: ...) => void
+
+  // Actions
   setOrderContract: (contract: Contract) => void
-  setOrderType: (t: OrderType) => void
-  setLimitPrice: (p: number) => void
+  setOrderType: (t: 'market' | 'limit') => void
+  setLimitPrice: (p: number | null) => void
   setOrderSize: (n: number) => void
   togglePreview: () => void
+  setPreviewSide: (side: OrderSide) => void
+  setActivePresetId: (id: string | null) => void
+  suspendPreset: () => void
+  restorePreset: () => void
+  savePreset: (preset: BracketPreset) => void
+  deletePreset: (id: string) => void
+  setLastPrice: (p: number | null) => void
 }
 ```
 

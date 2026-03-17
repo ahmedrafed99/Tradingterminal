@@ -10,6 +10,7 @@ which adds credentials and forwards the request.
 
 ```
 frontend/src/services/
+├── api.ts                  ← base axios instance with error-handling interceptor
 ├── authService.ts          ← connect / disconnect / status / listExchanges
 ├── accountService.ts       ← list accounts
 ├── marketDataService.ts    ← bars history + contract search
@@ -17,7 +18,15 @@ frontend/src/services/
 ├── realtimeService.ts      ← realtime hub manager (delegates to active adapter)
 ├── positionService.ts      ← open positions (REST)
 ├── tradeService.ts         ← trade history
-└── persistenceService.ts   ← load / save settings to backend file
+├── persistenceService.ts   ← load / save settings to backend file
+├── credentialService.ts    ← load / save / clear encrypted credentials
+├── conditionService.ts     ← conditional orders CRUD + SSE events
+├── databaseService.ts      ← local SQLite candle storage, backfill, backup
+├── newsService.ts          ← economic calendar events (cached)
+├── audioService.ts         ← voice notification playback on fills
+├── bracketEngine.ts        ← client-side SL/TP management after fill
+├── conditionTickForwarder.ts ← WebSocket bridge forwarding quote ticks to condition engine
+└── manualCloseTracker.ts   ← tracks manual position closes (prevents wrong sound alerts)
 
 frontend/src/adapters/
 ├── types.ts                ← Canonical types (Quote, RealtimeOrder, etc.) + RealtimeAdapter interface
@@ -47,13 +56,22 @@ backend/src/
 ├── routes/
 │   ├── authRoutes.ts       ← multi-exchange connect/disconnect/status/exchanges/default
 │   ├── accountRoutes.ts
-│   ├── marketDataRoutes.ts
+│   ├── marketDataRoutes.ts ← bars history + automatic quarterly rollover backfill
 │   ├── orderRoutes.ts
+│   ├── positionRoutes.ts   ← GET /positions/open (searchOpen)
 │   ├── tradeRoutes.ts
 │   ├── newsRoutes.ts       ← economic calendar proxy (GET /news/economic)
-│   └── settingsRoutes.ts   ← file-based settings persistence (GET/PUT, Zod validated)
+│   ├── settingsRoutes.ts   ← file-based settings persistence (GET/PUT, Zod validated)
+│   ├── credentialRoutes.ts ← encrypted credential storage (GET/PUT/DELETE, AES-256-GCM)
+│   ├── databaseRoutes.ts   ← SQLite backfill, sync, candles, backup (10 endpoints)
+│   ├── drawingRoutes.ts    ← inter-client drawing queue (add/pending/clear)
+│   └── conditionRoutes.ts  ← condition CRUD + SSE events + pause/resume
+├── services/
+│   ├── backfillService.ts  ← bar history fetching with progress tracking + rollover mapping
+│   └── conditionEngine.ts  ← condition evaluation and order placement
 └── data/
-    └── user-settings.json  ← persisted settings (gitignored, auto-created)
+    ├── user-settings.json  ← persisted settings (gitignored, auto-created)
+    └── .credentials.enc    ← AES-256-GCM encrypted credentials (machine-derived key)
 ```
 
 Routes are exchange-agnostic — they call `getAdapter().domain.method()` instead of axios directly. The adapter is selected during `/auth/connect` via `createAdapter(exchange)` from `factory.ts`. All authenticated routes use `withConnection()` middleware from `middleware/withConnection.ts` (auth guard — returns 401 if no adapter connected). Input validation uses `validateBody()` / `validateQuery()` from `validate.ts` with Zod schemas.
@@ -209,9 +227,11 @@ onPosition(handler): void    offPosition(handler): void
 onAccount(handler):  void    offAccount(handler):  void
 onTrade(handler):    void    offTrade(handler):    void
 
-// Reconnect callback
+// Reconnect callbacks
 onUserReconnect(handler: () => void): void
 offUserReconnect(handler: () => void): void
+onMarketReconnect(handler: () => void): void
+offMarketReconnect(handler: () => void): void
 
 // Utility
 ping(): Promise<number>   // WebSocket round-trip latency in ms
@@ -292,6 +312,65 @@ Legacy fields (`userName`, `apiKey`, `baseUrl`) are supported for backward compa
 
 No adapter call — these endpoints read/write directly to the local filesystem. See `../settings-persistence/README.md` for full details.
 
+### Positions
+
+| Method | Path | Adapter call |
+|--------|------|-------------|
+| GET | /positions/open?accountId= | `adapter.positions.searchOpen(accountId)` |
+
+### Credentials (Encrypted Persistence)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /credentials | Load encrypted credentials (AES-256-GCM, machine-derived key). Returns `{ success, data: { userName, apiKey } }` or `{ success, data: null }` |
+| PUT | /credentials | Save encrypted credentials. Body: `{ userName, apiKey }` |
+| DELETE | /credentials | Clear saved credentials (removes `.credentials.enc` file) |
+
+Encryption uses `scrypt(hostname + homedir + 'trading-terminal')` as key. Format: `iv:tag:ciphertext` (hex). Decryption failures (machine changed) are treated as empty.
+
+### Database (SQLite Backfill & Candle Storage)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /database/status | Database state (stored symbols, sizes) |
+| POST | /database/fetch | Start bar backfill job for a symbol |
+| POST | /database/fetch/sync-all | Trigger sync of all stored symbols |
+| GET | /database/fetch/progress | Get fetch job progress |
+| POST | /database/fetch/cancel | Cancel active fetch job |
+| GET | /database/candles | Query aggregated candles (timeframe, range) |
+| DELETE | /database/contracts/:id | Delete contract data from database |
+| POST | /database/backup | Create manual backup |
+| GET | /database/backup/download | Download database file |
+| GET | /database/backups | List existing backups |
+
+### Drawings (Inter-Client Queue)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /drawings/add | Queue a drawing for other clients |
+| GET | /drawings/pending | Poll for pending drawings |
+| POST | /drawings/clear-chart | Queue command to clear all drawings |
+| DELETE | /drawings/clear | Clear the drawing queue |
+
+### Conditions (Conditional Orders Engine)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /conditions/events | Server-Sent Events (SSE) stream for real-time updates |
+| GET | /conditions | List all conditions |
+| GET | /conditions/:id | Get single condition |
+| POST | /conditions | Create condition |
+| PATCH | /conditions/:id | Update condition |
+| POST | /conditions/:id/pause | Pause condition execution |
+| POST | /conditions/:id/resume | Resume condition execution |
+| DELETE | /conditions/:id | Delete condition |
+
+### News (Economic Calendar)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /news/economic | Proxy to FXStreet API with 4-hour server-side cache |
+
 ### WebSocket / SignalR
 
 The adapter optionally provides two realtime handlers mounted by `index.ts`:
@@ -299,6 +378,9 @@ The adapter optionally provides two realtime handlers mounted by `index.ts`:
 - **WS upgrade**: `server.on('upgrade', adapter.realtime.handleUpgrade)` — proxies WebSocket connections, injecting JWT as query param
 
 Both check if `adapter.realtime` exists before delegating — exchanges without SignalR (e.g. crypto) can omit realtime entirely.
+
+Additionally, a separate WebSocket endpoint exists for condition tick forwarding:
+- **`/ws/condition-quotes`** — receives quote ticks from the frontend (`conditionTickForwarder.ts`) and forwards them to the condition engine for real-time price monitoring. Uses a standalone `WebSocket.Server` separate from SignalR.
 
 ### Auto-Connect
 

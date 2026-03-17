@@ -29,12 +29,14 @@ class DragPreviewRenderer implements IPrimitivePaneRenderer {
   private _y1: number;
   private _x2: number;
   private _y2: number;
+  private _fillColor: string;
 
-  constructor(x1: number, y1: number, x2: number, y2: number) {
+  constructor(x1: number, y1: number, x2: number, y2: number, fillColor: string) {
     this._x1 = x1;
     this._y1 = y1;
     this._x2 = x2;
     this._y2 = y2;
+    this._fillColor = fillColor;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -49,6 +51,12 @@ class DragPreviewRenderer implements IPrimitivePaneRenderer {
       // Draw the ellipse preview
       ctx.beginPath();
       ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+
+      if (this._fillColor) {
+        ctx.fillStyle = this._fillColor;
+        ctx.fill();
+      }
+
       ctx.strokeStyle = '#ff9800';
       ctx.lineWidth = 1;
       ctx.stroke();
@@ -73,12 +81,14 @@ class DragPreviewPaneView implements IPrimitivePaneView {
   private _y1: number;
   private _x2: number;
   private _y2: number;
+  private _fillColor: string;
 
-  constructor(x1: number, y1: number, x2: number, y2: number) {
+  constructor(x1: number, y1: number, x2: number, y2: number, fillColor: string) {
     this._x1 = x1;
     this._y1 = y1;
     this._x2 = x2;
     this._y2 = y2;
+    this._fillColor = fillColor;
   }
 
   zOrder(): 'top' {
@@ -86,7 +96,7 @@ class DragPreviewPaneView implements IPrimitivePaneView {
   }
 
   renderer(): IPrimitivePaneRenderer | null {
-    return new DragPreviewRenderer(this._x1, this._y1, this._x2, this._y2);
+    return new DragPreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._fillColor);
   }
 }
 
@@ -715,8 +725,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   /** Show a dashed line during oval drag creation */
-  setDragPreview(x1: number, y1: number, x2: number, y2: number): void {
-    this._dragPreview = new DragPreviewPaneView(x1, y1, x2, y2);
+  setDragPreview(x1: number, y1: number, x2: number, y2: number, fillColor: string = ''): void {
+    this._dragPreview = new DragPreviewPaneView(x1, y1, x2, y2, fillColor);
     this._requestUpdate?.();
   }
 

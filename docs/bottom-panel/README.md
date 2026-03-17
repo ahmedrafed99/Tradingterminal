@@ -1,10 +1,10 @@
 # Bottom Panel
 
-Collapsible, resizable panel below the chart displaying **Orders** and **Trades** tabs.
+Collapsible, resizable panel below the chart displaying **Orders**, **Trades**, and **Conditions** tabs.
 
 ## Layout
 
-- **Tab bar** (h-10, always visible) sits at the bottom of the screen with Orders / Trades tabs, item counts, and a collapse/expand chevron.
+- **Tab bar** (h-10, always visible) sits at the bottom of the screen with Orders / Trades / Conditions tabs, item counts, and a collapse/expand chevron.
 - **Content area** appears above the tab bar when expanded, rendered as a flex-ratio split with the chart area via `VerticalSeparator` in `App.tsx`.
 - Panel ratio is draggable (15%–60%) and persisted to localStorage.
 
@@ -15,6 +15,7 @@ Collapsible, resizable panel below the chart displaying **Orders** and **Trades*
 | `BottomPanel.tsx` | Container with tab bar, tab switching, collapse/expand toggle. ConditionsTab stays mounted (hidden) to keep SSE alive |
 | `OrdersTab.tsx` | Table of open orders with cancel buttons |
 | `TradesTab.tsx` | Grid of trades with date preset selector and click-to-show-on-chart |
+| `ConditionsTab.tsx` | Table of armed/paused/triggered conditions with SSE updates. Stays mounted (hidden) to keep SSE connection alive |
 | `DatePresetSelector.tsx` | Dropdown for choosing trade date range (Today, This Week, This Month). Shows per-preset trade counts in both the trigger button and dropdown options. Animated open/close (fade + slide, 150ms) |
 
 ## Store (Zustand)
@@ -28,14 +29,15 @@ State lives in the `layoutSlice` (`store/slices/layoutSlice.ts`). See `docs/fron
 | `bottomPanelTab` | `'orders' \| 'trades' \| 'conditions'` | `'orders'` | Yes |
 | `tradesDatePreset` | `DatePreset` | `'today'` | Yes |
 | `sessionTrades` | `Trade[]` | `[]` | No |
-| `visibleTradeIds` | `number[]` | `[]` | No |
+| `displayTrades` | `Trade[]` | `[]` | No |
+| `visibleTradeIds` | `string[]` | `[]` | No |
 
-Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setTradesDatePreset`, `setSessionTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
+Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setTradesDatePreset`, `setSessionTrades`, `setDisplayTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
 
 ## Orders Tab
 
 - Reads `openOrders` from store (kept in sync by OrderPanel's SignalR handlers).
-- Columns: Side, Type, Symbol, Size, Price, Cancel button.
+- Columns: Side, Type, Symbol, Qty, Price, Cancel button.
 - Cancel calls `orderService.cancelOrder(accountId, orderId)`.
 - No additional data fetching needed — store is already live via SignalR.
 
@@ -77,14 +79,26 @@ When a trade ID is in `visibleTradeIds`, `useChartWidgets` renders trade zone ov
 - `DATE_PRESET_LABELS` — display labels for each preset.
 - `getDateRange(preset)` — returns `{ startTimestamp, endTimestamp? }` for the given preset. Used by `TradesTab` and `DatePresetSelector`. The "week" preset uses the **futures trading week** boundary: Sunday 6 PM New York time (when CME futures reopen). If the current time is Sunday before 6 PM, it rolls back to the previous Sunday 6 PM.
 
+## Conditions Tab
+
+- Subscribes to `GET /conditions/events` (SSE) for real-time condition status updates.
+- Displays conditions with columns: Status, Condition Type, Trigger Price, Timeframe, Order, Symbol, Bracket, Actions.
+- Status badge shows Armed (green), Paused (yellow), Triggered (blue), Failed (red), Expired (gray).
+- Actions: Pause/Resume toggle, Delete button.
+- Preview checkbox: toggles condition preview lines on the chart.
+- Count badge in tab bar shows number of `armed` conditions.
+- ConditionsTab stays mounted (hidden) when other tabs are active to keep the SSE connection alive.
+
+---
+
 ## Styling
 
 Consistent with the app's dark theme:
 
 - Panel/header background: `bg-black`
-- Borders: `border-[#2a2e39]`
-- Tab text: `text-[#787b86]` (inactive), `text-[#d1d4dc]` (active) with blue underline
-- Buy: `text-[#26a69a]`, Sell: `text-[#ef5350]`
-- Row hover: `TABLE_ROW_HOVER` from `constants/styles.ts` (`hover:bg-[#1e222d]/50 transition-colors`)
-- Alternating stripes: `TABLE_ROW_STRIPE` from `constants/styles.ts` (`bg-[#0d1117]/40`)
+- Borders: `border-(--color-border)`
+- Tab text: `text-(--color-text-muted)` (inactive), `text-(--color-text)` (active) with blue underline
+- Buy: `text-(--color-buy)`, Sell: `text-(--color-sell)`
+- Row hover: `TABLE_ROW_HOVER` from `constants/styles.ts` (`hover:bg-(--color-hover-row)/50 transition-colors`)
+- Alternating stripes: `TABLE_ROW_STRIPE` from `constants/styles.ts` (`bg-(--color-table-stripe)/40`)
 - Tabular numbers: `fontFeatureSettings: '"tnum"'`

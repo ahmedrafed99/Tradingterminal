@@ -84,8 +84,10 @@ POST /auth/connect  ───►  POST /api/Auth/loginKey  ───►  { token
 - The proxy returns a session cookie (`httpOnly`, `sameSite=strict`) so the
   browser can authenticate future proxy requests without re-sending the key
 - On proxy restart the token is lost; the user must reconnect
-- `username` may optionally be persisted to `localStorage` for convenience
-  (not the API key)
+- Credentials are persisted to the backend in an encrypted file (`.credentials.enc`)
+  using AES-256-GCM with a machine-derived key (hostname + homedir + salt via scrypt).
+  Format: `iv:tag:ciphertext` (hex). Decryption failures (e.g. machine changed) are
+  treated as empty — the user must re-enter credentials
 
 ---
 
@@ -96,13 +98,22 @@ interface AuthState {
   connected: boolean
   baseUrl: string
   rememberCredentials: boolean
-  savedUserName: string
-  savedApiKey: string
   setConnected: (connected: boolean, baseUrl?: string) => void
   setRememberCredentials: (on: boolean) => void
-  setSavedCredentials: (userName: string, apiKey: string) => void
 }
 ```
+
+Credentials (`userName`, `apiKey`) are NOT stored in Zustand. They are managed separately via `credentialService.ts` which calls backend routes:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /credentials | Load encrypted credentials (returns `{ userName, apiKey }` or null) |
+| PUT | /credentials | Save encrypted credentials (AES-256-GCM, machine-derived key) |
+| DELETE | /credentials | Clear saved credentials |
+
+On modal open: if `rememberCredentials` is true, `credentialService.load()` fills the input fields.
+On connect: if `rememberCredentials` is true, `credentialService.save()` persists them.
+On uncheck: `credentialService.clear()` removes the encrypted file immediately.
 
 ---
 

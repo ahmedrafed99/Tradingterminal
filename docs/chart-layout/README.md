@@ -28,7 +28,7 @@ Toggling "dual chart" mode splits the chart area into two independent candlestic
 ├───────────────────────────────┴──┴───────────────────────────────────┤
 ```
 
-- **Selection border**: Absolute overlay (`pointer-events-none`, `z-50`) with `border: 2px solid rgba(41, 98, 255, 0.5)` on the selected chart panel. Renders on both panels (always mounted in dual mode) with `border-color` transitioning between transparent and blue (0.25s ease) for smooth selection changes.
+- **Selection border**: Absolute overlay (`pointer-events-none`, `z-50`) with `border: 1px solid rgba(41, 98, 255, 0.5)` on the selected chart panel. Renders on both panels (always mounted in dual mode) with `border-color` transitioning between transparent and blue (0.25s ease) for smooth selection changes.
 - **Separator**: 4px vertical bar, draggable to resize (clamped 0.2–0.8)
 - **Layout toggle**: stroke-only SVG icon (`#787b86`) in right section of toolbar — single rectangle (□) vs dual rectangles (□|□), separated from camera and clock by vertical dividers
 
@@ -133,7 +133,7 @@ Sync logic in a `useEffect`:
 
 Internal `DraggableSeparator` component:
 - `w-1` (4px) vertical bar between charts
-- Colors: `bg-black` default, `hover:bg-[#434651]`, `bg-[#2962ff]` while dragging
+- Colors: `bg-(--color-panel)` default, `hover:bg-(--color-text-dim)`, `bg-(--color-accent)` while dragging
 - `cursor: col-resize`
 - Tracks `dragging` state via `mousedown` → `window.mousemove` → `window.mouseup`
 - Computes ratio = `(clientX - container.left) / container.width`, calls `setSplitRatio()` (clamped in store)

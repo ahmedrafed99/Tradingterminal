@@ -43,7 +43,11 @@ docs/
 ├── settings-persistence/ — File-based settings backup (survives cache clears)
 ├── video-recording/      — Chart video recording for journaling
 ├── voice-notifications/  — Audible voice clips on order/TP/SL fills
-└── frontend/             — Full index: all components, services, store slices, types
+├── frontend/             — Full index: all components, services, store slices, types
+├── claude-trader/        — Autonomous NQ trading system (tools, journal, state)
+├── claude-strategies/    — Backtested algorithmic strategies (London Sniper, etc.)
+├── trading-strategy/     — Price action reversal research (Origin method)
+└── refactor/             — Known architectural issues and cleanup priorities
 ```
 
 ### Quick Lookup
@@ -69,7 +73,7 @@ docs/
 | Chart settings gear + modal                 | `docs/chart-settings-menu/` |
 | Design tokens / colour palette rules        | `docs/color-palette-rules/` |
 | Settings persistence / file backup          | `docs/settings-persistence/` |
-| All Zustand store slices (7 domain slices)  | `docs/frontend/` → Zustand Store |
+| All Zustand store slices (9 domain slices)  | `docs/frontend/` → Zustand Store |
 | All service API signatures                  | `docs/frontend/` → Service Layer |
 | Shared components (Modal, TabButton, icons) | `docs/frontend/` → Shared Components |
 | Design token constants (colors.ts, styles.ts)| `docs/frontend/` → Constants |
@@ -122,9 +126,10 @@ docs/
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
-│  │  │  Zustand Store (7 domain slices)                     │   │   │
+│  │  │  Zustand Store (9 domain slices)                     │   │   │
 │  │  │  connection | instrument | trading | drawings        │   │   │
-│  │  │  layout | conditions | toast                         │   │   │
+│  │  │  layout | conditions | chartSettings | shortcuts     │   │   │
+│  │  │  toast                                               │   │   │
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
@@ -170,9 +175,9 @@ docs/
 
 | Layer | Library |
 |-------|---------|
-| Frontend | React 18 + TypeScript + Vite |
+| Frontend | React 19 + TypeScript + Vite |
 | Chart | Lightweight Charts v5 (TradingView OSS) |
-| State | Zustand (7 domain slices, persisted to localStorage + backend JSON file) |
+| State | Zustand (9 domain slices, persisted to localStorage + backend JSON file) |
 | Styling | Tailwind CSS |
 | Typography | System font stack: `-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif` |
 | Backend proxy | Node.js + Express |

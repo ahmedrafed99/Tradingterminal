@@ -10,13 +10,13 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│ [Eval-A #▼] 👁  │  Balance: $50,123.45  UP&L: +12.50 $  RP&L: +$85.00  │ ● ⚙ │
+│ [Eval-A #▼] 👁  │  Balance: $50,123.45  RP&L: +85.00 $  UP&L: +12.50 $  │ ● ⚙ │
 └──────────────────────────────────────────────────────────────────────────────────┘
   Left                              Centre                               Right
 ```
 
-- **Background**: `bg-black`, border bottom `border-[#2a2e39]`
-- **Font**: `text-xs`, color `#787b86` throughout
+- **Background**: `bg-black`, border bottom `border-(--color-border)`
+- **Font**: `text-xs`, color `var(--color-text-muted)` throughout
 - **Height**: `h-10` (40px), `shrink-0`
 - **Layout**: Left and right sections use `w-48 shrink-0` (fixed width) so the centre balance stays anchored regardless of account name length changes from the privacy toggle
 

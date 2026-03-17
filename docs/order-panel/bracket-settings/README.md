@@ -74,11 +74,12 @@ type ConditionTrigger =
 
 type ConditionAction =
   | { kind: 'moveSLToBreakeven' }
+  | { kind: 'moveSLToPrice'; points: number }   // move SL to a specific point offset (aliased to customOffset in UI)
   | { kind: 'moveSLToTP'; tpIndex: number }
   | { kind: 'customOffset'; points: number }
   | { kind: 'cancelRemainingTPs' };
 
-interface Condition {
+interface BracketCondition {
   id: string;
   trigger: ConditionTrigger;
   action: ConditionAction;
@@ -87,7 +88,7 @@ interface Condition {
 interface BracketConfig {
   stopLoss: StopLossConfig;
   takeProfits: TakeProfitLevel[];
-  conditions: Condition[];
+  conditions: BracketCondition[];
 }
 
 interface BracketPreset {

@@ -69,6 +69,7 @@ export interface OvalDrawing extends DrawingBase {
   type: 'oval';
   p1: AnchoredPoint;     // bounding rect corner 1
   p2: AnchoredPoint;     // bounding rect corner 2
+  fillColor: string;     // fill color (supports alpha, e.g. rgba)
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +132,7 @@ import { COLOR_TEXT_MUTED, COLOR_ACCENT } from '../constants/colors';
 
 export const DEFAULT_HLINE_COLOR = COLOR_TEXT_MUTED;
 export const DEFAULT_OVAL_COLOR = '#ff9800';
+export const DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)';
 export const DEFAULT_ARROWPATH_COLOR = '#f7c948';
 export const DEFAULT_RULER_COLOR = COLOR_ACCENT;
 export const DEFAULT_RECT_COLOR = '#ff9800';

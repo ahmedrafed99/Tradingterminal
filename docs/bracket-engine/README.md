@@ -207,16 +207,16 @@ When position size changes, the SL order size must be synced to match. Two paths
 ```ts
 // Arming (called by BuySellButtons / CandlestickChart + button)
 armForEntry(config: {
-  accountId: number;
+  accountId: string;
   contractId: string;
-  entrySide: 0 | 1;
+  entrySide: OrderSide;     // OrderSide.Buy (0) or OrderSide.Sell (1)
   entrySize: number;
   config: BracketConfig;
   contract: Contract;       // instrument metadata (tickSize, tickValue, ticksPerPoint)
   nativeSL?: boolean;       // true when SL was attached as native bracket on entry order
 }): void
 
-confirmEntryOrderId(orderId: number): void
+confirmEntryOrderId(orderId: string): void
 
 // Called on every SignalR order event (by OrderPanel)
 onOrderEvent(order: Order): void
@@ -225,17 +225,22 @@ onOrderEvent(order: Order): void
 moveSLToBreakeven(): Promise<boolean>
 
 // Config updates (called by CandlestickChart for + button drag)
-updateArmedConfig(updates: Partial<ArmedConfig>): void
+// Takes an updater function that receives the current config and returns the new one
+updateArmedConfig(updater: (config: BracketConfig) => BracketConfig): void
 
 // TP size sync (called by useOverlayLabels after +/- resize)
-updateTPSize(orderId: number, newSize: number): void
+updateTPSize(orderId: string, newSize: number): void
 
 // Session queries
 hasActiveSession(): boolean
 
+// Returns true if this order was already handled (sound played) by the bracket engine.
+// Used by OrderPanel to avoid duplicate fill sounds for ad-hoc orders.
+wasHandled(orderId: string): boolean
+
 // Cleanup (called by OrderPanel on position close)
-// Returns Set<number> of order IDs being cancelled
-clearSession(): Set<number>
+// Returns Set<string> of order IDs being cancelled
+clearSession(): Set<string>
 ```
 
 ---

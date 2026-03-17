@@ -58,6 +58,12 @@ class OvalRendererImpl implements IPrimitivePaneRenderer {
 
       ctx.beginPath();
       ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+
+      if (this._drawing.fillColor) {
+        ctx.fillStyle = this._drawing.fillColor;
+        ctx.fill();
+      }
+
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth; // 1 = 1 device pixel
       ctx.stroke();

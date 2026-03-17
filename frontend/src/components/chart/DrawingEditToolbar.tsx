@@ -786,8 +786,8 @@ export function DrawingEditToolbar({
         )}
       </div>
 
-      {/* Fill color (rect only) */}
-      {drawing.type === 'rect' && (
+      {/* Fill color (rect & oval) */}
+      {(drawing.type === 'rect' || drawing.type === 'oval') && (
         <>
           <Divider />
           <div className="relative">
@@ -805,13 +805,13 @@ export function DrawingEditToolbar({
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
                 width: 8, height: 8, borderRadius: '50%',
-                background: (drawing as import('../../types/drawing').RectDrawing).fillColor || 'transparent',
+                background: (drawing as any).fillColor || 'transparent',
                 border: '1px solid var(--color-border)',
               }} />
             </button>
             {showFillColor && (
               <ColorPopover
-                current={(drawing as import('../../types/drawing').RectDrawing).fillColor || 'rgba(255,152,0,0.15)'}
+                current={(drawing as any).fillColor || 'rgba(255,152,0,0.15)'}
                 onChange={(color) => updateDrawing(drawing.id, { fillColor: color } as Partial<Drawing>)}
                 onClose={() => setShowFillColor(false)}
               />

@@ -2,7 +2,7 @@
 
 ## Overview
 
-A gear-icon button in the **bottom-right corner** of the chart (where the price scale and time scale intersect) that opens a quick-action popover. The popover provides an **Invert Scale** toggle and a **More Settings...** entry point to a full settings modal with categorised chart options.
+A gear-icon button in the **bottom-right corner** of the chart (where the price scale and time scale intersect) that opens a quick-action popover. The popover provides an **Invert Scale** toggle and a **Settings...** entry point to a full settings modal with categorised chart options.
 
 All settings persist via the existing Zustand + `user-settings.json` dual-layer system.
 
@@ -142,21 +142,21 @@ When enabled, the trade zone rectangle (drawn between entry and exit prices) ext
 | Element | Value |
 |---------|-------|
 | Backdrop | `bg-black/60` (shared `Modal` component) |
-| Panel background | `bg-[#1f1f1f]` |
-| Panel outer border | `border border-[#2a2e39]`, `rounded-lg` |
-| Internal separators | `1px solid #4a4a4a` (title bar bottom, sidebar right, footer top) |
-| Title | `14px font-weight 600 color #fff` |
-| Close button | `✕`, `#787b86` → `hover:#fff`, `transition: color 0.15s` |
-| Sidebar item (active) | `background: #2a2e39`, `color: #fff` |
-| Sidebar item (inactive) | `color: #787b86` → `hover: #d1d4dc`, `transition: background 0.15s, color 0.15s` |
-| Section label | `10px uppercase tracking 0.08em color #787b86` |
-| Checkbox (checked) | `bg #2962ff`, `border #2962ff`, checkmark `#fff` |
-| Checkbox (unchecked) | `bg transparent`, `border #434651` |
-| Colour swatches | `28×28px`, `border-radius: 4px`, `border: 1px solid #4a4a4a`, disabled `opacity: 0.4` |
-| Dropdown | `height: 28px`, `bg: #1f1f1f`, `border: 1px solid #4a4a4a`, `border-radius: 4px` |
-| Cancel button | Ghost — `color: #787b86` → `hover: #fff` |
-| Ok button | `bg: #1e3a8a` → `hover: #1e2f6a`, `color: #fff`, `font-weight: 500` |
-| Reset defaults | `12px`, `color: #787b86` → `hover: #d1d4dc` (footer left) |
+| Panel background | `bg-(--color-surface)` |
+| Panel outer border | `border border-(--color-border)`, `rounded-lg` |
+| Internal separators | `1px solid var(--color-border)` (title bar bottom, sidebar right, footer top) |
+| Title | `14px font-weight 600 color var(--color-text-bright)` |
+| Close button | `✕`, `var(--color-text-muted)` → `hover:var(--color-text-bright)`, `transition: color 0.15s` |
+| Sidebar item (active) | `background: var(--color-hover-row)`, `color: var(--color-text-bright)` |
+| Sidebar item (inactive) | `color: var(--color-text-muted)` → `hover: var(--color-text)`, `transition: background 0.15s, color 0.15s` |
+| Section label | `10px uppercase tracking 0.08em color var(--color-text-muted)` |
+| Checkbox (checked) | `bg var(--color-accent)`, `border var(--color-accent)`, checkmark `#fff` |
+| Checkbox (unchecked) | `bg transparent`, `border var(--color-text-dim)` |
+| Colour swatches | `28×28px`, `border-radius: 4px`, `border: 1px solid var(--color-border)`, disabled `opacity: 0.4` |
+| Dropdown | `height: 28px`, `bg: var(--color-surface)`, `border: 1px solid var(--color-border)`, `border-radius: 4px` |
+| Cancel button | Ghost — `color: var(--color-text-muted)` → `hover: var(--color-text-bright)` |
+| Ok button | `bg: var(--color-accent-hover)` → `hover: var(--color-accent)`, `color: var(--color-text-bright)`, `font-weight: 500` |
+| Reset defaults | `12px`, `color: var(--color-text-muted)` → `hover: var(--color-text)` (footer left) |
 | Transitions | All hover/focus states animated at `0.15s` |
 | Width | `520px`, `max-height: 80vh` |
 | Overflow | `visible` (colour popovers escape panel bounds via `position: fixed`) |
