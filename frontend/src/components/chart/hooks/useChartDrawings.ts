@@ -10,6 +10,7 @@ import {
   onCtrlDragSelectDown,
   onResizeMouseDown,
   onDrawingDragMouseDown,
+  onRectMouseDown,
   onOvalMouseDown,
   onFreeDrawMouseDown,
   onMouseMove,
@@ -66,8 +67,9 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
         const clickTime = chart.timeScale().coordinateToTime(param.point.x);
         if (price === null || contract === null) return;
         const def = drawingDefaults['hline'];
+        const id = crypto.randomUUID();
         addDrawing({
-          id: crypto.randomUUID(),
+          id,
           type: 'hline',
           price: price as number,
           color: def?.color ?? DEFAULT_HLINE_COLOR,
@@ -77,6 +79,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           startTime: clickTime ? (clickTime as number) : 0,
           extendLeft: false,
         });
+        setSelectedDrawingIds([id]);
         setActiveTool('select');
         return;
       }
@@ -126,12 +129,14 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const handleCtrlSelect = (e: MouseEvent) => onCtrlDragSelectDown(e, ctx);
     const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
     const handleDragDown = (e: MouseEvent) => onDrawingDragMouseDown(e, ctx);
+    const handleRectDown = (e: MouseEvent) => onRectMouseDown(e, ctx);
     const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
     const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
 
     container.addEventListener('mousedown', handleCtrlSelect);
     container.addEventListener('mousedown', handleResize);
     container.addEventListener('mousedown', handleDragDown);
+    container.addEventListener('mousedown', handleRectDown);
     container.addEventListener('mousedown', handleOvalDown);
     container.addEventListener('mousedown', handleFreeDrawDown);
 
@@ -202,6 +207,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       container.removeEventListener('mousedown', handleResize);
       container.removeEventListener('mousedown', handleDragDown);
       container.removeEventListener('mousedown', onOverlayHitTest);
+      container.removeEventListener('mousedown', handleRectDown);
       container.removeEventListener('mousedown', handleOvalDown);
       container.removeEventListener('mousedown', handleFreeDrawDown);
       container.removeEventListener('dblclick', handleDbl);

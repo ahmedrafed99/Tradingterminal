@@ -287,10 +287,11 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 ```
 1. onOverlayHitTest       — overlay label hit testing (order lines, position lines)
 2. onCtrlDragSelectDown   — Ctrl+drag area selection for multi-select
-3. onResizeMouseDown      — resize handles on selected oval/ruler (most specific)
+3. onResizeMouseDown      — resize handles on selected rect/oval/ruler (most specific)
 4. onDrawingDragMouseDown — drag-to-move any drawing
-5. onOvalMouseDown        — oval creation when tool is 'oval'
-6. onFreeDrawMouseDown    — free draw creation when tool is 'freedraw'
+5. onRectMouseDown        — rect creation when tool is 'rect'
+6. onOvalMouseDown        — oval creation when tool is 'oval'
+7. onFreeDrawMouseDown    — free draw creation when tool is 'freedraw'
 ```
 
 Overlay hit testing is first so order/position line drags take priority over drawing interactions when they overlap. It uses `stopImmediatePropagation()` to prevent subsequent drawing handlers from firing on the same mousedown event.
@@ -303,13 +304,13 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Click on chart → `series.coordinateToPrice(y)` → `addDrawing({type:'hline', price, ...})`
 - Auto-switches to select tool after placement
 
-### Rectangle creation (click-click)
+### Rectangle creation (two modes)
 
 - Tool: `rect`
-- First click records p1 (start corner), disables chart scroll
-- Mouse move shows live dashed rectangle preview via `primitive.setRectPreview()`
-- Second click records p2 (diagonal opposite corner), creates the rectangle drawing, switches to select tool
-- Escape or right-click cancels in-progress creation
+- **Click-move-click**: `mousedown` records p1 (start corner) and disables chart scroll. `mouseup` with <5px movement keeps creation active. Mouse move shows live preview (solid fill + stroke matching defaults). Next `mouseup` with >5px movement from p1 finalizes.
+- **Click-drag-release**: `mousedown` records p1. Drag shows live preview. `mouseup` with >5px movement finalizes immediately.
+- Both modes: preview uses saved style defaults (border color, fill color, stroke width). Escape or right-click cancels in-progress creation.
+- Sticky defaults: border color, stroke width, and fill color (including opacity) are remembered across drawings via `drawingDefaults['rect']`
 - Default fill: `rgba(255, 152, 0, 0.15)` (orange at 15% opacity), default stroke: `#ff9800`
 - Edit toolbar shows: border color picker, fill color picker with opacity slider, text, stroke width, delete
 

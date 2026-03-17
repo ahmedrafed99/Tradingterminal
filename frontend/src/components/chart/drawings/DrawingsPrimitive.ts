@@ -12,7 +12,7 @@ import type {
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { ISeriesPrimitive } from 'lightweight-charts';
 import type { Drawing, RulerMetrics } from '../../../types/drawing';
-import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT } from '../../../constants/colors';
+import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
@@ -52,6 +52,18 @@ class DragPreviewRenderer implements IPrimitivePaneRenderer {
       ctx.strokeStyle = '#ff9800';
       ctx.lineWidth = 1;
       ctx.stroke();
+
+      // Cardinal handles
+      const handles = [[cx, cy - ry], [cx, cy + ry], [cx - rx, cy], [cx + rx, cy]];
+      ctx.fillStyle = COLOR_LABEL_TEXT;
+      ctx.strokeStyle = COLOR_HANDLE_STROKE;
+      ctx.lineWidth = 1.5;
+      for (const [hx, hy] of handles) {
+        ctx.beginPath();
+        ctx.arc(hx, hy, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      }
     });
   }
 }
@@ -86,12 +98,18 @@ class RectPreviewRenderer implements IPrimitivePaneRenderer {
   private _y1: number;
   private _x2: number;
   private _y2: number;
+  private _color: string;
+  private _fillColor: string;
+  private _strokeWidth: number;
 
-  constructor(x1: number, y1: number, x2: number, y2: number) {
+  constructor(x1: number, y1: number, x2: number, y2: number, color: string, fillColor: string, strokeWidth: number) {
     this._x1 = x1;
     this._y1 = y1;
     this._x2 = x2;
     this._y2 = y2;
+    this._color = color;
+    this._fillColor = fillColor;
+    this._strokeWidth = strokeWidth;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -103,14 +121,24 @@ class RectPreviewRenderer implements IPrimitivePaneRenderer {
 
       if (w < 1 && h < 1) return;
 
-      ctx.fillStyle = 'rgba(255, 152, 0, 0.1)';
+      ctx.fillStyle = this._fillColor;
       ctx.fillRect(left, top, w, h);
 
-      ctx.strokeStyle = '#ff9800';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = this._color;
+      ctx.lineWidth = this._strokeWidth;
       ctx.strokeRect(left, top, w, h);
-      ctx.setLineDash([]);
+
+      // Corner handles
+      const handles = [[left, top], [left + w, top], [left, top + h], [left + w, top + h]];
+      ctx.fillStyle = COLOR_LABEL_TEXT;
+      ctx.strokeStyle = COLOR_HANDLE_STROKE;
+      ctx.lineWidth = 1.5;
+      for (const [hx, hy] of handles) {
+        ctx.beginPath();
+        ctx.arc(hx, hy, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      }
     });
   }
 }
@@ -120,12 +148,18 @@ class RectPreviewPaneView implements IPrimitivePaneView {
   private _y1: number;
   private _x2: number;
   private _y2: number;
+  private _color: string;
+  private _fillColor: string;
+  private _strokeWidth: number;
 
-  constructor(x1: number, y1: number, x2: number, y2: number) {
+  constructor(x1: number, y1: number, x2: number, y2: number, color: string, fillColor: string, strokeWidth: number) {
     this._x1 = x1;
     this._y1 = y1;
     this._x2 = x2;
     this._y2 = y2;
+    this._color = color;
+    this._fillColor = fillColor;
+    this._strokeWidth = strokeWidth;
   }
 
   zOrder(): 'top' {
@@ -133,7 +167,7 @@ class RectPreviewPaneView implements IPrimitivePaneView {
   }
 
   renderer(): IPrimitivePaneRenderer | null {
-    return new RectPreviewRenderer(this._x1, this._y1, this._x2, this._y2);
+    return new RectPreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._color, this._fillColor, this._strokeWidth);
   }
 }
 
@@ -184,12 +218,15 @@ class ArrowPathPreviewRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
       }
 
-      // Node dots at placed points (all except the last which is the cursor)
-      ctx.fillStyle = '#f7c948';
+      // Node handles at placed points (all except the last which is the cursor)
+      ctx.fillStyle = COLOR_LABEL_TEXT;
+      ctx.strokeStyle = COLOR_HANDLE_STROKE;
+      ctx.lineWidth = 1.5;
       for (let i = 0; i < pts.length - 1; i++) {
         ctx.beginPath();
-        ctx.arc(pts[i].x, pts[i].y, 3, 0, 2 * Math.PI);
+        ctx.arc(pts[i].x, pts[i].y, 5, 0, 2 * Math.PI);
         ctx.fill();
+        ctx.stroke();
       }
     });
   }
@@ -689,9 +726,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
-  /** Show a dashed rect preview during rect click-click creation */
-  setRectPreview(x1: number, y1: number, x2: number, y2: number): void {
-    this._rectPreview = new RectPreviewPaneView(x1, y1, x2, y2);
+  /** Show a solid rect preview during rect click-click creation */
+  setRectPreview(x1: number, y1: number, x2: number, y2: number, color: string, fillColor: string, strokeWidth: number): void {
+    this._rectPreview = new RectPreviewPaneView(x1, y1, x2, y2, color, fillColor, strokeWidth);
     this._requestUpdate?.();
   }
 

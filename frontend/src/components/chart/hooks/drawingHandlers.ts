@@ -191,6 +191,26 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
   e.preventDefault();
 }
 
+/** Mousedown: start rect creation on first click, or capture for second click. */
+export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, chart, series, container } = ctx;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
+  const tool = useStore.getState().activeTool;
+  if (tool !== 'rect') return;
+  const { x, y } = getMousePos(e, container);
+  const data = getDataPos(chart, series, x, y);
+  if (!data) return;
+
+  chart.applyOptions({ handleScroll: false, handleScale: false });
+  e.stopPropagation();
+  e.preventDefault();
+
+  // First click: start creation
+  if (!state.rectCreation) {
+    state.rectCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price };
+  }
+}
+
 /** Mousedown: start oval drag-to-create. */
 export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container } = ctx;
@@ -353,7 +373,13 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   // Rect creation preview (click-click)
   if (state.rectCreation) {
     const { x, y } = getMousePos(e, container);
-    primitive.setRectPreview(state.rectCreation.startX, state.rectCreation.startY, x, y);
+    const rectDef = useStore.getState().drawingDefaults['rect'];
+    primitive.setRectPreview(
+      state.rectCreation.startX, state.rectCreation.startY, x, y,
+      rectDef?.color ?? DEFAULT_RECT_COLOR,
+      rectDef?.fillColor ?? DEFAULT_RECT_FILL,
+      rectDef?.strokeWidth ?? 1,
+    );
     return;
   }
 
@@ -571,40 +597,40 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
-  // Rect click-move-click creation
-  if (useStore.getState().activeTool === 'rect' && e.button === 0) {
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
-        && container.contains(e.target as Node)) {
+  // Rect creation: finalize on mouseup if dragged enough, otherwise wait for second click
+  if (state.rectCreation && useStore.getState().activeTool === 'rect' && e.button === 0) {
+    const { x, y } = getMousePos(e, container);
+    const dx = Math.abs(x - state.rectCreation.startX);
+    const dy = Math.abs(y - state.rectCreation.startY);
+    // If mouse moved enough → finalize (drag-release flow)
+    if (dx > 5 || dy > 5) {
       const data = getDataPos(chart, series, x, y);
       if (data && contract !== null) {
-        if (!state.rectCreation) {
-          // First click: record start
-          state.rectCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price };
-          chart.applyOptions({ handleScroll: false, handleScale: false });
-        } else {
-          // Second click: finalize rectangle
-          const rectDef = useStore.getState().drawingDefaults['rect'];
-          useStore.getState().addDrawing({
-            id: crypto.randomUUID(),
-            type: 'rect',
-            p1: { time: state.rectCreation.startTime, price: state.rectCreation.startPrice },
-            p2: { time: data.time, price: data.price },
-            color: rectDef?.color ?? DEFAULT_RECT_COLOR,
-            strokeWidth: rectDef?.strokeWidth ?? 1,
-            fillColor: DEFAULT_RECT_FILL,
-            text: null,
-            contractId: String(contract.id),
-          });
-          state.rectCreation = null;
-          primitive.clearRectPreview();
-          chart.applyOptions({ handleScroll: true, handleScale: true });
-          useStore.getState().setActiveTool('select');
-        }
+        const rectDef = useStore.getState().drawingDefaults['rect'];
+        useStore.getState().addDrawing({
+          id: crypto.randomUUID(),
+          type: 'rect',
+          p1: { time: state.rectCreation.startTime, price: state.rectCreation.startPrice },
+          p2: { time: data.time, price: data.price },
+          color: rectDef?.color ?? DEFAULT_RECT_COLOR,
+          strokeWidth: rectDef?.strokeWidth ?? 1,
+          fillColor: rectDef?.fillColor ?? DEFAULT_RECT_FILL,
+          text: null,
+          contractId: String(contract.id),
+        });
       }
+      state.rectCreation = null;
+      primitive.clearRectPreview();
+      chart.applyOptions({ handleScroll: true, handleScale: true });
+      useStore.getState().setActiveTool('select');
     }
+    // If not moved enough → keep rectCreation active (click-move-click flow, wait for second click)
+    return;
+  }
+
+  // Rect: second click finalizes (click-move-click flow)
+  if (!state.rectCreation && useStore.getState().activeTool === 'rect' && e.button === 0) {
+    // rectCreation was started on mousedown of THIS click — do nothing, wait for move
     return;
   }
 
