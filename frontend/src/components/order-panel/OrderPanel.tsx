@@ -419,16 +419,26 @@ export function OrderPanel() {
     });
   }, [connected, orderContract, chartContract, setLastPrice]);
 
-  // Update lastPrice from quote stream for P&L calculation
+  // Update lastPrice from quote stream for P&L calculation (RAF-throttled)
   useEffect(() => {
     if (!orderContract) return;
+    let pendingPrice: number | null = null;
+    let rafId = 0;
     const handler = (contractId: string, data: GatewayQuote) => {
-      if (contractId === orderContract.id) {
-        setLastPrice(data.lastPrice);
+      if (contractId !== orderContract.id) return;
+      pendingPrice = data.lastPrice;
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          rafId = 0;
+          if (pendingPrice != null) setLastPrice(pendingPrice);
+        });
       }
     };
     realtimeService.onQuote(handler);
-    return () => realtimeService.offQuote(handler);
+    return () => {
+      cancelAnimationFrame(rafId);
+      realtimeService.offQuote(handler);
+    };
   }, [orderContract, setLastPrice]);
 
   return (

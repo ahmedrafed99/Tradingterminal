@@ -8,6 +8,10 @@ import { CLOSE_BG, CLOSE_BG_HOVER } from './labelUtils';
 // ─── Close-cell hover tracking ───
 let _hoveredCloseCell: HTMLElement | null = null;
 
+// ─── Throttle for hover hit testing ───
+let _hoverRafPending = false;
+let _lastCursor = '';
+
 function clearCloseHover(): void {
   if (_hoveredCloseCell) {
     _hoveredCloseCell.style.background = CLOSE_BG;
@@ -265,78 +269,98 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
 // Cursor / hover management
 // ═══════════════════════════════════════════════════════════════════
 
-export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
-  const { state, container, primitive, refs } = ctx;
+function setCursor(container: HTMLElement, cursor: string): void {
+  if (_lastCursor !== cursor) {
+    _lastCursor = cursor;
+    container.style.cursor = cursor;
+  }
+}
 
-  // Re-assert grabbing during ANY drag operation
+export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, container, refs } = ctx;
+
+  // Re-assert grabbing during ANY drag operation (cheap checks, no throttle needed)
   if (state.ctrlDragSelect) {
-    container.style.cursor = 'crosshair';
+    setCursor(container, 'crosshair');
     return;
   }
   if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.rectCreation || state.freeDrawCreation || state.chartPanning
       || refs.orderDragState.current || refs.previewDragState.current || refs.posDrag.current) {
-    container.style.cursor = 'grabbing';
+    setCursor(container, 'grabbing');
     return;
   }
 
-  const st = useStore.getState();
-  const { x, y } = getMousePos(e, container);
+  // Throttle the expensive part (hit testing, getBoundingClientRect) to once per frame
+  if (_hoverRafPending) return;
+  _hoverRafPending = true;
 
-  // Resize handles (only in select mode with single selection)
-  if (st.activeTool === 'select' && st.selectedDrawingIds.length === 1) {
-    const hit = primitive.getHandleAt(x, y);
-    if (hit) {
-      container.style.cursor = HANDLE_CURSOR;
-      return;
-    }
-  }
-
-  // Drawing body → pointer
-  if (st.activeTool === 'select') {
-    const bodyHit = primitive.hitTest(x, y);
-    if (bodyHit && typeof bodyHit.externalId === 'string') {
-      container.style.cursor = 'pointer';
-      return;
-    }
-  }
-
-  // Overlay label hit targets
   const mx = e.clientX;
   const my = e.clientY;
-  const sortedTargets = refs.hitTargets.current.slice().sort((a, b) => a.priority - b.priority);
-  let overLabel = false;
-  let hoveredEl: HTMLElement | null = null;
-  for (const target of sortedTargets) {
-    const el = target.el;
-    if (el.offsetParent === null) continue;
-    const tRect = el.getBoundingClientRect();
-    if (tRect.width === 0 || tRect.height === 0) continue;
-    if (mx >= tRect.left && mx <= tRect.right && my >= tRect.top && my <= tRect.bottom) {
-      container.style.cursor = target.priority >= 2 ? 'grab' : 'pointer';
-      overLabel = true;
-      hoveredEl = el;
-      break;
+  // Capture container-relative coords now (before RAF) to avoid getBoundingClientRect inside RAF
+  const containerRect = container.getBoundingClientRect();
+  const localX = mx - containerRect.left;
+  const localY = my - containerRect.top;
+
+  requestAnimationFrame(() => {
+    _hoverRafPending = false;
+    const { primitive } = ctx;
+    const st = useStore.getState();
+
+    // Resize handles (only in select mode with single selection)
+    if (st.activeTool === 'select' && st.selectedDrawingIds.length === 1) {
+      const hit = primitive.getHandleAt(localX, localY);
+      if (hit) {
+        setCursor(container, HANDLE_CURSOR);
+        return;
+      }
     }
-  }
 
-  // Close-cell (✕) hover effect
-  const isClose = hoveredEl && hoveredEl.textContent === '\u2715';
-  if (isClose && hoveredEl !== _hoveredCloseCell) {
-    clearCloseHover();
-    _hoveredCloseCell = hoveredEl;
-    hoveredEl!.style.transition = 'background 0.15s';
-    hoveredEl!.style.background = CLOSE_BG_HOVER;
-  } else if (!isClose) {
-    clearCloseHover();
-  }
+    // Drawing body → pointer
+    if (st.activeTool === 'select') {
+      const bodyHit = primitive.hitTest(localX, localY);
+      if (bodyHit && typeof bodyHit.externalId === 'string') {
+        setCursor(container, 'pointer');
+        return;
+      }
+    }
 
-  // Hide quick-order button while hovering a label
-  refs.labelHovered.current = overLabel;
-  const qoEl = refs.quickOrder.current;
-  if (qoEl) qoEl.style.display = overLabel ? 'none' : '';
+    // Overlay label hit targets
+    const targets = refs.hitTargets.current;
+    let overLabel = false;
+    let hoveredEl: HTMLElement | null = null;
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
+      const el = target.el;
+      if (el.offsetParent === null) continue;
+      const tRect = el.getBoundingClientRect();
+      if (tRect.width === 0 || tRect.height === 0) continue;
+      if (mx >= tRect.left && mx <= tRect.right && my >= tRect.top && my <= tRect.bottom) {
+        setCursor(container, target.priority >= 2 ? 'grab' : 'pointer');
+        overLabel = true;
+        hoveredEl = el;
+        break;
+      }
+    }
 
-  if (overLabel) return;
+    // Close-cell (✕) hover effect
+    const isClose = hoveredEl && hoveredEl.textContent === '\u2715';
+    if (isClose && hoveredEl !== _hoveredCloseCell) {
+      clearCloseHover();
+      _hoveredCloseCell = hoveredEl;
+      hoveredEl!.style.transition = 'background 0.15s';
+      hoveredEl!.style.background = CLOSE_BG_HOVER;
+    } else if (!isClose) {
+      clearCloseHover();
+    }
 
-  // Default: crosshair
-  container.style.cursor = CROSSHAIR_CURSOR;
+    // Hide quick-order button while hovering a label
+    refs.labelHovered.current = overLabel;
+    const qoEl = refs.quickOrder.current;
+    if (qoEl) qoEl.style.display = overLabel ? 'none' : '';
+
+    if (overLabel) return;
+
+    // Default: crosshair
+    setCursor(container, CROSSHAIR_CURSOR);
+  });
 }

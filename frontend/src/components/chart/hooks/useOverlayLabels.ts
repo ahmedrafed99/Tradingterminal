@@ -149,18 +149,28 @@ export function useOverlayLabels(
     const ro = new ResizeObserver(handler);
     ro.observe(container);
 
-    let rafId = 0;
-    function rafLoop() {
-      handler();
-      rafId = requestAnimationFrame(rafLoop);
+    // Instead of a continuous RAF loop while pointer is down,
+    // use a mousemove listener that RAF-throttles updates during drag.
+    let dragRafId = 0;
+    let isDragging = false;
+    function onDragMove() {
+      if (dragRafId) return; // already scheduled
+      dragRafId = requestAnimationFrame(() => {
+        dragRafId = 0;
+        handler();
+      });
     }
     function onPointerDown() {
-      cancelAnimationFrame(rafId);
-      rafLoop();
+      isDragging = true;
+      handler(); // immediate first sync
+      window.addEventListener('mousemove', onDragMove);
     }
     function onPointerUp() {
-      cancelAnimationFrame(rafId);
-      rafId = 0;
+      isDragging = false;
+      cancelAnimationFrame(dragRafId);
+      dragRafId = 0;
+      window.removeEventListener('mousemove', onDragMove);
+      handler(); // final sync
     }
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
@@ -170,7 +180,8 @@ export function useOverlayLabels(
     return () => {
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler);
       ro.disconnect();
-      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(dragRafId);
+      window.removeEventListener('mousemove', onDragMove);
       container.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('wheel', handler);

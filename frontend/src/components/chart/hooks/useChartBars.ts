@@ -173,6 +173,25 @@ export function useChartBars(
 
     startRealtime();
 
+    // RAF-batched chart update: accumulate tick data, flush once per frame
+    let pendingBar: CandlestickData<UTCTimestamp> | null = null;
+    let pendingPrice: number | null = null;
+    let quoteRafId = 0;
+
+    function flushQuote() {
+      quoteRafId = 0;
+      if (pendingBar && refs.series.current) {
+        refs.series.current.update(pendingBar);
+        refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
+      }
+      if (pendingPrice != null) {
+        refs.countdown.current?.updatePrice(pendingPrice, true);
+        refs.drawingsPrimitive.current?.setCountdownPrice(pendingPrice);
+      }
+      pendingBar = null;
+      pendingPrice = null;
+    }
+
     function handleQuote(quoteContractId: string, data: GatewayQuote) {
       if (quoteContractId !== contractId || !refs.series.current) return;
 
@@ -201,9 +220,8 @@ export function useChartBars(
           low: Math.min(lastBar.low, price),
           close: price,
         };
-        refs.series.current.update(updated);
         refs.lastBar.current = updated;
-        refs.dataMap.current.set(updated.time as number, updated.close);
+        pendingBar = updated;
       } else {
         // New candle period
         const newBar: CandlestickData<UTCTimestamp> = {
@@ -213,20 +231,23 @@ export function useChartBars(
           low: price,
           close: price,
         };
-        refs.series.current.update(newBar);
         refs.lastBar.current = newBar;
-        refs.dataMap.current.set(newBar.time as number, newBar.close);
+        pendingBar = newBar;
       }
 
-      // Feed live price into countdown primitive + drawing label avoidance
-      refs.countdown.current?.updatePrice(price, true);
-      refs.drawingsPrimitive.current?.setCountdownPrice(price);
+      pendingPrice = price;
+
+      // Schedule a single RAF flush (coalesces all ticks within one frame)
+      if (!quoteRafId) {
+        quoteRafId = requestAnimationFrame(flushQuote);
+      }
     }
 
     realtimeService.onQuote(handleQuote);
 
     return () => {
       cancelled = true;
+      cancelAnimationFrame(quoteRafId);
       refs.countdown.current?.setLive(false);
       realtimeService.offQuote(handleQuote);
       realtimeService.unsubscribeQuotes(contractId);

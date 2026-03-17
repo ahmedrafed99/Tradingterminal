@@ -309,42 +309,49 @@ export function buildOrderLabels(
     }
   }
 
-  // TP size hover detection
+  // TP size hover detection (RAF-throttled to avoid per-move getBoundingClientRect)
   const hoverContainer = refs.container.current;
   if (hoverContainer && tpSizeButtons.size > 0) {
+    let tpHoverRafPending = false;
     const onTpSizeHover = (e: MouseEvent) => {
+      if (tpHoverRafPending) return;
+      tpHoverRafPending = true;
       const mx = e.clientX;
       const my = e.clientY;
-      let foundId: string | null = null;
 
-      for (const [oid, btns] of tpSizeButtons) {
-        const rect = btns.sizeCell.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) continue;
-        if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
-          foundId = oid;
-          break;
-        }
-      }
+      requestAnimationFrame(() => {
+        tpHoverRafPending = false;
+        let foundId: string | null = null;
 
-      if (foundId !== refs.hoveredTpOrderId.current) {
-        if (refs.hoveredTpOrderId.current != null) {
-          const prev = tpSizeButtons.get(refs.hoveredTpOrderId.current);
-          if (prev) {
-            prev.minusEl.style.display = 'none';
-            prev.plusEl.style.display = 'none';
-            prev.sizeCell.style.background = prev.sizeBg;
+        for (const [oid, btns] of tpSizeButtons) {
+          const rect = btns.sizeCell.getBoundingClientRect();
+          if (rect.width === 0 || rect.height === 0) continue;
+          if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
+            foundId = oid;
+            break;
           }
         }
-        if (foundId != null) {
-          const cur = tpSizeButtons.get(foundId);
-          if (cur) {
-            cur.minusEl.style.display = '';
-            cur.plusEl.style.display = '';
-            cur.sizeCell.style.background = darken(cur.sizeBg);
+
+        if (foundId !== refs.hoveredTpOrderId.current) {
+          if (refs.hoveredTpOrderId.current != null) {
+            const prev = tpSizeButtons.get(refs.hoveredTpOrderId.current);
+            if (prev) {
+              prev.minusEl.style.display = 'none';
+              prev.plusEl.style.display = 'none';
+              prev.sizeCell.style.background = prev.sizeBg;
+            }
           }
+          if (foundId != null) {
+            const cur = tpSizeButtons.get(foundId);
+            if (cur) {
+              cur.minusEl.style.display = '';
+              cur.plusEl.style.display = '';
+              cur.sizeCell.style.background = darken(cur.sizeBg);
+            }
+          }
+          refs.hoveredTpOrderId.current = foundId;
         }
-        refs.hoveredTpOrderId.current = foundId;
-      }
+      });
     };
 
     hoverContainer.addEventListener('mousemove', onTpSizeHover);
