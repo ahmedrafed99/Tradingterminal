@@ -1,8 +1,15 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 
 export function OrderTypeTabs() {
-  const { orderType, setOrderType, limitPrice, setLimitPrice, orderContract } = useStore();
+  const { orderType, setOrderType, limitPrice, setLimitPrice, orderContract } = useStore(useShallow((s) => ({
+    orderType: s.orderType,
+    setOrderType: s.setOrderType,
+    limitPrice: s.limitPrice,
+    setLimitPrice: s.setLimitPrice,
+    orderContract: s.orderContract,
+  })));
   const tickSize = orderContract?.tickSize ?? 0.25;
 
   return (

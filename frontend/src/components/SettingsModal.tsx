@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { authService } from '../services/authService';
 import { accountService } from '../services/accountService';
 import { realtimeService } from '../services/realtimeService';
@@ -29,7 +30,18 @@ const DATA_FEED_PROVIDERS = [
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
-  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials } = useStore();
+  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials } = useStore(useShallow((s) => ({
+    settingsOpen: s.settingsOpen,
+    setSettingsOpen: s.setSettingsOpen,
+    connected: s.connected,
+    baseUrl: s.baseUrl,
+    setConnected: s.setConnected,
+    setAccounts: s.setAccounts,
+    conditionServerUrl: s.conditionServerUrl,
+    setConditionServerUrl: s.setConditionServerUrl,
+    rememberCredentials: s.rememberCredentials,
+    setRememberCredentials: s.setRememberCredentials,
+  })));
 
   const [tab, setTab] = useState<SettingsTab>('datafeed');
   const [provider, setProvider] = useState('topstepx');

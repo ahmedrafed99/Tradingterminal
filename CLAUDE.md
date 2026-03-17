@@ -40,6 +40,12 @@ All colors are defined in **`frontend/src/styles/tokens.css`** as CSS custom pro
 8. **Section labels** — Use the `SECTION_LABEL` constant from `constants/styles.ts`, or `text-[10px] uppercase tracking-wider text-(--color-text-muted)`.
 9. **No new colors** — If a design needs a color not in `tokens.css`, add a new token there with a semantic name. Don't add one-off hex values to component files.
 
+## Performance Rules
+
+1. **Never use bare `useStore()`** — Always pass a selector or `useShallow`. Bare calls subscribe to the entire Zustand store and re-render on every state change (including ~60/sec price ticks). See `docs/frontend/README.md` → "Store subscription rules" for correct patterns.
+2. **Throttle high-frequency callbacks** — SignalR quote/trade handlers fire 100+ times/sec. Any work triggered by these (chart updates, DOM writes, store updates) must be batched via `requestAnimationFrame` so it runs at most once per frame.
+3. **Avoid `getBoundingClientRect()` in mousemove handlers** — It forces synchronous DOM layout reflow. If needed, RAF-throttle the handler so it runs at most once per frame.
+
 ## Tailwind Gotcha
 
 Tailwind JIT sometimes fails to generate utility classes (especially spacing like `px-*`, `py-*`, `gap-*`) when they haven't been used elsewhere in the project. If a Tailwind class doesn't take effect, **use inline `style={{ ... }}` instead**. This has been confirmed multiple times in this codebase.

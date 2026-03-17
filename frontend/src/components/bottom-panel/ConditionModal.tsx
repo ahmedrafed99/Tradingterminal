@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore, DEFAULT_PINNED, MORE_TIMEFRAMES } from '../../store/useStore';
 import { resolveConditionServerUrl } from '../../store/slices/conditionsSlice';
 import { conditionService } from '../../services/conditionService';
@@ -52,7 +53,21 @@ export function ConditionModal() {
     bracketPresets,
     addToast,
     timeframe: activeTimeframe,
-  } = useStore();
+  } = useStore(useShallow((s) => ({
+    conditionModalOpen: s.conditionModalOpen,
+    editingConditionId: s.editingConditionId,
+    closeConditionModal: s.closeConditionModal,
+    conditionServerUrl: s.conditionServerUrl,
+    conditions: s.conditions,
+    upsertCondition: s.upsertCondition,
+    contract: s.contract,
+    activeAccountId: s.activeAccountId,
+    orderSize: s.orderSize,
+    lastPrice: s.lastPrice,
+    bracketPresets: s.bracketPresets,
+    addToast: s.addToast,
+    timeframe: s.timeframe,
+  })));
 
   const [conditionType, setConditionType] = useState<'closes_above' | 'closes_below'>('closes_above');
   const [triggerPrice, setTriggerPrice] = useState('');

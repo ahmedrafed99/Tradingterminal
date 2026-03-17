@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import type { ConditionAction, TakeProfitLevel } from '../../types/bracket';
@@ -18,7 +19,16 @@ export function BracketSummary() {
   const {
     bracketPresets, activePresetId, suspendedPresetId, setActivePresetId, setEditingPresetId,
     deletePreset, draftSlPoints, draftTpPoints,
-  } = useStore();
+  } = useStore(useShallow((s) => ({
+    bracketPresets: s.bracketPresets,
+    activePresetId: s.activePresetId,
+    suspendedPresetId: s.suspendedPresetId,
+    setActivePresetId: s.setActivePresetId,
+    setEditingPresetId: s.setEditingPresetId,
+    deletePreset: s.deletePreset,
+    draftSlPoints: s.draftSlPoints,
+    draftTpPoints: s.draftTpPoints,
+  })));
 
   const activePreset = bracketPresets.find((p) => p.id === activePresetId) ?? null;
   // Show suspended preset config (dimmed) so layout doesn't shift when position opens

@@ -1,8 +1,12 @@
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 
 export function ContractsSpinner() {
-  const { orderSize, setOrderSize } = useStore();
+  const { orderSize, setOrderSize } = useStore(useShallow((s) => ({
+    orderSize: s.orderSize,
+    setOrderSize: s.setOrderSize,
+  })));
 
   return (
     <div>

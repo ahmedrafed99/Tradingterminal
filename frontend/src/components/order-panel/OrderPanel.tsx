@@ -515,7 +515,12 @@ function LinkChartButton({ linked, onToggle }: {
 }
 
 function PreviewToggle() {
-  const { previewEnabled, togglePreview, previewSide, setPreviewSide } = useStore();
+  const { previewEnabled, togglePreview, previewSide, setPreviewSide } = useStore(useShallow((s) => ({
+    previewEnabled: s.previewEnabled,
+    togglePreview: s.togglePreview,
+    previewSide: s.previewSide,
+    setPreviewSide: s.setPreviewSide,
+  })));
 
   return (
     <div className="flex items-center gap-2">

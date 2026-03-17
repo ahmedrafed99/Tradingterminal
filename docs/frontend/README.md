@@ -27,6 +27,26 @@ store/
 
 Import everything from `useStore.ts` — it re-exports commonly used types (`Timeframe`, `ToastItem`, `TIMEFRAMES`, etc.) so consumers don't need to import from individual slices.
 
+### Store subscription rules
+
+**Never** call `useStore()` without a selector — this subscribes to the entire store and re-renders the component on every state change (including 60/sec price ticks). Always use one of these patterns:
+
+```tsx
+// ✅ Individual selector (best for 1-2 values — re-renders only when that value changes)
+const openOrders = useStore((s) => s.openOrders);
+
+// ✅ useShallow for multiple values (re-renders only when any selected value changes)
+import { useShallow } from 'zustand/react/shallow';
+const { positions, lastPrice, activeAccountId } = useStore(useShallow((s) => ({
+  positions: s.positions,
+  lastPrice: s.lastPrice,
+  activeAccountId: s.activeAccountId,
+})));
+
+// ❌ NEVER — subscribes to entire store, re-renders on ANY change
+const { positions, lastPrice } = useStore();
+```
+
 ---
 
 ## Shared Components (`components/shared/`)

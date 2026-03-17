@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { orderService } from '../../services/orderService';
@@ -10,7 +11,12 @@ import { calcPnl } from '../../utils/instrument';
 import { formatPrice, getPnlColorClass } from '../../utils/formatters';
 
 export function PositionDisplay() {
-  const { positions, orderContract, lastPrice, activeAccountId } = useStore();
+  const { positions, orderContract, lastPrice, activeAccountId } = useStore(useShallow((s) => ({
+    positions: s.positions,
+    orderContract: s.orderContract,
+    lastPrice: s.lastPrice,
+    activeAccountId: s.activeAccountId,
+  })));
   const pnlRef = useRef<number>(0);
 
   const pos = orderContract ? positions.find((p) => p.accountId === activeAccountId && String(p.contractId) === String(orderContract.id)) : undefined;
