@@ -729,7 +729,7 @@ export function DrawingEditToolbar({
           className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
           title="Delete selected"
         >
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor">
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="currentColor">
             <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
           </svg>
         </button>
@@ -763,7 +763,7 @@ export function DrawingEditToolbar({
           className={`${btnBase} ${showColor ? btnActive : btnHover}`}
           title="Color"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
             <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
           </svg>
           {/* Color dot overlay on pencil tip */}
@@ -793,7 +793,7 @@ export function DrawingEditToolbar({
               title="Fill color"
             >
               {/* Paint bucket + droplet icon */}
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
                 <path stroke="currentColor" d="M13.5 6.5l-3-3-7 7 7.59 7.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82L13.5 6.5zm0 0v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
                 <path fill="currentColor" d="M0 16.5C0 15 2.5 12 2.5 12S5 15 5 16.5 4 19 2.5 19 0 18 0 16.5z" />
                 <circle fill="currentColor" cx="9.5" cy="9.5" r="1.5" />
@@ -826,7 +826,7 @@ export function DrawingEditToolbar({
               className={`${btnBase} ${showText ? btnActive : btnHover}`}
               title="Text"
             >
-              <svg width="13" height="15" viewBox="0 0 13 15" fill="none">
+              <svg width="11" height="13" viewBox="0 0 13 15" fill="none">
                 <path stroke="currentColor" d="M4 14.5h2.5m2.5 0H6.5m0 0V.5m0 0h-5a1 1 0 0 0-1 1V4m6-3.5h5a1 1 0 0 1 1 1V4" />
               </svg>
               {/* Text color dot */}
@@ -881,13 +881,13 @@ export function DrawingEditToolbar({
           >
             {drawing.extendLeft === false ? (
               /* Ray: line with center handle (not extended) */
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
+              <svg width="22" height="22" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
                 <path d="M4 15h8.5v-1h-8.5zM16.5 15h8.5v-1h-8.5z" />
                 <path d="M14.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
               </svg>
             ) : (
-              /* HLine: line with left endpoint handle (extended) */
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
+              /* HLine: line with left endpoint handle (extended) — same as DrawingToolbar */
+              <svg width="22" height="22" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
                 <path d="M8.5 15h16.5v-1h-16.5z" />
                 <path d="M6.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
               </svg>
@@ -933,7 +933,7 @@ export function DrawingEditToolbar({
         className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
         title="Delete"
       >
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor">
+        <svg width="22" height="22" viewBox="0 0 28 28" fill="currentColor">
           <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
         </svg>
       </button>
