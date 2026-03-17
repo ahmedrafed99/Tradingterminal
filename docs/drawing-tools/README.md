@@ -202,15 +202,17 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 
 **Right-click on chart**: Cancels the active drawing tool (switches back to select). Also suppresses browser context menu on the chart.
 
+All icons are TradingView-style filled SVGs rendered at native 28×28 (no scaling), inside 36×34 button containers.
+
 | Tool | Icon | Behavior |
 |------|------|----------|
-| Horizontal Line | Line with endpoint dots | Click on chart to place at price level |
-| Rectangle | Rounded rect | Click to place first corner, move mouse, click to place diagonal corner |
-| Oval | Ellipse | Click-and-drag to define bounding rectangle |
-| Arrow Path | Polyline with arrow | Click to place nodes, double-click to finalize (right-click also works) |
-| Ruler | Diagonal ruler | Click to start, move, click to finish — ephemeral measurement overlay |
-| Free Draw | Pencil | Click-and-drag to draw freehand brush strokes. Tool stays active after each stroke for consecutive drawing. |
-| Delete All | Trash bin | Removes all drawings from all charts. Always visible; greyed out (disabled) when no drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
+| Horizontal Line | Ray with endpoint handle | Click on chart to place at price level |
+| Rectangle | Rect outline with 4 corner handles | Click to place first corner, move mouse, click to place diagonal corner |
+| Oval | Dashed ellipse with 4 cardinal handles | Click-and-drag to define bounding rectangle |
+| Arrow Path | Zigzag trend line with node dots and arrowhead | Click to place nodes, double-click to finalize (right-click also works) |
+| Ruler | Rotated ruler with tick marks | Click to start, move, click to finish — ephemeral measurement overlay |
+| Free Draw | Brush with paint blob | Click-and-drag to draw freehand brush strokes. Tool stays active after each stroke for consecutive drawing. |
+| Delete All | Trash can with lid | Removes all drawings from all charts. Always visible; greyed out (disabled) when no drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
 
 ### DrawingEditToolbar
 
