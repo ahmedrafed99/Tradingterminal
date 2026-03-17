@@ -207,9 +207,10 @@ curl -s -X POST "http://localhost:3001/orders/cancel" -H "Content-Type: applicat
 - SHORT: SL ticks **positive**, TP ticks **negative**
 - Examples: 10pts = 40 ticks, 15pts = 60 ticks, 20pts = 80 ticks, 25pts = 100 ticks
 
-### Drawing on Chart
+### Drawing on Chart (DISABLED)
+Remote drawing polling (`useRemoteDrawings`) is currently disabled. The backend `/drawings/add` endpoint still exists but the frontend no longer polls `/drawings/pending`.
 ```bash
-# Horizontal line with label (appears on chart via frontend polling)
+# Horizontal line with label (backend route exists but frontend polling is off)
 curl -s -X POST "http://localhost:3001/drawings/add" -H "Content-Type: application/json" -d '{"type":"hline","price":PRICE,"color":"#COLOR","strokeWidth":1,"text":{"content":"LABEL","color":"#COLOR","fontSize":12,"bold":false,"italic":false,"hAlign":"left","vAlign":"bottom"},"contractId":"CON.F.US.MNQ.H26","startTime":0,"extendLeft":true}'
 # Colors: red=#ef5350 green=#26a69a blue=#2962ff orange=#f0a830 muted=#787b86
 ```
