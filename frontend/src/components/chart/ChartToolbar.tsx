@@ -1,4 +1,5 @@
-import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore, TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { ChevronDown } from '../icons/ChevronDown';
@@ -38,14 +39,7 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  useClickOutside(ref, open, () => setOpen(false));
 
   const current = UNIT_OPTIONS.find((u) => u.value === value);
 
@@ -120,17 +114,8 @@ function IndicatorsDropdown() {
   const ref = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setEditingVp(false);
-      }
-    }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  const closeIndicatorMenu = useCallback(() => { setOpen(false); setEditingVp(false); }, []);
+  useClickOutside(ref, open, closeIndicatorMenu);
 
   return (
     <div ref={ref} className="relative self-stretch flex items-center">

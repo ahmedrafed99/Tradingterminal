@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 
 // 10-column palette matching standard design-tool layout
@@ -200,13 +201,7 @@ export function ColorPopover({
   const parsed = parseColorWithOpacity(current);
   const [localOpacity, setLocalOpacity] = useState(parsed.opacity);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [onClose]);
+  useClickOutside(ref, true, onClose);
 
   // Sync opacity when current color changes externally
   useEffect(() => {

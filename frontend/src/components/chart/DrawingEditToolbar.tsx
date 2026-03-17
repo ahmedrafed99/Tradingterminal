@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
@@ -162,13 +163,7 @@ function TextPopover({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, color, fontSize, bold, italic, hAlign, vAlign]);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [onClose]);
+  useClickOutside(ref, true, onClose);
 
   const apply = () => {
     // Changes already applied via live preview — just close
@@ -408,14 +403,7 @@ function StrokePopover({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [onClose]);
+  useClickOutside(ref, true, onClose);
 
   return (
     <div
@@ -470,13 +458,7 @@ function TemplatePopover({
   const [name, setName] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    window.addEventListener('mousedown', handler);
-    return () => window.removeEventListener('mousedown', handler);
-  }, [onClose]);
+  useClickOutside(ref, true, onClose);
 
   useEffect(() => {
     if (saving) nameRef.current?.focus();

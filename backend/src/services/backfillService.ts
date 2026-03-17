@@ -59,6 +59,7 @@ export interface FetchJob {
 let currentJob: FetchJob | null = null;
 let cancelRequested = false;
 let jobCounter = 0;
+let fetchLock = false;
 
 export function getProgress(): FetchJob | { status: 'idle' } {
   return currentJob ?? { status: 'idle' as const };
@@ -84,10 +85,12 @@ export async function startFetch(params: {
   startTime?: string; // ISO 8601
   endTime?: string;   // ISO 8601
 }): Promise<{ jobId: string; estimatedPages: number }> {
-  if (currentJob?.status === 'running') {
+  if (fetchLock || currentJob?.status === 'running') {
     throw new Error('A fetch job is already running');
   }
+  fetchLock = true;
   if (!isConnected()) {
+    fetchLock = false;
     throw new Error('Not connected to exchange');
   }
 
@@ -137,13 +140,15 @@ export async function startFetch(params: {
   cancelRequested = false;
 
   // Run in background — don't await
-  runFetch(contractId, storageSymbol, startEpoch, endEpoch).catch((err) => {
-    if (currentJob && currentJob.jobId === jobId) {
-      currentJob.status = 'failed';
-      currentJob.errorMessage =
-        err instanceof Error ? err.message : 'Unknown error';
-    }
-  });
+  runFetch(contractId, storageSymbol, startEpoch, endEpoch)
+    .catch((err) => {
+      if (currentJob && currentJob.jobId === jobId) {
+        currentJob.status = 'failed';
+        currentJob.errorMessage =
+          err instanceof Error ? err.message : 'Unknown error';
+      }
+    })
+    .finally(() => { fetchLock = false; });
 
   return { jobId, estimatedPages };
 }

@@ -83,6 +83,8 @@ export function insertCandles(candles: CandleRow[]): number {
 // Query — raw 1m candles
 // ---------------------------------------------------------------------------
 
+const MAX_CANDLE_ROWS = 50_000;
+
 export function getCandles(
   contractId: string,
   fromEpoch: number,
@@ -93,9 +95,10 @@ export function getCandles(
       `SELECT contract_id, timestamp, open, high, low, close, volume
        FROM candles
        WHERE contract_id = ? AND timestamp >= ? AND timestamp <= ?
-       ORDER BY timestamp`,
+       ORDER BY timestamp
+       LIMIT ?`,
     )
-    .all(contractId, fromEpoch, toEpoch) as CandleRow[];
+    .all(contractId, fromEpoch, toEpoch, MAX_CANDLE_ROWS) as CandleRow[];
 }
 
 // ---------------------------------------------------------------------------
