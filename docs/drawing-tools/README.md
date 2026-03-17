@@ -218,9 +218,9 @@ All icons are TradingView-style filled SVGs rendered at native 28×28 (no scalin
 
 Floating toolbar positioned above the selected drawing, rendered per chart instance inside `CandlestickChart.tsx`. Each instance receives a `contractId` prop and only displays when the selected drawing's `contractId` matches — this prevents the popover from appearing on both charts in dual mode. Dark theme (`#1e222d` background, `#2a2e39` border, 8px border-radius, `0 4px 16px` shadow).
 
-**Layout:** `[ Pencil+color | T ] | [ ─ 1px ] | [ Template v ] | [ Trash ]`
+**Layout:** `[ Pencil+color | Fill bucket | T ] | [ ─ 2px ] | [ Extend toggle ] | [ Template v ] | [ Trash ]`
 
-Template button only shown for hline drawings. Fill color button (bucket icon) shown for rect and oval drawings.
+All icons are TradingView-style filled SVGs at native sizes (16×16 pencil, 20×20 bucket, 13×15 T, 28×28 extend/trash). Template button only shown for hline drawings. Fill color button (bucket icon) shown for rect and oval drawings. Extend toggle (hline only) swaps between two icons: ray with center handle (not extended) ↔ hline with left endpoint handle (extended).
 
 - Vertical dividers between logical groups
 - 32x32px button targets with 6px border-radius

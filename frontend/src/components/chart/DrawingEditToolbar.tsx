@@ -729,11 +729,8 @@ export function DrawingEditToolbar({
           className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
           title="Delete selected"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor">
+            <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
           </svg>
         </button>
       </div>
@@ -766,9 +763,8 @@ export function DrawingEditToolbar({
           className={`${btnBase} ${showColor ? btnActive : btnHover}`}
           title="Color"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-            <path d="m15 5 4 4" />
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
           </svg>
           {/* Color dot overlay on pencil tip */}
           <div style={{
@@ -797,10 +793,10 @@ export function DrawingEditToolbar({
               title="Fill color"
             >
               {/* Paint bucket + droplet icon */}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" transform="matrix(-1,0,0,1,0,0)">
-                <path d="M17.0408 10.6406L9.69083 3.29062L8.82083 2.42063C8.53083 2.13063 8.05083 2.13063 7.76083 2.42063C7.47083 2.71062 7.47083 3.19062 7.76083 3.48062L8.63083 4.35062L3.00083 9.98062C2.36083 10.6206 2.02083 11.2706 2.00083 11.9206C1.98083 12.6106 2.32083 13.3006 3.00083 13.9906L7.01083 18.0006C8.35083 19.3306 9.69083 19.3306 11.0208 18.0006L17.0408 11.9806C17.2408 11.7806 17.3308 11.5106 17.3108 11.2506C17.3008 11.0306 17.2008 10.8006 17.0408 10.6406Z" fill="none" stroke="currentColor" strokeWidth="1.5" />
-
-                <path d="M19.85 13.2C19.5 12.82 18.86 12.82 18.5 13.2C18.07 13.67 15.9 15.98 15.9 17.75C15.9 19.5 17.32 20.92 19.17 20.92C21.02 20.92 22.44 19.5 22.44 17.75C22.44 15.98 20.28 13.67 19.85 13.2Z" />
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path stroke="currentColor" d="M13.5 6.5l-3-3-7 7 7.59 7.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82L13.5 6.5zm0 0v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
+                <path fill="currentColor" d="M0 16.5C0 15 2.5 12 2.5 12S5 15 5 16.5 4 19 2.5 19 0 18 0 16.5z" />
+                <circle fill="currentColor" cx="9.5" cy="9.5" r="1.5" />
               </svg>
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
@@ -828,10 +824,11 @@ export function DrawingEditToolbar({
             <button
               onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
               className={`${btnBase} ${showText ? btnActive : btnHover}`}
-              style={{ fontWeight: 700, fontSize: 15, fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif" }}
               title="Text"
             >
-              T
+              <svg width="13" height="15" viewBox="0 0 13 15" fill="none">
+                <path stroke="currentColor" d="M4 14.5h2.5m2.5 0H6.5m0 0V.5m0 0h-5a1 1 0 0 0-1 1V4m6-3.5h5a1 1 0 0 1 1 1V4" />
+              </svg>
               {/* Text color dot */}
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
@@ -861,8 +858,8 @@ export function DrawingEditToolbar({
           title="Line width"
         >
           {/* Line preview */}
-          <div style={{ width: 18, height: drawing.strokeWidth, background: 'currentColor', borderRadius: drawing.strokeWidth / 2 }} />
-          <span style={{ fontSize: 11, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
+          <div style={{ width: 22, height: drawing.strokeWidth, background: 'currentColor', borderRadius: drawing.strokeWidth / 2 }} />
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
         </button>
         {showStroke && (
           <StrokePopover
@@ -880,14 +877,21 @@ export function DrawingEditToolbar({
           <button
             onClick={() => updateDrawing(drawing.id, { extendLeft: drawing.extendLeft === false ? true : false })}
             className={`${btnBase} ${drawing.extendLeft === false ? btnActive : btnHover}`}
-            title="Extend left"
+            title={drawing.extendLeft === false ? 'Extend to full width' : 'Start from click point'}
           >
-            {/* Ray icon: arrow pointing right from a vertical bar */}
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="6" x2="5" y2="18" />
-              <line x1="5" y1="12" x2="21" y2="12" />
-              <polyline points="17 8 21 12 17 16" />
-            </svg>
+            {drawing.extendLeft === false ? (
+              /* Ray: line with center handle (not extended) */
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
+                <path d="M4 15h8.5v-1h-8.5zM16.5 15h8.5v-1h-8.5z" />
+                <path d="M14.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
+              </svg>
+            ) : (
+              /* HLine: line with left endpoint handle (extended) */
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
+                <path d="M8.5 15h16.5v-1h-16.5z" />
+                <path d="M6.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
+              </svg>
+            )}
           </button>
         </>
       )}
@@ -929,11 +933,8 @@ export function DrawingEditToolbar({
         className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
         title="Delete"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-          <line x1="10" y1="11" x2="10" y2="17" />
-          <line x1="14" y1="11" x2="14" y2="17" />
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="currentColor">
+          <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
         </svg>
       </button>
     </div>
