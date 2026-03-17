@@ -202,7 +202,7 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 
 **Right-click on chart**: Cancels the active drawing tool (switches back to select). Also suppresses browser context menu on the chart.
 
-All icons are TradingView-style filled SVGs rendered at native 28×28 (no scaling), inside 36×34 button containers.
+All icons are TradingView-style filled SVGs (28×28 viewBox scaled to 22×22) with `shapeRendering="geometricPrecision"` for crisp sub-pixel rendering. Button containers are 36×34.
 
 | Tool | Icon | Behavior |
 |------|------|----------|
@@ -220,7 +220,7 @@ Floating toolbar positioned above the selected drawing, rendered per chart insta
 
 **Layout:** `[ Pencil+color | Fill bucket | T ] | [ ─ 2px ] | [ Extend toggle ] | [ Template v ] | [ Trash ]`
 
-All icons are TradingView-style filled SVGs at native sizes (16×16 pencil, 20×20 bucket, 13×15 T, 28×28 extend/trash). Template button only shown for hline drawings. Fill color button (bucket icon) shown for rect and oval drawings. Extend toggle (hline only) swaps between two icons: ray with center handle (not extended) ↔ hline with left endpoint handle (extended).
+All icons use TradingView-style filled SVGs with `shapeRendering="geometricPrecision"` (14×14 pencil, 16×16 bucket, 11×13 T, 22×22 extend/trash). Template button only shown for hline drawings. Fill color button (bucket icon) shown for rect and oval drawings. Extend toggle (hline only) swaps between two icons: ray with center handle (not extended) ↔ hline with left endpoint handle (extended).
 
 - Vertical dividers between logical groups
 - 32x32px button targets with 6px border-radius
