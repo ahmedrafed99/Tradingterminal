@@ -439,6 +439,7 @@ function TradingPanel({ settings, onChange }: { settings: Settings; onChange: On
       >
         Extend the trade zone rectangle to the right edge of the chart
       </div>
+
     </>
   );
 }
@@ -481,6 +482,23 @@ function CanvasPanel({ settings, onChange }: { settings: Settings; onChange: OnC
             <ColorSwatchButton color={settings.gradientBottomColor} onChange={(c) => onChange({ gradientBottomColor: c })} />
           </>
         )}
+      </div>
+
+      <SectionHeader>Performance</SectionHeader>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <Checkbox
+          checked={settings.showFpsCounter}
+          onChange={(v) => onChange({ showFpsCounter: v })}
+          label="Show FPS counter"
+        />
+        <div style={{ marginLeft: 'auto' }}>
+          <ColorSwatchButton
+            color={settings.fpsCounterColor}
+            onChange={(c) => onChange({ fpsCounterColor: c })}
+            disabled={!settings.showFpsCounter}
+          />
+        </div>
       </div>
     </>
   );

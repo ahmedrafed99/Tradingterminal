@@ -15,6 +15,7 @@ import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { VolumeProfilePrimitive } from './VolumeProfilePrimitive';
 import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
 import type { PriceLevelLine } from './PriceLevelLine';
+import { getPriceScaleWidth } from './barUtils';
 import { useChartWidgets } from './hooks/useChartWidgets';
 import { useChartBars } from './hooks/useChartBars';
 import { useChartDrawings } from './hooks/useChartDrawings';
@@ -23,6 +24,7 @@ import { useOrderLines } from './hooks/useOrderLines';
 import { useOverlayLabels } from './hooks/useOverlayLabels';
 import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
+import { useFpsCounter } from './hooks/useFpsCounter';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, QoPreviewLines, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
@@ -313,6 +315,9 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   useOverlayLabels(refs, contract, isOrderChart);
   useConditionLines(refs, contract, timeframe);
 
+  const showFps = chartSettings.showFpsCounter;
+  const fps = useFpsCounter(showFps);
+
   return (
     <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden">
       {loading && (
@@ -336,6 +341,23 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
             className="text-xs font-medium leading-tight overflow-hidden whitespace-nowrap min-w-0"
             style={{ background: '#00000080', borderRadius: 2, padding: '1px 3px' }}
           />
+        </div>
+      )}
+      {showFps && (
+        <div
+          className="absolute z-10 pointer-events-none select-none"
+          style={{
+            top: 8,
+            right: (chartRef.current ? getPriceScaleWidth(chartRef.current) : 56) + 4,
+            fontSize: 10,
+            fontFamily: 'monospace',
+            color: chartSettings.fpsCounterColor,
+            background: '#00000080',
+            borderRadius: 2,
+            padding: '1px 4px',
+          }}
+        >
+          {fps} FPS
         </div>
       )}
       <div

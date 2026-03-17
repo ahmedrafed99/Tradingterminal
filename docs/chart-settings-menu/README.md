@@ -116,6 +116,15 @@ Chart background.
 
 Layout: inline row — dropdown + colour swatch(es) side by side, no separate labels.
 
+**Performance**
+
+| Setting | Control | Default | Store key |
+|---------|---------|---------|-----------|
+| Show FPS counter | Checkbox | `false` | `chartSettings.showFpsCounter` |
+| FPS counter colour | Colour swatch (disabled when counter is off) | `#808080` | `chartSettings.fpsCounterColor` |
+
+When enabled, a small monospace FPS readout appears in the top-right corner of the chart, positioned just left of the price scale. The counter measures `requestAnimationFrame` throughput, updating once per second. The colour is user-configurable via a colour swatch.
+
 #### 3. Trading
 
 Trade marker appearance — controls how entry/exit trade zones render on the chart.
@@ -181,6 +190,10 @@ chartSettings: {
 
   // Trading
   extendTradeZoneRight: boolean; // false
+
+  // Performance
+  showFpsCounter: boolean;  // false
+  fpsCounterColor: string;  // '#808080'
 }
 ```
 
@@ -196,6 +209,7 @@ Default values match the hardcoded values in `chartTheme.ts` so nothing changes 
 | `frontend/src/components/chart/ChartSettingsModal.tsx` | Full settings modal with sidebar categories |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Mounts `ChartSettingsButton`, applies `chartSettings` via `useEffect` |
 | `frontend/src/components/chart/ColorPopover.tsx` | Colour picker popover (reused by modal swatches) |
+| `frontend/src/components/chart/hooks/useFpsCounter.ts` | RAF-based FPS measurement hook |
 | `frontend/src/store/slices/chartSettingsSlice.ts` | Store slice with defaults |
 | `frontend/src/store/useStore.ts` | Combined store — `chartSettings` persisted to `localStorage` |
 
@@ -233,6 +247,12 @@ All Lightweight Charts options are hot-updatable — no chart recreation needed.
 - Trading category with trade marker settings
 - "Extend zone right" toggle — extends trade zone rectangles to the right edge of the chart
 - Setting reactively applied via `useChartWidgets` store subscription → `TradeZonePrimitive.setExtendRight()`
+
+### Phase 4 (implemented)
+- FPS counter toggle in Canvas category under "Performance" section
+- Configurable FPS counter colour via colour swatch
+- FPS overlay positioned just left of the price scale using `getPriceScaleWidth()`
+- RAF-based measurement in `useFpsCounter` hook — zero overhead when disabled
 
 ### Out of scope (future)
 - Per-chart settings in dual-chart mode (currently shared)

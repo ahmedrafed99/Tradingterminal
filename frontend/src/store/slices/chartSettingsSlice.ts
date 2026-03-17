@@ -23,6 +23,10 @@ export interface ChartSettingsState {
 
     // Trading
     extendTradeZoneRight: boolean;
+
+    // Performance
+    showFpsCounter: boolean;
+    fpsCounterColor: string;
   };
   setChartSettings: (patch: Partial<ChartSettingsState['chartSettings']>) => void;
 }
@@ -51,6 +55,9 @@ export const CHART_SETTINGS_DEFAULTS: ChartSettingsState['chartSettings'] = {
   gradientBottomColor: '#000000',
 
   extendTradeZoneRight: false,
+
+  showFpsCounter: false,
+  fpsCounterColor: '#808080',
 };
 
 export const createChartSettingsSlice = (set: Set): ChartSettingsSlice => ({
