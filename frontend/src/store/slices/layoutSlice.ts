@@ -61,13 +61,17 @@ export interface VolumeProfileState {
   vpEnabled: boolean;
   vpTradeMode: boolean;
   vpColor: string;
+  vpHoverExpand: boolean;
   secondVpEnabled: boolean;
   secondVpColor: string;
+  secondVpHoverExpand: boolean;
   setVpEnabled: (enabled: boolean) => void;
   setVpTradeMode: (enabled: boolean) => void;
   setVpColor: (color: string) => void;
+  setVpHoverExpand: (enabled: boolean) => void;
   setSecondVpEnabled: (enabled: boolean) => void;
   setSecondVpColor: (color: string) => void;
+  setSecondVpHoverExpand: (enabled: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -142,13 +146,17 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   vpEnabled: false,
   vpTradeMode: false,
   vpColor: '#808080',
+  vpHoverExpand: true,
   secondVpEnabled: false,
   secondVpColor: '#808080',
+  secondVpHoverExpand: true,
   setVpEnabled: (vpEnabled) => set({ vpEnabled }),
   setVpTradeMode: (vpTradeMode) => set({ vpTradeMode }),
   setVpColor: (vpColor) => set({ vpColor }),
+  setVpHoverExpand: (vpHoverExpand) => set({ vpHoverExpand }),
   setSecondVpEnabled: (secondVpEnabled) => set({ secondVpEnabled }),
   setSecondVpColor: (secondVpColor) => set({ secondVpColor }),
+  setSecondVpHoverExpand: (secondVpHoverExpand) => set({ secondVpHoverExpand }),
 
   // News
   newsEvents: [] as NewsEvent[],

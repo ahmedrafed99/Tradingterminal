@@ -70,7 +70,8 @@ The core rendering component, attached to the candlestick series.
 ```ts
 setTickSize(tickSize: number): void       // Set contract tick size (e.g. 0.25)
 setEnabled(enabled: boolean): void        // Show/hide the VP overlay
-setColor(hex: string): void               // Set bar color from hex (e.g. '#808080')
+setColor(color: string): void              // Set bar color from hex or rgba string
+setHoverExpand(enabled: boolean): void    // Toggle smooth bar expansion on hover
 setVolumeMap(map: VolumeMap): void        // Replace entire volume map (snapshot)
 updateLevel(price: number, vol: number): void  // Update single price level (incremental)
 clear(): void                             // Clear all data (contract change / reset)
@@ -81,9 +82,12 @@ isEnabled(): boolean                      // Check if VP is currently on
 
 **Rendering details:**
 - Bars drawn from left edge, width proportional to volume (`volumeRatio * paneWidth * 0.30`)
-- Color derived from hex: bars at `rgba(r,g,b, 0.22)`, hover at `rgba(r,g,b, 0.40)`, ref line at `rgba(r,g,b, 0.25)`
-- Hover: highlighted bar, volume tooltip, dotted reference line across chart
-- `zOrder: 'bottom'` — renders behind candles, drawings, and other primitives
+- Color accepts hex or rgba — user opacity is used as a multiplier on internal alpha values (bars `0.22`, hover `0.40`, ref line `0.25`)
+- Two separate pane views for correct layering:
+  - **Bars view** (`zOrder: 'bottom'`) — histogram bars + dotted reference line, renders behind candles
+  - **Tooltip view** (`zOrder: 'top'`) — volume label on hover, renders above candles
+- Hover expand: when enabled, hovered bar smoothly grows ±3px using lerp animation (0.25/frame), shared expand map between both views
+- Volume tooltip positioned at the left edge of bars (4px padding)
 - Width calculated in renderer via `mediaSize.width` (no hacky chart width access)
 
 ### Store State (`VolumeProfileState`)
@@ -91,9 +95,11 @@ isEnabled(): boolean                      // Check if VP is currently on
 ```ts
 vpEnabled: boolean        // Left chart toggle (persisted)
 vpTradeMode: boolean      // Click-to-trade mode (not yet implemented)
-vpColor: string           // Left chart hex color, default '#808080' (persisted)
+vpColor: string           // Left chart color as hex or rgba (persisted)
+vpHoverExpand: boolean    // Smooth bar expansion on hover, default true (persisted)
 secondVpEnabled: boolean  // Right chart toggle (persisted)
-secondVpColor: string     // Right chart hex color, default '#808080' (persisted)
+secondVpColor: string     // Right chart color as hex or rgba (persisted)
+secondVpHoverExpand: boolean // Right chart hover expand (persisted)
 ```
 
 In dual-chart mode, each chart reads its own VP state (`vpEnabled`/`vpColor` for left, `secondVpEnabled`/`secondVpColor` for right). The `IndicatorsDropdown` routes to the selected chart's state via `selectedChart`, matching the timeframe routing pattern. In single-chart mode, `selectedChart` is always `'left'`, so the primary state is used.
@@ -109,9 +115,12 @@ Three `useEffect` hooks manage the VP lifecycle:
 
 2. **Color sync** (deps: `[vpColor]`)
    - Separate from subscription so color changes don't re-subscribe depth
-   - Calls `vpPrimitive.setColor(vpColor)`
+   - Calls `vpPrimitive.setColor(vpColor)` — accepts hex or rgba
 
-3. **Hover tracking** (deps: `[vpEnabled]`)
+3. **Hover expand sync** (deps: `[vpHoverExpand]`)
+   - Calls `vpPrimitive.setHoverExpand(vpHoverExpand)`
+
+4. **Hover tracking** (deps: `[vpEnabled]`)
    - Subscribes to `chart.subscribeCrosshairMove`
    - Converts crosshair Y → price via `series.coordinateToPrice()`
    - Feeds price to `vpPrimitive.setHoverPrice()`
@@ -130,11 +139,10 @@ Located in the top toolbar after the timeframe selectors. Contains a list of ava
 - **Color swatch** — shows current `vpColor`
 - **Pencil edit button** — opens color palette sub-view
 
-**Color palette sub-view:**
+**Settings sub-view (pencil icon):**
 - Back arrow returns to indicator list
-- 7×10 color grid (same `COLOR_PALETTE` used by drawing tools)
-- Custom color picker (+) button for arbitrary hex colors
-- Selected color highlighted with white border
+- **Color** section: 7×10 color grid (same `COLOR_PALETTE` used by drawing tools), custom color picker (+), opacity slider
+- **Hover Expand** toggle: enables/disables smooth bar expansion on hover (persisted)
 
 ---
 
@@ -143,7 +151,7 @@ Located in the top toolbar after the timeframe selectors. Contains a list of ava
 - Horizontal histogram bars anchored to the **left edge** of the chart
 - Bar width proportional to volume (max width ~30% of chart area)
 - Default color: grey (`#808080`), customizable via Indicators dropdown
-- Hover: bar brightens, volume tooltip appears, dotted reference line extends across chart
+- Hover: bar brightens (and optionally expands smoothly), volume tooltip appears at left edge above candles, dotted reference line extends across chart
 - Per-chart toggle: in dual-chart mode, each chart has independent `vpEnabled`/`vpColor` state; toolbar routes to the selected chart
 - Each bar spans one tick in height (price ± tickSize/2)
 

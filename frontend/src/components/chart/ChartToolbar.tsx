@@ -5,7 +5,7 @@ import { ChevronDown } from '../icons/ChevronDown';
 import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
-import { COLOR_PALETTE } from './ColorPopover';
+import { COLOR_PALETTE, OpacitySlider, parseColorWithOpacity, toRgba } from './ColorPopover';
 import { isFuturesMarketOpen } from '../../utils/marketHours';
 import { COLOR_BG, COLOR_BORDER } from '../../constants/colors';
 import { paintOverlays } from './screenshot/paintOverlays';
@@ -111,6 +111,10 @@ function IndicatorsDropdown() {
     s.selectedChart === 'left' ? s.vpColor : s.secondVpColor);
   const setVpColor = useStore((s) =>
     s.selectedChart === 'left' ? s.setVpColor : s.setSecondVpColor);
+  const vpHoverExpand = useStore((s) =>
+    s.selectedChart === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
+  const setVpHoverExpand = useStore((s) =>
+    s.selectedChart === 'left' ? s.setVpHoverExpand : s.setSecondVpHoverExpand);
   const [open, setOpen] = useState(false);
   const [editingVp, setEditingVp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -208,57 +212,103 @@ function IndicatorsDropdown() {
               </div>
             </div>
           ) : (
-            <div style={{ padding: 10, width: 252 }}>
-              {/* Back arrow + title */}
-              <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
-                <button
-                  onClick={() => setEditingVp(false)}
-                  className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M19 12H5M12 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <span className="text-xs text-(--color-text) font-medium">Volume Profile Color</span>
-              </div>
+            (() => {
+              const vpParsed = parseColorWithOpacity(vpColor);
+              return (
+                <div style={{ padding: 10, width: 252 }}>
+                  {/* Back arrow + title */}
+                  <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
+                    <button
+                      onClick={() => setEditingVp(false)}
+                      className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M19 12H5M12 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <span className="text-xs text-(--color-text) font-medium">Volume Profile Settings</span>
+                  </div>
 
-              {/* Color palette grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: 8 }}>
-                {COLOR_PALETTE.flat().map((c, i) => (
+                  {/* Color section */}
+                  <div className={SECTION_LABEL} style={{ marginBottom: 6 }}>Color</div>
+
+                  {/* Color palette grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: 8 }}>
+                    {COLOR_PALETTE.flat().map((c, i) => (
+                      <button
+                        key={`${c}-${i}`}
+                        onClick={() => setVpColor(toRgba(c, vpParsed.opacity))}
+                        style={{
+                          width: 20, height: 20, background: c, borderRadius: 3,
+                          border: c === vpParsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
+                          cursor: 'pointer',
+                          boxShadow: c === vpParsed.hex ? '0 0 0 1px var(--color-surface)' : 'none',
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Custom color */}
                   <button
-                    key={`${c}-${i}`}
-                    onClick={() => setVpColor(c)}
+                    onClick={() => customInputRef.current?.click()}
                     style={{
-                      width: 20, height: 20, background: c, borderRadius: 3,
-                      border: c === vpColor ? '2px solid #fff' : '1px solid var(--color-border)',
-                      cursor: 'pointer',
-                      boxShadow: c === vpColor ? '0 0 0 1px var(--color-surface)' : 'none',
+                      width: 20, height: 20, borderRadius: 3,
+                      border: '1px dashed var(--color-text-muted)', background: 'transparent',
+                      color: 'var(--color-text-muted)', fontSize: 14, lineHeight: '18px',
+                      cursor: 'pointer', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
                     }}
+                  >
+                    +
+                  </button>
+                  <input
+                    ref={customInputRef}
+                    type="color"
+                    value={vpParsed.hex}
+                    onChange={(e) => setVpColor(toRgba(e.target.value, vpParsed.opacity))}
+                    style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
                   />
-                ))}
-              </div>
 
-              {/* Custom color */}
-              <button
-                onClick={() => customInputRef.current?.click()}
-                style={{
-                  width: 20, height: 20, borderRadius: 3,
-                  border: '1px dashed var(--color-text-muted)', background: 'transparent',
-                  color: 'var(--color-text-muted)', fontSize: 14, lineHeight: '18px',
-                  cursor: 'pointer', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                }}
-              >
-                +
-              </button>
-              <input
-                ref={customInputRef}
-                type="color"
-                value={vpColor}
-                onChange={(e) => setVpColor(e.target.value)}
-                style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
-              />
-            </div>
+                  {/* Opacity slider */}
+                  <OpacitySlider
+                    hex={vpParsed.hex}
+                    opacity={vpParsed.opacity}
+                    onChange={(op) => setVpColor(toRgba(vpParsed.hex, op))}
+                  />
+
+                  {/* Divider */}
+                  <div className="border-t border-(--color-border)" style={{ margin: '10px 0' }} />
+
+                  {/* Hover Expand toggle */}
+                  <div
+                    className="flex items-center justify-between cursor-pointer"
+                    onClick={() => setVpHoverExpand(!vpHoverExpand)}
+                  >
+                    <span className="text-xs text-(--color-text)">Hover Expand</span>
+                    <div
+                      style={{
+                        width: 32, height: 18, borderRadius: 9,
+                        background: vpHoverExpand ? 'var(--color-accent)' : 'var(--color-surface)',
+                        border: '1px solid var(--color-border)',
+                        position: 'relative',
+                        transition: 'background var(--transition-fast)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 14, height: 14, borderRadius: '50%',
+                          background: '#fff',
+                          position: 'absolute', top: 1,
+                          left: vpHoverExpand ? 16 : 1,
+                          transition: 'left var(--transition-fast)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
           )}
         </div>
       )}

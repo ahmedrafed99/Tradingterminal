@@ -33,6 +33,7 @@ export function useChartBars(
 
   const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
   const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
+  const vpHoverExpand = useStore((s) => chartId === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
 
   // Bump to force historical bar reload on market hub reconnect
   const [reconnectCount, setReconnectCount] = useState(0);
@@ -301,6 +302,11 @@ export function useChartBars(
   useEffect(() => {
     refs.vpPrimitive.current?.setColor(vpColor);
   }, [vpColor]);
+
+  // -- VP hover expand sync --
+  useEffect(() => {
+    refs.vpPrimitive.current?.setHoverExpand(vpHoverExpand);
+  }, [vpHoverExpand]);
 
   // -- VP hover tracking (crosshair move feeds hover price to primitive) --
   useEffect(() => {
