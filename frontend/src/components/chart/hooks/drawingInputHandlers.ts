@@ -67,6 +67,15 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Rect in progress: cancel
+  if (state.rectCreation) {
+    state.rectCreation = null;
+    primitive.clearRectPreview();
+    resetChartInteraction(ctx);
+    setActiveTool('select');
+    return;
+  }
+
   // Free draw in progress: cancel
   if (state.freeDrawCreation) {
     state.freeDrawCreation = null;
@@ -145,6 +154,13 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
       state.ctrlDragSelect = null;
       primitive.clearSelectionRect();
       resetChartInteraction(ctx);
+      return;
+    }
+    if (state.rectCreation) {
+      state.rectCreation = null;
+      primitive.clearRectPreview();
+      resetChartInteraction(ctx);
+      useStore.getState().setActiveTool('select');
       return;
     }
     if (state.rulerCreation) {
@@ -257,7 +273,7 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
     container.style.cursor = 'crosshair';
     return;
   }
-  if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.freeDrawCreation || state.chartPanning
+  if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.rectCreation || state.freeDrawCreation || state.chartPanning
       || refs.orderDragState.current || refs.previewDragState.current || refs.posDrag.current) {
     container.style.cursor = 'grabbing';
     return;

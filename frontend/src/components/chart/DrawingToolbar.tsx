@@ -21,6 +21,14 @@ function HLineIcon() {
   );
 }
 
+function RectIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="5" width="18" height="14" rx="1" />
+    </svg>
+  );
+}
+
 function OvalIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -85,6 +93,7 @@ function ChevronRight({ className }: { className?: string }) {
 const TOOLS: { id: DrawingTool; icon: React.FC; label: string }[] = [
   { id: 'select', icon: CursorIcon, label: 'Select' },
   { id: 'hline', icon: HLineIcon, label: 'Horizontal Line' },
+  { id: 'rect', icon: RectIcon, label: 'Rectangle' },
   { id: 'oval', icon: OvalIcon, label: 'Oval' },
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
   { id: 'ruler', icon: RulerIcon, label: 'Ruler' },

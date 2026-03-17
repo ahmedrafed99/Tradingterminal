@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
-import { ColorPopover, COLOR_PALETTE } from './ColorPopover';
+import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba } from './ColorPopover';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -682,6 +682,7 @@ export function DrawingEditToolbar({
   const setSelectedDrawingIds = useStore((s) => s.setSelectedDrawingIds);
 
   const [showColor, setShowColor] = useState(false);
+  const [showFillColor, setShowFillColor] = useState(false);
   const [showText, setShowText] = useState(false);
   const [showStroke, setShowStroke] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
@@ -693,7 +694,7 @@ export function DrawingEditToolbar({
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -786,6 +787,52 @@ export function DrawingEditToolbar({
           />
         )}
       </div>
+
+      {/* Fill color (rect only) */}
+      {drawing.type === 'rect' && (
+        <>
+          <Divider />
+          <div className="relative">
+            <button
+              onClick={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
+              className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
+              title="Fill color"
+            >
+              {/* Bucket fill icon */}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2.5 21.5L12 12l3 3-7 7z" />
+                <path d="M12 12l7-7 3 3-7 7" />
+                <path d="M20 16c1.1 1.1 1.1 2.9 0 4s-2.9 1.1-4 0L20 16z" />
+              </svg>
+              <div style={{
+                position: 'absolute', bottom: 4, right: 4,
+                width: 8, height: 8, borderRadius: '50%',
+                background: (drawing as import('../../types/drawing').RectDrawing).fillColor || 'transparent',
+                border: '1px solid var(--color-border)',
+              }} />
+            </button>
+            {showFillColor && (() => {
+              const rawFill = (drawing as import('../../types/drawing').RectDrawing).fillColor || 'rgba(255,152,0,0.15)';
+              const parsed = parseColorWithOpacity(rawFill);
+              return (
+                <ColorPopover
+                  current={parsed.hex}
+                  onChange={(hex) => {
+                    const newFill = toRgba(hex, parsed.opacity);
+                    updateDrawing(drawing.id, { fillColor: newFill } as Partial<Drawing>);
+                  }}
+                  onClose={() => setShowFillColor(false)}
+                  opacity={parsed.opacity}
+                  onOpacityChange={(op) => {
+                    const newFill = toRgba(parsed.hex, op);
+                    updateDrawing(drawing.id, { fillColor: newFill } as Partial<Drawing>);
+                  }}
+                />
+              );
+            })()}
+          </div>
+        </>
+      )}
 
       {/* Text (not shown for freedraw) */}
       {drawing.type !== 'freedraw' && (

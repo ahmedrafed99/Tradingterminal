@@ -56,6 +56,30 @@ export function hitTestRect(
 }
 
 /**
+ * Check if a point (mx, my) is near any edge of a rectangle defined by two corners.
+ * Tests proximity to the 4 edges (not just inside the AABB).
+ */
+export function hitTestRectEdges(
+  mx: number, my: number,
+  x1: number, y1: number,
+  x2: number, y2: number,
+  tolerance = 6,
+): boolean {
+  const left = Math.min(x1, x2);
+  const right = Math.max(x1, x2);
+  const top = Math.min(y1, y2);
+  const bottom = Math.max(y1, y2);
+
+  // Check proximity to each of the 4 edges
+  const nearTop = my >= top - tolerance && my <= top + tolerance && mx >= left - tolerance && mx <= right + tolerance;
+  const nearBottom = my >= bottom - tolerance && my <= bottom + tolerance && mx >= left - tolerance && mx <= right + tolerance;
+  const nearLeft = mx >= left - tolerance && mx <= left + tolerance && my >= top - tolerance && my <= bottom + tolerance;
+  const nearRight = mx >= right - tolerance && mx <= right + tolerance && my >= top - tolerance && my <= bottom + tolerance;
+
+  return nearTop || nearBottom || nearLeft || nearRight;
+}
+
+/**
  * Check if a point (mx, my) is near the perimeter of an ellipse.
  * cx, cy = ellipse center; rx, ry = radii.
  */

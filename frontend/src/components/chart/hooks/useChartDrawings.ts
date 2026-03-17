@@ -153,7 +153,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       queueMicrotask(() => {
         if (!state.drawingDrag && !state.ovalResize && !state.ovalDrag
             && !state.arrowPathNodeDrag && !state.arrowPathCreation
-            && !state.rulerCreation && !state.freeDrawCreation && !state.overlayHitCaptured
+            && !state.rectCreation && !state.rulerCreation && !state.freeDrawCreation && !state.overlayHitCaptured
             && !state.ctrlDragSelect) {
           state.chartPanning = true;
           container.style.cursor = 'grabbing';
@@ -190,6 +190,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       unsubCursor();
       state.arrowPathCreation = null;
       state.arrowPathNodeDrag = null;
+      state.rectCreation = null;
       state.freeDrawCreation = null;
       state.rulerCreation = null;
       state.rulerDisplayActive = false;

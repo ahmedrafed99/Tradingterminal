@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Drawing tool identifiers
 // ---------------------------------------------------------------------------
-export type DrawingTool = 'select' | 'hline' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
+export type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
 
 // ---------------------------------------------------------------------------
 // Text configuration for drawings
@@ -40,6 +40,16 @@ export interface HLineDrawing extends DrawingBase {
   price: number;
   startTime: number;      // timestamp where the line was placed
   extendLeft: boolean;    // true = full width, false = starts at startTime going right
+}
+
+// ---------------------------------------------------------------------------
+// Rectangle drawing
+// ---------------------------------------------------------------------------
+export interface RectDrawing extends DrawingBase {
+  type: 'rect';
+  p1: { time: number; price: number };  // diagonal corner 1
+  p2: { time: number; price: number };  // diagonal corner 2
+  fillColor: string;                    // fill color (supports alpha, e.g. rgba)
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +101,7 @@ export interface FreeDrawDrawing extends DrawingBase {
 // ---------------------------------------------------------------------------
 // Union type
 // ---------------------------------------------------------------------------
-export type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
+export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
 
 // ---------------------------------------------------------------------------
 // Horizontal line template (saved style presets)
@@ -113,5 +123,7 @@ export const DEFAULT_HLINE_COLOR = COLOR_TEXT_MUTED;
 export const DEFAULT_OVAL_COLOR = '#ff9800';
 export const DEFAULT_ARROWPATH_COLOR = '#f7c948';
 export const DEFAULT_RULER_COLOR = COLOR_ACCENT;
+export const DEFAULT_RECT_COLOR = '#ff9800';
+export const DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)';
 export const DEFAULT_FREEDRAW_COLOR = '#ffffff';
 export const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4] as const;

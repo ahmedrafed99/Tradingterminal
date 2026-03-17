@@ -1,6 +1,6 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
-import { DEFAULT_OVAL_COLOR, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
+import { DEFAULT_OVAL_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
@@ -17,7 +17,7 @@ export function onCtrlDragSelectDown(e: MouseEvent, ctx: DrawingContext): void {
   if (st.activeTool !== 'select') return;
   // Don't start if another interaction is in progress
   if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
-      || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
+      || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.freeDrawCreation) return;
 
   const { x, y } = getMousePos(e, container);
   state.ctrlDragSelect = { startX: x, startY: y };
@@ -34,7 +34,7 @@ export function onShiftRulerKey(e: KeyboardEvent, ctx: DrawingContext): void {
   if (e.type === 'keydown' && e.key === 'Shift') {
     // Don't activate if another interaction is in progress
     if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
-        || state.arrowPathCreation || state.freeDrawCreation || state.ctrlDragSelect) return;
+        || state.arrowPathCreation || state.rectCreation || state.freeDrawCreation || state.ctrlDragSelect) return;
     // Only activate from select tool (avoid overriding other tools)
     if (st.activeTool !== 'select' && st.activeTool !== 'ruler') return;
     if (st.activeTool !== 'ruler') {
@@ -56,7 +56,7 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const st = useStore.getState();
   if (st.activeTool !== 'select' || st.selectedDrawingIds.length !== 1) return;
   const drawing = st.drawings.find((d) => d.id === st.selectedDrawingIds[0]);
-  if (!drawing || (drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler')) return;
+  if (!drawing || (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler')) return;
 
   const { x, y } = getMousePos(e, container);
   const hit = primitive.getHandleAt(x, y);
@@ -80,7 +80,7 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
     }
   }
 
-  if (drawing.type !== 'oval' && drawing.type !== 'ruler') return;
+  if (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'ruler') return;
 
   const p1 = drawing.p1;
   const p2 = drawing.p2;
@@ -134,6 +134,15 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
     };
     refs.crosshairLabel.current?.suppress(true);
     chart.applyOptions({ crosshair: { horzLine: { labelVisible: false } } });
+  } else if (drawing.type === 'rect') {
+    const data = getDataPos(chart, series, x, y);
+    if (!data) return;
+    state.drawingDrag = {
+      drawingId: drawing.id, type: 'rect',
+      startX: x, startY: y, origPrice: 0,
+      origP1: { ...drawing.p1 }, origP2: { ...drawing.p2 },
+      startTime: data.time, startPrice: data.price, origStartTime: 0,
+    };
   } else if (drawing.type === 'oval') {
     const data = getDataPos(chart, series, x, y);
     if (!data) return;
@@ -185,7 +194,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
 /** Mousedown: start oval drag-to-create. */
 export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container } = ctx;
-  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation) return;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'oval') return;
   const { x, y } = getMousePos(e, container);
@@ -200,7 +209,7 @@ export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 /** Mousedown: start free draw brush stroke. */
 export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container } = ctx;
-  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.freeDrawCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'freedraw') return;
   const { x, y } = getMousePos(e, container);
@@ -265,7 +274,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
       if (Object.keys(patch).length > 0) {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, patch, true);
       }
-    } else if (state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
+    } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
       const data = getDataPos(chart, series, x, y);
       if (data) {
         const dt = data.time - state.drawingDrag.startTime;
@@ -323,15 +332,28 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     let newP2: { time: number; price: number };
     const h = state.ovalResize.handle;
 
+    // Cardinal handles (oval)
     if (h === 'n')       { newP1 = { time: rt, price: bp }; newP2 = { time: data.time, price: data.price }; }
     else if (h === 's')  { newP1 = { time: lt, price: tp }; newP2 = { time: data.time, price: data.price }; }
     else if (h === 'e')  { newP1 = { time: lt, price: tp }; newP2 = { time: data.time, price: data.price }; }
     else if (h === 'w')  { newP1 = { time: rt, price: bp }; newP2 = { time: data.time, price: data.price }; }
+    // Corner handles (rect)
+    else if (h === 'nw') { newP1 = { time: rt, price: bp }; newP2 = { time: data.time, price: data.price }; }
+    else if (h === 'ne') { newP1 = { time: lt, price: bp }; newP2 = { time: data.time, price: data.price }; }
+    else if (h === 'sw') { newP1 = { time: rt, price: tp }; newP2 = { time: data.time, price: data.price }; }
+    else if (h === 'se') { newP1 = { time: lt, price: tp }; newP2 = { time: data.time, price: data.price }; }
     else return;
 
     useStore.getState().updateDrawing(state.ovalResize.drawingId, { p1: newP1, p2: newP2 }, true);
     e.stopPropagation();
     e.preventDefault();
+    return;
+  }
+
+  // Rect creation preview (click-click)
+  if (state.rectCreation) {
+    const { x, y } = getMousePos(e, container);
+    primitive.setRectPreview(state.rectCreation.startX, state.rectCreation.startY, x, y);
     return;
   }
 
@@ -427,7 +449,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       if (state.drawingDrag.type === 'hline') {
         prev.price = state.drawingDrag.origPrice;
         prev.startTime = state.drawingDrag.origStartTime;
-      } else if (state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
+      } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
         prev.p1 = { ...state.drawingDrag.origP1 };
         prev.p2 = { ...state.drawingDrag.origP2 };
       } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
@@ -544,6 +566,43 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
           state.arrowPathCreation.cssPoints.push({ x, y });
         }
         primitive.setArrowPathPreview(state.arrowPathCreation.cssPoints);
+      }
+    }
+    return;
+  }
+
+  // Rect click-move-click creation
+  if (useStore.getState().activeTool === 'rect' && e.button === 0) {
+    const rect = container.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
+        && container.contains(e.target as Node)) {
+      const data = getDataPos(chart, series, x, y);
+      if (data && contract !== null) {
+        if (!state.rectCreation) {
+          // First click: record start
+          state.rectCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price };
+          chart.applyOptions({ handleScroll: false, handleScale: false });
+        } else {
+          // Second click: finalize rectangle
+          const rectDef = useStore.getState().drawingDefaults['rect'];
+          useStore.getState().addDrawing({
+            id: crypto.randomUUID(),
+            type: 'rect',
+            p1: { time: state.rectCreation.startTime, price: state.rectCreation.startPrice },
+            p2: { time: data.time, price: data.price },
+            color: rectDef?.color ?? DEFAULT_RECT_COLOR,
+            strokeWidth: rectDef?.strokeWidth ?? 1,
+            fillColor: DEFAULT_RECT_FILL,
+            text: null,
+            contractId: String(contract.id),
+          });
+          state.rectCreation = null;
+          primitive.clearRectPreview();
+          chart.applyOptions({ handleScroll: true, handleScale: true });
+          useStore.getState().setActiveTool('select');
+        }
       }
     }
     return;

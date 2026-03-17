@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 
 // 10-column palette matching standard design-tool layout
@@ -21,6 +21,151 @@ export const COLOR_PALETTE = [
   ['#7f0000', '#bf360c', '#c68400', '#1b5e20', '#003330', '#004d50', '#0d1642', '#1a0e5b', '#2c0b3f', '#560027'],
 ];
 
+// ---------------------------------------------------------------------------
+// Color ↔ rgba helpers
+// ---------------------------------------------------------------------------
+
+/** Parse hex (#rrggbb) to {r, g, b} */
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const h = hex.replace('#', '');
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+/** Parse an rgba(...) or hex string → { hex, opacity 0-100 } */
+export function parseColorWithOpacity(color: string): { hex: string; opacity: number } {
+  const rgbaMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1]);
+    const g = parseInt(rgbaMatch[2]);
+    const b = parseInt(rgbaMatch[3]);
+    const a = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1;
+    const hex = '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
+    return { hex, opacity: Math.round(a * 100) };
+  }
+  // Already hex
+  if (color.startsWith('#')) {
+    return { hex: color, opacity: 100 };
+  }
+  return { hex: '#ff9800', opacity: 100 };
+}
+
+/** Combine hex + opacity (0-100) → rgba() string */
+export function toRgba(hex: string, opacity: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  const a = Math.round(opacity) / 100;
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+// ---------------------------------------------------------------------------
+// Opacity slider
+// ---------------------------------------------------------------------------
+function OpacitySlider({
+  hex,
+  opacity,
+  onChange,
+}: {
+  hex: string;
+  opacity: number;
+  onChange: (opacity: number) => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  // Checkerboard + color gradient for the track
+  const { r, g, b } = hexToRgb(hex);
+  const gradientStyle = {
+    background: `linear-gradient(to right, rgba(${r},${g},${b},0), rgba(${r},${g},${b},1))`,
+  };
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 10, flexShrink: 0, width: 42 }}>
+          Opacity
+        </span>
+        {/* Track */}
+        <div
+          ref={trackRef}
+          style={{
+            flex: 1,
+            height: 12,
+            borderRadius: 6,
+            position: 'relative',
+            cursor: 'pointer',
+            // checkerboard behind the gradient
+            backgroundImage: `
+              linear-gradient(45deg, #444 25%, transparent 25%),
+              linear-gradient(-45deg, #444 25%, transparent 25%),
+              linear-gradient(45deg, transparent 75%, #444 75%),
+              linear-gradient(-45deg, transparent 75%, #444 75%)
+            `,
+            backgroundSize: '8px 8px',
+            backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
+            border: '1px solid var(--color-border)',
+          }}
+          onMouseDown={(e) => {
+            const track = trackRef.current;
+            if (!track) return;
+            const update = (ev: MouseEvent) => {
+              const rect = track.getBoundingClientRect();
+              const pct = Math.max(0, Math.min(100, ((ev.clientX - rect.left) / rect.width) * 100));
+              onChange(Math.round(pct));
+            };
+            update(e.nativeEvent);
+            const onMove = (ev: MouseEvent) => update(ev);
+            const onUp = () => {
+              window.removeEventListener('mousemove', onMove);
+              window.removeEventListener('mouseup', onUp);
+            };
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onUp);
+          }}
+        >
+          {/* Color gradient overlay */}
+          <div
+            style={{
+              ...gradientStyle,
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 6,
+            }}
+          />
+          {/* Thumb */}
+          <div
+            style={{
+              position: 'absolute',
+              top: -1,
+              left: `${opacity}%`,
+              transform: 'translateX(-50%)',
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#fff',
+              border: '2px solid var(--color-border)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+              transition: 'left 0.05s',
+            }}
+          />
+        </div>
+        {/* Percentage label */}
+        <span style={{
+          color: 'var(--color-text)',
+          fontSize: 11,
+          fontWeight: 500,
+          width: 32,
+          textAlign: 'right',
+          flexShrink: 0,
+        }}>
+          {opacity}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ColorSwatch({ color, current, onClick }: { color: string; current: string; onClick: () => void }) {
   return (
     <button
@@ -42,16 +187,23 @@ export function ColorPopover({
   current,
   onChange,
   onClose,
+  opacity: opacityProp,
+  onOpacityChange,
 }: {
   current: string;
   onChange: (color: string) => void;
   onClose: () => void;
+  /** When provided, shows an opacity slider (0-100). */
+  opacity?: number;
+  onOpacityChange?: (opacity: number) => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const customColors = useStore((s) => s.customColors);
   const addCustomColor = useStore((s) => s.addCustomColor);
   const removeCustomColor = useStore((s) => s.removeCustomColor);
+  const showOpacity = opacityProp !== undefined && onOpacityChange !== undefined;
+  const [localOpacity, setLocalOpacity] = useState(opacityProp ?? 100);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -135,6 +287,18 @@ export function ColorPopover({
         onChange={(e) => onChange(e.target.value)}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
       />
+
+      {/* Opacity slider (optional) */}
+      {showOpacity && (
+        <OpacitySlider
+          hex={current}
+          opacity={localOpacity}
+          onChange={(val) => {
+            setLocalOpacity(val);
+            onOpacityChange!(val);
+          }}
+        />
+      )}
     </div>
   );
 }

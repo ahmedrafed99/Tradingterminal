@@ -18,6 +18,7 @@ import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
 import { RulerPaneView } from './RulerRenderer';
 import { FreeDrawPaneView } from './FreeDrawRenderer';
+import { RectPaneView } from './RectRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -74,6 +75,65 @@ class DragPreviewPaneView implements IPrimitivePaneView {
 
   renderer(): IPrimitivePaneRenderer | null {
     return new DragPreviewRenderer(this._x1, this._y1, this._x2, this._y2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Rect preview renderer: live rectangle preview during rect click-click creation
+// ---------------------------------------------------------------------------
+class RectPreviewRenderer implements IPrimitivePaneRenderer {
+  private _x1: number;
+  private _y1: number;
+  private _x2: number;
+  private _y2: number;
+
+  constructor(x1: number, y1: number, x2: number, y2: number) {
+    this._x1 = x1;
+    this._y1 = y1;
+    this._x2 = x2;
+    this._y2 = y2;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx }) => {
+      const left = Math.min(this._x1, this._x2);
+      const top = Math.min(this._y1, this._y2);
+      const w = Math.abs(this._x2 - this._x1);
+      const h = Math.abs(this._y2 - this._y1);
+
+      if (w < 1 && h < 1) return;
+
+      ctx.fillStyle = 'rgba(255, 152, 0, 0.1)';
+      ctx.fillRect(left, top, w, h);
+
+      ctx.strokeStyle = '#ff9800';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeRect(left, top, w, h);
+      ctx.setLineDash([]);
+    });
+  }
+}
+
+class RectPreviewPaneView implements IPrimitivePaneView {
+  private _x1: number;
+  private _y1: number;
+  private _x2: number;
+  private _y2: number;
+
+  constructor(x1: number, y1: number, x2: number, y2: number) {
+    this._x1 = x1;
+    this._y1 = y1;
+    this._x2 = x2;
+    this._y2 = y2;
+  }
+
+  zOrder(): 'top' {
+    return 'top';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new RectPreviewRenderer(this._x1, this._y1, this._x2, this._y2);
   }
 }
 
@@ -551,10 +611,13 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private _drawings: Drawing[] = [];
   private _selectedIds: string[] = [];
-  private _paneViews: (HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView)[] = [];
+  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView)[] = [];
 
   // Drag preview (oval creation)
   private _dragPreview: DragPreviewPaneView | null = null;
+
+  // Rect creation preview
+  private _rectPreview: RectPreviewPaneView | null = null;
 
   // Arrow path creation preview
   private _arrowPathPreview: ArrowPathPreviewPaneView | null = null;
@@ -626,6 +689,18 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  /** Show a dashed rect preview during rect click-click creation */
+  setRectPreview(x1: number, y1: number, x2: number, y2: number): void {
+    this._rectPreview = new RectPreviewPaneView(x1, y1, x2, y2);
+    this._requestUpdate?.();
+  }
+
+  /** Clear the rect preview */
+  clearRectPreview(): void {
+    this._rectPreview = null;
+    this._requestUpdate?.();
+  }
+
   /** Show a polyline+arrow preview during arrow path creation */
   setArrowPathPreview(cssPoints: { x: number; y: number }[]): void {
     this._arrowPathPreview = new ArrowPathPreviewPaneView(cssPoints);
@@ -671,6 +746,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       const selected = this._selectedIds.includes(d.id);
       if (d.type === 'hline') {
         return new HLinePaneView(d, selected, this._series!, this._chart! as IChartApiBase<never>);
+      } else if (d.type === 'rect') {
+        return new RectPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'oval') {
         return new OvalPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'ruler') {
@@ -691,6 +768,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (!this.visible) return [];
     const extras: IPrimitivePaneView[] = [];
     if (this._dragPreview) extras.push(this._dragPreview);
+    if (this._rectPreview) extras.push(this._rectPreview);
     if (this._arrowPathPreview) extras.push(this._arrowPathPreview);
     if (this._rulerDragPreview) extras.push(this._rulerDragPreview);
     if (this._freeDrawPreview) extras.push(this._freeDrawPreview);
@@ -788,7 +866,10 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** Check if (x, y) hits a resize handle on the selected oval or arrow path node. */
   getHandleAt(x: number, y: number): { drawingId: string; handle: string } | null {
     for (const view of this._paneViews) {
-      if (view instanceof OvalPaneView) {
+      if (view instanceof RectPaneView) {
+        const handle = view.hitTestHandle(x, y);
+        if (handle) return { drawingId: view.drawingId, handle };
+      } else if (view instanceof OvalPaneView) {
         const handle = view.hitTestHandle(x, y);
         if (handle) return { drawingId: view.drawingId, handle };
       } else if (view instanceof ArrowPathPaneView) {
@@ -838,6 +919,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       const view = this._paneViews[i];
       let hit = false;
       if (view instanceof HLinePaneView) {
+        hit = view.hitTest(x, y);
+      } else if (view instanceof RectPaneView) {
         hit = view.hitTest(x, y);
       } else if (view instanceof OvalPaneView) {
         hit = view.hitTest(x, y);

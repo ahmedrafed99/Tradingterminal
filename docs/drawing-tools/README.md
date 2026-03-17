@@ -1,6 +1,6 @@
 # Drawing Tools Feature
 
-Chart annotation system with horizontal line, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, hline templates (save/load/export/import), and localStorage persistence.
+Chart annotation system with horizontal line, rectangle, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, hline templates (save/load/export/import), and localStorage persistence.
 
 ---
 
@@ -20,6 +20,7 @@ State Layer     Zustand DrawingsState slice (persisted to localStorage)
 
 Render Layer    DrawingsPrimitive (ISeriesPrimitive orchestrator)
                     ├── HLinePaneView → HLineRendererImpl
+                    ├── RectPaneView → RectRendererImpl
                     ├── OvalPaneView → OvalRendererImpl
                     ├── ArrowPathPaneView → ArrowPathRendererImpl
                     ├── FreeDrawPaneView → FreeDrawRendererImpl
@@ -46,7 +47,7 @@ Hit Testing     hitTesting.ts (geometry utilities)
 | `frontend/src/types/drawing.ts` | Drawing, DrawingTool, DrawingText, HLineTemplate types + constants |
 
 ```ts
-type DrawingTool = 'select' | 'hline' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
+type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
 
 interface DrawingText {
   content: string;
@@ -71,6 +72,13 @@ interface HLineDrawing extends DrawingBase {
   price: number;
 }
 
+interface RectDrawing extends DrawingBase {
+  type: 'rect';
+  p1: { time: number; price: number };  // diagonal corner 1
+  p2: { time: number; price: number };  // diagonal corner 2
+  fillColor: string;                    // rgba fill (supports opacity)
+}
+
 interface OvalDrawing extends DrawingBase {
   type: 'oval';
   p1: { time: number; price: number };  // bounding rect corner 1
@@ -89,7 +97,7 @@ interface FreeDrawDrawing extends DrawingBase {
   points: { barOffset: number; price: number }[];  // continuous brush stroke
 }
 
-type Drawing = HLineDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
+type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
 
 interface HLineTemplate {
   id: string;
@@ -100,22 +108,23 @@ interface HLineTemplate {
 }
 ```
 
-Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_ARROWPATH_COLOR = '#ff9800'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
+Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_ARROWPATH_COLOR = '#ff9800'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
 
 ### UI Components
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `frontend/src/components/chart/DrawingToolbar.tsx` | ~180 | Collapsible left-edge sidebar (select, hline, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
+| `frontend/src/components/chart/DrawingToolbar.tsx` | ~190 | Collapsible left-edge sidebar (select, hline, rect, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
 | `frontend/src/components/chart/DrawingEditToolbar.tsx` | ~680 | Floating edit popup with color, text, stroke, template, delete — scoped per chart via `contractId` prop |
 
 ### Primitive Renderers
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `frontend/src/components/chart/drawings/DrawingsPrimitive.ts` | ~320 | ISeriesPrimitive orchestrator — manages all drawing views + ruler preview |
+| `frontend/src/components/chart/drawings/DrawingsPrimitive.ts` | ~930 | ISeriesPrimitive orchestrator — manages all drawing views + previews |
 | `frontend/src/components/chart/drawings/HLineRenderer.ts` | ~187 | Horizontal line renderer + hit test |
-| `frontend/src/components/chart/drawings/OvalRenderer.ts` | ~197 | Oval/ellipse renderer + 8-handle resize + hit test |
+| `frontend/src/components/chart/drawings/RectRenderer.ts` | ~180 | Rectangle renderer with fill + stroke, 4 corner handles, edge hit test |
+| `frontend/src/components/chart/drawings/OvalRenderer.ts` | ~197 | Oval/ellipse renderer + 4-handle resize + hit test |
 | `frontend/src/components/chart/drawings/ArrowPathRenderer.ts` | ~200 | Arrow path polyline renderer + node drag + hit test |
 | `frontend/src/components/chart/drawings/FreeDrawRenderer.ts` | ~110 | Free draw brush stroke renderer + start/end handles + hit test |
 | `frontend/src/components/chart/drawings/RulerRenderer.ts` | ~230 | Ruler measurement renderer (used for persisted rulers) |
@@ -180,6 +189,7 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 |------|------|----------|
 | Select (cursor) | Arrow pointer | Click drawings to select, drag to move |
 | Horizontal Line | Line with endpoint dots | Click on chart to place at price level |
+| Rectangle | Rounded rect | Click to place first corner, move mouse, click to place diagonal corner |
 | Oval | Ellipse | Click-and-drag to define bounding rectangle |
 | Arrow Path | Polyline with arrow | Click to place nodes, double-click to finalize (right-click also works) |
 | Ruler | Diagonal ruler | Click to start, move, click to finish — ephemeral measurement overlay |
@@ -192,7 +202,7 @@ Floating toolbar positioned above the selected drawing, rendered per chart insta
 
 **Layout:** `[ Pencil+color | T ] | [ ─ 1px ] | [ Template v ] | [ Trash ]`
 
-Template button only shown for hline drawings.
+Template button only shown for hline drawings. Fill color button (bucket icon) only shown for rect drawings — includes an opacity slider (0-100%) for adjusting fill transparency.
 
 - Vertical dividers between logical groups
 - 32x32px button targets with 6px border-radius
@@ -201,7 +211,7 @@ Template button only shown for hline drawings.
 
 **Sub-popovers:**
 
-1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button
+1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button. Supports optional opacity slider (shown for rect fill color) — horizontal track with checkerboard background, color gradient overlay, draggable thumb, and percentage label.
 2. **TextPopover** (290px wide, `bg: #000`) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
    - Row 1: Color swatch (toggles palette with animated slide) + font size select (`bg: #111`) + **B** bold + *I* italic toggle buttons (active: `#f0a830` text + `#111` bg + `#434651` border, inactive: `#787b86` text, 0.15s transitions)
    - Color grid: animated expand/collapse (`max-height` + `opacity` transition)
@@ -219,15 +229,16 @@ Template button only shown for hline drawings.
 
 ### DrawingsPrimitive (orchestrator)
 
-Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView`.
+Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView`.
 
 Key methods:
 - `setDrawings(drawings, selectedIds)` — rebuilds views, calls `requestUpdate()`
 - `setDragPreview(x1, y1, x2, y2)` / `clearDragPreview()` — dashed ellipse during oval creation
+- `setRectPreview(x1, y1, x2, y2)` / `clearRectPreview()` — dashed rect during rect click-click creation
 - `setArrowPathPreview(points)` / `clearArrowPathPreview()` — dashed polyline during arrow path creation
 - `setFreeDrawPreview(points, color, strokeWidth)` / `clearFreeDrawPreview()` — live brush stroke during free draw creation
 - `setRulerDragPreview(x1, y1, x2, y2, metrics, decimals)` / `clearRulerDragPreview()` — ruler rectangle + label preview
-- `getHandleAt(x, y)` — hit-test resize handles on selected oval/ruler
+- `getHandleAt(x, y)` — hit-test resize handles on selected rect/oval/ruler
 - `hitTest(x, y)` — returns `PrimitiveHoveredItem` with `externalId` for click-to-select
 - `setSelectionRect(x1, y1, x2, y2)` / `clearSelectionRect()` — dashed blue rectangle during Ctrl+drag multi-select
 - `getDrawingsInRect(x1, y1, x2, y2)` — returns IDs of drawings whose bounding box overlaps the rectangle (AABB overlap)
@@ -242,6 +253,18 @@ Draws a full-width horizontal line at the drawing's price level.
 - Text label: positioned by `hAlign` (left=8px, center=mid, right=width-8) and `vAlign` (top/middle/bottom relative to line). When `vAlign` is `middle`, the line is split into two segments with a gap around the text (4px padding each side) so the line does not cut through the letters.
 - Font: `system-ui, -apple-system, sans-serif` with configurable size/bold/italic
 - Hit test: `|mouseY - lineY| <= 5px`, excludes price scale area (`mouseX >= timeScale.width()`)
+
+### RectRenderer
+
+Draws a rectangle defined by two diagonal corners (p1, p2).
+
+- Fill: `drawing.fillColor` (rgba with opacity support)
+- Stroke: `drawing.color`, `drawing.strokeWidth`
+- Selected: 4 circular corner handles (nw, ne, sw, se) — same white fill + color stroke style as path nodes
+- Text label: positioned relative to rectangle edges
+- Hit test: proximity to any of the 4 edges via `hitTestRectEdges()` (6px tolerance)
+- Resize handles: 4 corner positions (nw/ne/sw/se) with 6px hit tolerance — dragging a corner moves it freely while the diagonally opposite corner stays fixed
+- Creation: click-click flow (first click = p1, mouse moves with dashed preview, second click = p2)
 
 ### OvalRenderer
 
@@ -269,13 +292,23 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 5. onFreeDrawMouseDown  — free draw creation when tool is 'freedraw'
 ```
 
-Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path and ruler use click-based state machines in `onMouseUp`.
+Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path, rect, and ruler use click-based state machines in `onMouseUp`.
 
 ### Horizontal line placement
 
 - Tool: `hline`
 - Click on chart → `series.coordinateToPrice(y)` → `addDrawing({type:'hline', price, ...})`
 - Auto-switches to select tool after placement
+
+### Rectangle creation (click-click)
+
+- Tool: `rect`
+- First click records p1 (start corner), disables chart scroll
+- Mouse move shows live dashed rectangle preview via `primitive.setRectPreview()`
+- Second click records p2 (diagonal opposite corner), creates the rectangle drawing, switches to select tool
+- Escape or right-click cancels in-progress creation
+- Default fill: `rgba(255, 152, 0, 0.15)` (orange at 15% opacity), default stroke: `#ff9800`
+- Edit toolbar shows: border color picker, fill color picker with opacity slider, text, stroke width, delete
 
 ### Oval creation (drag-to-create)
 
@@ -350,15 +383,16 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - 3px movement threshold distinguishes click from drag
 - **hline**: `coordinateToPrice(mouseY)` → `updateDrawing(id, { price })`
 - **hline crosshair suppression**: during hline drag, both `CrosshairLabelPrimitive.suppress(true)` and `chart.applyOptions({ crosshair: { horzLine: { labelVisible: false } } })` hide the crosshair price labels (HTML overlay + native LWC). The HTML overlay updates instantly while the drawing label (canvas) renders one frame later via the LWC paint cycle — showing both causes a visible 1-frame lag flicker. The native LWC label is also hidden because it normally sits behind the HTML overlay and would peek through when de-overlap pushes the drawing label away from another drawing. Both restored on mouseup.
-- **oval**: compute time/price delta from start → shift both p1 and p2 by same offset
+- **rect/oval**: compute time/price delta from start → shift both p1 and p2 by same offset
 - `mouseup` clears drag state, re-enables chart scroll
 - `drawingDragOccurred` flag suppresses the `subscribeClick` that follows mouseup
 
-### Oval resize
+### Rect / Oval resize
 
-- Only when oval is selected (select tool active)
+- Only when rect or oval is selected (select tool active)
 - `mousedown` on a resize handle → records fixed opposite point + handle type
-- 4 handles (n/s/e/w): opposite point stays fixed, dragged handle follows mouse freely in both axes (diagonal resize supported)
+- Oval: 4 cardinal handles (n/s/e/w); Rect: 4 corner handles (nw/ne/sw/se)
+- Opposite point stays fixed, dragged handle follows mouse freely in both axes (diagonal resize supported)
 - Uses data coordinates (time/price) for stable resize during viewport changes
 
 ### Keyboard shortcuts
@@ -378,7 +412,7 @@ Registry: `frontend/src/constants/shortcuts.ts` — central `SHORTCUT_DEFS` arra
 
 ### Cursor management
 
-- Drawing tool active (`hline`/`oval`/`arrowpath`/`ruler`/`freedraw`): `crosshair`
+- Drawing tool active (`hline`/`rect`/`oval`/`arrowpath`/`ruler`/`freedraw`): `crosshair`
 - Select tool: `none` (default — hides cursor over chart)
 - Hovering resize handle: directional resize cursor (`nwse-resize`, `ns-resize`, etc.)
 - During drag: cursor unchanged (stays as whatever it was)

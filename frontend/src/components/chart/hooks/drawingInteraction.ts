@@ -32,7 +32,7 @@ export interface DrawingState {
 
   drawingDrag: {
     drawingId: string;
-    type: 'hline' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
+    type: 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
     startX: number;
     startY: number;
     origPrice: number;
@@ -59,6 +59,11 @@ export interface DrawingState {
     nodeIndex: number;
     anchorTime: number;  // needed to compute barOffset for the dragged node
     origPoints: { barOffset: number; price: number }[];
+  } | null;
+
+  rectCreation: {
+    startX: number; startY: number;
+    startTime: number; startPrice: number;
   } | null;
 
   freeDrawCreation: {
@@ -99,6 +104,7 @@ export function createDrawingState(): DrawingState {
     drawingDragOccurred: false,
     arrowPathCreation: null,
     arrowPathNodeDrag: null,
+    rectCreation: null,
     freeDrawCreation: null,
     ctrlDragSelect: null,
     chartPanning: false,
