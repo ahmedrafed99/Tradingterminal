@@ -65,6 +65,12 @@ export function TopBar() {
     lastPrice,
     orderContract,
     sessionTrades,
+    hideBalance,
+    hideRpnl,
+    hideUpnl,
+    setHideBalance,
+    setHideRpnl,
+    setHideUpnl,
   } = useStore(useShallow((s) => ({
     connected: s.connected,
     accounts: s.accounts,
