@@ -37,8 +37,8 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 
 - **Dropdown**: `<select>` populated from `accountService.searchAccounts()` after connection
 - **Style**: `bg-transparent border-none`, `text-xs text-[#d1d4dc] font-medium`, dropdown options use `bg-[#131722]`
-- **Privacy toggle**: eye icon button that masks account names beyond 7 characters (`"Eval-A #***"`)
-- **Default state**: `privacyOn = true` (names masked)
+- **Privacy toggle**: eye icon button that applies a smooth CSS blur (`filter: blur(5px)`, `opacity: 0.4`, `transition: 0.2s`) to account names — no text truncation, zero layout shift. Button name truncated with ellipsis at `max-width: 100px`; full name visible only in dropdown.
+- **Default state**: `privacyOn = true` (names blurred)
 - **No accounts**: shows `"No accounts"` in `text-[#434651]`
 
 ### Centre — Balance + RP&L + UP&L

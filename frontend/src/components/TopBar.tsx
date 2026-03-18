@@ -167,10 +167,9 @@ export function TopBar() {
               onClick={() => setAcctOpen((o) => !o)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
             >
-              <span>{(() => {
-                const name = activeAccount?.name ?? '';
-                return privacyOn && name.length > 7 ? name.slice(0, 7) + '***' : name;
-              })()}</span>
+              <span style={{ display: 'inline-block', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>
+                {activeAccount?.name ?? ''}
+              </span>
               <ChevronDown />
             </button>
             {acctOpen && (
@@ -179,9 +178,6 @@ export function TopBar() {
                 style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: 160 }}
               >
                 {accounts.map((a) => {
-                  const display = privacyOn && a.name.length > 7
-                    ? a.name.slice(0, 7) + '***'
-                    : a.name;
                   const active = a.id === activeAccountId;
                   return (
                     <button
@@ -191,7 +187,9 @@ export function TopBar() {
                         active ? 'text-(--color-warning)' : 'text-(--color-text)'
                       }`}
                     >
-                      {display}
+                      <span style={{ transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}>
+                        {a.name}
+                      </span>
                     </button>
                   );
                 })}
