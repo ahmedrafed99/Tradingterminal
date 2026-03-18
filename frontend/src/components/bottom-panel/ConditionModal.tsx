@@ -234,6 +234,7 @@ export function ConditionModal() {
                     { value: 'closes_below', label: 'Close Below' },
                   ]}
                   onChange={(v) => setConditionType(v as 'closes_above' | 'closes_below')}
+                  bg="var(--color-bg)"
                   style={{ width: '100%' }}
                 />
               </div>
@@ -257,6 +258,7 @@ export function ConditionModal() {
                 value={timeframe}
                 options={ALL_TIMEFRAMES.map((tf) => ({ value: tf.label, label: tf.label }))}
                 onChange={(v) => setTimeframe(v)}
+                bg="var(--color-bg)"
                 style={{ width: 'calc(50% - 6px)' }}
               />
             </div>
@@ -305,6 +307,7 @@ export function ConditionModal() {
                     { value: 'limit', label: 'Limit' },
                   ]}
                   onChange={(v) => setOrderType(v as 'market' | 'limit')}
+                  bg="var(--color-bg)"
                   style={{ width: '100%' }}
                 />
               </div>
@@ -365,6 +368,7 @@ export function ConditionModal() {
                       const preset = bracketPresets.find((p) => p.id === v) ?? null;
                       applyPreset(preset);
                     }}
+                    bg="var(--color-bg)"
                     style={{ width: '100%' }}
                   />
                 </div>

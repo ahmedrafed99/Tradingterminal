@@ -16,6 +16,8 @@ interface CustomSelectProps {
   title?: string;
   /** Dropdown opens upward instead of downward */
   dropUp?: boolean;
+  /** CSS variable for the button background (default: --color-input) */
+  bg?: string;
 }
 
 export function CustomSelect({
@@ -27,6 +29,7 @@ export function CustomSelect({
   style,
   title,
   dropUp = false,
+  bg = 'var(--color-input)',
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -52,7 +55,7 @@ export function CustomSelect({
         disabled={disabled}
         style={{
           width: '100%',
-          background: 'var(--color-input)',
+          background: bg,
           color: 'var(--color-text)',
           border: '1px solid var(--color-border)',
           borderRadius: 4,
@@ -87,8 +90,8 @@ export function CustomSelect({
             [dropUp ? 'marginBottom' : 'marginTop']: 4,
             background: 'var(--color-panel)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-            maxHeight: 200,
-            overflowY: 'auto',
+            maxHeight: options.length > 8 ? 200 : undefined,
+            overflowY: options.length > 8 ? 'auto' : undefined,
             padding: '2px 0',
           }}
         >
