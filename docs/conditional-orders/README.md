@@ -68,6 +68,28 @@ docker compose up -d
 
 The `backend/docker-compose.yml` references the Docker Hub image, so the target machine only needs Docker -- no Node.js, no source code.
 
+### Self-hosted alternative (PM2)
+
+For running directly on a machine with Node.js (no Docker):
+
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Build and start (from backend/)
+cd backend
+npm run build
+pm2 start ecosystem.config.cjs
+
+# Useful commands
+pm2 status          # check running processes
+pm2 logs trading-backend  # view logs
+pm2 restart trading-backend
+pm2 stop trading-backend
+```
+
+PM2 auto-restarts on crash (up to 10 times, 2s delay). Config lives in `backend/ecosystem.config.cjs`.
+
 ### Frontend setup
 
 The condition server URL **defaults to `http://localhost:3001`** (your local backend) when left empty in Settings. No configuration needed for local use.

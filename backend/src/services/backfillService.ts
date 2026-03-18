@@ -354,6 +354,10 @@ export function startAutoSync(): void {
   console.log('[auto-sync] Enabled (every 30 minutes)');
 }
 
+export function isAutoSyncRunning(): boolean {
+  return autoSyncTimer !== null;
+}
+
 export function stopAutoSync(): void {
   if (autoSyncTimer) {
     clearInterval(autoSyncTimer);

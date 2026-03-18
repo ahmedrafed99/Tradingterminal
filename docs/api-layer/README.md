@@ -78,6 +78,19 @@ Routes are exchange-agnostic — they call `getAdapter().domain.method()` instea
 
 ---
 
+## Rate Limiting
+
+Two `express-rate-limit` limiters protect the ProjectX API quota from runaway frontend loops:
+
+| Limiter | Routes | Window | Max | Error message |
+|---------|--------|--------|-----|---------------|
+| `orderLimiter` | `/orders` | 1 sec | 10 | `Order rate limit exceeded (10/sec)` |
+| `apiLimiter` | `/market`, `/positions`, `/trades`, `/accounts` | 1 sec | 30 | `API rate limit exceeded (30/sec)` |
+
+Both return standard `RateLimit-*` headers and a JSON body `{ success: false, errorMessage: "..." }` when exceeded. Applied as middleware in `index.ts` before route handlers.
+
+---
+
 ## Multi-Exchange Architecture
 
 ### ID System
@@ -260,6 +273,12 @@ Null entries in `GatewayDepth` arrays are filtered before dispatching to handler
 ## Backend Proxy Routes (Express)
 
 All routes call the active `ExchangeAdapter` via `getAdapter()` from the adapter registry. The routes handle Zod validation, auth guards, and error responses — the adapter handles the actual gateway communication.
+
+### Health
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /health | Returns `{ ok, timestamp, connected, conditions: { armed, total }, backfill: { autoSyncRunning } }` |
 
 ### Auth
 

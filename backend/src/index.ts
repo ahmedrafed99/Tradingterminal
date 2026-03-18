@@ -2,6 +2,7 @@ import 'dotenv/config';
 import * as http from 'http';
 import cors from 'cors';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 
 import { getAdapter, setAdapter, isConnected } from './adapters/registry';
 import { createAdapter } from './adapters/factory';
@@ -19,6 +20,7 @@ import databaseRoutes from './routes/databaseRoutes';
 import drawingRoutes from './routes/drawingRoutes';
 import WebSocket from 'ws';
 import * as conditionEngine from './services/conditionEngine';
+import * as conditionStore from './services/conditionStore';
 import * as databaseService from './services/databaseService';
 import * as backfillService from './services/backfillService';
 import * as tickAggregator from './services/tickAggregator';
@@ -31,6 +33,29 @@ const app = express();
 // ---------------------------------------------------------------------------
 app.use(cors({ origin: 'http://localhost:5173' }));
 app.use(express.json());
+
+// Rate limiters — prevent runaway loops from burning ProjectX API quota
+const orderLimiter = rateLimit({
+  windowMs: 1_000,       // 1-second window
+  max: 10,               // max 10 order actions/sec
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, errorMessage: 'Order rate limit exceeded (10/sec)' },
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 1_000,
+  max: 30,               // max 30 general API calls/sec
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, errorMessage: 'API rate limit exceeded (30/sec)' },
+});
+
+app.use('/orders', orderLimiter);
+app.use('/market', apiLimiter);
+app.use('/positions', apiLimiter);
+app.use('/trades', apiLimiter);
+app.use('/accounts', apiLimiter);
 
 // ---------------------------------------------------------------------------
 // REST routes
@@ -48,9 +73,16 @@ app.use('/conditions', conditionRoutes);
 app.use('/database', databaseRoutes);
 app.use('/drawings', drawingRoutes);
 
-// Health check — useful for smoke testing
+// Health check — connection status, condition engine, backfill
 app.get('/health', (_req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString() });
+  const armed = conditionStore.getArmed();
+  res.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    connected: isConnected(),
+    conditions: { armed: armed.length, total: conditionStore.getAll().length },
+    backfill: { autoSyncRunning: backfillService.isAutoSyncRunning() },
+  });
 });
 
 // ---------------------------------------------------------------------------
