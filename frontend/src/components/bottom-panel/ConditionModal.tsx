@@ -190,9 +190,9 @@ export function ConditionModal() {
     }
   }
 
-  const inp = INPUT_SURFACE;
+  const inp = 'w-full border rounded-lg text-[13px] text-(--color-text) placeholder-(--color-hover-toolbar) focus:outline-none focus:border-(--color-accent) disabled:opacity-50 transition-colors bg-(--color-surface) border-(--color-border)';
   const fieldLabel = 'block text-[11px] text-(--color-text-medium)';
-  const sectionLabel = 'text-[10px] uppercase tracking-wider text-(--color-text-dim) font-medium';
+  const sectionLabel = 'text-[11px] uppercase tracking-wider text-(--color-text-muted) font-medium';
 
   return (
     <Modal onClose={closeConditionModal} className="w-[440px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl max-h-[85vh] flex flex-col">
@@ -234,7 +234,7 @@ export function ConditionModal() {
                     { value: 'closes_below', label: 'Close Below' },
                   ]}
                   onChange={(v) => setConditionType(v as 'closes_above' | 'closes_below')}
-                  bg="var(--color-bg)"
+                  bg="var(--color-surface)" padding="10px 12px" fontSize={13}
                   style={{ width: '100%' }}
                 />
               </div>
@@ -258,7 +258,7 @@ export function ConditionModal() {
                 value={timeframe}
                 options={ALL_TIMEFRAMES.map((tf) => ({ value: tf.label, label: tf.label }))}
                 onChange={(v) => setTimeframe(v)}
-                bg="var(--color-bg)"
+                bg="var(--color-surface)" padding="10px 12px" fontSize={13}
                 style={{ width: 'calc(50% - 6px)' }}
               />
             </div>
@@ -307,7 +307,7 @@ export function ConditionModal() {
                     { value: 'limit', label: 'Limit' },
                   ]}
                   onChange={(v) => setOrderType(v as 'market' | 'limit')}
-                  bg="var(--color-bg)"
+                  bg="var(--color-surface)" padding="10px 12px" fontSize={13}
                   style={{ width: '100%' }}
                 />
               </div>
@@ -354,7 +354,7 @@ export function ConditionModal() {
           </div>
 
           {bracketEnabled && (
-            <div style={{ marginBottom: 16 }} className="space-y-3">
+            <div style={{ marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {bracketPresets.length > 0 && (
                 <div>
                   <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Preset</span>
@@ -368,7 +368,7 @@ export function ConditionModal() {
                       const preset = bracketPresets.find((p) => p.id === v) ?? null;
                       applyPreset(preset);
                     }}
-                    bg="var(--color-bg)"
+                    bg="var(--color-surface)" padding="10px 12px" fontSize={13}
                     style={{ width: '100%' }}
                   />
                 </div>

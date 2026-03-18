@@ -18,6 +18,10 @@ interface CustomSelectProps {
   dropUp?: boolean;
   /** CSS variable for the button background (default: --color-input) */
   bg?: string;
+  /** Button padding (default: '6px 10px') */
+  padding?: string;
+  /** Font size in px (default: 12) */
+  fontSize?: number;
 }
 
 export function CustomSelect({
@@ -30,9 +34,13 @@ export function CustomSelect({
   title,
   dropUp = false,
   bg = 'var(--color-input)',
+  padding: btnPadding = '6px 10px',
+  fontSize: btnFontSize = 12,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, open, close);
 
@@ -46,11 +54,23 @@ export function CustomSelect({
     return () => window.removeEventListener('keydown', handler);
   }, [open]);
 
+  // Compute fixed position when opening
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    if (dropUp) {
+      setDropPos({ top: rect.top - 4, left: rect.left, width: rect.width });
+    } else {
+      setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+  }, [open, dropUp]);
+
   const selected = options.find((o) => o.value === value);
 
   return (
     <div ref={ref} style={{ position: 'relative', ...style }} className={className}>
       <button
+        ref={btnRef}
         onClick={() => { if (!disabled) setOpen((o) => !o); }}
         disabled={disabled}
         style={{
@@ -58,9 +78,9 @@ export function CustomSelect({
           background: bg,
           color: 'var(--color-text)',
           border: '1px solid var(--color-border)',
-          borderRadius: 4,
-          padding: '6px 10px',
-          fontSize: 12,
+          borderRadius: 8,
+          padding: btnPadding,
+          fontSize: btnFontSize,
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -79,15 +99,15 @@ export function CustomSelect({
           <path d={dropUp && open ? 'M0 5l4-5 4 5z' : 'M0 0l4 5 4-5z'} />
         </svg>
       </button>
-      {open && (
+      {open && dropPos && (
         <div
           className="border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
           style={{
-            position: 'absolute',
-            [dropUp ? 'bottom' : 'top']: '100%',
-            left: 0,
-            right: 0,
-            [dropUp ? 'marginBottom' : 'marginTop']: 4,
+            position: 'fixed',
+            top: dropUp ? undefined : dropPos.top,
+            bottom: dropUp ? `calc(100vh - ${dropPos.top}px)` : undefined,
+            left: dropPos.left,
+            width: dropPos.width,
             background: 'var(--color-panel)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
             maxHeight: options.length > 8 ? 200 : undefined,
