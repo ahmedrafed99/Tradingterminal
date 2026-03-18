@@ -53,7 +53,7 @@ One-click limit order button attached to the left side of the crosshair price la
                        [Sell Limit 1][+]|24,891.00|
 ```
 
-- **"+" button**: 20x20px, `background: #2a2e39`, `borderRadius: 2px`, text `#d1d4dc`
+- **"+" button**: 20x20px, SVG circled-plus icon (16px, `stroke: var(--color-text)`), no background fill
 - **"+" hover state**: `background: #434651`, border radius changes to `0 2px 2px 0` (rounds only right side)
 - **Label text cell**: `background: #cac9cb`, `color: #000` (matches live order labels without a position)
 - **Label size cell**: `background: #00c805` (buy) / `#ff0000` (sell), `color: #000`, separated by `1px solid #000` border
