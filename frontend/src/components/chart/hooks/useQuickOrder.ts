@@ -282,37 +282,16 @@ export function useQuickOrder(
       sizeButtonsActive = false;
     }
 
-    // Show +/- when hovering labelText (without darkening size bg)
+    // Hover highlight on labelText (no +/- reveal — size cell is now on the left)
     let textHovered = false;
     function onTextEnter() {
       textHovered = true;
       labelText.style.background = '#b0afb1';
       labelText.style.transition = 'background 0.15s';
-      // Reveal +/- buttons without darkening the size cell bg
-      if (sizeMinusEl && sizePlusEl && !sizeButtonsActive) {
-        sizeMinusEl.style.display = '';
-        sizePlusEl.style.display = '';
-        const sz = useStore.getState().orderSize;
-        const max = getPresetMaxSize();
-        const plusDisabled = max != null && sz >= max;
-        requestAnimationFrame(() => {
-          if (sizeMinusEl) sizeMinusEl.style.opacity = sz <= 1 ? '0.35' : '1';
-          if (sizePlusEl) sizePlusEl.style.opacity = plusDisabled ? '0.35' : '1';
-        });
-        if (sizeMinusEl) sizeMinusEl.style.cursor = sz <= 1 ? 'default' : 'pointer';
-        if (sizePlusEl) sizePlusEl.style.cursor = plusDisabled ? 'default' : 'pointer';
-      }
     }
     function onTextLeave() {
       textHovered = false;
       labelText.style.background = LABEL_BG;
-      // Hide +/- if not hovering size cell
-      if (!sizeButtonsActive && sizeMinusEl && sizePlusEl) {
-        sizeMinusEl.style.opacity = '0';
-        sizeMinusEl.style.display = 'none';
-        sizePlusEl.style.opacity = '0';
-        sizePlusEl.style.display = 'none';
-      }
     }
     labelText.addEventListener('mouseenter', onTextEnter);
     labelText.addEventListener('mouseleave', onTextLeave);
