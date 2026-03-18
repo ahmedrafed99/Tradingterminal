@@ -18,7 +18,7 @@ export function OrderTypeTabs() {
       <div className="flex gap-1" style={{ marginTop: 6 }}>
         <button
           onClick={() => setOrderType('market')}
-          className={`flex-1 text-xs py-1.5 rounded transition-colors ${
+          className={`flex-1 text-xs py-1.5 rounded transition-colors cursor-pointer ${
             orderType === 'market'
               ? 'bg-(--color-warning) text-black font-medium'
               : 'bg-(--color-input) text-(--color-text-muted) hover:text-(--color-text)'
@@ -28,7 +28,7 @@ export function OrderTypeTabs() {
         </button>
         <button
           onClick={() => setOrderType('limit')}
-          className={`flex-1 text-xs py-1.5 rounded transition-colors ${
+          className={`flex-1 text-xs py-1.5 rounded transition-colors cursor-pointer ${
             orderType === 'limit'
               ? 'bg-(--color-warning) text-black font-medium'
               : 'bg-(--color-input) text-(--color-text-muted) hover:text-(--color-text)'

@@ -52,7 +52,7 @@ export function BracketSummary() {
         <button
           onClick={() => setEditingPresetId('new')}
           title="New preset"
-          className="text-(--color-text-muted) hover:text-(--color-text) transition-colors text-sm leading-none"
+          className="text-(--color-text-muted) hover:text-(--color-text) transition-colors text-sm leading-none cursor-pointer"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -65,7 +65,7 @@ export function BracketSummary() {
       <div ref={containerRef} className="relative" style={{ marginTop: 6 }}>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center justify-center bg-(--color-input) border border-(--color-border) rounded text-xs text-white focus:outline-none focus:border-(--color-accent)"
+          className="w-full flex items-center justify-center bg-(--color-input) border border-(--color-border) rounded text-xs text-white focus:outline-none focus:border-(--color-accent) cursor-pointer"
           style={{ padding: '6px 8px' }}
         >
           <span className="truncate">{displayName}</span>
@@ -76,7 +76,7 @@ export function BracketSummary() {
             {/* None option */}
             <button
               onClick={() => { setActivePresetId(null); setOpen(false); }}
-              className={`w-full text-center text-xs font-medium rounded-md transition-colors ${
+              className={`w-full text-center text-xs font-medium rounded-md transition-colors cursor-pointer ${
                 activePresetId === null ? 'text-(--color-warning) bg-(--color-surface)' : 'text-(--color-text) hover:bg-(--color-surface)'
               }`}
               style={{ padding: '8px 10px' }}
@@ -94,7 +94,7 @@ export function BracketSummary() {
               >
                 <button
                   onClick={() => { setActivePresetId(p.id); setOpen(false); }}
-                  className={`w-full text-center text-xs font-medium truncate ${
+                  className={`w-full text-center text-xs font-medium truncate cursor-pointer ${
                     p.id === activePresetId ? 'text-(--color-warning)' : 'text-(--color-text)'
                   }`}
                   style={{ padding: '8px 10px' }}
@@ -105,7 +105,7 @@ export function BracketSummary() {
                   <button
                     onClick={(e) => { e.stopPropagation(); setEditingPresetId(p.id); setOpen(false); }}
                     title="Edit preset"
-                    className="p-1.5 rounded text-(--color-text-muted) hover:text-white hover:bg-(--color-hover-toolbar) transition-colors"
+                    className="p-1.5 rounded text-(--color-text-muted) hover:text-white hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
@@ -119,7 +119,7 @@ export function BracketSummary() {
                       deletePreset(p.id);
                     }}
                     title="Delete preset"
-                    className="p-1.5 rounded text-(--color-text-muted) hover:text-(--color-error) hover:bg-(--color-hover-toolbar) transition-colors"
+                    className="p-1.5 rounded text-(--color-text-muted) hover:text-(--color-error) hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18" />

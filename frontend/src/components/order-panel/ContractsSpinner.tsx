@@ -16,7 +16,7 @@ export function ContractsSpinner() {
           onClick={() => setOrderSize(orderSize - 1)}
           disabled={orderSize <= 1}
           className="w-7 h-7 flex items-center justify-center rounded-full bg-(--color-input) text-(--color-text) text-base font-medium leading-none
-                     hover:text-white hover:bg-(--color-bg) disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                     hover:text-white hover:bg-(--color-bg) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           −
         </button>
@@ -34,7 +34,7 @@ export function ContractsSpinner() {
         <button
           onClick={() => setOrderSize(orderSize + 1)}
           className="w-7 h-7 flex items-center justify-center rounded-full bg-(--color-input) text-(--color-text) text-base font-medium leading-none
-                     hover:text-white hover:bg-(--color-bg) transition-colors"
+                     hover:text-white hover:bg-(--color-bg) cursor-pointer transition-colors"
         >
           +
         </button>

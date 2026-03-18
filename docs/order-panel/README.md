@@ -8,6 +8,7 @@ and the preview toggle that overlays ghost lines on the chart.
 - **Background**: `bg-black`, border toward chart (`border-r` when left, `border-l` when right), width 240px
 - All section titles use `SECTION_LABEL` constant from `constants/styles.ts` (`text-[10px] uppercase tracking-wider text-[#787b86]`), centred (`text-center`), with `marginTop: 6` gap between label and content
 - All input fields use `bg-[#111] border-[#2a2e39]`, focus: `border-[#1a3a6e]`
+- All interactive buttons use `cursor-pointer` (with `disabled:cursor-not-allowed` override)
 
 ---
 
@@ -39,8 +40,11 @@ and the preview toggle that overlays ghost lines on the chart.
 │                           │
 │                           │
 │  ── Position ─────────    │
-│  Long  2 ct               │
-│  P&L   +$140.00           │
+│  ┌─ card ───────────────┐ │
+│  │ [LONG] −3 @ 25,052   │ │
+│  │     +140.00 $         │ │
+│  └──────────────────────┘ │
+│  [🛡 SL to BE] [✕ Close]  │
 └───────────────────────────┘
 ```
 
@@ -99,14 +103,16 @@ and the preview toggle that overlays ghost lines on the chart.
 
 ### `PositionDisplay`
 - Shows current net position for the active account + instrument
-- Net size and unrealised P&L from SignalR positions feed (both centred)
 - **Position lookup** filters by both `activeAccountId` and `contractId` (with `String()` coercion — SignalR may send contractId as number while REST API returns string)
-- **Close** button: market order to flatten position, always visible when position exists. Shows error toast on failure.
-- **SL to BE** button: always visible when a position exists, disabled when not in profit. Shows error toast on failure. Three paths:
+- **Card layout**: `bg-(--color-surface)` card with `border-(--color-border)` and a 3px left accent bar colored by direction (green for long, red for short)
+  - **Header row**: colored direction badge pill (Long=`--color-buy`, Short=`--color-btn-sell`) + position size/entry in `−3 @ 25,052.75` format
+  - **P&L hero**: large 18px bold number with directional color (green/red/muted) on a subtle tinted background (`rgba` of buy/sell at 8% opacity). Dollar sign inline.
+- **Close** button: solid red `bg-(--color-btn-sell)` with white text and ✕ icon. Market order to flatten position, always visible when position exists. Shows error toast on failure.
+- **SL to BE** button: amber outline `border-(--color-warning)/40` with amber text and shield icon. Always visible when a position exists, disabled when not in profit. Shows error toast on failure. Three paths:
   1. **Bracket session active**: delegates to `bracketEngine.moveSLToBreakeven()` (modifies tracked SL order)
   2. **Existing SL order found** (stop type 4/5 on same contract): modifies it to entry price via `orderService.modifyOrder()`
   3. **No SL exists** (naked position): places a new stop order at entry price via `orderService.placeOrder()` (sell stop for long, buy stop for short)
-- Button styling matches Buy/Sell: `py-2.5 text-[11px] font-bold`, outlined variant (`border-(--color-hover-toolbar)`)
+- Both buttons: `py-2.5 text-[11px] font-bold cursor-pointer`, `disabled:opacity-50 disabled:cursor-not-allowed`
 
 ---
 

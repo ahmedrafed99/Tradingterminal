@@ -514,7 +514,7 @@ function LinkChartButton({ linked, onToggle }: {
     <button
       onClick={() => onToggle(isActiveForSelected ? null : selectedChart)}
       title={label}
-      className="transition-colors"
+      className="transition-colors cursor-pointer"
       style={{ padding: '0 2px' }}
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -552,7 +552,7 @@ function PreviewToggle() {
         <div className="flex rounded overflow-hidden" style={{ height: 20 }}>
           <button
             onClick={() => setPreviewSide(OrderSide.Buy)}
-            className="text-[10px] font-medium transition-colors"
+            className="text-[10px] font-medium transition-colors cursor-pointer"
             style={{
               padding: '0 6px',
               background: previewSide === OrderSide.Buy ? 'var(--color-buy)' : 'var(--color-input)',
@@ -563,7 +563,7 @@ function PreviewToggle() {
           </button>
           <button
             onClick={() => setPreviewSide(OrderSide.Sell)}
-            className="text-[10px] font-medium transition-colors"
+            className="text-[10px] font-medium transition-colors cursor-pointer"
             style={{
               padding: '0 6px',
               background: previewSide === OrderSide.Sell ? 'var(--color-sell)' : 'var(--color-input)',

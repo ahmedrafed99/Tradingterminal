@@ -168,7 +168,7 @@ export function BuySellButtons() {
           onClick={() => handlePlace(OrderSide.Buy)}
           disabled={!canPlace || placing !== null}
           className="flex-1 py-2.5 rounded font-bold text-[11px] text-(--color-text) transition-colors
-                     bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) disabled:opacity-50 disabled:cursor-not-allowed"
+                     bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'buy' ? '...' : `Buy +${orderSize} ${typeLabel}`}
         </button>
@@ -176,7 +176,7 @@ export function BuySellButtons() {
           onClick={() => handlePlace(OrderSide.Sell)}
           disabled={!canPlace || placing !== null}
           className="flex-1 py-2.5 rounded font-bold text-[11px] text-(--color-text) transition-colors
-                     bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) disabled:opacity-50 disabled:cursor-not-allowed"
+                     bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'sell' ? '...' : `Sell -${orderSize} ${typeLabel}`}
         </button>
