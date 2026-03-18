@@ -101,6 +101,7 @@ export function OpacitySlider({
             border: '1px solid var(--color-border)',
           }}
           onMouseDown={(e) => {
+            e.preventDefault();
             const track = trackRef.current;
             if (!track) return;
             const update = (ev: MouseEvent) => {
@@ -109,7 +110,7 @@ export function OpacitySlider({
               onChange(Math.round(pct));
             };
             update(e.nativeEvent);
-            const onMove = (ev: MouseEvent) => update(ev);
+            const onMove = (ev: MouseEvent) => { ev.preventDefault(); update(ev); };
             const onUp = () => {
               window.removeEventListener('mousemove', onMove);
               window.removeEventListener('mouseup', onUp);
