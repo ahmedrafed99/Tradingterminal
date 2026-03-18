@@ -14,9 +14,11 @@ export interface UiState {
   setSettingsOpen: (open: boolean) => void;
   editingPresetId: string | 'new' | null;
   setEditingPresetId: (id: string | 'new' | null) => void;
+  hideAccountName: boolean;
   hideBalance: boolean;
   hideRpnl: boolean;
   hideUpnl: boolean;
+  setHideAccountName: (v: boolean) => void;
   setHideBalance: (v: boolean) => void;
   setHideRpnl: (v: boolean) => void;
   setHideUpnl: (v: boolean) => void;
@@ -112,9 +114,11 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   editingPresetId: null,
   setEditingPresetId: (editingPresetId) => set({ editingPresetId }),
+  hideAccountName: false,
   hideBalance: false,
   hideRpnl: false,
   hideUpnl: false,
+  setHideAccountName: (hideAccountName) => set({ hideAccountName }),
   setHideBalance: (hideBalance) => set({ hideBalance }),
   setHideRpnl: (hideRpnl) => set({ hideRpnl }),
   setHideUpnl: (hideUpnl) => set({ hideUpnl }),

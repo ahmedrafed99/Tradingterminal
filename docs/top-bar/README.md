@@ -38,7 +38,7 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 - **Dropdown**: `<select>` populated from `accountService.searchAccounts()` after connection
 - **Style**: `bg-transparent border-none`, `text-xs text-[#d1d4dc] font-medium`, dropdown options use `bg-[#131722]`
 - **Privacy toggle**: eye icon button that applies a smooth CSS blur (`filter: blur(5px)`, `opacity: 0.4`, `transition: 0.2s`) to account names — no text truncation, zero layout shift. Button name truncated with ellipsis at `max-width: 100px`; full name visible only in dropdown.
-- **Default state**: `privacyOn = true` (names blurred)
+- **Default state**: `hideAccountName = false` (names visible). State is persisted to localStorage via `hideAccountName` in the Zustand store (survives hard refresh).
 - **No accounts**: shows `"No accounts"` in `text-[#434651]`
 
 ### Centre — Balance + RP&L + UP&L
@@ -47,7 +47,7 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 Balance: $50,123.45   RP&L: +85.00 $   UP&L: +12.50 $
 ```
 
-**Privacy blur**: Each value (Balance, RP&L, UP&L) is individually clickable — click to toggle a smooth CSS blur (`filter: blur(5px)`, `opacity: 0.4`, `transition: 0.2s`) for privacy when streaming. State is persisted to `user-settings.json` via `hideBalance`, `hideRpnl`, `hideUpnl` in the Zustand store (survives hard refresh).
+**Privacy blur**: Each value (Balance, RP&L, UP&L) is individually clickable — click to toggle a smooth CSS blur (`filter: blur(5px)`, `opacity: 0.4`, `transition: 0.2s`) for privacy when streaming. State is persisted to localStorage via `hideBalance`, `hideRpnl`, `hideUpnl` in the Zustand store (survives hard refresh).
 
 **Balance** = `account.balance + unrealizedPnl` (live equity). Updates from two sources:
 

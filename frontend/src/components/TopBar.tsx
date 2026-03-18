@@ -65,9 +65,11 @@ export function TopBar() {
     lastPrice,
     orderContract,
     sessionTrades,
+    hideAccountName,
     hideBalance,
     hideRpnl,
     hideUpnl,
+    setHideAccountName,
     setHideBalance,
     setHideRpnl,
     setHideUpnl,
@@ -83,9 +85,11 @@ export function TopBar() {
     lastPrice: s.lastPrice,
     orderContract: s.orderContract,
     sessionTrades: s.sessionTrades,
+    hideAccountName: s.hideAccountName,
     hideBalance: s.hideBalance,
     hideRpnl: s.hideRpnl,
     hideUpnl: s.hideUpnl,
+    setHideAccountName: s.setHideAccountName,
     setHideBalance: s.setHideBalance,
     setHideRpnl: s.setHideRpnl,
     setHideUpnl: s.setHideUpnl,
@@ -119,7 +123,7 @@ export function TopBar() {
   }, [connected, updateAccount]);
 
   const activeAccount = accounts.find((a) => a.id === activeAccountId);
-  const [privacyOn, setPrivacyOn] = useState(true);
+  const privacyOn = hideAccountName;
   const [acctOpen, setAcctOpen] = useState(false);
   const acctRef = useRef<HTMLDivElement>(null);
   const closeAcctDropdown = useCallback(() => setAcctOpen(false), []);
@@ -200,7 +204,7 @@ export function TopBar() {
           <span className="text-xs text-(--color-text-dim)">No accounts</span>
         )}
         <button
-          onClick={() => setPrivacyOn((p) => !p)}
+          onClick={() => setHideAccountName(!hideAccountName)}
           className="text-(--color-text-muted) hover:text-white transition-colors p-0.5 rounded"
           title={privacyOn ? 'Show full account info' : 'Hide account info'}
         >
