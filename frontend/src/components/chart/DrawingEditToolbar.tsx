@@ -308,59 +308,64 @@ function TextPopover({
         autoFocus
       />
 
-      {/* Row 3: Text alignment */}
+      {/* Row 3: Text position — visual 3×3 grid with vertical line */}
       <div style={{ marginBottom: 10 }}>
         <div className={SECTION_LABEL} style={{ marginBottom: 6 }}>
-          Text alignment
+          Text position
         </div>
-        <div className="flex items-center" style={{ gap: 6 }}>
-          {/* Vertical alignment buttons */}
-          <div className="flex items-center" style={{ gap: 2, flex: 1 }}>
-            {(['top', 'middle', 'bottom'] as TextVAlign[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setVAlign(v)}
-                style={{
-                  ...toggleBtn(vAlign === v),
-                  flex: 1,
-                  width: 'auto',
-                  height: 24,
-                  padding: '0 6px',
-                  fontSize: 11,
-                  fontWeight: 400,
-                  fontStyle: 'normal',
-                }}
-                title={`Vertical: ${vAlignLabel[v]}`}
-                {...toggleHover(vAlign === v)}
-              >
-                {vAlignLabel[v]}
-              </button>
-            ))}
-          </div>
-          <div style={{ width: 1, height: 20, background: 'var(--color-border)', flexShrink: 0 }} />
-          {/* Horizontal alignment buttons */}
-          <div className="flex items-center" style={{ gap: 2, flex: 1 }}>
-            {(['left', 'center', 'right'] as TextHAlign[]).map((h) => (
-              <button
-                key={h}
-                onClick={() => setHAlign(h)}
-                style={{
-                  ...toggleBtn(hAlign === h),
-                  flex: 1,
-                  width: 'auto',
-                  height: 24,
-                  padding: '0 6px',
-                  fontSize: 11,
-                  fontWeight: 400,
-                  fontStyle: 'normal',
-                }}
-                title={`Horizontal: ${hAlignLabel[h]}`}
-                {...toggleHover(hAlign === h)}
-              >
-                {hAlignLabel[h]}
-              </button>
-            ))}
-          </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gridTemplateRows: '1fr 1fr 1fr',
+          width: '80%',
+          height: 54,
+          position: 'relative',
+          margin: '0 auto',
+        }}>
+          {/* Horizontal line across the middle */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: 4,
+            right: 4,
+            height: 2,
+            background: color,
+            opacity: 0.5,
+            borderRadius: 1,
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+          }} />
+          {(['top', 'middle', 'bottom'] as TextVAlign[]).flatMap((v) =>
+            (['left', 'center', 'right'] as TextHAlign[]).map((h) => {
+              const active = vAlign === v && hAlign === h;
+              return (
+                <button
+                  key={`${v}-${h}`}
+                  onClick={() => { setVAlign(v); setHAlign(h); }}
+                  title={`${v} ${h}`}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 0,
+                  }}
+                >
+                  <span style={{
+                    width: active ? 8 : 5,
+                    height: active ? 8 : 5,
+                    borderRadius: '50%',
+                    background: active ? color : 'var(--color-text-dim)',
+                    border: active ? '1.5px solid var(--color-text)' : 'none',
+                    transition: 'all 0.15s',
+                    flexShrink: 0,
+                  }} />
+                </button>
+              );
+            })
+          )}
         </div>
       </div>
 

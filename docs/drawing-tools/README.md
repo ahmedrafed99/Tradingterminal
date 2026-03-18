@@ -234,7 +234,7 @@ All icons use TradingView-style filled SVGs with `shapeRendering="geometricPreci
    - Row 1: Color swatch (22x22, toggles palette with animated slide) + font size select + **B** bold + *I* italic toggle buttons (active: `#f0a830` text + `#111` bg + `#434651` border, inactive: `#787b86` text with hover highlight, 0.15s transitions)
    - Color grid: animated expand/collapse (`max-height` + `opacity` transition) with opacity slider
    - Row 2: Multiline textarea (`bg: var(--color-panel)`, `text: #d1d4dc`, `border: #2a2e39`, system-ui font, resize disabled)
-   - Row 3: "TEXT ALIGNMENT" section label (`10px uppercase tracking-wider #787b86`) + toggle button groups for vertical (Top/Middle/Bottom) and horizontal (Left/Center/Right) separated by a `#2a2e39` divider
+   - Row 3: "TEXT POSITION" section label + visual 3×3 dot grid widget (80% width, centered) with a horizontal line across the middle row. Active position shown as larger colored dot with border; inactive as small dim dots. Click any of the 9 positions to set vAlign (top/middle/bottom) × hAlign (left/center/right)
    - Row 4: Cancel (`bg: #1e222d`, hover `#363a45`) / Ok (`bg: #1a3a6e`, hover `#1e4a8a`) buttons
 3. **StrokePopover** (120px wide, centered): visual line thickness previews for 1-4px
 4. **TemplatePopover** (220px wide, hline only): saved style templates with export/import
