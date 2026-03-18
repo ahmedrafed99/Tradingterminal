@@ -141,7 +141,7 @@ function hydratePositionsAndOrders(accountId: string) {
   });
 }
 
-export function OrderPanel() {
+export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
   const {
     orderContract, activeAccountId, setLastPrice, upsertPosition, upsertOrder, removeOrder,
     suspendPreset, restorePreset, editingPresetId,
@@ -443,13 +443,28 @@ export function OrderPanel() {
 
   return (
     <div
-      className="flex flex-col bg-(--color-panel) border-r border-(--color-border) overflow-y-auto"
+      className={`flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-y-auto`}
       style={{ width: 240, minWidth: 240, padding: 12 }}
     >
       <div className="flex flex-col" style={{ gap: 20 }}>
         {/* Instrument */}
         <div className="relative">
           <div className="flex items-center mb-1">
+            <button
+              onClick={() => {
+                const store = useStore.getState();
+                store.setOrderPanelSide(store.orderPanelSide === 'left' ? 'right' : 'left');
+              }}
+              className="text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer"
+              title={`Move panel to ${side === 'left' ? 'right' : 'left'}`}
+              style={{ padding: 2 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 16L3 12l4-4" />
+                <path d="M17 8l4 4-4 4" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+              </svg>
+            </button>
             <div className={`flex-1 ${SECTION_LABEL} text-center`}>Instrument</div>
           </div>
           <div className="absolute" style={{ top: -2, right: -4 }}>

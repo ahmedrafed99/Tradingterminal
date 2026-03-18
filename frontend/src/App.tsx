@@ -64,6 +64,7 @@ export default function App() {
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
+  const orderPanelSide = useStore((s) => s.orderPanelSide);
   const splitContainerRef = useRef<HTMLDivElement>(null);
 
   // Sync settings to/from backend file storage
@@ -155,7 +156,7 @@ export default function App() {
 
       {/* Main content area */}
       <main className="flex-1 flex flex-row min-h-0">
-        <OrderPanel />
+        {orderPanelSide === 'left' && <OrderPanel side="left" />}
         <div className="flex-1 flex flex-col min-h-0">
           <ChartToolbar />
           <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
@@ -179,6 +180,7 @@ export default function App() {
             </div>
           </div>
         </div>
+        {orderPanelSide === 'right' && <OrderPanel side="right" />}
       </main>
 
       {settingsOpen && (

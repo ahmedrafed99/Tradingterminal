@@ -82,6 +82,7 @@ export const useStore = create<Store>()(
         orderContract: s.orderContract,
         orderLinkedToChart: s.orderLinkedToChart,
         newsVisible: s.newsVisible,
+        orderPanelSide: s.orderPanelSide,
         conditionServerUrl: s.conditionServerUrl,
         chartSettings: s.chartSettings,
         customShortcuts: s.customShortcuts,

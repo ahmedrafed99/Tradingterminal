@@ -84,7 +84,15 @@ export interface NewsState {
   setNewsVisible: (visible: boolean) => void;
 }
 
-export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & NewsState;
+// ---------------------------------------------------------------------------
+// Order Panel Position
+// ---------------------------------------------------------------------------
+export interface OrderPanelPositionState {
+  orderPanelSide: 'left' | 'right';
+  setOrderPanelSide: (side: 'left' | 'right') => void;
+}
+
+export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & NewsState & OrderPanelPositionState;
 
 type Set = {
   (partial: Partial<LayoutSlice>): void;
@@ -157,6 +165,10 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   setSecondVpEnabled: (secondVpEnabled) => set({ secondVpEnabled }),
   setSecondVpColor: (secondVpColor) => set({ secondVpColor }),
   setSecondVpHoverExpand: (secondVpHoverExpand) => set({ secondVpHoverExpand }),
+
+  // Order Panel Position
+  orderPanelSide: 'left' as 'left' | 'right',
+  setOrderPanelSide: (orderPanelSide) => set({ orderPanelSide }),
 
   // News
   newsEvents: [] as NewsEvent[],

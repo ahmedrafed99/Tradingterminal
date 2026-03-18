@@ -1,10 +1,11 @@
 # Feature: Order Panel
 
-Left sidebar panel for manually entering orders.
+Sidebar panel for manually entering orders.
 Controls instrument selection, order type, size, bracket configuration,
 and the preview toggle that overlays ghost lines on the chart.
 
-- **Background**: `bg-black`, border right `border-[#2a2e39]`, width 240px
+- **Position**: Left or right side — toggled via the ↔ swap icon next to the Instrument label. Persisted as `orderPanelSide` (`'left' | 'right'`) in `layoutSlice`, saved to localStorage.
+- **Background**: `bg-black`, border toward chart (`border-r` when left, `border-l` when right), width 240px
 - All section titles use `SECTION_LABEL` constant from `constants/styles.ts` (`text-[10px] uppercase tracking-wider text-[#787b86]`), centred (`text-center`), with `marginTop: 6` gap between label and content
 - All input fields use `bg-[#111] border-[#2a2e39]`, focus: `border-[#1a3a6e]`
 
@@ -111,7 +112,7 @@ and the preview toggle that overlays ghost lines on the chart.
 
 ## State (Zustand)
 
-State lives in the `tradingSlice` (`store/slices/tradingSlice.ts`). See `docs/frontend/` for the full slice breakdown.
+Order-panel trading state lives in `tradingSlice`. Panel position state (`orderPanelSide`) lives in `layoutSlice`. See `docs/frontend/` for the full slice breakdown.
 
 ```ts
 interface OrderPanelState {
