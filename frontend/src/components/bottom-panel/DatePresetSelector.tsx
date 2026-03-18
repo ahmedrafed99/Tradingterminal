@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Z } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import { DATE_PRESET_LABELS, type DatePreset } from '../../utils/cmeSession';
 import { useClickOutside } from '../../hooks/useClickOutside';
@@ -59,13 +60,14 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg z-50 overflow-hidden"
+          className="absolute left-0 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg overflow-hidden"
           style={{
+            zIndex: Z.DROPDOWN,
             background: 'var(--color-bg)',
             minWidth: 140,
             opacity: visible ? 1 : 0,
             transform: visible ? 'translateY(0)' : 'translateY(-4px)',
-            transition: 'opacity 0.15s ease, transform 0.15s ease',
+            transition: 'opacity var(--transition-fast) ease, transform var(--transition-fast) ease',
           }}
         >
           {PRESETS.map((p) => (
@@ -78,7 +80,7 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
               style={{
                 padding: '6px 12px',
                 gap: 10,
-                transition: 'background 0.15s, color 0.15s',
+                transition: 'background var(--transition-fast), color var(--transition-fast)',
               }}
             >
               <span>{DATE_PRESET_LABELS[p]}</span>
@@ -88,7 +90,7 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
                   style={{
                     fontSize: 12,
                     color: p === preset ? 'rgba(240, 168, 48, 0.6)' : 'var(--color-text-dim)',
-                    transition: 'color 0.15s',
+                    transition: 'color var(--transition-fast)',
                   }}
                 >
                   ({counts[p]})

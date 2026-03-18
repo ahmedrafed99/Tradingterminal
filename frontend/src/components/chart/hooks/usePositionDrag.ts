@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { FONT_FAMILY } from '../../../constants/layout';
 import type { Contract } from '../../../services/marketDataService';
 import { orderService } from '../../../services/orderService';
 import { useStore } from '../../../store/useStore';
@@ -95,7 +96,7 @@ export function usePositionDrag(
       // Create or update temporary overlay label
       if (!refs.posDragLabel.current && overlay) {
         const row = document.createElement('div');
-        row.style.cssText = 'position:absolute;left:50%;display:flex;height:20px;font-size:11px;font-weight:bold;font-family:-apple-system,BlinkMacSystemFont,Trebuchet MS,Roboto,Ubuntu,sans-serif;line-height:20px;transform:translate(-50%,-50%);white-space:nowrap;border-radius:3px;overflow:hidden;pointer-events:none;';
+        row.style.cssText = `position:absolute;left:50%;display:flex;height:20px;font-size:11px;font-weight:bold;font-family:${FONT_FAMILY};line-height:20px;transform:translate(-50%,-50%);white-space:nowrap;border-radius:3px;overflow:hidden;pointer-events:none;`;
         // P&L cell
         const pnlCell = document.createElement('div');
         pnlCell.style.cssText = `background:${color};color:${textColor};padding:0 6px;`;

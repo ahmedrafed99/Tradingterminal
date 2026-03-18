@@ -1,5 +1,6 @@
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { COLOR_BG, COLOR_TEXT_MUTED, COLOR_LABEL_TEXT } from '../../constants/colors';
+import { FONT_FAMILY } from '../../constants/layout';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ export interface PriceLevelLineConfig {
 
 // ── Helpers ──────────────────────────────────────────────
 
-const FONT = "-apple-system,BlinkMacSystemFont,'Trebuchet MS',Roboto,Ubuntu,sans-serif";
+const FONT = FONT_FAMILY;
 
 // ── Per-frame layout cache (avoids repeated reflow-triggering reads) ──
 let _layoutCacheFrame = 0;

@@ -8,6 +8,7 @@ import type {
   IPrimitivePaneView,
   IPrimitivePaneRenderer,
 } from 'lightweight-charts';
+import { FONT_FAMILY } from '../../constants/layout';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { Trade } from '../../services/tradeService';
 import { OrderSide } from '../../types/enums';
@@ -268,7 +269,7 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     placement: 'above' | 'below',
   ): void {
     const fontSize = Math.round(12 * vpr);
-    ctx.font = `${fontSize}px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif`;
+    ctx.font = `${fontSize}px ${FONT_FAMILY}`;
 
     const priceText = trade.price.toFixed(this._decimals);
     const text = `${label}  ${trade.size} @ ${priceText}`;

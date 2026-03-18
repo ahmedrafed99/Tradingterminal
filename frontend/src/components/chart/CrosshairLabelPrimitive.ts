@@ -1,7 +1,7 @@
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 
-const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 import { COLOR_BORDER, COLOR_TEXT } from '../../constants/colors';
+import { FONT_FAMILY } from '../../constants/layout';
 
 const BG_COLOR = COLOR_BORDER;
 const TEXT_COLOR = COLOR_TEXT;

@@ -3,6 +3,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { HLineDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestHLine } from './hitTesting';
 
 class HLineRendererImpl implements IPrimitivePaneRenderer {
@@ -49,7 +50,7 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
         const fs = Math.round((text.fontSize ?? 11) * vpr);
         const weight = (text.bold ?? true) ? 'bold' : 'normal';
         const style = (text.italic ?? false) ? 'italic' : 'normal';
-        textFont = `${style} ${weight} ${fs}px system-ui, -apple-system, sans-serif`;
+        textFont = `${style} ${weight} ${fs}px ${FONT_FAMILY}`;
         ctx.font = textFont;
 
         const measured = ctx.measureText(text.content);

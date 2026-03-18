@@ -4,10 +4,9 @@ import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
 import { Modal } from '../shared/Modal';
 import { ColorPopover } from './ColorPopover';
 import { CustomSelect } from '../shared/CustomSelect';
+import { FONT_FAMILY, RADIUS, Z } from '../../constants/layout';
 
 type Category = 'bars' | 'canvas' | 'trading';
-
-const FONT = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
 // ---------------------------------------------------------------------------
 // Sidebar icons
@@ -76,17 +75,17 @@ function ColorSwatchButton({
         style={{
           width: 28,
           height: 28,
-          borderRadius: 4,
+          borderRadius: RADIUS.LG,
           background: color,
           border: '1px solid var(--color-border)',
           cursor: disabled ? 'default' : 'pointer',
           opacity: disabled ? 0.4 : 1,
-          transition: 'opacity 0.15s',
+          transition: 'opacity var(--transition-fast)',
           boxSizing: 'border-box',
         }}
       />
       {open && !disabled && pos && (
-        <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 100 }}>
+        <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: Z.TOAST }}>
           <ColorPopover
             current={color}
             onChange={(c) => { onChange(c); }}
@@ -119,7 +118,7 @@ function Checkbox({
         cursor: 'pointer',
         fontSize: 13,
         color: 'var(--color-text)',
-        fontFamily: FONT,
+        fontFamily: FONT_FAMILY,
       }}
     >
       <span
@@ -127,13 +126,13 @@ function Checkbox({
         style={{
           width: 16,
           height: 16,
-          borderRadius: 3,
+          borderRadius: RADIUS.MD,
           border: `1px solid ${checked ? 'var(--color-accent)' : 'var(--color-text-dim)'}`,
           background: checked ? 'var(--color-accent)' : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'background 0.15s, border-color 0.15s',
+          transition: 'background var(--transition-fast), border-color var(--transition-fast)',
           flexShrink: 0,
           cursor: 'pointer',
         }}
@@ -162,7 +161,7 @@ function SectionHeader({ children }: { children: string }) {
         color: 'var(--color-text-muted)',
         marginBottom: 12,
         marginTop: 4,
-        fontFamily: FONT,
+        fontFamily: FONT_FAMILY,
       }}
     >
       {children}
@@ -232,7 +231,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <Modal onClose={handleCancel} className="bg-(--color-surface) border border-(--color-border) rounded-lg" style={{ width: 520, maxHeight: '80vh', fontFamily: FONT, overflow: 'visible' }}>
+    <Modal onClose={handleCancel} className="bg-(--color-surface) border border-(--color-border) rounded-lg" style={{ width: 520, maxHeight: '80vh', fontFamily: FONT_FAMILY, overflow: 'visible' }}>
       {/* Title bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--color-border)' }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-bright)' }}>Settings</span>
@@ -246,7 +245,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
             cursor: 'pointer',
             lineHeight: 1,
             padding: '0 2px',
-            transition: 'color 0.15s',
+            transition: 'color var(--transition-fast)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
@@ -273,9 +272,9 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
                 border: 'none',
                 color: category === cat.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
                 fontSize: 13,
-                fontFamily: FONT,
+                fontFamily: FONT_FAMILY,
                 cursor: 'pointer',
-                transition: 'background 0.15s, color 0.15s',
+                transition: 'background var(--transition-fast), color var(--transition-fast)',
                 textAlign: 'left',
               }}
               onMouseEnter={(e) => {
@@ -312,9 +311,9 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
             border: 'none',
             color: 'var(--color-text-muted)',
             fontSize: 12,
-            fontFamily: FONT,
+            fontFamily: FONT_FAMILY,
             cursor: 'pointer',
-            transition: 'color 0.15s',
+            transition: 'color var(--transition-fast)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
@@ -329,11 +328,11 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
               border: 'none',
               color: 'var(--color-text-muted)',
               fontSize: 13,
-              fontFamily: FONT,
+              fontFamily: FONT_FAMILY,
               cursor: 'pointer',
               padding: '6px 16px',
-              borderRadius: 4,
-              transition: 'color 0.15s',
+              borderRadius: RADIUS.LG,
+              transition: 'color var(--transition-fast)',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
@@ -347,12 +346,12 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
               border: 'none',
               color: 'var(--color-text-bright)',
               fontSize: 13,
-              fontFamily: FONT,
+              fontFamily: FONT_FAMILY,
               cursor: 'pointer',
               padding: '6px 20px',
-              borderRadius: 4,
+              borderRadius: RADIUS.LG,
               fontWeight: 500,
-              transition: 'background 0.15s',
+              transition: 'background var(--transition-fast)',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-accent)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
@@ -435,7 +434,7 @@ function TradingPanel({ settings, onChange }: { settings: Settings; onChange: On
           marginTop: 6,
           marginLeft: 24,
           lineHeight: 1.4,
-          fontFamily: FONT,
+          fontFamily: FONT_FAMILY,
         }}
       >
         Extend the trade zone rectangle to the right edge of the chart

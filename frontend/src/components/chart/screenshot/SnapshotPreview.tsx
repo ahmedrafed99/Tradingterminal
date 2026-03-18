@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { ScreenshotOptions } from './chartRegistry';
 import { addTimeBanner } from './addTimeBanner';
 import { Modal } from '../../shared/Modal';
+import { SHADOW } from '../../../constants/layout';
 
 interface SnapshotPreviewProps {
   captureChartCanvas: (options: ScreenshotOptions) => HTMLCanvasElement | null;
@@ -94,7 +95,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         maxWidth: '75vw',
         maxHeight: '82vh',
         minWidth: 420,
-        boxShadow: '0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)',
+        boxShadow: SHADOW.HERO,
       }}
     >
         {/* Header */}

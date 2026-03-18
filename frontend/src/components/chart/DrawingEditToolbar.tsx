@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
+import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
@@ -58,10 +59,10 @@ function TextColorGrid({
               width: 20,
               height: 20,
               background: c,
-              borderRadius: 3,
+              borderRadius: RADIUS.MD,
               border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
               cursor: 'pointer',
-              boxShadow: c === parsed.hex ? '0 0 0 1px var(--color-surface)' : 'none',
+              boxShadow: c === parsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
             }}
           />
         ))}
@@ -76,10 +77,10 @@ function TextColorGrid({
                   width: 20,
                   height: 20,
                   background: c,
-                  borderRadius: 3,
+                  borderRadius: RADIUS.MD,
                   border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
                   cursor: 'pointer',
-                  boxShadow: c === parsed.hex ? '0 0 0 1px var(--color-surface)' : 'none',
+                  boxShadow: c === parsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
                 }}
               />
               <button
@@ -87,10 +88,10 @@ function TextColorGrid({
                 className="absolute opacity-0 group-hover:opacity-100"
                 style={{
                   top: -4, right: -4, width: 12, height: 12,
-                  borderRadius: '50%', background: '#000', border: '1px solid var(--color-text-dim)',
+                  borderRadius: RADIUS.CIRCLE, background: '#000', border: '1px solid var(--color-text-dim)',
                   color: 'var(--color-text-muted)', fontSize: 8, lineHeight: '10px',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'opacity 0.15s',
+                  transition: 'opacity var(--transition-fast)',
                 }}
               >
                 &times;
@@ -104,7 +105,7 @@ function TextColorGrid({
         style={{
           width: 20,
           height: 20,
-          borderRadius: 3,
+          borderRadius: RADIUS.MD,
           border: '1px dashed var(--color-text-muted)',
           background: 'transparent',
           color: 'var(--color-text-muted)',
@@ -186,7 +187,7 @@ function TextPopover({
   const toggleBtn = (active: boolean): React.CSSProperties => ({
     width: 28,
     height: 28,
-    borderRadius: 4,
+    borderRadius: RADIUS.LG,
     border: active ? '1px solid var(--color-text-dim)' : '1px solid transparent',
     cursor: 'pointer',
     background: active ? 'var(--color-input)' : 'transparent',
@@ -194,7 +195,7 @@ function TextPopover({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+    transition: 'background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast)',
   });
   const toggleHover = (active: boolean) => ({
     onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -214,8 +215,8 @@ function TextPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 border border-(--color-border) rounded-lg shadow-lg z-50"
-      style={{ padding: 12, width: 290, background: 'var(--color-panel)' }}
+      className="absolute top-full left-0 mt-1 border border-(--color-border) rounded-lg shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, padding: 12, width: 290, background: 'var(--color-panel)' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Row 1: Color swatch + Font size + Bold + Italic */}
@@ -227,11 +228,11 @@ function TextPopover({
             width: 22,
             height: 22,
             background: color,
-            borderRadius: 4,
+            borderRadius: RADIUS.LG,
             border: showColorGrid ? '2px solid #fff' : '1px solid var(--color-border)',
             cursor: 'pointer',
             flexShrink: 0,
-            transition: 'border-color 0.15s',
+            transition: 'border-color var(--transition-fast)',
           }}
           title="Text color"
         />
@@ -243,7 +244,7 @@ function TextPopover({
               background: 'var(--color-input)',
               color: 'var(--color-text)',
               border: '1px solid var(--color-border)',
-              borderRadius: 4,
+              borderRadius: RADIUS.LG,
               padding: '4px 6px',
               fontSize: 12,
               cursor: 'pointer',
@@ -251,7 +252,7 @@ function TextPopover({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              transition: 'border-color 0.15s',
+              transition: 'border-color var(--transition-fast)',
             }}
             title="Font size"
           >
@@ -262,14 +263,14 @@ function TextPopover({
           </button>
           {showFontSizes && (
             <div
-              className="border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
-              style={{
+              className="border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+              style={{ zIndex: Z.DROPDOWN,
                 position: 'absolute',
                 top: '100%',
                 left: 0,
                 marginTop: 4,
                 background: 'var(--color-panel)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                boxShadow: SHADOW.LG,
                 minWidth: 56,
                 maxHeight: 160,
                 overflowY: 'auto',
@@ -322,7 +323,7 @@ function TextPopover({
           overflow: 'hidden',
           maxHeight: showColorGrid ? 300 : 0,
           opacity: showColorGrid ? 1 : 0,
-          transition: 'max-height 0.2s ease, opacity 0.15s ease',
+          transition: 'max-height var(--transition-normal) ease, opacity var(--transition-fast) ease',
         }}
       >
         <TextColorGrid
@@ -343,7 +344,7 @@ function TextPopover({
           marginBottom: 8,
           resize: 'none',
           minHeight: 60,
-          fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+          fontFamily: FONT_FAMILY,
           fontSize: 12,
           lineHeight: '1.4',
           border: '1px solid var(--color-border)',
@@ -375,7 +376,7 @@ function TextPopover({
             height: 2,
             background: color,
             opacity: 0.5,
-            borderRadius: 1,
+            borderRadius: RADIUS.XS,
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
           }} />
@@ -400,10 +401,10 @@ function TextPopover({
                   <span style={{
                     width: active ? 8 : 5,
                     height: active ? 8 : 5,
-                    borderRadius: '50%',
+                    borderRadius: RADIUS.CIRCLE,
                     background: active ? color : 'var(--color-text-dim)',
                     border: active ? '1.5px solid var(--color-text)' : 'none',
-                    transition: 'all 0.15s',
+                    transition: 'all var(--transition-fast)',
                     flexShrink: 0,
                   }} />
                 </button>
@@ -423,7 +424,7 @@ function TextPopover({
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             cursor: 'pointer',
-            transition: 'background 0.15s',
+            transition: 'background var(--transition-fast)',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-hover-toolbar)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface)')}
@@ -438,7 +439,7 @@ function TextPopover({
             background: 'var(--color-focus-ring)',
             border: '1px solid transparent',
             cursor: 'pointer',
-            transition: 'background 0.15s',
+            transition: 'background var(--transition-fast)',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-focus-ring)')}
@@ -475,8 +476,8 @@ function StrokePopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-1/2 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50"
-      style={{ transform: 'translateX(-50%)', padding: '6px 4px', width: 120 }}
+      className="absolute top-full left-1/2 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, transform: 'translateX(-50%)', padding: '6px 4px', width: 120 }}
       onClick={(e) => e.stopPropagation()}
     >
       {STROKE_WIDTH_OPTIONS.map((w) => (
@@ -593,8 +594,8 @@ function TemplatePopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50"
-      style={{ padding: '4px 0', width: 220, maxHeight: 300, overflowY: 'auto', overflowX: 'hidden' }}
+      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, padding: '4px 0', width: 220, maxHeight: 300, overflowY: 'auto', overflowX: 'hidden' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Saved templates */}
@@ -602,11 +603,11 @@ function TemplatePopover({
         <div
           key={t.id}
           className="flex items-center gap-2 hover:bg-(--color-hover-row) group transition-colors"
-          style={{ padding: '6px 10px', cursor: 'pointer', borderRadius: 4 }}
+          style={{ padding: '6px 10px', cursor: 'pointer', borderRadius: RADIUS.LG }}
           onClick={() => { onApply(t); onClose(); }}
         >
           <div style={{
-            width: 10, height: 10, borderRadius: '50%',
+            width: 10, height: 10, borderRadius: RADIUS.CIRCLE,
             background: t.color, flexShrink: 0,
             border: '1px solid var(--color-border)',
           }} />
@@ -655,7 +656,7 @@ function TemplatePopover({
             <button
               onClick={handleSave}
               className="text-xs text-white rounded"
-              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: 'var(--color-focus-ring)', transition: 'background 0.15s' }}
+              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: 'var(--color-focus-ring)', transition: 'background var(--transition-fast)' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-focus-ring)')}
             >
@@ -673,10 +674,10 @@ function TemplatePopover({
                   key={t.id}
                   onClick={() => { setName(t.name); setShowSuggestions(false); nameRef.current?.focus(); }}
                   className="flex items-center gap-2 w-full text-left text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) transition-colors"
-                  style={{ padding: '5px 8px', border: 'none', cursor: 'pointer', borderRadius: 4 }}
+                  style={{ padding: '5px 8px', border: 'none', cursor: 'pointer', borderRadius: RADIUS.LG }}
                 >
                   <div style={{
-                    width: 8, height: 8, borderRadius: '50%',
+                    width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
                     background: t.color, flexShrink: 0,
                     border: '1px solid var(--color-border)',
                   }} />
@@ -690,7 +691,7 @@ function TemplatePopover({
         <button
           onClick={() => setSaving(true)}
           className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs bg-transparent hover:bg-(--color-hover-row) transition-colors"
-          style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: 4 }}
+          style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: RADIUS.LG }}
         >
           Save as...
         </button>
@@ -700,7 +701,7 @@ function TemplatePopover({
       <button
         onClick={handleApplyDefaults}
         className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs bg-transparent hover:bg-(--color-hover-row) transition-colors"
-        style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: 4 }}
+        style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: RADIUS.LG }}
       >
         Apply defaults
       </button>
@@ -785,16 +786,17 @@ export function DrawingEditToolbar({
     return (
       <div
         ref={toolbarRef}
-        className="absolute z-40 flex items-center pointer-events-auto animate-toolbar-in"
+        className="absolute flex items-center pointer-events-auto animate-toolbar-in"
         style={{
+          zIndex: Z.TOOLBAR_EDIT,
           left: '10%',
           top: '10%',
           padding: '4px 6px',
           gap: 4,
           background: 'var(--color-panel)',
           border: '1px solid var(--color-border)',
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+          borderRadius: RADIUS.XL,
+          boxShadow: SHADOW.LG,
         }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
@@ -821,16 +823,17 @@ export function DrawingEditToolbar({
   return (
     <div
       ref={toolbarRef}
-      className="absolute z-40 flex items-center pointer-events-auto animate-toolbar-in"
+      className="absolute flex items-center pointer-events-auto animate-toolbar-in"
       style={{
+        zIndex: Z.TOOLBAR_EDIT,
         left: '10%',
         top: '10%',
         padding: '4px 6px',
         gap: 4,
         background: 'var(--color-panel)',
         border: '1px solid var(--color-border)',
-        borderRadius: 8,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        borderRadius: RADIUS.XL,
+        boxShadow: SHADOW.LG,
       }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
@@ -848,7 +851,7 @@ export function DrawingEditToolbar({
           {/* Color dot overlay on pencil tip */}
           <div style={{
             position: 'absolute', bottom: 4, right: 4,
-            width: 8, height: 8, borderRadius: '50%',
+            width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
             background: drawing.color, border: '1px solid var(--color-border)',
           }} />
         </button>
@@ -879,7 +882,7 @@ export function DrawingEditToolbar({
               </svg>
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
-                width: 8, height: 8, borderRadius: '50%',
+                width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
                 background: (drawing as any).fillColor || 'transparent',
                 border: '1px solid var(--color-border)',
               }} />
@@ -911,7 +914,7 @@ export function DrawingEditToolbar({
               {/* Text color dot */}
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
-                width: 8, height: 8, borderRadius: '50%',
+                width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
                 background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
               }} />
             </button>
@@ -988,7 +991,7 @@ export function DrawingEditToolbar({
             >
               <span>Template</span>
               <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"
-                style={{ transform: showTemplate ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+                style={{ transform: showTemplate ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}
               >
                 <path d="M2.5 4L5 6.5L7.5 4" />
               </svg>

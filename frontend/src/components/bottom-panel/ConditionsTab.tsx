@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Z } from '../../constants/layout';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { useStore } from '../../store/useStore';
 import { resolveConditionServerUrl } from '../../store/slices/conditionsSlice';
@@ -174,8 +175,8 @@ export function ConditionsTab() {
       </button>
       {filterOpen && (
         <div
-          className="absolute left-1/2 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg z-50"
-          style={{ background: 'var(--color-panel)', minWidth: 120, transform: 'translateX(-50%)' }}
+          className="absolute left-1/2 top-full mt-1 border border-(--color-border) rounded-lg shadow-lg"
+          style={{ zIndex: Z.DROPDOWN, background: 'var(--color-panel)', minWidth: 120, transform: 'translateX(-50%)' }}
         >
           {ALL_STATUSES.map((s) => {
             const active = statusFilter.has(s);
@@ -215,7 +216,7 @@ export function ConditionsTab() {
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-(--color-panel) border-b border-(--color-border)">
+      <div className="sticky top-0 bg-(--color-panel) border-b border-(--color-border)" style={{ zIndex: Z.HEADER }}>
         <div className="flex items-center h-8">
           <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '85%' }}>
             {statusHeaderEl}

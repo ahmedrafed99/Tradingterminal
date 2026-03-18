@@ -1,5 +1,6 @@
 import { ColorType, CrosshairMode } from 'lightweight-charts';
 import { COLOR_TEXT, COLOR_TEXT_DIM, COLOR_TEXT_MEDIUM, COLOR_BORDER, COLOR_LABEL_TEXT } from '../../constants/colors';
+import { FONT_FAMILY } from '../../constants/layout';
 import type { DeepPartial, ChartOptions, CandlestickSeriesPartialOptions } from 'lightweight-charts';
 
 const NY_TZ = 'America/New_York';
@@ -51,7 +52,7 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
     background: { type: ColorType.Solid, color: COLOR_LABEL_TEXT },
     textColor: COLOR_TEXT,
     fontSize: 12,
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+    fontFamily: FONT_FAMILY,
   },
   grid: {
     vertLines: { visible: false },

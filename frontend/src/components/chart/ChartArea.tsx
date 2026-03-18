@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { Z } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import { CandlestickChart } from './CandlestickChart';
 import type { CandlestickChartHandle } from './CandlestickChart';
@@ -189,10 +190,10 @@ export function ChartArea() {
     <div
       className="absolute inset-0 pointer-events-none"
       style={{
-        zIndex: 50,
+        zIndex: Z.DROPDOWN,
         border: '1px solid',
         borderColor: visible ? 'rgba(41, 98, 255, 0.5)' : 'transparent',
-        transition: 'border-color 0.25s ease',
+        transition: 'border-color var(--transition-slow) ease',
       }}
     />
   );

@@ -3,6 +3,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { RulerDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_BTN_SELL, COLOR_HANDLE_STROKE } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestRect } from './hitTesting';
 import { formatVolume } from './rulerMetrics';
 
@@ -151,7 +152,7 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
       const line2 = `${m.barCount} bars, ${m.timeSpan}`;
       const line3 = `Vol ${formatVolume(m.volumeSum)}`;
 
-      const fontFamily = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+      const fontFamily = FONT_FAMILY;
       const fontSize = Math.round(12 * vpr);
       const lineHeight = Math.round(fontSize * 1.35);
       const padH = Math.round(8 * hpr);

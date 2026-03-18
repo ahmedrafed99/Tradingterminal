@@ -3,6 +3,7 @@ import type { Contract } from '../services/marketDataService';
 import { useStore } from '../store/useStore';
 import { useInstrumentSearch } from '../hooks/useInstrumentSearch';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { SHADOW, Z } from '../constants/layout';
 
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
@@ -89,9 +90,10 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
 
       {open && (
         <div
-          className="absolute top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto py-2 animate-dropdown-in"
+          className="absolute top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg max-h-60 overflow-y-auto py-2 animate-dropdown-in"
           style={{
-            boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+            zIndex: Z.DROPDOWN,
+            boxShadow: SHADOW.XL,
             ...dropdownStyle,
           }}
         >

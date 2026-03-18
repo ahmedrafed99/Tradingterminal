@@ -212,13 +212,13 @@ export function buildOrderLabels(
       sizeCell.style.display = 'flex';
       sizeCell.style.alignItems = 'center';
       sizeCell.style.padding = '0';
-      sizeCell.style.transition = 'background 0.15s';
+      sizeCell.style.transition = 'background var(--transition-fast)';
       sizeCell.textContent = '';
       sizeCell.dataset.screenshotText = String(oSize);
 
       const minusEl = document.createElement('div');
       minusEl.textContent = '\u2212';
-      minusEl.style.cssText = `display:none;padding:0 3px;cursor:${minusDisabled ? 'default' : 'pointer'};opacity:${minusDisabled ? '0.5' : '1'};transition:opacity 0.15s, transform 0.15s;`;
+      minusEl.style.cssText = `display:none;padding:0 3px;cursor:${minusDisabled ? 'default' : 'pointer'};opacity:${minusDisabled ? '0.5' : '1'};transition:opacity var(--transition-fast), transform var(--transition-fast);`;
       minusEl.addEventListener('mouseenter', () => { minusEl.style.transform = 'scale(1.4)'; });
       minusEl.addEventListener('mouseleave', () => { minusEl.style.transform = ''; });
 
@@ -228,7 +228,7 @@ export function buildOrderLabels(
 
       const plusEl = document.createElement('div');
       plusEl.textContent = '+';
-      plusEl.style.cssText = `display:none;padding:0 3px;cursor:${plusDisabled ? 'default' : 'pointer'};opacity:${plusDisabled ? '0.5' : '1'};transition:opacity 0.15s, transform 0.15s;`;
+      plusEl.style.cssText = `display:none;padding:0 3px;cursor:${plusDisabled ? 'default' : 'pointer'};opacity:${plusDisabled ? '0.5' : '1'};transition:opacity var(--transition-fast), transform var(--transition-fast);`;
       plusEl.addEventListener('mouseenter', () => { plusEl.style.transform = 'scale(1.4)'; });
       plusEl.addEventListener('mouseleave', () => { plusEl.style.transform = ''; });
 

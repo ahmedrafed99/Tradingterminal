@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { FONT_FAMILY, RADIUS } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import {
   SHORTCUT_DEFS,
@@ -37,9 +38,9 @@ function KeyBadge({
       className="transition-all"
       style={{
         padding: '2px 8px',
-        borderRadius: 4,
+        borderRadius: RADIUS.LG,
         fontSize: 11,
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+        fontFamily: FONT_FAMILY,
         background: 'var(--color-input)',
         border: active
           ? '1px solid var(--color-accent)'
@@ -98,9 +99,9 @@ function RecordingBadge({ onRecord, onCancel }: { onRecord: (combo: KeyCombo) =>
       className="transition-all"
       style={{
         padding: '2px 8px',
-        borderRadius: 4,
+        borderRadius: RADIUS.LG,
         fontSize: 11,
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+        fontFamily: FONT_FAMILY,
         background: 'var(--color-input)',
         border: '1px solid var(--color-accent)',
         color: 'var(--color-accent-text)',

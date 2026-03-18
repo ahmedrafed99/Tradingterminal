@@ -12,6 +12,7 @@ import { COLOR_BG, COLOR_BORDER } from '../../constants/colors';
 import { paintOverlays } from './screenshot/paintOverlays';
 import { useRecording } from './recording/useRecording';
 import { RecordingIndicator } from './recording/RecordingIndicator';
+import { RADIUS, SHADOW, Z } from '../../constants/layout';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -55,8 +56,8 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-panel) border border-(--color-border) rounded-md shadow-lg z-50 py-1 animate-dropdown-in"
-          style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)' }}
+          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-panel) border border-(--color-border) rounded-md shadow-lg py-1 animate-dropdown-in"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG }}
         >
           {UNIT_OPTIONS.map((u) => (
             <button
@@ -137,8 +138,8 @@ function IndicatorsDropdown() {
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
-          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)', minWidth: 220 }}
+          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, minWidth: 220 }}
         >
           {!editingVp ? (
             <div style={{ padding: 6 }}>
@@ -151,7 +152,7 @@ function IndicatorsDropdown() {
                 <button
                   onClick={() => setVpEnabled(!vpEnabled)}
                   style={{
-                    width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                    width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
                     border: vpEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
                     background: vpEnabled ? 'var(--color-accent)' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -177,7 +178,7 @@ function IndicatorsDropdown() {
                 {/* Color swatch */}
                 <div
                   style={{
-                    width: 12, height: 12, borderRadius: 2, flexShrink: 0,
+                    width: 12, height: 12, borderRadius: RADIUS.SM, flexShrink: 0,
                     background: vpColor, border: '1px solid var(--color-border)',
                     marginRight: 8,
                   }}
@@ -224,10 +225,10 @@ function IndicatorsDropdown() {
                         key={`${c}-${i}`}
                         onClick={() => setVpColor(toRgba(c, vpParsed.opacity))}
                         style={{
-                          width: 20, height: 20, background: c, borderRadius: 3,
+                          width: 20, height: 20, background: c, borderRadius: RADIUS.MD,
                           border: c === vpParsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
                           cursor: 'pointer',
-                          boxShadow: c === vpParsed.hex ? '0 0 0 1px var(--color-surface)' : 'none',
+                          boxShadow: c === vpParsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
                         }}
                       />
                     ))}
@@ -237,7 +238,7 @@ function IndicatorsDropdown() {
                   <button
                     onClick={() => customInputRef.current?.click()}
                     style={{
-                      width: 20, height: 20, borderRadius: 3,
+                      width: 20, height: 20, borderRadius: RADIUS.MD,
                       border: '1px dashed var(--color-text-muted)', background: 'transparent',
                       color: 'var(--color-text-muted)', fontSize: 14, lineHeight: '18px',
                       cursor: 'pointer', display: 'flex',
@@ -272,7 +273,7 @@ function IndicatorsDropdown() {
                     <span className="text-xs text-(--color-text)">Hover Expand</span>
                     <div
                       style={{
-                        width: 32, height: 18, borderRadius: 9,
+                        width: 32, height: 18, borderRadius: RADIUS.PILL,
                         background: vpHoverExpand ? 'var(--color-accent)' : 'var(--color-surface)',
                         border: '1px solid var(--color-border)',
                         position: 'relative',
@@ -282,7 +283,7 @@ function IndicatorsDropdown() {
                     >
                       <div
                         style={{
-                          width: 14, height: 14, borderRadius: '50%',
+                          width: 14, height: 14, borderRadius: RADIUS.CIRCLE,
                           background: '#fff',
                           position: 'absolute', top: 1,
                           left: vpHoverExpand ? 16 : 1,
@@ -525,8 +526,8 @@ export function ChartToolbar() {
 
         {/* Dropdown menu */}
         {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 py-2 animate-dropdown-in"
-            style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }}
+          <div className="absolute top-full left-0 mt-1 w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-2 animate-dropdown-in"
+            style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
           >
             {/* Preset timeframes */}
             {TIMEFRAMES.map((tf) => {
@@ -662,8 +663,8 @@ export function ChartToolbar() {
 
         {cameraOpen && (
           <div
-            className="absolute top-full right-0 mt-1.5 bg-(--color-panel) border border-(--color-border)/60 rounded-xl z-50 animate-dropdown-in"
-            style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)', padding: '6px' }}
+            className="absolute top-full right-0 mt-1.5 bg-(--color-panel) border border-(--color-border)/60 rounded-xl animate-dropdown-in"
+            style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XXL, padding: '6px' }}
           >
             <button
               onClick={handleCopyChartImage}
@@ -724,7 +725,7 @@ export function ChartToolbar() {
           style={{
             display: 'inline-block',
             width: 6, height: 6,
-            borderRadius: '50%',
+            borderRadius: RADIUS.CIRCLE,
             background: marketOpen ? 'var(--color-buy)' : 'var(--color-sell)',
             flexShrink: 0,
           }}

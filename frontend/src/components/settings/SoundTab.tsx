@@ -69,7 +69,7 @@ export function SoundTab() {
         </div>
 
         {/* VOLUME */}
-        <div style={{ opacity: enabled ? 1 : 0.4, transition: 'opacity 0.2s' }}>
+        <div style={{ opacity: enabled ? 1 : 0.4, transition: 'opacity var(--transition-normal)' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
             <span className="text-[11px] text-(--color-text-muted)">Volume</span>
             <span className="text-[10px] text-(--color-text-dim)">

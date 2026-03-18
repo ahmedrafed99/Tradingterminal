@@ -1,7 +1,8 @@
 import { COLOR_TEXT_MUTED, COLOR_TEXT } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 import type { ChartEntry } from './chartRegistry';
 
-const FONT = "12px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+const FONT = `12px ${FONT_FAMILY}`;
 
 /**
  * Paint HTML overlay elements (instrument label, OHLC tooltip, position/order lines)

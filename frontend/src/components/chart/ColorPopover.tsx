@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
+import { RADIUS, SHADOW, Z } from '../../constants/layout';
 
 // 10-column palette matching standard design-tool layout
 export const COLOR_PALETTE = [
@@ -93,7 +94,7 @@ export function OpacitySlider({
           style={{
             flex: 1,
             height: 16,
-            borderRadius: 8,
+            borderRadius: RADIUS.XL,
             position: 'relative',
             cursor: 'pointer',
             // checkerboard behind the gradient
@@ -125,7 +126,7 @@ export function OpacitySlider({
               ...gradientStyle,
               position: 'absolute',
               inset: 0,
-              borderRadius: 8,
+              borderRadius: RADIUS.XL,
               pointerEvents: 'none',
             }}
           />
@@ -138,10 +139,10 @@ export function OpacitySlider({
               transform: 'translateX(-50%)',
               width: 18,
               height: 18,
-              borderRadius: '50%',
+              borderRadius: RADIUS.CIRCLE,
               background: 'var(--color-text-bright)',
               border: '2px solid var(--color-border)',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+              boxShadow: SHADOW.SM,
               pointerEvents: 'none',
             }}
           />
@@ -160,7 +161,7 @@ export function OpacitySlider({
             color: 'var(--color-text)',
             background: 'var(--color-panel)',
             border: '1px solid var(--color-border)',
-            borderRadius: 4,
+            borderRadius: RADIUS.LG,
             fontSize: 11,
             fontWeight: 500,
             width: 40,
@@ -184,10 +185,10 @@ function ColorSwatch({ color, current, onClick }: { color: string; current: stri
         width: 20,
         height: 20,
         background: color,
-        borderRadius: 3,
+        borderRadius: RADIUS.MD,
         border: color === current ? '2px solid #fff' : '1px solid var(--color-border)',
         cursor: 'pointer',
-        boxShadow: color === current ? '0 0 0 1px var(--color-surface)' : 'none',
+        boxShadow: color === current ? SHADOW.ring('var(--color-surface)') : 'none',
       }}
     />
   );
@@ -238,8 +239,8 @@ export function ColorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50"
-      style={{ padding: 10, width: 252 }}
+      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, padding: 10, width: 252 }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Color palette grid */}
@@ -260,10 +261,10 @@ export function ColorPopover({
                 className="absolute opacity-0 group-hover:opacity-100"
                 style={{
                   top: -4, right: -4, width: 12, height: 12,
-                  borderRadius: '50%', background: '#000', border: '1px solid var(--color-text-dim)',
+                  borderRadius: RADIUS.CIRCLE, background: '#000', border: '1px solid var(--color-text-dim)',
                   color: 'var(--color-text-muted)', fontSize: 8, lineHeight: '10px',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'opacity 0.15s',
+                  transition: 'opacity var(--transition-fast)',
                 }}
               >
                 &times;
@@ -279,7 +280,7 @@ export function ColorPopover({
         style={{
           width: 20,
           height: 20,
-          borderRadius: 3,
+          borderRadius: RADIUS.MD,
           border: '1px dashed var(--color-text-muted)',
           background: 'transparent',
           color: 'var(--color-text-muted)',

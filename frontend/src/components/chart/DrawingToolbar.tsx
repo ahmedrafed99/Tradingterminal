@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Z } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import type { DrawingTool } from '../../types/drawing';
 
@@ -111,8 +112,8 @@ export function DrawingToolbar() {
 
   return (
     <div
-      className="absolute left-0 z-30 flex flex-col items-start"
-      style={{ bottom: '10%' }}
+      className="absolute left-0 flex flex-col items-start"
+      style={{ zIndex: Z.TOOLBAR, bottom: '10%' }}
     >
       {/* Tool buttons — expand upward above the toggle button */}
       {showExpanded && (

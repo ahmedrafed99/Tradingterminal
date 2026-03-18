@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import type { ToastItem } from '../store/useStore';
+import { RADIUS, Z, SHADOW } from '../constants/layout';
 
 const ACCENT: Record<ToastItem['kind'], string> = {
   error: 'var(--color-sell)',
@@ -43,8 +44,8 @@ function ToastEntry({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => v
       style={{
         background: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
-        borderRadius: 8,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+        borderRadius: RADIUS.XL,
+        boxShadow: SHADOW.XL,
         borderLeft: `4px solid ${ACCENT[toast.kind]}`,
         padding: '10px 12px',
         display: 'flex',
@@ -89,8 +90,8 @@ export function ToastContainer() {
 
   return (
     <div
-      className="fixed z-[100]"
-      style={{ bottom: 16, right: 16, width: 320, pointerEvents: 'none' }}
+      className="fixed"
+      style={{ bottom: 16, right: 16, width: 320, pointerEvents: 'none', zIndex: Z.TOAST }}
     >
       <div className="flex flex-col" style={{ gap: 8 }}>
         {toasts.map((t) => (

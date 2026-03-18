@@ -1,4 +1,5 @@
 import { COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_LABEL_TEXT } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 
 /**
  * Composites a time-banner strip above the chart canvas.
@@ -36,7 +37,7 @@ export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement
   ctx.fillRect(0, 0, w, bannerH);
 
   // Time text — top-left
-  ctx.font = "12px -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+  ctx.font = `12px ${FONT_FAMILY}`;
   ctx.fillStyle = COLOR_TEXT_MUTED;
   ctx.textBaseline = 'middle';
   ctx.fillText(timeText, 10, bannerH / 2);

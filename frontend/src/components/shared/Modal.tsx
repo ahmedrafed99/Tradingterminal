@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Z } from '../../constants/layout';
 
 interface ModalProps {
   onClose: () => void;
@@ -31,8 +32,8 @@ export function Modal({ onClose, children, className = '', style, backdropClassN
   return (
     <div
       ref={backdropRef}
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 ${backdropClassName}`}
-      style={backdropStyle}
+      className={`fixed inset-0 flex items-center justify-center bg-black/60 ${backdropClassName}`}
+      style={{ zIndex: Z.DROPDOWN, ...backdropStyle }}
       onMouseDown={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}

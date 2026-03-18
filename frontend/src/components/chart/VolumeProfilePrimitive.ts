@@ -53,7 +53,7 @@ import { COLOR_TEXT } from '../../constants/colors';
 
 const TOOLTIP_TEXT = COLOR_TEXT;
 const MAX_WIDTH_RATIO = 0.30;
-const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+import { FONT_FAMILY } from '../../constants/layout';
 
 /** Data passed from primitive → renderer (no width yet — computed in draw) */
 interface BarData {

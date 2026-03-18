@@ -182,14 +182,14 @@ export function useQuickOrder(
 
       sizeMinusEl = document.createElement('div');
       sizeMinusEl.textContent = '\u2212';
-      sizeMinusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
+      sizeMinusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity var(--transition-fast), transform var(--transition-fast);';
 
       sizeCountEl = document.createElement('div');
       sizeCountEl.style.cssText = 'padding:0 4px;';
 
       sizePlusEl = document.createElement('div');
       sizePlusEl.textContent = '+';
-      sizePlusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
+      sizePlusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity var(--transition-fast), transform var(--transition-fast);';
 
       // Scale up on hover
       sizeMinusEl.addEventListener('mouseenter', () => { sizeMinusEl!.style.transform = 'scale(1.4)'; });
@@ -240,7 +240,7 @@ export function useQuickOrder(
       labelSize.style.display = 'flex';
       labelSize.style.alignItems = 'center';
       labelSize.style.padding = '0';
-      labelSize.style.transition = 'background 0.15s';
+      labelSize.style.transition = 'background var(--transition-fast)';
 
       if (!labelSize.contains(sizeMinusEl)) {
         labelSize.appendChild(sizeMinusEl);
@@ -287,7 +287,7 @@ export function useQuickOrder(
     function onTextEnter() {
       textHovered = true;
       labelText.style.background = '#b0afb1';
-      labelText.style.transition = 'background 0.15s';
+      labelText.style.transition = 'background var(--transition-fast)';
     }
     function onTextLeave() {
       textHovered = false;

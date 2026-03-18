@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import { Z } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import type { ConditionAction, TakeProfitLevel } from '../../types/bracket';
@@ -72,7 +73,7 @@ export function BracketSummary() {
         </button>
 
         {open && (
-          <div className="absolute z-50 left-0 right-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ padding: '4px' }}>
+          <div className="absolute left-0 right-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ zIndex: Z.DROPDOWN, padding: '4px' }}>
             {/* None option */}
             <button
               onClick={() => { setActivePresetId(null); setOpen(false); }}

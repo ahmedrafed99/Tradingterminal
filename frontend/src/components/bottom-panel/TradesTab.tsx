@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Z } from '../../constants/layout';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
 import type { Trade } from '../../services/tradeService';
@@ -281,7 +282,7 @@ export function TradesTab() {
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-(--color-panel) border-b border-(--color-border)">
+      <div className="sticky top-0 bg-(--color-panel) border-b border-(--color-border)" style={{ zIndex: Z.HEADER }}>
         <div className="flex items-center h-8">
           <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '70%' }}>
             {([

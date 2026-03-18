@@ -3,6 +3,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { ArrowPathDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestArrowPath } from './hitTesting';
 
 /** Convert arrowpath data points → CSS pixel points using anchor + barSpacing. */
@@ -115,7 +116,7 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
         const fs = Math.round((text.fontSize ?? 11) * vpr);
         const weight = (text.bold ?? true) ? 'bold' : 'normal';
         const style = (text.italic ?? false) ? 'italic' : 'normal';
-        ctx.font = `${style} ${weight} ${fs}px system-ui, -apple-system, sans-serif`;
+        ctx.font = `${style} ${weight} ${fs}px ${FONT_FAMILY}`;
         ctx.fillStyle = text.color;
 
         const pad = Math.round(6 * vpr);

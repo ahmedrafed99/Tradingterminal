@@ -24,7 +24,7 @@ docs/
 │   └── indicators/
 │       └── volume-profile/ — Session volume profile (GatewayDepth)
 ├── chart-settings-menu/  — Gear button, quick popover, full settings modal
-├── color-palette-rules/  — Visual design token reference + refactor plan
+├── design-tokens/        — Color palette rules + UI tokens (font, z-index, shadows, radii, transitions)
 ├── chart-trading/        — + button, order lines, preview overlay, drag, labels
 ├── chart-screenshot/     — Screenshot capture + clipboard
 ├── chart-layout/         — Dual chart + crosshair sync
@@ -71,7 +71,7 @@ docs/
 | Orders and Trades tabs                      | `docs/bottom-panel/` |
 | Trade zone visualization (FIFO matching)    | `docs/bottom-panel/` (chart primitive in `frontend/`) |
 | Chart settings gear + modal                 | `docs/chart-settings-menu/` |
-| Design tokens / colour palette rules        | `docs/color-palette-rules/` |
+| Design tokens (colors, font, z-index, shadows, radii) | `docs/design-tokens/` |
 | Settings persistence / file backup          | `docs/settings-persistence/` |
 | All Zustand store slices (9 domain slices)  | `docs/frontend/` → Zustand Store |
 | All service API signatures                  | `docs/frontend/` → Service Layer |

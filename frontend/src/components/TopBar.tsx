@@ -9,6 +9,7 @@ import { getPnlColorClass } from '../utils/formatters';
 import { useClickOutside } from '../hooks/useClickOutside';
 import type { Trade } from '../services/tradeService';
 import { useStore } from '../store/useStore';
+import { SHADOW, Z } from '../constants/layout';
 
 function EyeIcon() {
   return (
@@ -171,15 +172,15 @@ export function TopBar() {
               onClick={() => setAcctOpen((o) => !o)}
               className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
             >
-              <span style={{ display: 'inline-block', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>
+              <span style={{ display: 'inline-block', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>
                 {activeAccount?.name ?? ''}
               </span>
               <ChevronDown />
             </button>
             {acctOpen && (
               <div
-                className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 py-1 animate-dropdown-in"
-                style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.4)', minWidth: 160 }}
+                className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-1 animate-dropdown-in"
+                style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, minWidth: 160 }}
               >
                 {accounts.map((a) => {
                   const active = a.id === activeAccountId;
@@ -191,7 +192,7 @@ export function TopBar() {
                         active ? 'text-(--color-warning)' : 'text-(--color-text)'
                       }`}
                     >
-                      <span style={{ transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}>
+                      <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}>
                         {a.name}
                       </span>
                     </button>
@@ -224,7 +225,7 @@ export function TopBar() {
             title={hideBalance ? 'Show balance' : 'Hide balance'}
           >
 
-            Balance: <span style={{ display: 'inline-block', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
+            Balance: <span style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
               ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </span>
@@ -235,7 +236,7 @@ export function TopBar() {
           >
 
             RP&L: {(() => { const net = realizedPnl - realizedFees; return (
-              <span className={getPnlColorClass(net)} style={{ display: 'inline-block', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: hideRpnl ? 0.4 : 1, filter: hideRpnl ? 'blur(5px)' : 'none', userSelect: hideRpnl ? 'none' : 'auto' }}>
+              <span className={getPnlColorClass(net)} style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideRpnl ? 0.4 : 1, filter: hideRpnl ? 'blur(5px)' : 'none', userSelect: hideRpnl ? 'none' : 'auto' }}>
                 {net > 0 ? '+' : ''}{net.toFixed(2)} $
               </span>
             ); })()}
@@ -246,7 +247,7 @@ export function TopBar() {
             title={hideUpnl ? 'Show UP&L' : 'Hide UP&L'}
           >
 
-            UP&L: <span className={getPnlColorClass(unrealizedPnl)} style={{ display: 'inline-block', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: hideUpnl ? 0.4 : 1, filter: hideUpnl ? 'blur(5px)' : 'none', userSelect: hideUpnl ? 'none' : 'auto' }}>
+            UP&L: <span className={getPnlColorClass(unrealizedPnl)} style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideUpnl ? 0.4 : 1, filter: hideUpnl ? 'blur(5px)' : 'none', userSelect: hideUpnl ? 'none' : 'auto' }}>
               {unrealizedPnl > 0 ? '+' : ''}{unrealizedPnl.toFixed(2)} $
             </span>
           </span>

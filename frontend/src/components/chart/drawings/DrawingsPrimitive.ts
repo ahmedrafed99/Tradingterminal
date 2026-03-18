@@ -13,6 +13,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { ISeriesPrimitive } from 'lightweight-charts';
 import type { Drawing, RulerMetrics } from '../../../types/drawing';
 import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
@@ -360,7 +361,7 @@ class RulerDragPreviewRenderer implements IPrimitivePaneRenderer {
       const line2 = `${m.barCount} bars, ${m.timeSpan}`;
       const line3 = `Vol ${formatVolume(m.volumeSum)}`;
 
-      const fontFamily = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+      const fontFamily = FONT_FAMILY;
       const fontSize = 12;
       const lineHeight = Math.round(fontSize * 1.35);
       const padH = 8;
@@ -590,8 +591,6 @@ class DrawingPriceAxisView implements ISeriesPrimitiveAxisView {
   visible(): boolean { return !this._selected; }
   tickVisible(): boolean { return true; }
 }
-
-const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
 // Custom renderer for the selected drawing's price label (draws on top of everything)
 class SelectedDrawingAxisRenderer implements IPrimitivePaneRenderer {

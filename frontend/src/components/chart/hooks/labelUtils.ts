@@ -20,7 +20,7 @@ export const SELL_HOVER = COLOR_LINE_SELL_HOVER;
 
 /** Wire hover darken effect on a ✕ close cell. */
 export function wireCloseHover(cell: HTMLDivElement): void {
-  cell.style.transition = 'background 0.15s';
+  cell.style.transition = 'background var(--transition-fast)';
   cell.addEventListener('mouseenter', () => { cell.style.background = CLOSE_BG_HOVER; });
   cell.addEventListener('mouseleave', () => { cell.style.background = CLOSE_BG; });
 }
@@ -118,11 +118,11 @@ export function installSizeButtons(sizeCell: HTMLDivElement, opts: {
   sizeCell.style.display = 'flex';
   sizeCell.style.alignItems = 'center';
   sizeCell.style.padding = '0';
-  sizeCell.style.transition = 'background 0.15s';
+  sizeCell.style.transition = 'background var(--transition-fast)';
 
   const minusEl = document.createElement('div');
   minusEl.textContent = '\u2212';
-  minusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
+  minusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity var(--transition-fast), transform var(--transition-fast);';
   minusEl.addEventListener('mouseenter', () => { minusEl.style.transform = 'scale(1.4)'; });
   minusEl.addEventListener('mouseleave', () => { minusEl.style.transform = ''; });
   minusEl.addEventListener('mousedown', (e) => {
@@ -137,7 +137,7 @@ export function installSizeButtons(sizeCell: HTMLDivElement, opts: {
 
   const plusEl = document.createElement('div');
   plusEl.textContent = '+';
-  plusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity 0.15s, transform 0.15s;';
+  plusEl.style.cssText = 'display:none;padding:0 4px;cursor:pointer;opacity:0;transition:opacity var(--transition-fast), transform var(--transition-fast);';
   plusEl.addEventListener('mouseenter', () => { plusEl.style.transform = 'scale(1.4)'; });
   plusEl.addEventListener('mouseleave', () => { plusEl.style.transform = ''; });
   plusEl.addEventListener('mousedown', (e) => {

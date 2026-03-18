@@ -34,4 +34,4 @@ Edit the hex value in `tokens.css`. That's it. Vite HMR updates Tailwind + inlin
 2. Done — `colors.ts` auto-reads it, Tailwind can reference it immediately
 
 ### Rules
-See `docs/color-palette-rules/README.md` for the full developer ruleset.
+See `docs/design-tokens/colors.md` for the full developer ruleset.

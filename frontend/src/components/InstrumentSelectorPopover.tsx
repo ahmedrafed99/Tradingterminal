@@ -3,6 +3,7 @@ import type { Contract } from '../services/marketDataService';
 import { useStore } from '../store/useStore';
 import { useInstrumentSearch } from '../hooks/useInstrumentSearch';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { SHADOW, Z } from '../constants/layout';
 
 const CATEGORIES = [
   { id: 'futures',    label: 'Futures',    exchanges: ['ProjectX'], disabled: false },
@@ -93,8 +94,8 @@ export function InstrumentSelectorPopover() {
       {/* Popover */}
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
-          style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.5)', width: 380 }}
+          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, width: 380 }}
         >
           {/* Search input */}
           <div style={{ padding: '10px 12px 0' }}>

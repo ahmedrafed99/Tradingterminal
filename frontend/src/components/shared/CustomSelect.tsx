@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { RADIUS, SHADOW, Z } from '../../constants/layout';
 
 export interface SelectOption {
   value: string;
@@ -78,7 +79,7 @@ export function CustomSelect({
           background: bg,
           color: 'var(--color-text)',
           border: '1px solid var(--color-border)',
-          borderRadius: 8,
+          borderRadius: RADIUS.XL,
           padding: btnPadding,
           fontSize: btnFontSize,
           cursor: disabled ? 'not-allowed' : 'pointer',
@@ -86,7 +87,7 @@ export function CustomSelect({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: 6,
-          transition: 'border-color 0.15s',
+          transition: 'border-color var(--transition-fast)',
           opacity: disabled ? 0.5 : 1,
           textAlign: 'left',
         }}
@@ -101,15 +102,16 @@ export function CustomSelect({
       </button>
       {open && dropPos && (
         <div
-          className="border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
+          className="border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
           style={{
+            zIndex: Z.DROPDOWN,
             position: 'fixed',
             top: dropUp ? undefined : dropPos.top,
             bottom: dropUp ? `calc(100vh - ${dropPos.top}px)` : undefined,
             left: dropPos.left,
             width: dropPos.width,
             background: 'var(--color-panel)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            boxShadow: SHADOW.LG,
             maxHeight: options.length > 8 ? 200 : undefined,
             overflowY: options.length > 8 ? 'auto' : undefined,
             padding: '2px 0',

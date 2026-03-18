@@ -9,8 +9,7 @@ import type {
   ISeriesApi,
 } from 'lightweight-charts';
 import { COLOR_BG } from '../../constants/colors';
-
-const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+import { FONT_FAMILY } from '../../constants/layout';
 
 // ---------------------------------------------------------------------------
 // Axis view — tells LWC about our label position for overlap avoidance

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { IChartApi } from 'lightweight-charts';
 import { ChartSettingsModal } from './ChartSettingsModal';
+import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 
 interface Props {
   chartRef: React.RefObject<IChartApi | null>;
@@ -137,7 +138,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
           position: 'absolute',
           bottom: rect.b,
           right: rect.r,
-          zIndex: 30,
+          zIndex: Z.TOOLBAR,
           width: rect.w,
           height: rect.h,
           display: 'flex',
@@ -167,14 +168,14 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             position: 'absolute',
             bottom: rect.b + rect.h + 1,
             right: rect.r,
-            zIndex: 40,
+            zIndex: Z.TOOLBAR_EDIT,
             minWidth: 160,
             background: 'var(--color-bg)',
             border: '1px solid var(--color-border)',
-            borderRadius: 4,
+            borderRadius: RADIUS.LG,
             padding: '4px 0',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-            animation: 'chartSettingsFadeIn 0.18s ease-out',
+            boxShadow: SHADOW.MD,
+            animation: 'chartSettingsFadeIn var(--transition-fast) ease-out',
             transformOrigin: 'bottom right',
           }}
         >
@@ -190,7 +191,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               border: 'none',
               color: 'var(--color-text)',
               fontSize: 12,
-              fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+              fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
@@ -204,7 +205,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               style={{
                 opacity: inverted ? 1 : 0,
                 transform: inverted ? 'scale(1)' : 'scale(0.5)',
-                transition: 'opacity 0.15s, transform 0.15s',
+                transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
                 flexShrink: 0,
               }}
             >
@@ -227,7 +228,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               border: 'none',
               color: 'var(--color-text)',
               fontSize: 12,
-              fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+              fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}

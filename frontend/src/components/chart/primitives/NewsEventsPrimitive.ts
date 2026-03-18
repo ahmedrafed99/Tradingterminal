@@ -11,13 +11,15 @@ import type {
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { NewsEvent } from '../../../types/news';
 
+import { FONT_FAMILY } from '../../../constants/layout';
+
 const MARKER_RADIUS = 10;
 const BOTTOM_OFFSET = 14;
 const MARKER_COLOR = '#9b59b6';
 const MARKER_FILL = 'rgba(155, 89, 182, 0.18)';
-const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
 
 import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
+import { SHADOW } from '../../../constants/layout';
 
 const IMPACT_COLORS: Record<string, string> = {
   high: COLOR_SELL,
@@ -366,7 +368,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
         max-width: 280px;
         max-height: 260px;
         overflow-y: auto;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        box-shadow: ${SHADOW.LG};
       `;
       this._tooltipEl.addEventListener('click', (e) => e.stopPropagation());
       this._tooltipEl.addEventListener('mousedown', (e) => e.stopPropagation());

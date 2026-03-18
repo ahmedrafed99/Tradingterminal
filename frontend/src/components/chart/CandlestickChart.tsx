@@ -1,4 +1,5 @@
 import { memo, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { FONT_FAMILY, RADIUS, Z } from '../../constants/layout';
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts';
 import type { Contract, Bar } from '../../services/marketDataService';
@@ -323,39 +324,40 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   return (
     <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden">
       {loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-(--color-bg)/80">
+        <div className="absolute inset-0 flex items-center justify-center bg-(--color-bg)/80" style={{ zIndex: Z.HEADER }}>
           <span className="text-xs text-(--color-text-muted)">Loading bars...</span>
         </div>
       )}
       {error && !loading && (
-        <div className="absolute inset-0 z-10 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: Z.HEADER }}>
           <span className="text-xs text-red-400">{error}</span>
         </div>
       )}
       <div ref={containerRef} className="w-full h-full" />
       {contract && (
-        <div className="absolute top-2 left-2 z-10 pointer-events-none select-none flex items-center gap-2" style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif", maxWidth: 'calc(100% - 90px)' }}>
-          <div ref={instrumentLabelRef} className="text-(--color-text-muted) text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: 2, padding: '1px 3px' }}>
+        <div className="absolute top-2 left-2 pointer-events-none select-none flex items-center gap-2" style={{ zIndex: Z.HEADER, fontFamily: FONT_FAMILY, maxWidth: 'calc(100% - 90px)' }}>
+          <div ref={instrumentLabelRef} className="text-(--color-text-muted) text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: RADIUS.SM, padding: '1px 3px' }}>
             {contract.name.replace(/[FGHJKMNQUVXZ]\d{2}$/, '')} · {timeframe.label}
           </div>
           <div
             ref={ohlcRef}
             className="text-xs font-medium leading-tight overflow-hidden whitespace-nowrap min-w-0"
-            style={{ background: '#00000080', borderRadius: 2, padding: '1px 3px' }}
+            style={{ background: '#00000080', borderRadius: RADIUS.SM, padding: '1px 3px' }}
           />
         </div>
       )}
       {showFps && (
         <div
-          className="absolute z-10 pointer-events-none select-none"
+          className="absolute pointer-events-none select-none"
           style={{
+            zIndex: Z.HEADER,
             top: 8,
             right: (chartRef.current ? getPriceScaleWidth(chartRef.current) : 56) + 4,
             fontSize: 10,
             fontFamily: 'monospace',
             color: chartSettings.fpsCounterColor,
             background: '#00000080',
-            borderRadius: 2,
+            borderRadius: RADIUS.SM,
             padding: '1px 4px',
           }}
         >
@@ -364,13 +366,14 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       )}
       <div
         ref={overlayRef}
-        className="absolute inset-0 z-20 pointer-events-none overflow-hidden"
+        className="absolute inset-0 pointer-events-none overflow-hidden"
+        style={{ zIndex: Z.OVERLAY }}
       />
       {isOrderChart && (
         <div
           ref={quickOrderRef}
-          className="absolute z-30 pointer-events-none"
-          style={{ display: 'none', transform: 'translateY(-50%)' }}
+          className="absolute pointer-events-none"
+          style={{ zIndex: Z.TOOLBAR, display: 'none', transform: 'translateY(-50%)' }}
         >
           <div data-qo-wrap style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
             <div
@@ -379,7 +382,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
                 display: 'none',
                 fontSize: 11,
                 fontWeight: 'bold',
-                fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+                fontFamily: FONT_FAMILY,
                 height: 20,
                 lineHeight: '20px',
                 whiteSpace: 'nowrap',
@@ -437,7 +440,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
           position: 'absolute',
           bottom: scrollBtnPos.bottom,
           right: scrollBtnPos.right,
-          zIndex: 30,
+          zIndex: Z.TOOLBAR,
           width: 28,
           height: 28,
           display: 'flex',
@@ -445,11 +448,11 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
           justifyContent: 'center',
           background: 'var(--color-border)',
           border: 'none',
-          borderRadius: 4,
+          borderRadius: RADIUS.LG,
           cursor: 'pointer',
           opacity: showScrollBtn ? 0.85 : 0,
           pointerEvents: showScrollBtn ? 'auto' as const : 'none' as const,
-          transition: 'opacity 0.2s ease',
+          transition: 'opacity var(--transition-normal) ease',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
         onMouseLeave={(e) => { if (showScrollBtn) e.currentTarget.style.opacity = '0.85'; }}

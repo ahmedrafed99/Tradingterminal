@@ -207,5 +207,5 @@ A live theme editor is available at `/theme-editor.html` when running the Vite d
 | See all available tokens | `frontend/src/styles/tokens.css` |
 | Use a color in canvas/ctx | `import { COLOR_* } from 'constants/colors'` |
 | Use a reusable Tailwind pattern | `import { SECTION_LABEL, INPUT_DARK, ... } from 'constants/styles'` |
-| See the visual palette reference | `docs/color-palette-rules/index.html` |
+| See the visual palette reference | `docs/design-tokens/index.html` |
 | Live-edit tokens with preview | `/theme-editor.html` (dev server) |
