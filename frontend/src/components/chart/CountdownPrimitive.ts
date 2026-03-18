@@ -50,6 +50,7 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   private _isLive = false;
   private _periodSec = 60;
   private _decimals = 2;
+  private _formatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
   private _axisView = new PriceLabelAxisView();
@@ -99,13 +100,17 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
 
   /** Update the displayed price (called on each quote OR after loading bars) */
   updatePrice(price: number, live: boolean): void {
+    const priceChanged = this._price !== price;
     this._price = price;
-    this._priceText = this._formatPrice(price);
     this._isLive = live;
     if (live) this._updateCountdown();
     else this._countdownText = '';
-    this._syncHtml();
-    this._requestUpdate?.();
+    // Only reformat + repaint when price actually changes
+    if (priceChanged) {
+      this._priceText = this._formatPrice(price);
+      this._syncHtml();
+      this._requestUpdate?.();
+    }
   }
 
   /** Update candle period (call when timeframe changes) */
@@ -116,6 +121,10 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   /** Update decimal places (call when contract changes) */
   setDecimals(decimals: number): void {
     this._decimals = decimals;
+    this._formatter = new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
   }
 
   /** Mark feed as disconnected (hides countdown, keeps price label) */
@@ -171,6 +180,19 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._countdownEl = countdownEl;
   }
 
+  // Per-frame cache for priceScale width (avoids reflow when syncHtml runs
+  // multiple times in the same frame, e.g. from quote tick + LWC render)
+  private _psCacheFrame = 0;
+  private _psCachedWidth = 56;
+
+  private _getPsWidth(): number {
+    const now = performance.now();
+    if (now - this._psCacheFrame < 2) return this._psCachedWidth;
+    this._psCacheFrame = now;
+    try { this._psCachedWidth = this._chartApi!.priceScale('right').width(); } catch { /* */ }
+    return this._psCachedWidth;
+  }
+
   private _syncHtml(): void {
     if (!this._htmlEl || !this._series || !this._chartApi) return;
 
@@ -185,8 +207,7 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
       return;
     }
 
-    let psWidth = 56;
-    try { psWidth = this._chartApi.priceScale('right').width(); } catch { /* */ }
+    const psWidth = this._getPsWidth();
 
     this._htmlEl.style.display = '';
     this._htmlEl.style.top = `${y}px`;
@@ -204,10 +225,7 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   }
 
   private _formatPrice(price: number): string {
-    return price.toLocaleString('en-US', {
-      minimumFractionDigits: this._decimals,
-      maximumFractionDigits: this._decimals,
-    });
+    return this._formatter.format(price);
   }
 
   private _updateCountdown(): void {

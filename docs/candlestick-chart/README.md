@@ -219,3 +219,15 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   skips drawing hit-tests when not in select mode, and uses
   `document.elementFromPoint` instead of looping `getBoundingClientRect` on
   every overlay target.
+- **Overlay sync coalescing**: `useOverlayLabels` and `useConditionLinesSync`
+  funnel all sync triggers (scroll, drag mousemove, lastPrice tick, resize,
+  wheel) through a single `scheduleSync()` per hook with one RAF flag. This
+  prevents multiple `syncPosition()` passes per frame when chart drag and
+  SignalR price ticks coincide.
+- **Condition lines: no idle RAF loop**: `useConditionLinesSync` no longer runs
+  a continuous `requestAnimationFrame` loop during pointer drag. Instead, it
+  attaches a mousemove listener that routes through `scheduleSync()`.
+- **CountdownPrimitive per-frame psWidth cache**: `_syncHtml()` caches
+  `priceScale('right').width()` for ~1ms (same approach as `PriceLevelLine`).
+  `updatePrice()` skips reformat + repaint when the price value hasn't changed.
+  `_formatPrice()` uses a cached `Intl.NumberFormat` instance.

@@ -86,6 +86,7 @@ export interface ChartRefs {
   hitTargets: React.MutableRefObject<HitTarget[]>;
   entryClick: React.MutableRefObject<{ downX: number; downY: number; exec: () => void } | null>;
   updateOverlay: React.MutableRefObject<() => void>;
+  scheduleOverlaySync: React.MutableRefObject<() => void>;
   activeDragRow: React.MutableRefObject<HTMLDivElement | null>;
 
   // Preview lines

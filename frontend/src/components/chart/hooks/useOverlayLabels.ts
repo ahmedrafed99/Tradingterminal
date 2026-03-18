@@ -120,25 +120,18 @@ export function useOverlayLabels(
     updatePositions();
     refs.updateOverlay.current = updatePositions;
 
-    // Subscribe to lastPrice changes — RAF-throttled to avoid layout thrashing
-    // when price ticks coincide with mouse movement in the same frame
+    // Subscribe to lastPrice changes — routes through scheduleOverlaySync ref
+    // so it coalesces with scroll/drag/resize into a single RAF per frame
     let prevLp = useStore.getState().lastPrice;
-    let priceRafId = 0;
     const unsub = useStore.subscribe((state) => {
       if (state.lastPrice !== prevLp) {
         prevLp = state.lastPrice;
-        if (!priceRafId) {
-          priceRafId = requestAnimationFrame(() => {
-            priceRafId = 0;
-            updatePositions();
-          });
-        }
+        refs.scheduleOverlaySync.current();
       }
     });
 
     return () => {
       unsub();
-      if (priceRafId) cancelAnimationFrame(priceRafId);
       orderLabelsCleanup?.();
       for (const line of refs.previewLines.current) line.setLabel(null);
       for (const line of refs.orderLines.current) line.setLabel(null);
@@ -162,47 +155,49 @@ export function useOverlayLabels(
 
     const handler = () => refs.updateOverlay.current();
 
-    chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
-
-    const ro = new ResizeObserver(handler);
-    ro.observe(container);
-
-    // Instead of a continuous RAF loop while pointer is down,
-    // use a mousemove listener that RAF-throttles updates during drag.
-    let dragRafId = 0;
-    let isDragging = false;
-    function onDragMove() {
-      if (dragRafId) return; // already scheduled
-      dragRafId = requestAnimationFrame(() => {
-        dragRafId = 0;
+    // Coalescing flag — all triggers (scroll, resize, wheel, drag, price tick)
+    // funnel through scheduleSync so at most one handler() runs per frame.
+    let syncRafId = 0;
+    function scheduleSync() {
+      if (syncRafId) return;
+      syncRafId = requestAnimationFrame(() => {
+        syncRafId = 0;
         handler();
       });
     }
+
+    // Expose to the price-tick subscription in the label-config effect
+    refs.scheduleOverlaySync.current = scheduleSync;
+
+    // visibleLogicalRangeChange fires synchronously during pan — defer to RAF
+    chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleSync);
+
+    const ro = new ResizeObserver(scheduleSync);
+    ro.observe(container);
+
+    // During drag, schedule sync on mousemove (coalesced via scheduleSync)
+    function onDragMove() { scheduleSync(); }
     function onPointerDown() {
-      isDragging = true;
       handler(); // immediate first sync
       window.addEventListener('mousemove', onDragMove);
     }
     function onPointerUp() {
-      isDragging = false;
-      cancelAnimationFrame(dragRafId);
-      dragRafId = 0;
       window.removeEventListener('mousemove', onDragMove);
-      handler(); // final sync
+      scheduleSync(); // final sync
     }
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
 
-    container.addEventListener('wheel', handler, { passive: true });
+    container.addEventListener('wheel', scheduleSync, { passive: true });
 
     return () => {
-      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(scheduleSync);
       ro.disconnect();
-      cancelAnimationFrame(dragRafId);
+      cancelAnimationFrame(syncRafId);
       window.removeEventListener('mousemove', onDragMove);
       container.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
-      container.removeEventListener('wheel', handler);
+      container.removeEventListener('wheel', scheduleSync);
     };
   }, []);
 }

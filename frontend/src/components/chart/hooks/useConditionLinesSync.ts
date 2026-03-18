@@ -29,32 +29,52 @@ export function useConditionLinesSync(
       }
     }
 
-    chart.timeScale().subscribeVisibleLogicalRangeChange(sync);
-    const ro = new ResizeObserver(sync);
-    ro.observe(container);
-    container.addEventListener('wheel', sync, { passive: true });
+    // Coalescing flag — ensures at most one sync() per frame across all triggers
+    let syncRafId = 0;
+    function scheduleSync() {
+      if (syncRafId) return;
+      syncRafId = requestAnimationFrame(() => {
+        syncRafId = 0;
+        sync();
+      });
+    }
 
+    // visibleLogicalRangeChange fires synchronously during pan — defer to RAF
+    chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleSync);
+    const ro = new ResizeObserver(scheduleSync);
+    ro.observe(container);
+    container.addEventListener('wheel', scheduleSync, { passive: true });
+
+    // lastPrice subscription — coalesced into the same RAF
     let prevLp = useStore.getState().lastPrice;
     const unsub = useStore.subscribe((state) => {
       if (state.lastPrice !== prevLp) {
         prevLp = state.lastPrice;
-        sync();
+        scheduleSync();
       }
     });
 
-    let rafId = 0;
-    function rafLoop() { sync(); rafId = requestAnimationFrame(rafLoop); }
-    function onPointerDown() { cancelAnimationFrame(rafId); rafLoop(); }
-    function onPointerUp() { cancelAnimationFrame(rafId); rafId = 0; }
+    // During drag, schedule sync on mousemove (RAF-throttled via scheduleSync)
+    // instead of a continuous RAF loop that runs even when nothing changes
+    function onDragMove() { scheduleSync(); }
+    function onPointerDown() {
+      sync(); // immediate first sync
+      window.addEventListener('mousemove', onDragMove);
+    }
+    function onPointerUp() {
+      window.removeEventListener('mousemove', onDragMove);
+      scheduleSync(); // final sync
+    }
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
 
     return () => {
-      chart.timeScale().unsubscribeVisibleLogicalRangeChange(sync);
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(scheduleSync);
       ro.disconnect();
-      container.removeEventListener('wheel', sync);
+      container.removeEventListener('wheel', scheduleSync);
       unsub();
-      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(syncRafId);
+      window.removeEventListener('mousemove', onDragMove);
       container.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
     };

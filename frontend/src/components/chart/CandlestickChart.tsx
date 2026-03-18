@@ -101,6 +101,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   // Overlay label system
   const updateOverlayRef = useRef<() => void>(() => {});
+  const scheduleOverlaySyncRef = useRef<() => void>(() => {});
 
   // TP size +/- redistribution
   const hoveredTpOrderIdRef = useRef<string | null>(null);
@@ -137,6 +138,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     hitTargets: hitTargetsRef,
     entryClick: entryClickRef,
     updateOverlay: updateOverlayRef,
+    scheduleOverlaySync: scheduleOverlaySyncRef,
     activeDragRow: activeDragRowRef,
     previewLines: previewLinesRef,
     previewRoles: previewRolesRef,
