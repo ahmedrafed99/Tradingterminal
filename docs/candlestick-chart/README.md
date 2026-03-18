@@ -213,7 +213,12 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
 - **OHLC tooltip pre-created DOM**: The crosshair OHLC widget in `useChartWidgets`
   pre-creates span elements once and updates `.textContent` per frame, instead of
   rebuilding the DOM via `innerHTML` on every crosshair move. Uses a cached
-  `Intl.NumberFormat` instance instead of per-call `toLocaleString`.
+  `Intl.NumberFormat` instance instead of per-call `toLocaleString`. Skips
+  `render()` entirely when O/H/L/C values are unchanged (same candle), and only
+  writes `.style.color` when bullish/bearish direction changes.
+- **Quick-order cached psWidth**: `useQuickOrder`'s crosshair move handler caches
+  `priceScale('right').width()` via `ResizeObserver` instead of reading it on
+  every move (eliminates a layout reflow per crosshair event).
 - **Hover hit-testing optimized**: `onHandleHover` in `drawingInputHandlers`
   moves `getBoundingClientRect` inside the RAF callback (not before the guard),
   skips drawing hit-tests when not in select mode, and uses
