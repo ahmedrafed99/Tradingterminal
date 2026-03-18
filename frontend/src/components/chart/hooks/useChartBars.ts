@@ -224,7 +224,12 @@ export function useChartBars(
         refs.lastBar.current = updated;
         pendingBar = updated;
       } else {
-        // New candle period
+        // New candle period — flush the previous pending bar immediately
+        // so it isn't lost when RAF is throttled (e.g. tab backgrounded)
+        if (pendingBar && refs.series.current) {
+          refs.series.current.update(pendingBar);
+          refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
+        }
         const newBar: CandlestickData<UTCTimestamp> = {
           time: candleTime,
           open: price,
@@ -246,12 +251,57 @@ export function useChartBars(
 
     realtimeService.onQuote(handleQuote);
 
+    // When the tab regains visibility after being backgrounded, silently
+    // backfill any candles that closed while RAF was throttled.
+    function handleVisibilityChange() {
+      if (document.hidden || !refs.series.current || cancelled) return;
+
+      // Flush any pending bar immediately
+      if (pendingBar) {
+        refs.series.current.update(pendingBar);
+        refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
+        pendingBar = null;
+        pendingPrice = null;
+      }
+
+      // Fetch bars from the last known bar time to now and patch them in
+      const lastBar = refs.lastBar.current;
+      if (!lastBar) return;
+      const startTime = new Date((lastBar.time as number) * 1000).toISOString();
+      const endTime = new Date().toISOString();
+
+      marketDataService.retrieveBars({
+        contractId,
+        live: false,
+        unit: timeframe.unit,
+        unitNumber: timeframe.unitNumber,
+        startTime,
+        endTime,
+        limit: 500,
+        includePartialBar: true,
+      }).then((bars) => {
+        if (cancelled || !refs.series.current) return;
+        const sorted = sortBarsAscending(bars);
+        const candles = sorted.map(barToCandle);
+        for (const c of candles) {
+          // series.update() appends or updates — no reset needed
+          refs.series.current!.update(c);
+          refs.dataMap.current.set(c.time as number, c.close);
+        }
+        if (candles.length > 0) {
+          refs.lastBar.current = candles[candles.length - 1];
+        }
+      }).catch(() => { /* silent — next tick will update anyway */ });
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       cancelled = true;
       cancelAnimationFrame(quoteRafId);
       refs.countdown.current?.setLive(false);
       realtimeService.offQuote(handleQuote);
       realtimeService.unsubscribeQuotes(contractId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [connected, contract, timeframe]);
 

@@ -232,6 +232,15 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
 - **Condition lines: no idle RAF loop**: `useConditionLinesSync` no longer runs
   a continuous `requestAnimationFrame` loop during pointer drag. Instead, it
   attaches a mousemove listener that routes through `scheduleSync()`.
+- **Background-tab candle backfill**: When the browser tab is backgrounded,
+  `requestAnimationFrame` is throttled (≤1 fps) or paused entirely.
+  `handleQuote()` now synchronously flushes the previous `pendingBar` to the
+  series whenever a new candle period is detected, preventing the old candle's
+  final state from being silently overwritten. Additionally, a
+  `visibilitychange` listener fires when the tab regains focus: it flushes any
+  pending bar, then fetches bars from `lastBar.time → now` via
+  `retrieveBars()` and patches them in with `series.update()` — no full reload,
+  no loading spinner, no chart reset.
 - **CountdownPrimitive per-frame psWidth cache**: `_syncHtml()` caches
   `priceScale('right').width()` for ~1ms (same approach as `PriceLevelLine`).
   `updatePrice()` skips reformat + repaint when the price value hasn't changed.
