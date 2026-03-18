@@ -84,7 +84,7 @@ export function OpacitySlider({
   return (
     <div style={{ marginTop: 8 }}>
       <div className="flex items-center" style={{ gap: 8 }}>
-        <span style={{ color: 'var(--color-text-muted)', fontSize: 10, flexShrink: 0, width: 42 }}>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 11, flexShrink: 0, width: 44 }}>
           Opacity
         </span>
         {/* Track */}
@@ -92,19 +92,12 @@ export function OpacitySlider({
           ref={trackRef}
           style={{
             flex: 1,
-            height: 12,
-            borderRadius: 6,
+            height: 16,
+            borderRadius: 8,
             position: 'relative',
             cursor: 'pointer',
             // checkerboard behind the gradient
-            backgroundImage: `
-              linear-gradient(45deg, #444 25%, transparent 25%),
-              linear-gradient(-45deg, #444 25%, transparent 25%),
-              linear-gradient(45deg, transparent 75%, #444 75%),
-              linear-gradient(-45deg, transparent 75%, #444 75%)
-            `,
-            backgroundSize: '8px 8px',
-            backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
+            background: 'var(--color-panel)',
             border: '1px solid var(--color-border)',
           }}
           onMouseDown={(e) => {
@@ -131,7 +124,8 @@ export function OpacitySlider({
               ...gradientStyle,
               position: 'absolute',
               inset: 0,
-              borderRadius: 6,
+              borderRadius: 8,
+              pointerEvents: 'none',
             }}
           />
           {/* Thumb */}
@@ -141,27 +135,41 @@ export function OpacitySlider({
               top: -1,
               left: `${opacity}%`,
               transform: 'translateX(-50%)',
-              width: 14,
-              height: 14,
+              width: 18,
+              height: 18,
               borderRadius: '50%',
               background: 'var(--color-text-bright)',
               border: '2px solid var(--color-border)',
               boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-              transition: 'left 0.05s',
+              pointerEvents: 'none',
             }}
           />
         </div>
         {/* Percentage label */}
-        <span style={{
-          color: 'var(--color-text)',
-          fontSize: 11,
-          fontWeight: 500,
-          width: 32,
-          textAlign: 'right',
-          flexShrink: 0,
-        }}>
-          {opacity}%
-        </span>
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={opacity}
+          onChange={(e) => {
+            const v = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+            onChange(v);
+          }}
+          style={{
+            color: 'var(--color-text)',
+            background: 'var(--color-panel)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+            fontSize: 11,
+            fontWeight: 500,
+            width: 40,
+            textAlign: 'center',
+            padding: '2px 0',
+            outline: 'none',
+            flexShrink: 0,
+            MozAppearance: 'textfield',
+          }}
+        />
       </div>
     </div>
   );

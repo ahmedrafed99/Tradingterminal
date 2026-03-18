@@ -229,11 +229,11 @@ All icons use TradingView-style filled SVGs with `shapeRendering="geometricPreci
 
 **Sub-popovers:**
 
-1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button. Always includes an opacity slider (0-100%) — horizontal track with checkerboard background, color gradient overlay, draggable thumb, and percentage label. All colors are emitted as rgba strings.
+1. **ColorPopover** (252px wide): 8×10 color palette grid (grayscale → deepest tones) + persistent custom colors row, custom color via "+" button. Always includes an opacity slider (0-100%) — taller track (16px) with panel-colored background, color gradient overlay, 18px draggable thumb (pointer-events: none for smooth dragging), and editable number input. All colors are emitted as rgba strings.
 2. **TextPopover** (290px wide, `bg: #000`) — **live preview**: all changes (color, font size, bold, italic, alignment, content) are applied to the drawing in real-time as you edit. Original text state is snapshotted on open; Cancel restores it, Ok confirms.
-   - Row 1: Color swatch (toggles palette with animated slide) + font size select (`bg: #111`) + **B** bold + *I* italic toggle buttons (active: `#f0a830` text + `#111` bg + `#434651` border, inactive: `#787b86` text, 0.15s transitions)
+   - Row 1: Color swatch (22x22, toggles palette with animated slide) + font size select + **B** bold + *I* italic toggle buttons (active: `#f0a830` text + `#111` bg + `#434651` border, inactive: `#787b86` text with hover highlight, 0.15s transitions)
    - Color grid: animated expand/collapse (`max-height` + `opacity` transition) with opacity slider
-   - Row 2: Multiline textarea (`bg: #111`, `text: #d1d4dc`, `border: #2a2e39`, system-ui font)
+   - Row 2: Multiline textarea (`bg: var(--color-panel)`, `text: #d1d4dc`, `border: #2a2e39`, system-ui font, resize disabled)
    - Row 3: "TEXT ALIGNMENT" section label (`10px uppercase tracking-wider #787b86`) + toggle button groups for vertical (Top/Middle/Bottom) and horizontal (Left/Center/Right) separated by a `#2a2e39` divider
    - Row 4: Cancel (`bg: #1e222d`, hover `#363a45`) / Ok (`bg: #1a3a6e`, hover `#1e4a8a`) buttons
 3. **StrokePopover** (120px wide, centered): visual line thickness previews for 1-4px
