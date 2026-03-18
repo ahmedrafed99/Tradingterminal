@@ -324,6 +324,11 @@ export function useQuickOrder(
       }
     }
 
+    // Cache priceScale width — only re-read when it likely changed (resize)
+    let cachedPsWidth = getPriceScaleWidth(chart);
+    const ro = new ResizeObserver(() => { cachedPsWidth = getPriceScaleWidth(chart); });
+    ro.observe(refs.container.current!);
+
     const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
       if (isDragging || awaitingClick) return;
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -355,11 +360,9 @@ export function useQuickOrder(
         isBuy = lastP != null ? snappedPrice < lastP : true;
       }
 
-      const psWidth = getPriceScaleWidth(chart);
-
       el.style.display = 'flex';
       el.style.top = `${param.point.y}px`;
-      el.style.right = `${psWidth}px`;
+      el.style.right = `${cachedPsWidth}px`;
 
       if (isHovered) refreshLabel();
     };
@@ -697,6 +700,7 @@ export function useQuickOrder(
         useStore.getState().setQoPendingPreview(null);
       }
       removePreviewLines();
+      ro.disconnect();
       chart.unsubscribeCrosshairMove(onMove);
       wrap.removeEventListener('mouseenter', onEnter);
       wrap.removeEventListener('mouseleave', onLeave);

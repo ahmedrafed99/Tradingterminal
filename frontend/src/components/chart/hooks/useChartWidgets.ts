@@ -89,16 +89,30 @@ export function useChartWidgets(
     el.textContent = '';
     el.append(makeLabel('O'), oSpan, document.createTextNode(' '), makeLabel('H'), hSpan, document.createTextNode(' '), makeLabel('L'), lSpan, document.createTextNode(' '), makeLabel('C'), cSpan, document.createTextNode(' '), chgSpan);
 
+    let prevColor = '';
+    let prevO = 0, prevH = 0, prevL = 0, prevC = 0;
     function render(o: number, h: number, l: number, c: number) {
+      // Skip when hovering the same candle with unchanged values
+      if (o === prevO && h === prevH && l === prevL && c === prevC) return;
+      prevO = o; prevH = h; prevL = l; prevC = c;
       const bullish = c >= o;
       const valColor = bullish ? COLOR_TEXT_MEDIUM : '#0097a6';
       const change = c - o;
       const sign = change >= 0 ? '+' : '';
-      oSpan.textContent = fmt(o); oSpan.style.color = valColor;
-      hSpan.textContent = fmt(h); hSpan.style.color = valColor;
-      lSpan.textContent = fmt(l); lSpan.style.color = valColor;
-      cSpan.textContent = fmt(c); cSpan.style.color = valColor;
-      chgSpan.textContent = `${sign}${fmt(change)}`; chgSpan.style.color = valColor;
+      oSpan.textContent = fmt(o);
+      hSpan.textContent = fmt(h);
+      lSpan.textContent = fmt(l);
+      cSpan.textContent = fmt(c);
+      chgSpan.textContent = `${sign}${fmt(change)}`;
+      // Only touch .style.color when direction changes (avoids style recalc)
+      if (valColor !== prevColor) {
+        prevColor = valColor;
+        oSpan.style.color = valColor;
+        hSpan.style.color = valColor;
+        lSpan.style.color = valColor;
+        cSpan.style.color = valColor;
+        chgSpan.style.color = valColor;
+      }
     }
 
     // Show last bar initially
