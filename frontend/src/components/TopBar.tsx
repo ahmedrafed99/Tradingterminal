@@ -77,6 +77,12 @@ export function TopBar() {
     lastPrice: s.lastPrice,
     orderContract: s.orderContract,
     sessionTrades: s.sessionTrades,
+    hideBalance: s.hideBalance,
+    hideRpnl: s.hideRpnl,
+    hideUpnl: s.hideUpnl,
+    setHideBalance: s.setHideBalance,
+    setHideRpnl: s.setHideRpnl,
+    setHideUpnl: s.setHideUpnl,
   })));
 
   const { pnl: realizedPnl, fees: realizedFees } = useMemo(() => aggregatePnl(sessionTrades), [sessionTrades]);
@@ -204,18 +210,35 @@ export function TopBar() {
       {/* Centre — balance + UP&L */}
       {activeAccount && (
         <div className="flex items-center gap-3">
-          <span className="text-xs text-(--color-text-muted)">
-            Balance: ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span
+            className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
+            onClick={() => setHideBalance(!hideBalance)}
+            title={hideBalance ? 'Show balance' : 'Hide balance'}
+          >
+
+            Balance: <span style={{ display: 'inline-block', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
+              ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </span>
-          <span className="text-xs text-(--color-text-muted)">
+          <span
+            className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
+            onClick={() => setHideRpnl(!hideRpnl)}
+            title={hideRpnl ? 'Show RP&L' : 'Hide RP&L'}
+          >
+
             RP&L: {(() => { const net = realizedPnl - realizedFees; return (
-              <span className={getPnlColorClass(net)}>
+              <span className={getPnlColorClass(net)} style={{ display: 'inline-block', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: hideRpnl ? 0.4 : 1, filter: hideRpnl ? 'blur(5px)' : 'none', userSelect: hideRpnl ? 'none' : 'auto' }}>
                 {net > 0 ? '+' : ''}{net.toFixed(2)} $
               </span>
             ); })()}
           </span>
-          <span className="text-xs text-(--color-text-muted)">
-            UP&L: <span className={getPnlColorClass(unrealizedPnl)}>
+          <span
+            className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
+            onClick={() => setHideUpnl(!hideUpnl)}
+            title={hideUpnl ? 'Show UP&L' : 'Hide UP&L'}
+          >
+
+            UP&L: <span className={getPnlColorClass(unrealizedPnl)} style={{ display: 'inline-block', transition: 'opacity 0.2s ease, filter 0.2s ease', opacity: hideUpnl ? 0.4 : 1, filter: hideUpnl ? 'blur(5px)' : 'none', userSelect: hideUpnl ? 'none' : 'auto' }}>
               {unrealizedPnl > 0 ? '+' : ''}{unrealizedPnl.toFixed(2)} $
             </span>
           </span>

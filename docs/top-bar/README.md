@@ -41,11 +41,13 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 - **Default state**: `privacyOn = true` (names masked)
 - **No accounts**: shows `"No accounts"` in `text-[#434651]`
 
-### Centre — Balance + UP&L
+### Centre — Balance + RP&L + UP&L
 
 ```
-Balance: $50,123.45   UP&L: +12.50 $
+Balance: $50,123.45   RP&L: +85.00 $   UP&L: +12.50 $
 ```
+
+**Privacy blur**: Each value (Balance, RP&L, UP&L) is individually clickable — click to toggle a smooth CSS blur (`filter: blur(5px)`, `opacity: 0.4`, `transition: 0.2s`) for privacy when streaming. State is persisted to `user-settings.json` via `hideBalance`, `hideRpnl`, `hideUpnl` in the Zustand store (survives hard refresh).
 
 **Balance** = `account.balance + unrealizedPnl` (live equity). Updates from two sources:
 

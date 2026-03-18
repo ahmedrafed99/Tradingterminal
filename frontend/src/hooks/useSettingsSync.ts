@@ -38,6 +38,9 @@ function getPersistedState() {
     secondContract: s.secondContract,
     orderContract: s.orderContract,
     rememberCredentials: s.rememberCredentials,
+    hideBalance: s.hideBalance,
+    hideRpnl: s.hideRpnl,
+    hideUpnl: s.hideUpnl,
   };
 }
 
