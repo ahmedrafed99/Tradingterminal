@@ -489,9 +489,9 @@ Dropdown popover (220px wide, `maxHeight: 300`, `overflowY: auto`) attached to t
 
 **Layout (top to bottom):**
 
-1. **Saved templates list**: each row shows `[color dot] [stroke preview] [name] [× delete]`
+1. **Saved templates list**: each row shows `[color dot] [stroke preview] [name] [bin delete]`
    - Click row → applies template's color, strokeWidth, text to the selected drawing
-   - Delete button (×) appears on hover via `group-hover:opacity-100`
+   - Delete button (bin/trash icon) appears on hover via `group-hover:opacity-100`
 2. **Divider** (if templates exist)
 3. **"Save as..."** button → toggles inline save form:
    - Text input (auto-focused) + muted blue "Save" button (`#1a3a6e`, hover `#1e4a8a`)
@@ -500,7 +500,7 @@ Dropdown popover (220px wide, `maxHeight: 300`, `overflowY: auto`) attached to t
    - Saves current drawing's color, strokeWidth, and text as a new template with `crypto.randomUUID()` ID. If a template with the same name already exists (case-insensitive), it is removed first (override).
 4. **"Apply defaults"** button → resets drawing to `DEFAULT_HLINE_COLOR` (#787b86), strokeWidth 1, no text
 5. **Divider**
-6. **Export / Import** row:
+6. **Export / Import** row (each with icon: upload arrow for export, download arrow for import):
    - **Export**: downloads all templates as `hline-templates.json` (disabled when no templates)
    - **Import**: hidden `<input type="file" accept=".json">`, parses JSON array, validates each entry has `name`, `color`, `strokeWidth`, assigns fresh UUIDs
 

@@ -534,8 +534,8 @@ function TemplatePopover({
       {templates.map((t) => (
         <div
           key={t.id}
-          className="flex items-center gap-2 hover:bg-(--color-hover-toolbar) group"
-          style={{ padding: '6px 10px', cursor: 'pointer' }}
+          className="flex items-center gap-2 hover:bg-(--color-hover-row) group transition-colors"
+          style={{ padding: '6px 10px', cursor: 'pointer', borderRadius: 4 }}
           onClick={() => { onApply(t); onClose(); }}
         >
           <div style={{
@@ -550,10 +550,12 @@ function TemplatePopover({
           <span className="text-(--color-text) text-xs truncate" style={{ flex: 1 }}>{t.name}</span>
           <button
             onClick={(e) => { e.stopPropagation(); removeTemplate(t.id); }}
-            className="text-(--color-text-muted) hover:text-(--color-error) opacity-0 group-hover:opacity-100"
-            style={{ fontSize: 14, background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: 0 }}
+            className="text-(--color-text-muted) hover:text-(--color-error) opacity-0 group-hover:opacity-100 transition-colors"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center' }}
           >
-            &times;
+            <svg width="14" height="14" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
+              <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
+            </svg>
           </button>
         </div>
       ))}
@@ -603,8 +605,8 @@ function TemplatePopover({
                 <button
                   key={t.id}
                   onClick={() => { setName(t.name); setShowSuggestions(false); nameRef.current?.focus(); }}
-                  className="flex items-center gap-2 w-full text-left text-xs text-(--color-text) hover:bg-(--color-surface)"
-                  style={{ padding: '5px 8px', border: 'none', background: 'none', cursor: 'pointer' }}
+                  className="flex items-center gap-2 w-full text-left text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) transition-colors"
+                  style={{ padding: '5px 8px', border: 'none', cursor: 'pointer', borderRadius: 4 }}
                 >
                   <div style={{
                     width: 8, height: 8, borderRadius: '50%',
@@ -620,8 +622,8 @@ function TemplatePopover({
       ) : (
         <button
           onClick={() => setSaving(true)}
-          className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs hover:bg-(--color-hover-toolbar)"
-          style={{ padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer' }}
+          className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs bg-transparent hover:bg-(--color-hover-row) transition-colors"
+          style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: 4 }}
         >
           Save as...
         </button>
@@ -630,8 +632,8 @@ function TemplatePopover({
       {/* Apply defaults */}
       <button
         onClick={handleApplyDefaults}
-        className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs hover:bg-(--color-hover-toolbar)"
-        style={{ padding: '6px 10px', border: 'none', background: 'none', cursor: 'pointer' }}
+        className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs bg-transparent hover:bg-(--color-hover-row) transition-colors"
+        style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: 4 }}
       >
         Apply defaults
       </button>
@@ -643,19 +645,29 @@ function TemplatePopover({
         <button
           onClick={handleExport}
           disabled={templates.length === 0}
-          className="text-xs text-(--color-text) hover:bg-(--color-hover-toolbar) rounded"
+          className="flex items-center justify-center gap-1.5 text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) rounded transition-colors"
           style={{
-            flex: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer',
+            flex: 1, padding: '4px 0', border: 'none', cursor: 'pointer',
             opacity: templates.length === 0 ? 0.4 : 1,
           }}
         >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
           Export
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          className="text-xs text-(--color-text) hover:bg-(--color-hover-toolbar) rounded"
-          style={{ flex: 1, padding: '4px 0', border: 'none', background: 'none', cursor: 'pointer' }}
+          className="flex items-center justify-center gap-1.5 text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) rounded transition-colors"
+          style={{ flex: 1, padding: '4px 0', border: 'none', cursor: 'pointer' }}
         >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
           Import
         </button>
         <input ref={fileRef} type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
