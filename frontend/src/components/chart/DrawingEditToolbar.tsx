@@ -192,6 +192,20 @@ function TextPopover({
     justifyContent: 'center',
     transition: 'background 0.15s, color 0.15s, border-color 0.15s',
   });
+  const toggleHover = (active: boolean) => ({
+    onMouseEnter: (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!active) {
+        e.currentTarget.style.background = 'var(--color-hover-row)';
+        e.currentTarget.style.color = 'var(--color-text)';
+      }
+    },
+    onMouseLeave: (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!active) {
+        e.currentTarget.style.background = 'transparent';
+        e.currentTarget.style.color = 'var(--color-text-muted)';
+      }
+    },
+  });
 
   return (
     <div
@@ -206,8 +220,8 @@ function TextPopover({
         <button
           onClick={() => setShowColorGrid(!showColorGrid)}
           style={{
-            width: 28,
-            height: 28,
+            width: 22,
+            height: 22,
             background: color,
             borderRadius: 4,
             border: showColorGrid ? '2px solid #fff' : '1px solid var(--color-border)',
@@ -243,6 +257,7 @@ function TextPopover({
           onClick={() => setBold(!bold)}
           style={{ ...toggleBtn(bold), fontSize: 14, fontWeight: 700 }}
           title="Bold"
+          {...toggleHover(bold)}
         >
           B
         </button>
@@ -251,6 +266,7 @@ function TextPopover({
           onClick={() => setItalic(!italic)}
           style={{ ...toggleBtn(italic), fontSize: 14, fontStyle: 'italic' }}
           title="Italic"
+          {...toggleHover(italic)}
         >
           I
         </button>
@@ -281,13 +297,13 @@ function TextPopover({
         style={{
           padding: '8px 10px',
           marginBottom: 8,
-          resize: 'vertical',
+          resize: 'none',
           minHeight: 60,
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
           fontSize: 12,
           lineHeight: '1.4',
           border: '1px solid var(--color-border)',
-          background: 'var(--color-input)',
+          background: 'var(--color-panel)',
         }}
         autoFocus
       />
@@ -315,6 +331,7 @@ function TextPopover({
                   fontStyle: 'normal',
                 }}
                 title={`Vertical: ${vAlignLabel[v]}`}
+                {...toggleHover(vAlign === v)}
               >
                 {vAlignLabel[v]}
               </button>
@@ -338,6 +355,7 @@ function TextPopover({
                   fontStyle: 'normal',
                 }}
                 title={`Horizontal: ${hAlignLabel[h]}`}
+                {...toggleHover(hAlign === h)}
               >
                 {hAlignLabel[h]}
               </button>

@@ -4,7 +4,7 @@
  */
 
 // ── Section label (appears 14+ times) ──
-export const SECTION_LABEL = 'text-[10px] uppercase tracking-wider text-(--color-text-muted)';
+export const SECTION_LABEL = 'text-[11px] uppercase tracking-wider text-(--color-text-muted)';
 
 // ── Table row stripe (bottom-panel tabs) ──
 export const TABLE_ROW_STRIPE = 'bg-(--color-table-stripe)/40';
