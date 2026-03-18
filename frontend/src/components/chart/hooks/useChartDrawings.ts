@@ -146,8 +146,18 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     container.addEventListener('dblclick', handleDbl);
     container.addEventListener('contextmenu', handleCtx);
 
-    // ── Global move + up ──
-    const handleMove = (e: MouseEvent) => onMouseMove(e, ctx);
+    // ── Global move + up (RAF-throttled to avoid >60fps mousemove storms) ──
+    let moveRafId = 0;
+    let lastMoveEvent: MouseEvent | null = null;
+    const handleMove = (e: MouseEvent) => {
+      lastMoveEvent = e;
+      if (!moveRafId) {
+        moveRafId = requestAnimationFrame(() => {
+          moveRafId = 0;
+          if (lastMoveEvent) onMouseMove(lastMoveEvent, ctx);
+        });
+      }
+    };
     const handleUp = (e: MouseEvent) => onMouseUp(e, ctx);
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
@@ -218,6 +228,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       window.removeEventListener('mouseup', handleUp);
       window.removeEventListener('mouseup', onChartPanUp);
       window.removeEventListener('keydown', handleKey);
+      if (moveRafId) cancelAnimationFrame(moveRafId);
       container.style.cursor = '';
     };
   }, [contract]);

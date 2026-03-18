@@ -120,17 +120,25 @@ export function useOverlayLabels(
     updatePositions();
     refs.updateOverlay.current = updatePositions;
 
-    // Subscribe to lastPrice changes directly
+    // Subscribe to lastPrice changes — RAF-throttled to avoid layout thrashing
+    // when price ticks coincide with mouse movement in the same frame
     let prevLp = useStore.getState().lastPrice;
+    let priceRafId = 0;
     const unsub = useStore.subscribe((state) => {
       if (state.lastPrice !== prevLp) {
         prevLp = state.lastPrice;
-        updatePositions();
+        if (!priceRafId) {
+          priceRafId = requestAnimationFrame(() => {
+            priceRafId = 0;
+            updatePositions();
+          });
+        }
       }
     });
 
     return () => {
       unsub();
+      if (priceRafId) cancelAnimationFrame(priceRafId);
       orderLabelsCleanup?.();
       for (const line of refs.previewLines.current) line.setLabel(null);
       for (const line of refs.orderLines.current) line.setLabel(null);

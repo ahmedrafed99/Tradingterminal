@@ -53,9 +53,16 @@ export function useNewsEvents(refs: ChartRefs): void {
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
 
+    let newsRafId = 0;
     const onMove = (e: MouseEvent) => {
-      const { x, y } = getPos(e);
-      primitive.handleMouseMove(x, y);
+      if (newsRafId) return;
+      const mx = e.clientX;
+      const my = e.clientY;
+      newsRafId = requestAnimationFrame(() => {
+        newsRafId = 0;
+        const rect = container.getBoundingClientRect();
+        primitive.handleMouseMove(mx - rect.left, my - rect.top);
+      });
     };
 
     const onClick = (e: MouseEvent) => {
@@ -72,6 +79,7 @@ export function useNewsEvents(refs: ChartRefs): void {
     container.addEventListener('mouseleave', onLeave);
 
     return () => {
+      if (newsRafId) cancelAnimationFrame(newsRafId);
       container.removeEventListener('mousemove', onMove);
       container.removeEventListener('click', onClick);
       container.removeEventListener('mouseleave', onLeave);

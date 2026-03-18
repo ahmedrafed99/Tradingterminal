@@ -300,29 +300,32 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
   if (_hoverRafPending) return;
   _hoverRafPending = true;
 
+  // Only capture cheap client coords here — defer getBoundingClientRect to inside RAF
   const mx = e.clientX;
   const my = e.clientY;
-  // Capture container-relative coords now (before RAF) to avoid getBoundingClientRect inside RAF
-  const containerRect = container.getBoundingClientRect();
-  const localX = mx - containerRect.left;
-  const localY = my - containerRect.top;
 
   requestAnimationFrame(() => {
     _hoverRafPending = false;
     const { primitive } = ctx;
     const st = useStore.getState();
+    const isSelect = st.activeTool === 'select';
 
-    // Resize handles (only in select mode with single selection)
-    if (st.activeTool === 'select' && st.selectedDrawingIds.length === 1) {
-      const hit = primitive.getHandleAt(localX, localY);
-      if (hit) {
-        setCursor(container, HANDLE_CURSOR);
-        return;
+    // Drawing hit-testing only needed in select mode
+    if (isSelect) {
+      const containerRect = container.getBoundingClientRect();
+      const localX = mx - containerRect.left;
+      const localY = my - containerRect.top;
+
+      // Resize handles (only with single selection)
+      if (st.selectedDrawingIds.length === 1) {
+        const hit = primitive.getHandleAt(localX, localY);
+        if (hit) {
+          setCursor(container, HANDLE_CURSOR);
+          return;
+        }
       }
-    }
 
-    // Drawing body → pointer
-    if (st.activeTool === 'select') {
+      // Drawing body → pointer
       const bodyHit = primitive.hitTest(localX, localY);
       if (bodyHit && typeof bodyHit.externalId === 'string') {
         setCursor(container, 'pointer');
@@ -334,17 +337,18 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
     const targets = refs.hitTargets.current;
     let overLabel = false;
     let hoveredEl: HTMLElement | null = null;
-    for (let i = 0; i < targets.length; i++) {
-      const target = targets[i];
-      const el = target.el;
-      if (el.offsetParent === null) continue;
-      const tRect = el.getBoundingClientRect();
-      if (tRect.width === 0 || tRect.height === 0) continue;
-      if (mx >= tRect.left && mx <= tRect.right && my >= tRect.top && my <= tRect.bottom) {
-        setCursor(container, target.priority >= 2 ? 'grab' : 'pointer');
-        overLabel = true;
-        hoveredEl = el;
-        break;
+    if (targets.length > 0) {
+      const topEl = document.elementFromPoint(mx, my) as HTMLElement | null;
+      if (topEl) {
+        for (let i = 0; i < targets.length; i++) {
+          const target = targets[i];
+          if (target.el === topEl || target.el.contains(topEl)) {
+            setCursor(container, target.priority >= 2 ? 'grab' : 'pointer');
+            overLabel = true;
+            hoveredEl = target.el;
+            break;
+          }
+        }
       }
     }
 

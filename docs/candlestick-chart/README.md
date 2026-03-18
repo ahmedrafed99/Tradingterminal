@@ -196,7 +196,26 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   `useChartBars` RAF-batches `coordinateToPrice` calls so at most one runs per
   frame. The RAF ID is tracked and cancelled in the effect cleanup to prevent
   fire-after-dispose on unmount.
+- **VP hover same-bar skip**: `VolumeProfilePrimitive.setHoverPrice()` skips
+  `_requestUpdate()` when the new price maps to the same bar as the previous
+  hover (within half a tick). This avoids rebuilding the entire bar array and
+  repainting all VP rows on every crosshair move.
 - **Overlay label selector consolidation**: `useOverlayLabels` uses a single
   `useShallow()` selector (from `zustand/react/shallow`) instead of 16
   individual `useStore()` calls. This reduces store subscriptions from 16 to 1
   and batches the shallow-equality check into a single comparison per update.
+- **Drawing mousemove RAF-throttled**: The main `onMouseMove` handler in
+  `useChartDrawings` is wrapped in `requestAnimationFrame` so it fires at most
+  once per frame (~60 Hz), preventing 100+ Hz mousemove storms from triggering
+  redundant store updates and canvas repaints during drawing previews.
+- **News events mousemove RAF-throttled**: The `useNewsEvents` mousemove handler
+  defers `getBoundingClientRect` + hit testing to a RAF callback.
+- **OHLC tooltip pre-created DOM**: The crosshair OHLC widget in `useChartWidgets`
+  pre-creates span elements once and updates `.textContent` per frame, instead of
+  rebuilding the DOM via `innerHTML` on every crosshair move. Uses a cached
+  `Intl.NumberFormat` instance instead of per-call `toLocaleString`.
+- **Hover hit-testing optimized**: `onHandleHover` in `drawingInputHandlers`
+  moves `getBoundingClientRect` inside the RAF callback (not before the guard),
+  skips drawing hit-tests when not in select mode, and uses
+  `document.elementFromPoint` instead of looping `getBoundingClientRect` on
+  every overlay target.

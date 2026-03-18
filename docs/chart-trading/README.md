@@ -350,9 +350,11 @@ Size hover:  [│ +$50.00 ][ − 2 + ][ × ]
 Smooth positioning for all `PriceLevelLine` instances during interaction:
 
 - `updatePositions()` calls `line.syncPosition()` on every live line (preview, order, QO-preview, posDragLine), then runs P&L updater closures
+- **lastPrice subscription is RAF-throttled**: The `useStore.subscribe()` callback in `useOverlayLabels` defers `updatePositions()` via `requestAnimationFrame` to avoid layout thrashing when price ticks coincide with mouse movement in the same frame
 - `requestAnimationFrame` loop runs during any pointer interaction (pointerdown -> rAF loop -> pointerup stops)
 - Also listens to `visibleLogicalRangeChange` (horizontal scroll), `ResizeObserver`, and `wheel` events
 - Zero overhead when idle — rAF loop only active during pointer drag
+- **Layout metric caching**: `PriceLevelLine.syncPosition()` uses a per-frame cache for `overlay.clientWidth` and `priceScale.width()` reads (via `getLayoutMetrics()`), so N lines in the same frame trigger only one layout reflow instead of N
 
 ---
 

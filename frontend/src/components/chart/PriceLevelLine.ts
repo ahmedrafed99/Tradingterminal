@@ -26,6 +26,29 @@ export interface PriceLevelLineConfig {
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Trebuchet MS',Roboto,Ubuntu,sans-serif";
 
+// ── Per-frame layout cache (avoids repeated reflow-triggering reads) ──
+let _layoutCacheFrame = 0;
+let _cachedPsWidth = 56;
+let _cachedPlotWidth = 0;
+let _layoutCacheOverlay: HTMLDivElement | null = null;
+let _layoutCacheChart: IChartApi | null = null;
+
+function getLayoutMetrics(overlay: HTMLDivElement, chart: IChartApi): { psWidth: number; plotWidth: number } {
+  const frame = performance.now();
+  // Cache is valid for ~1ms (same RAF frame)
+  if (overlay === _layoutCacheOverlay && chart === _layoutCacheChart && frame - _layoutCacheFrame < 2) {
+    return { psWidth: _cachedPsWidth, plotWidth: _cachedPlotWidth };
+  }
+  _layoutCacheFrame = frame;
+  _layoutCacheOverlay = overlay;
+  _layoutCacheChart = chart;
+  let psWidth = 56;
+  try { psWidth = chart.priceScale('right').width(); } catch { /* */ }
+  _cachedPsWidth = psWidth;
+  _cachedPlotWidth = overlay.clientWidth - psWidth;
+  return { psWidth: _cachedPsWidth, plotWidth: _cachedPlotWidth };
+}
+
 /** Contrast text color for axis labels (white on dark, dark on light). */
 function contrastText(hex: string): string {
   const h = hex.replace('#', '').slice(0, 6);
@@ -212,10 +235,8 @@ export class PriceLevelLine {
       return;
     }
 
-    // Price-scale width (for line width + axis label width)
-    let psWidth = 56;
-    try { psWidth = this._chart.priceScale('right').width(); } catch { /* */ }
-    const plotWidth = this._overlay.clientWidth - psWidth;
+    // Price-scale width (cached per-frame to avoid layout thrashing)
+    const { psWidth, plotWidth } = getLayoutMetrics(this._overlay, this._chart);
 
     // Line
     this._lineEl.style.display = '';

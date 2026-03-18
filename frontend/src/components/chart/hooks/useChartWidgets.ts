@@ -79,19 +79,26 @@ export function useChartWidgets(
     if (!chart || !series || !el) return;
 
     const decimals = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
-    const fmt = (v: number) => v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const nf = new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const fmt = (v: number) => nf.format(v);
+
+    // Pre-create spans once instead of rebuilding DOM via innerHTML every frame
+    const makeLabel = (text: string) => { const s = document.createElement('span'); s.style.color = COLOR_TEXT_MUTED; s.textContent = text; return s; };
+    const makeVal = () => { const s = document.createElement('span'); return s; };
+    const oSpan = makeVal(); const hSpan = makeVal(); const lSpan = makeVal(); const cSpan = makeVal(); const chgSpan = makeVal();
+    el.textContent = '';
+    el.append(makeLabel('O'), oSpan, document.createTextNode(' '), makeLabel('H'), hSpan, document.createTextNode(' '), makeLabel('L'), lSpan, document.createTextNode(' '), makeLabel('C'), cSpan, document.createTextNode(' '), chgSpan);
 
     function render(o: number, h: number, l: number, c: number) {
       const bullish = c >= o;
       const valColor = bullish ? COLOR_TEXT_MEDIUM : '#0097a6';
       const change = c - o;
       const sign = change >= 0 ? '+' : '';
-      el!.innerHTML =
-        `<span style="color:${COLOR_TEXT_MUTED}">O</span><span style="color:${valColor}">${fmt(o)}</span> ` +
-        `<span style="color:${COLOR_TEXT_MUTED}">H</span><span style="color:${valColor}">${fmt(h)}</span> ` +
-        `<span style="color:${COLOR_TEXT_MUTED}">L</span><span style="color:${valColor}">${fmt(l)}</span> ` +
-        `<span style="color:${COLOR_TEXT_MUTED}">C</span><span style="color:${valColor}">${fmt(c)}</span> ` +
-        `<span style="color:${valColor}">${sign}${fmt(change)}</span>`;
+      oSpan.textContent = fmt(o); oSpan.style.color = valColor;
+      hSpan.textContent = fmt(h); hSpan.style.color = valColor;
+      lSpan.textContent = fmt(l); lSpan.style.color = valColor;
+      cSpan.textContent = fmt(c); cSpan.style.color = valColor;
+      chgSpan.textContent = `${sign}${fmt(change)}`; chgSpan.style.color = valColor;
     }
 
     // Show last bar initially
