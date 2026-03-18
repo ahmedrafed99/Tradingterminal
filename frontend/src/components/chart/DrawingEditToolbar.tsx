@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
@@ -149,6 +149,8 @@ function TextPopover({
   const [hAlign, setHAlign] = useState<TextHAlign>(drawing.text?.hAlign ?? 'center');
   const [vAlign, setVAlign] = useState<TextVAlign>(drawing.text?.vAlign ?? 'middle');
   const [showColorGrid, setShowColorGrid] = useState(false);
+  const [showFontSizes, setShowFontSizes] = useState(false);
+  const fontSizeRef = useRef<HTMLDivElement>(null);
 
   // Snapshot original text so we can restore on cancel
   const originalText = useRef(drawing.text ? { ...drawing.text } : null);
@@ -164,6 +166,8 @@ function TextPopover({
   }, [content, color, fontSize, bold, italic, hAlign, vAlign]);
 
   useClickOutside(ref, true, onClose);
+  const closeFontSizes = useCallback(() => setShowFontSizes(false), []);
+  useClickOutside(fontSizeRef, showFontSizes, closeFontSizes);
 
   const apply = () => {
     // Changes already applied via live preview — just close
@@ -231,27 +235,67 @@ function TextPopover({
           }}
           title="Text color"
         />
-        {/* Font size */}
-        <select
-          value={fontSize}
-          onChange={(e) => setFontSize(Number(e.target.value))}
-          style={{
-            background: 'var(--color-input)',
-            color: 'var(--color-text)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 4,
-            padding: '4px 6px',
-            fontSize: 12,
-            cursor: 'pointer',
-            width: 56,
-            outline: 'none',
-          }}
-          title="Font size"
-        >
-          {FONT_SIZE_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        {/* Font size — custom dropdown */}
+        <div ref={fontSizeRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowFontSizes((o) => !o)}
+            style={{
+              background: 'var(--color-input)',
+              color: 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 4,
+              padding: '4px 6px',
+              fontSize: 12,
+              cursor: 'pointer',
+              width: 56,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              transition: 'border-color 0.15s',
+            }}
+            title="Font size"
+          >
+            {fontSize}
+            <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5 }}>
+              <path d="M0 0l4 5 4-5z" />
+            </svg>
+          </button>
+          {showFontSizes && (
+            <div
+              className="border border-(--color-border) rounded-lg shadow-lg z-50 animate-dropdown-in"
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                marginTop: 4,
+                background: 'var(--color-panel)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                minWidth: 56,
+                maxHeight: 160,
+                overflowY: 'auto',
+                padding: '2px 0',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {FONT_SIZE_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setFontSize(s); setShowFontSizes(false); }}
+                  className="w-full text-left text-xs transition-colors bg-transparent hover:bg-(--color-hover-row)"
+                  style={{
+                    padding: '5px 10px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: s === fontSize ? 'var(--color-warning)' : 'var(--color-text)',
+                    fontWeight: s === fontSize ? 600 : 400,
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {/* Bold toggle */}
         <button
           onClick={() => setBold(!bold)}

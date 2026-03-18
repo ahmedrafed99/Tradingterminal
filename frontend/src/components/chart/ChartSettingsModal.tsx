@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore';
 import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
 import { Modal } from '../shared/Modal';
 import { ColorPopover } from './ColorPopover';
+import { CustomSelect } from '../shared/CustomSelect';
 
 type Category = 'bars' | 'canvas' | 'trading';
 
@@ -450,27 +451,17 @@ function CanvasPanel({ settings, onChange }: { settings: Settings; onChange: OnC
       <SectionHeader>Background</SectionHeader>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <select
+        <CustomSelect
           value={settings.bgType}
-          onChange={(e) => onChange({ bgType: e.target.value as 'solid' | 'gradient' })}
+          options={[
+            { value: 'solid', label: 'Solid' },
+            { value: 'gradient', label: 'Gradient' },
+          ]}
+          onChange={(v) => onChange({ bgType: v as 'solid' | 'gradient' })}
           style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 4,
-            color: 'var(--color-text)',
-            fontSize: 12,
-            fontFamily: FONT,
-            padding: '5px 8px',
-            height: 28,
-            boxSizing: 'border-box',
-            cursor: 'pointer',
-            outline: 'none',
-            transition: 'border-color 0.15s',
+            width: 110,
           }}
-        >
-          <option value="solid">Solid</option>
-          <option value="gradient">Gradient</option>
-        </select>
+        />
 
         {settings.bgType === 'solid' && (
           <ColorSwatchButton color={settings.bgColor} onChange={(c) => onChange({ bgColor: c })} />

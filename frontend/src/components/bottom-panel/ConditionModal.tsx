@@ -6,6 +6,7 @@ import { conditionService } from '../../services/conditionService';
 import type { CreateConditionInput, PatchConditionInput, ConditionBracket } from '../../services/conditionService';
 import type { BracketPreset } from '../../types/bracket';
 import { Modal } from '../shared/Modal';
+import { CustomSelect } from '../shared/CustomSelect';
 import { INPUT_SURFACE } from '../../constants/styles';
 
 const ALL_TIMEFRAMES = [...DEFAULT_PINNED, ...MORE_TIMEFRAMES];
@@ -226,15 +227,15 @@ export function ConditionModal() {
             <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 14 }}>
               <div>
                 <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Condition</span>
-                <select
+                <CustomSelect
                   value={conditionType}
-                  onChange={(e) => setConditionType(e.target.value as 'closes_above' | 'closes_below')}
-                  className={inp}
-                  style={{ padding: '10px 12px' }}
-                >
-                  <option value="closes_above">Close Above</option>
-                  <option value="closes_below">Close Below</option>
-                </select>
+                  options={[
+                    { value: 'closes_above', label: 'Close Above' },
+                    { value: 'closes_below', label: 'Close Below' },
+                  ]}
+                  onChange={(v) => setConditionType(v as 'closes_above' | 'closes_below')}
+                  style={{ width: '100%' }}
+                />
               </div>
               <div>
                 <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Trigger Price</span>
@@ -252,16 +253,12 @@ export function ConditionModal() {
 
             <div>
               <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Timeframe</span>
-              <select
+              <CustomSelect
                 value={timeframe}
-                onChange={(e) => setTimeframe(e.target.value)}
-                className={inp}
-                style={{ padding: '10px 12px', width: 'calc(50% - 6px)' }}
-              >
-                {ALL_TIMEFRAMES.map((tf) => (
-                  <option key={tf.label} value={tf.label}>{tf.label}</option>
-                ))}
-              </select>
+                options={ALL_TIMEFRAMES.map((tf) => ({ value: tf.label, label: tf.label }))}
+                onChange={(v) => setTimeframe(v)}
+                style={{ width: 'calc(50% - 6px)' }}
+              />
             </div>
           </div>
 
@@ -301,15 +298,15 @@ export function ConditionModal() {
             <div className="grid grid-cols-2 gap-3" style={{ marginBottom: 14 }}>
               <div>
                 <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Order Type</span>
-                <select
+                <CustomSelect
                   value={orderType}
-                  onChange={(e) => setOrderType(e.target.value as 'market' | 'limit')}
-                  className={inp}
-                  style={{ padding: '10px 12px' }}
-                >
-                  <option value="market">Market</option>
-                  <option value="limit">Limit</option>
-                </select>
+                  options={[
+                    { value: 'market', label: 'Market' },
+                    { value: 'limit', label: 'Limit' },
+                  ]}
+                  onChange={(v) => setOrderType(v as 'market' | 'limit')}
+                  style={{ width: '100%' }}
+                />
               </div>
               <div>
                 <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Size</span>
@@ -358,20 +355,18 @@ export function ConditionModal() {
               {bracketPresets.length > 0 && (
                 <div>
                   <span className={fieldLabel} style={{ marginBottom: 6, display: 'block' }}>Preset</span>
-                  <select
+                  <CustomSelect
                     value={selectedPresetId ?? ''}
-                    onChange={(e) => {
-                      const preset = bracketPresets.find((p) => p.id === e.target.value) ?? null;
+                    options={[
+                      { value: '', label: 'Custom' },
+                      ...bracketPresets.map((p) => ({ value: p.id, label: p.name })),
+                    ]}
+                    onChange={(v) => {
+                      const preset = bracketPresets.find((p) => p.id === v) ?? null;
                       applyPreset(preset);
                     }}
-                    className={inp}
-                    style={{ padding: '10px 12px' }}
-                  >
-                    <option value="">Custom</option>
-                    {bracketPresets.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
+                    style={{ width: '100%' }}
+                  />
                 </div>
               )}
 

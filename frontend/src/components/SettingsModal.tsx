@@ -10,6 +10,7 @@ import { SoundTab } from './settings/SoundTab';
 import { ShortcutsTab } from './settings/ShortcutsTab';
 import { RecordingTab } from './settings/RecordingTab';
 import { Modal } from './shared/Modal';
+import { CustomSelect } from './shared/CustomSelect';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
@@ -154,17 +155,13 @@ export function SettingsModal() {
                   {/* Provider selector */}
                   <div>
                     <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Provider</div>
-                    <select
+                    <CustomSelect
                       value={provider}
-                      onChange={(e) => setProvider(e.target.value)}
+                      options={DATA_FEED_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
+                      onChange={(v) => setProvider(v)}
                       disabled={connected || loading}
-                      className={INPUT_CLS}
-                      style={{ padding: '10px 14px', appearance: 'none', cursor: 'pointer' }}
-                    >
-                      {DATA_FEED_PROVIDERS.map((p) => (
-                        <option key={p.id} value={p.id}>{p.label}</option>
-                      ))}
-                    </select>
+                      style={{ width: '100%' }}
+                    />
                   </div>
 
                   {/* Status pill */}

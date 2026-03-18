@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { Modal } from '../shared/Modal';
+import { CustomSelect } from '../shared/CustomSelect';
 import type {
   BracketConfig,
   StopLossConfig,
@@ -287,18 +288,15 @@ function StopLossSection({
       </label>
       <label>
         <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>Order Type</span>
-        <div className="relative">
-          <select
-            value={sl.type}
-            onChange={(e) => onChange({ ...sl, type: e.target.value as StopLossType })}
-            className={SELECT_CLS}
-            style={{ padding: '9px 12px' }}
-          >
-            <option value="Stop" className={OPTION_CLS}>Stop Market</option>
-            <option value="TrailingStop" className={OPTION_CLS}>Trailing Stop</option>
-          </select>
-          <ChevronDown />
-        </div>
+        <CustomSelect
+          value={sl.type}
+          options={[
+            { value: 'Stop', label: 'Stop Market' },
+            { value: 'TrailingStop', label: 'Trailing Stop' },
+          ]}
+          onChange={(v) => onChange({ ...sl, type: v as StopLossType })}
+          style={{ flex: 1 }}
+        />
       </label>
     </div>
   );
@@ -504,41 +502,31 @@ function ConditionRow({
         <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>When</span>
         <div className="flex-1 flex items-center" style={{ gap: '8px' }}>
           {/* Trigger type dropdown */}
-          <div className="relative" style={{ minWidth: '130px' }}>
-            <select
-              value={triggerKind}
-              onChange={(e) => {
-                const kind = e.target.value as 'tpFilled' | 'profitReached';
-                if (kind === 'tpFilled') {
-                  onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: 0 } });
-                } else {
-                  onChange({ ...condition, trigger: { kind: 'profitReached', points: 10 } });
-                }
-              }}
-              className={SELECT_CLS}
-              style={{ padding: '8px 12px' }}
-            >
-              {tpCount > 0 && <option value="tpFilled" className={OPTION_CLS}>Target filled</option>}
-              <option value="profitReached" className={OPTION_CLS}>Profit reached</option>
-            </select>
-            <ChevronDown />
-          </div>
+          <CustomSelect
+            value={triggerKind}
+            options={[
+              ...(tpCount > 0 ? [{ value: 'tpFilled', label: 'Target filled' }] : []),
+              { value: 'profitReached', label: 'Profit reached' },
+            ]}
+            onChange={(v) => {
+              const kind = v as 'tpFilled' | 'profitReached';
+              if (kind === 'tpFilled') {
+                onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: 0 } });
+              } else {
+                onChange({ ...condition, trigger: { kind: 'profitReached', points: 10 } });
+              }
+            }}
+            style={{ flex: 1 }}
+          />
 
           {/* Sub-input: TP index or profit points */}
           {triggerKind === 'tpFilled' && (
-            <div className="relative flex-1">
-              <select
-                value={condition.trigger.tpIndex}
-                onChange={(e) => onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: +e.target.value } })}
-                className={SELECT_CLS}
-                style={{ padding: '8px 12px' }}
-              >
-                {Array.from({ length: tpCount }, (_, i) => (
-                  <option key={i} value={i} className={OPTION_CLS}>Target {i + 1}</option>
-                ))}
-              </select>
-              <ChevronDown />
-            </div>
+            <CustomSelect
+              value={String(condition.trigger.tpIndex)}
+              options={Array.from({ length: tpCount }, (_, i) => ({ value: String(i), label: `Target ${i + 1}` }))}
+              onChange={(v) => onChange({ ...condition, trigger: { kind: 'tpFilled', tpIndex: +v } })}
+              style={{ flex: 1 }}
+            />
           )}
           {triggerKind === 'profitReached' && (
             <div className="flex items-center flex-1" style={{ gap: '6px' }}>
@@ -571,19 +559,12 @@ function ConditionRow({
       {/* Then */}
       <div className="flex items-center" style={{ gap: '10px' }}>
         <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>Then</span>
-        <div className="relative flex-1">
-          <select
-            value={encodeAction()}
-            onChange={(e) => onChange({ ...condition, action: decodeAction(e.target.value) })}
-            className={SELECT_CLS}
-            style={{ padding: '8px 12px' }}
-          >
-            {actionOptions.map((o) => (
-              <option key={o.value} value={o.value} className={OPTION_CLS}>{o.label}</option>
-            ))}
-          </select>
-          <ChevronDown />
-        </div>
+        <CustomSelect
+          value={encodeAction()}
+          options={actionOptions.map((o) => ({ value: o.value, label: o.label }))}
+          onChange={(v) => onChange({ ...condition, action: decodeAction(v) })}
+          style={{ flex: 1 }}
+        />
         <span className="shrink-0" style={{ width: '22px' }} />
       </div>
 
