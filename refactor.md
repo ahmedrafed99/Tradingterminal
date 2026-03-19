@@ -315,3 +315,59 @@ This already happens naturally in the adapter pattern — just document it as a 
 - Backend exchange adapter — `ExchangeAdapter` interface, ProjectX implementation in `/adapters/projectx/`
 - Frontend realtime adapter — `RealtimeAdapter` interface, SignalR isolated in `/adapters/projectx/`
 - Instrument model generalization — `calcPnl()`, `pointsToPrice()`, `ticksPerPoint`, `quantityStep`, `pricePrecision`
+
+---
+
+## Unify Order Line Rendering (Pending)
+
+The chart has 2 parallel rendering paths for order lines: one for "normal" orders (`useOrderLines`) and one for quick-order pending brackets (`useQuickOrder` + `buildQoPendingLabels`). The QO path maintains its own local `PriceLevelLine` array, its own fill/cancel watcher, its own drag handlers, and its own label builder — all for orders that are just regular Suspended orders on the server. This split is the root cause of the TP/SL bracket lines vanishing after refresh (issue #1) and the overall complexity.
+
+**Goal:** One rendering path for all orders. `openOrders[]` is the single source of truth. The "quick order" + button is just a UI convenience for placing a limit order — after placement, the system treats it like any other order.
+
+### Architecture Before vs After
+
+```
+BEFORE (2 paths):
+  useQuickOrder ──creates──→ local qoPreviewLines[] ──labeled by──→ buildQoPendingLabels
+  useOrderLines ──creates──→ refs.orderLines[]      ──labeled by──→ buildOrderLabels
+  (Suspended orders: skipped by useOrderLines, owned by useQuickOrder)
+
+AFTER (1 path):
+  useQuickOrder ──creates──→ temporary hover preview (destroyed on click)
+  useOrderLines ──creates──→ refs.orderLines[] (ALL orders, including Suspended)
+                            ──labeled by──→ buildOrderLabels (handles all statuses)
+```
+
+### Changes by File
+
+**1. tradingSlice.ts** — Rename `qoPendingPreview` → `pendingBracketInfo`. Add `pendingEntryOrderId: string | null`. Persist both to sessionStorage; rehydrate on store init. Keep upsertOrder enrichment (injects prices into Suspended orders from `pendingBracketInfo`).
+
+**2. useOrderLines.ts** — Remove unconditional `if (order.status === OrderStatus.Suspended) continue;`. Suspended orders render with `lineStyle: 'dashed'` (visual distinction from Working).
+
+**3. useQuickOrder.ts** — Remove `pendingFillUnsub` and the Zustand subscription watcher. After `placeOrder()` resolves: store `pendingBracketInfo` + `pendingEntryOrderId`, call `removePreviewLines()`, done. Keep the + button UI, hover preview, and order placement logic.
+
+**4. buildOrderLabels.ts** — Remove `if (order.status === OrderStatus.Suspended) continue;`. Add Suspended bracket label logic (merged from buildQoPendingLabels): P&L relative to `pendingBracketInfo.entryPrice`, cancel-X handler, drag handler.
+
+**5. buildQoPendingLabels.ts** — DELETE. All logic merged into buildOrderLabels.
+
+**6. useOverlayLabels.ts** — Remove `qoPendingPreview` subscription, the `buildQoPendingLabels` call, QO preview line clearing/sync. Add `pendingBracketInfo` to dependencies.
+
+**7. usePreviewDrag.ts** — Remove `qoPendingPreview` guard, `qo-sl`/`qo-tp` drag blocks. Suspended order drag handled by useOrderDrag.
+
+**8. useOrderDrag.ts** — Add Suspended bracket drag support: call `bracketEngine.updateArmedConfig()` on mouseUp, update `pendingBracketInfo`. Replace `refs.qoPreviewLines`/`refs.qoPreviewPrices` references with `refs.orderLines` lookups.
+
+**9. types.ts** — Remove `'qo-sl'`/`'qo-tp'` from PreviewLineRole, remove `QoPreviewLines` type, remove `qoPreviewLines`/`qoPreviewPrices` from ChartRefs.
+
+**10. CandlestickChart.tsx** — Remove `qoPreviewLinesRef` and `qoPreviewPricesRef` declarations.
+
+**11. OrderPanel.tsx** — Rename refs to `pendingBracketInfo`. Add fill/cancel cleanup: when entry order (matching `pendingEntryOrderId`) fills or cancels, clear `pendingBracketInfo` and `pendingEntryOrderId`.
+
+**12. Minor renames** — Update doc references from `qoPendingPreview` to `pendingBracketInfo`.
+
+### How the Refresh Bug Gets Fixed
+
+1. `pendingBracketInfo` persisted to sessionStorage → survives refresh
+2. `upsertOrder` enrichment has bracket prices available → Suspended orders get prices
+3. `useOrderLines` renders Suspended orders (no more skip) → lines appear
+4. `buildOrderLabels` creates labels for them → labels appear
+5. OrderPanel clears `pendingBracketInfo` when entry fills → cleanup works
