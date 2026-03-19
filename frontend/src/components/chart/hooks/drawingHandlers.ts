@@ -102,22 +102,29 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const h = hit.handle;
 
   // Fixed corner: take X-axis data (anchorTime/barOffset/time) from one point, price from another
+  // Moving corner: the original corner opposite to fixedCorner (used to constrain cardinal handles)
   let fixedCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
+  let movingCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
   if (h === 'n' || h === 'nw' || h === 'w') {
     fixedCorner = { ...rightPt, price: bottomPt.price };
+    movingCorner = { ...leftPt, price: topPt.price };
   } else if (h === 'ne') {
     fixedCorner = { ...leftPt, price: bottomPt.price };
+    movingCorner = { ...rightPt, price: topPt.price };
   } else if (h === 'sw') {
     fixedCorner = { ...rightPt, price: topPt.price };
+    movingCorner = { ...leftPt, price: bottomPt.price };
   } else {
     // se, s, e
     fixedCorner = { ...leftPt, price: topPt.price };
+    movingCorner = { ...rightPt, price: bottomPt.price };
   }
 
   state.ovalResize = {
     drawingId: drawing.id,
     handle: h,
     fixedCorner,
+    movingCorner,
     origP1: { ...p1 },
     origP2: { ...p2 },
   };
@@ -383,7 +390,20 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     if (!data) return;
 
     const newP1 = state.ovalResize.fixedCorner;
-    const newP2 = { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
+    const h = state.ovalResize.handle;
+    let newP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
+
+    if (h === 'n' || h === 's') {
+      // Cardinal vertical: only price follows mouse, X stays from original moving corner
+      const mc = state.ovalResize.movingCorner;
+      newP2 = { time: mc.time, price: data.price, anchorTime: mc.anchorTime, barOffset: mc.barOffset };
+    } else if (h === 'w' || h === 'e') {
+      // Cardinal horizontal: only X follows mouse, price stays from original moving corner
+      newP2 = { time: data.time, price: state.ovalResize.movingCorner.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
+    } else {
+      // Corner handles: both axes follow mouse
+      newP2 = { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
+    }
 
     useStore.getState().updateDrawing(state.ovalResize.drawingId, { p1: newP1, p2: newP2 }, true);
     e.stopPropagation();

@@ -20,7 +20,14 @@ function clearCloseHover(): void {
 }
 
 // ─── Resize handle cursor ───
-const HANDLE_CURSOR = 'grab';
+const HANDLE_CURSOR_MAP: Record<string, string> = {
+  nw: 'nw-resize', ne: 'ne-resize', sw: 'sw-resize', se: 'se-resize',
+  n: 'n-resize', s: 's-resize', w: 'w-resize', e: 'e-resize',
+};
+
+function getHandleCursor(handle: string): string {
+  return HANDLE_CURSOR_MAP[handle] ?? 'grab';
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Context menu (right-click cancel / finalize arrow path)
@@ -320,7 +327,7 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
       if (st.selectedDrawingIds.length === 1) {
         const hit = primitive.getHandleAt(localX, localY);
         if (hit) {
-          setCursor(container, HANDLE_CURSOR);
+          setCursor(container, getHandleCursor(hit.handle));
           return;
         }
       }
@@ -333,21 +340,24 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
       }
     }
 
-    // Overlay label hit targets
+    // Overlay label hit targets (use getBoundingClientRect — overlay has pointer-events:none
+    // so elementFromPoint cannot see its children)
     const targets = refs.hitTargets.current;
     let overLabel = false;
     let hoveredEl: HTMLElement | null = null;
     if (targets.length > 0) {
-      const topEl = document.elementFromPoint(mx, my) as HTMLElement | null;
-      if (topEl) {
-        for (let i = 0; i < targets.length; i++) {
-          const target = targets[i];
-          if (target.el === topEl || target.el.contains(topEl)) {
-            setCursor(container, target.priority >= 2 ? 'grab' : 'pointer');
-            overLabel = true;
-            hoveredEl = target.el;
-            break;
-          }
+      // Check highest-priority (lowest number) targets first
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i];
+        const el = target.el;
+        if (el.offsetParent === null) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) continue;
+        if (mx >= rect.left && mx <= rect.right && my >= rect.top && my <= rect.bottom) {
+          setCursor(container, target.priority >= 2 ? 'grab' : 'pointer');
+          overLabel = true;
+          hoveredEl = el;
+          break;
         }
       }
     }

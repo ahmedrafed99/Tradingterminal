@@ -25,6 +25,7 @@ export interface DrawingState {
     drawingId: string;
     handle: string;
     fixedCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
+    movingCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
     origP1: { time: number; price: number; anchorTime?: number; barOffset?: number };
     origP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
   } | null;

@@ -294,7 +294,7 @@ Draws an ellipse inscribed in the bounding rectangle defined by p1 and p2.
 - Selected: 4 circular handles (white fill, oval color stroke) at cardinal points (top, bottom, left, right)
 - Text label: positioned relative to ellipse center and radii
 - Hit test: normalized ellipse distance check `|d - 1.0| < tolerance / min(rx, ry)`
-- Resize handles: 4 positions (n, s, w, e) with 6px hit tolerance, free diagonal drag supported
+- Resize handles: 4 positions (n, s, w, e) with 6px hit tolerance — cardinal handles are axis-constrained (n/s move only vertically, w/e move only horizontally)
 - **Smooth rendering**: same `AnchoredPoint` approach as rect — no horizontal snapping to bar centers
 
 ---
@@ -420,9 +420,9 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 ### Rect / Oval resize
 
 - Only when rect or oval is selected (select tool active)
-- `mousedown` on a resize handle → records fixed opposite point + handle type
-- Oval: 4 cardinal handles (n/s/e/w); Rect: 4 corner handles (nw/ne/sw/se)
-- Opposite point stays fixed, dragged handle follows mouse freely in both axes (diagonal resize supported)
+- `mousedown` on a resize handle → records fixed opposite corner + original moving corner + handle type
+- Rect/Ruler: 4 corner handles (nw/ne/sw/se) — both axes follow mouse freely
+- Oval: 4 cardinal handles (n/s/e/w) — axis-constrained: `n`/`s` only change price (vertical), `w`/`e` only change time (horizontal)
 - Uses data coordinates (time/price) for stable resize during viewport changes
 
 ### Keyboard shortcuts
@@ -444,8 +444,8 @@ Registry: `frontend/src/constants/shortcuts.ts` — central `SHORTCUT_DEFS` arra
 
 - Drawing tool active (`hline`/`rect`/`oval`/`arrowpath`/`ruler`/`freedraw`): `crosshair`
 - Select tool: `none` (default — hides cursor over chart)
-- Hovering resize handle: directional resize cursor (`nwse-resize`, `ns-resize`, etc.)
-- During drag: cursor unchanged (stays as whatever it was)
+- Hovering resize handle: directional resize cursor mapped to handle position (`nw-resize`, `ne-resize`, `sw-resize`, `se-resize` for rect/ruler corners; `n-resize`, `s-resize`, `w-resize`, `e-resize` for oval cardinal handles; `grab` fallback for arrow path nodes)
+- During drag: `grabbing` cursor
 
 ---
 
