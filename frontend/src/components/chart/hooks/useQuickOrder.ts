@@ -324,10 +324,10 @@ export function useQuickOrder(
       }
     }
 
-    // Cache priceScale width — only re-read when it likely changed (resize)
-    let cachedPsWidth = getPriceScaleWidth(chart);
-    const ro = new ResizeObserver(() => { cachedPsWidth = getPriceScaleWidth(chart); });
-    ro.observe(refs.container.current!);
+    // Read priceScale width — lightweight-charts can resize the price axis
+    // independently of the container (e.g. when data loads or price range shifts),
+    // so we read it fresh on each crosshair move (cheap property access).
+    const psWidth = () => getPriceScaleWidth(chart);
 
     const onMove = (param: { point?: { x: number; y: number }; time?: unknown }) => {
       if (isDragging || awaitingClick) return;
@@ -362,7 +362,7 @@ export function useQuickOrder(
 
       el.style.display = 'flex';
       el.style.top = `${param.point.y}px`;
-      el.style.right = `${cachedPsWidth}px`;
+      el.style.right = `${psWidth()}px`;
 
       if (isHovered) refreshLabel();
     };
@@ -700,7 +700,6 @@ export function useQuickOrder(
         useStore.getState().setQoPendingPreview(null);
       }
       removePreviewLines();
-      ro.disconnect();
       chart.unsubscribeCrosshairMove(onMove);
       wrap.removeEventListener('mouseenter', onEnter);
       wrap.removeEventListener('mouseleave', onLeave);
