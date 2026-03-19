@@ -1,4 +1,4 @@
-import { memo, forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { memo, forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { FONT_FAMILY, RADIUS, Z } from '../../constants/layout';
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts';
@@ -115,7 +115,10 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const peerSyncRef = useRef<((price: number, time: unknown) => void) | null>(null);
 
   // --- ChartRefs bag (passed to all hooks) ---
-  const refs: ChartRefs = {
+  // Memoized so hooks that depend on refs don't re-run their effects on every render.
+  // All values are useRef results (stable across renders), so empty deps is correct.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const refs: ChartRefs = useMemo(() => ({
     container: containerRef,
     overlay: overlayRef,
     chart: chartRef,
@@ -158,7 +161,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     tpRedistInFlight: tpRedistInFlightRef,
     scrollBtnShown: scrollBtnShownRef,
     peerSync: peerSyncRef,
-  };
+  }), []);
 
   useImperativeHandle(ref, () => ({
     getChartApi: () => chartRef.current,

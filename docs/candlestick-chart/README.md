@@ -232,6 +232,13 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
 - **Condition lines: no idle RAF loop**: `useConditionLinesSync` no longer runs
   a continuous `requestAnimationFrame` loop during pointer drag. Instead, it
   attaches a mousemove listener that routes through `scheduleSync()`.
+- **ChartRefs bag memoized**: The `refs` object passed to all chart hooks is
+  wrapped in `useMemo(() => ({...}), [])`. Every value in the bag is a
+  `useRef` result (stable across renders). Without memoization, `refs` was a
+  new object reference on every render, causing effects that list it as a
+  dependency (e.g. `useConditionPreview`, `useConditionLinesSync`) to re-run
+  and destroy/recreate state — most visibly, condition preview lines snapping
+  back to their default positions during drag.
 - **Background-tab candle backfill**: When the browser tab is backgrounded,
   `requestAnimationFrame` is throttled (≤1 fps) or paused entirely.
   `handleQuote()` now synchronously flushes the previous `pendingBar` to the
