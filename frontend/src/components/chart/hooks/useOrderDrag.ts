@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { orderService } from '../../../services/orderService';
+import { bracketEngine } from '../../../services/bracketEngine';
 import { useStore } from '../../../store/useStore';
-import { OrderType, OrderSide, PositionType } from '../../../types/enums';
-import { pointsToPrice } from '../../../utils/instrument';
+import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/enums';
+import { pointsToPrice, priceToPoints } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import { computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
@@ -15,7 +16,7 @@ const CROSSHAIR_CURSOR = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.or
 /**
  * Handle drag interaction for live order lines.
  * Dragging modifies the order price via orderService.modifyOrder().
- * Also shifts bracket preview lines (QO pending + hidden entry) to follow.
+ * Also shifts Suspended bracket legs and hidden-entry preview lines to follow.
  */
 export function useOrderDrag(
   refs: ChartRefs,
@@ -33,6 +34,19 @@ export function useOrderDrag(
     function snapPrice(price: number): number {
       const ts = contract!.tickSize;
       return Math.round(price / ts) * ts;
+    }
+
+    /** Find all order line indices for Suspended bracket legs of the current contract. */
+    function findSuspendedBracketIndices(): number[] {
+      const indices: number[] = [];
+      for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
+        const m = refs.orderLineMeta.current[k];
+        if (m.kind === 'order' && m.order.status === OrderStatus.Suspended
+            && String(m.order.contractId) === String(contract!.id)) {
+          indices.push(k);
+        }
+      }
+      return indices;
     }
 
     function onMouseMove(e: MouseEvent) {
@@ -66,30 +80,33 @@ export function useOrderDrag(
       refs.orderLinePrices.current[drag.idx] = snapped;
       drag.draggedPrice = snapped;
 
-      // Shift pending bracket SL/TP preview lines to follow the dragged entry
-      if (drag.meta.kind === 'order' && drag.meta.order.type === OrderType.Limit) {
+      // Shift Suspended bracket legs to follow the dragged entry order
+      if (drag.meta.kind === 'order' && drag.meta.order.type === OrderType.Limit
+          && drag.meta.order.status !== OrderStatus.Suspended) {
         const delta = snapped - drag.originalPrice;
         const st = useStore.getState();
 
-        // Path 1: Quick-order pending preview (+ button)
-        const qo = st.qoPendingPreview;
-        if (qo) {
-          refs.qoPreviewPrices.current.entry = snapped;
-          const sl = refs.qoPreviewLines.current.sl;
-          if (sl && qo.slPrice != null) {
-            sl.setPrice(qo.slPrice + delta); sl.syncPosition();
-            refs.qoPreviewPrices.current.sl = qo.slPrice + delta;
-          }
-          qo.tpPrices.forEach((origTp, i) => {
-            const tpLine = refs.qoPreviewLines.current.tps[i];
-            if (tpLine) {
-              tpLine.setPrice(origTp + delta); tpLine.syncPosition();
-              refs.qoPreviewPrices.current.tps[i] = origTp + delta;
+        // Shift Suspended bracket order lines
+        const bi = st.pendingBracketInfo;
+        if (bi) {
+          const bracketIndices = findSuspendedBracketIndices();
+          for (const idx of bracketIndices) {
+            const origPrice = refs.orderLinePrices.current[idx];
+            // Compute delta from the original entry price to maintain relative offsets
+            const bracketLine = refs.orderLines.current[idx];
+            if (bracketLine) {
+              const m = refs.orderLineMeta.current[idx];
+              if (m.kind !== 'order') continue;
+              const origBracketPrice = m.order.stopPrice ?? m.order.limitPrice ?? 0;
+              const newBracketPrice = origBracketPrice + delta;
+              bracketLine.setPrice(newBracketPrice);
+              bracketLine.syncPosition();
+              refs.orderLinePrices.current[idx] = newBracketPrice;
             }
-          });
+          }
         }
 
-        // Path 2: Preview with hidden entry (Buy/Sell button flow)
+        // Shift preview lines with hidden entry (Buy/Sell button flow)
         if (st.previewHideEntry) {
           refs.previewPrices.current[0] = snapped;
           const toP = (points: number) => pointsToPrice(points, contract!);
@@ -140,7 +157,6 @@ export function useOrderDrag(
       if (!accountId) return;
 
       // Front-end validation: SL must stay on the correct side of current price
-      // Derive direction from order side (stop-sell → protecting long, stop-buy → protecting short)
       if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
         const currentPrice = useStore.getState().lastPrice ?? refs.lastBar.current?.close ?? null;
         if (currentPrice != null) {
@@ -175,19 +191,56 @@ export function useOrderDrag(
       }
 
       // Optimistically commit bracket preview positions to store
-      const prevQo = order.type === OrderType.Limit ? useStore.getState().qoPendingPreview : null;
-      const wasHideEntry = order.type === OrderType.Limit && useStore.getState().previewHideEntry;
-      if (prevQo) {
+      const prevBi = order.type === OrderType.Limit && order.status !== OrderStatus.Suspended
+        ? useStore.getState().pendingBracketInfo : null;
+      const wasHideEntry = order.type === OrderType.Limit && order.status !== OrderStatus.Suspended
+        && useStore.getState().previewHideEntry;
+      if (prevBi) {
         const d = newPrice - originalPrice;
-        useStore.getState().setQoPendingPreview({
-          ...prevQo,
-          entryPrice: prevQo.entryPrice + d,
-          slPrice: prevQo.slPrice != null ? prevQo.slPrice + d : null,
-          tpPrices: prevQo.tpPrices.map((p) => p + d),
+        useStore.getState().setPendingBracketInfo({
+          ...prevBi,
+          entryPrice: prevBi.entryPrice + d,
+          slPrice: prevBi.slPrice != null ? prevBi.slPrice + d : null,
+          tpPrices: prevBi.tpPrices.map((p) => p + d),
         });
       }
       if (wasHideEntry) {
         useStore.getState().setLimitPrice(newPrice);
+      }
+
+      // For Suspended bracket legs, also update bracketEngine + pendingBracketInfo
+      if (order.status === OrderStatus.Suspended) {
+        const st = useStore.getState();
+        const bi = st.pendingBracketInfo;
+        if (bi) {
+          const isSl = order.customTag?.endsWith('-SL') ?? (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
+          if (isSl) {
+            st.setPendingBracketInfo({ ...bi, slPrice: newPrice });
+            const slDiff = Math.abs(bi.entryPrice - newPrice);
+            const slPoints = Math.round(priceToPoints(slDiff, contract!));
+            bracketEngine.updateArmedConfig((cfg) => ({
+              ...cfg,
+              stopLoss: { ...cfg.stopLoss, points: Math.max(1, slPoints) },
+            }));
+          } else {
+            // Find which TP index this order corresponds to
+            const tpIdx = order.customTag?.endsWith('-TP')
+              ? 0
+              : (bi.tpPrices.findIndex((p) => Math.abs(p - originalPrice) < 0.001));
+            if (tpIdx >= 0) {
+              const newTpPrices = [...bi.tpPrices];
+              newTpPrices[tpIdx] = newPrice;
+              st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
+              const tpDiff = Math.abs(newPrice - bi.entryPrice);
+              const tpPoints = Math.round(priceToPoints(tpDiff, contract!));
+              bracketEngine.updateArmedConfig((cfg) => ({
+                ...cfg,
+                takeProfits: cfg.takeProfits.map((tp, i) =>
+                  i === tpIdx ? { ...tp, points: Math.max(1, tpPoints) } : tp),
+              }));
+            }
+          }
+        }
       }
 
       orderService.modifyOrder(params).catch((err) => {
@@ -195,7 +248,6 @@ export function useOrderDrag(
         // Revert line back to original price
         const line = refs.orderLines.current[dragIdx];
         if (line) {
-          // Recompute correct color based on position
           const pos = positions.find(
             (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract!.id) && p.size > 0,
           );
@@ -206,15 +258,8 @@ export function useOrderDrag(
           refs.updateOverlay.current();
         }
         // Revert bracket preview positions
-        if (prevQo) {
-          useStore.getState().setQoPendingPreview(prevQo);
-          refs.qoPreviewPrices.current.entry = prevQo.entryPrice;
-          const sl = refs.qoPreviewLines.current.sl;
-          if (sl && prevQo.slPrice != null) { sl.setPrice(prevQo.slPrice); sl.syncPosition(); refs.qoPreviewPrices.current.sl = prevQo.slPrice; }
-          prevQo.tpPrices.forEach((tp, i) => {
-            const l = refs.qoPreviewLines.current.tps[i];
-            if (l) { l.setPrice(tp); l.syncPosition(); refs.qoPreviewPrices.current.tps[i] = tp; }
-          });
+        if (prevBi) {
+          useStore.getState().setPendingBracketInfo(prevBi);
         }
         if (wasHideEntry) {
           refs.previewPrices.current[0] = originalPrice;

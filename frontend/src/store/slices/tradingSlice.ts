@@ -64,8 +64,8 @@ export interface OrderPanelState {
   removeAdHocTp: (index: number) => void;
   updateAdHocTpPoints: (index: number, points: number) => void;
   clearAdHocBrackets: () => void;
-  /** QO = Quick Order (one-click buy/sell from chart). Tracks SL/TP preview while entry is pending fill. */
-  qoPendingPreview: {
+  /** Tracks bracket SL/TP prices while entry order is pending fill. Persisted to sessionStorage. */
+  pendingBracketInfo: {
     entryPrice: number;
     slPrice: number | null;
     tpPrices: number[];
@@ -73,7 +73,10 @@ export interface OrderPanelState {
     orderSize: number;
     tpSizes: number[];
   } | null;
-  setQoPendingPreview: (preview: OrderPanelState['qoPendingPreview']) => void;
+  setPendingBracketInfo: (info: OrderPanelState['pendingBracketInfo']) => void;
+  /** The orderId of the entry order that pendingBracketInfo belongs to. */
+  pendingEntryOrderId: string | null;
+  setPendingEntryOrderId: (id: string | null) => void;
 }
 
 export type TradingSlice = OrdersState & PositionsState & OrderPanelState;
@@ -89,11 +92,11 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
   setOpenOrders: (openOrders) => set({ openOrders }),
   upsertOrder: (order) =>
     set((s) => {
-      // For Suspended bracket legs with no prices, inject known prices from qoPendingPreview.
+      // For Suspended bracket legs with no prices, inject known prices from pendingBracketInfo.
       // The gateway never returns prices on Suspended orders, but we computed them at placement time.
       let enriched = order;
-      if (order.status === OrderStatus.Suspended && !order.limitPrice && !order.stopPrice && s.qoPendingPreview) {
-        const qo = s.qoPendingPreview;
+      if (order.status === OrderStatus.Suspended && !order.limitPrice && !order.stopPrice && s.pendingBracketInfo) {
+        const qo = s.pendingBracketInfo;
         const oppSide = qo.side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
         const isSl = order.customTag?.endsWith('-SL') ?? (
           order.side === oppSide && (order.type === OrderType.Stop || order.type === OrderType.TrailingStop)
@@ -249,6 +252,19 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
       ),
     })),
   clearAdHocBrackets: () => set({ adHocSlPoints: null, adHocTpLevels: [] }),
-  qoPendingPreview: null,
-  setQoPendingPreview: (qoPendingPreview) => set({ qoPendingPreview }),
+  pendingBracketInfo: (() => {
+    try { const raw = sessionStorage.getItem('pendingBracketInfo'); return raw ? JSON.parse(raw) : null; }
+    catch { return null; }
+  })(),
+  setPendingBracketInfo: (pendingBracketInfo) => {
+    if (pendingBracketInfo) sessionStorage.setItem('pendingBracketInfo', JSON.stringify(pendingBracketInfo));
+    else sessionStorage.removeItem('pendingBracketInfo');
+    set({ pendingBracketInfo });
+  },
+  pendingEntryOrderId: sessionStorage.getItem('pendingEntryOrderId'),
+  setPendingEntryOrderId: (id) => {
+    if (id) sessionStorage.setItem('pendingEntryOrderId', id);
+    else sessionStorage.removeItem('pendingEntryOrderId');
+    set({ pendingEntryOrderId: id });
+  },
 });

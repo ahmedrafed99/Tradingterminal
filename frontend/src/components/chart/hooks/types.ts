@@ -13,24 +13,29 @@ import type { PriceLevelLine } from '../PriceLevelLine';
 export type PreviewLineRole =
   | { kind: 'entry' }
   | { kind: 'sl' }
-  | { kind: 'tp'; index: number }
-  | { kind: 'qo-sl' }
-  | { kind: 'qo-tp'; index: number };
+  | { kind: 'tp'; index: number };
+
+// ── Bracket info shape (mirrors store's pendingBracketInfo) ──
+export interface BracketInfo {
+  entryPrice: number;
+  slPrice: number | null;
+  tpPrices: number[];
+  side: number; // OrderSide
+  orderSize: number;
+  tpSizes: number[];
+}
 
 // ── Order line metadata ──
-export type OrderLineMeta = { kind: 'position' } | { kind: 'order'; order: Order };
+export type OrderLineMeta =
+  | { kind: 'position' }
+  | { kind: 'order'; order: Order }
+  | { kind: 'phantom-bracket'; bracketType: 'sl' | 'tp'; tpIndex?: number; bracketInfo: BracketInfo };
 
 // ── Hit-target for overlay label interactions ──
 export type HitTarget = {
   el: HTMLDivElement;
   priority: number; // 0=buttons, 1=entry-click, 2=row-drag
   handler: (e: MouseEvent) => void;
-};
-
-// ── Quick-order preview line refs shape ──
-export type QoPreviewLines = {
-  sl: PriceLevelLine | null;
-  tps: (PriceLevelLine | null)[];
 };
 
 // ── Position drag state ──
@@ -100,10 +105,6 @@ export interface ChartRefs {
   orderLineMeta: React.MutableRefObject<OrderLineMeta[]>;
   orderLinePrices: React.MutableRefObject<number[]>;
   orderDragState: React.MutableRefObject<OrderDragState | null>;
-
-  // Quick-order preview
-  qoPreviewLines: React.MutableRefObject<QoPreviewLines>;
-  qoPreviewPrices: React.MutableRefObject<{ entry: number; sl: number | null; tps: number[] }>;
 
   // Position drag-to-create SL/TP
   posDrag: React.MutableRefObject<PosDragState | null>;

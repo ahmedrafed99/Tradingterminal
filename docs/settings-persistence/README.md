@@ -68,7 +68,9 @@ On startup, the file-based settings take priority over localStorage. On every st
 | Volume profile | `vpEnabled`, `vpColor`, `secondVpEnabled`, `secondVpColor` |
 | Bottom panel | `bottomPanelOpen`, `bottomPanelRatio`, `bottomPanelTab` |
 
-**Not persisted** (ephemeral/live): `connected`, `accounts`, `openOrders`, `positions`, `lastPrice`, `toasts`, `drawingUndoStack`, draft/ad-hoc bracket overrides, `settingsOpen`, `editingPresetId`, `activeTool`, `selectedDrawingId`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`, `qoPendingPreview`
+**Persisted (sessionStorage)**: `pendingBracketInfo`, `pendingEntryOrderId` — these survive page refresh but not tab close, allowing Suspended bracket lines to reappear after refresh.
+
+**Not persisted** (ephemeral/live): `connected`, `accounts`, `openOrders`, `positions`, `lastPrice`, `toasts`, `drawingUndoStack`, draft/ad-hoc bracket overrides, `settingsOpen`, `editingPresetId`, `activeTool`, `selectedDrawingId`, `selectedChart`, `vpTradeMode`, `sessionTrades`, `visibleTradeIds`
 
 ### Page-unload flush
 

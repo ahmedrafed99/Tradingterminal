@@ -2,7 +2,7 @@
 
 ## 1. TP/SL bracket lines vanish after page refresh
 
-**Status:** Open
+**Status:** Fixed (unified order line rendering refactor)
 **Severity:** High — user loses visual confirmation of pending bracket orders
 
 ### Symptom
@@ -11,47 +11,17 @@ After submitting a quick order with TP/SL brackets (entry not yet filled), all t
 
 ### Root Cause
 
-Two rendering systems both refuse to draw Suspended bracket orders after refresh:
+The old architecture used two separate rendering systems for bracket lines — `qoPreviewLines` (managed by `useQuickOrder.ts`) for pre-fill preview, and `useOrderLines` for real orders. `useOrderLines` unconditionally skipped Suspended orders, and `useOverlayLabels` skipped `buildQoPendingLabels()` when `qoPendingPreview` (now `pendingBracketInfo`) was `null`. Since `qoPendingPreview` was in-memory only (not persisted), on refresh the Suspended bracket orders existed in `openOrders[]` but no rendering path picked them up.
 
-1. **`useOrderLines`** ([useOrderLines.ts:68](frontend/src/components/chart/hooks/useOrderLines.ts#L68)) intentionally skips `Suspended` orders because `qoPendingPreview` is supposed to render them.
-2. **`useOverlayLabels`** ([useOverlayLabels.ts:94](frontend/src/components/chart/hooks/useOverlayLabels.ts#L94)) skips `buildQoPendingLabels()` entirely because `qoPendingPreview` is `null`.
+### Fix (Unified Order Line Rendering)
 
-`qoPendingPreview` is in-memory Zustand state ([tradingSlice.ts:252](frontend/src/store/slices/tradingSlice.ts#L252)) — set only at order submission time ([useQuickOrder.ts:464-480](frontend/src/components/chart/hooks/useQuickOrder.ts#L464-L480)) and never persisted. On refresh, the store reinitializes to `null`, so the Suspended bracket orders exist in `openOrders[]` (fetched from the server) but no rendering path picks them up.
+The dual rendering system was eliminated entirely:
 
-### Data Flow
+1. **`pendingBracketInfo` persisted to sessionStorage** — survives page refresh.
+2. **`pendingEntryOrderId` persisted to sessionStorage** — tracks entry order ID across refresh.
+3. **`useOrderLines` now renders ALL orders** including Suspended (with dashed line style) + phantom bracket lines from `pendingBracketInfo`.
+4. **`buildQoPendingLabels.ts` deleted** — its logic merged into `buildOrderLabels.ts`.
+5. **`useQuickOrder.ts` is hover-preview-only** — no post-placement line tracking.
+6. **`OrderPanel.tsx` clears `pendingBracketInfo`** on entry fill/cancel.
 
-```
-BEFORE REFRESH (works):
-  openOrders[Entry=Working, SL=Suspended, TP=Suspended]
-  qoPendingPreview = { entryPrice, slPrice, tpPrices, ... }
-  → useOrderLines renders Entry (skips Suspended)
-  → qoPendingPreview renders SL + TP lines       ✅
-
-AFTER REFRESH (broken):
-  openOrders[Entry=Working, SL=Suspended, TP=Suspended]  ← server returns all 3
-  qoPendingPreview = null                                 ← lost, not persisted
-  → useOrderLines skips Suspended                         ⛔
-  → qoPendingPreview is null, labels block skipped        ⛔
-  → SL + TP lines orphaned — nobody renders them          💀
-```
-
-### Previous Fix Attempts (reverted)
-
-Several approaches were tried and reverted (commits `b5479ae`–`0989f98`) because fixing the refresh case broke the normal flow:
-
-1. **Rehydration effect in `useOrderLines`** — persisted `qoPendingPreview` to sessionStorage and added a separate effect to recreate dashed preview lines after refresh. Failed because two systems (useQuickOrder + useOrderLines) were managing the same preview lines, causing timing races: lines were destroyed by useQuickOrder's cleanup before the rehydration effect could run, or the fill/cancel watcher missed state transitions due to effect ordering.
-
-2. **Enriching `setOpenOrders`** — injected `qoPendingPreview` prices into Suspended orders during REST bulk load. Failed because REST `searchOpenOrders` does not return Suspended bracket legs at all — there's nothing to enrich.
-
-3. **Subscribing to `qoPendingPreview` in live-lines effect** — made the effect reactive to preview state changes. Caused conflicts with useQuickOrder's line management: the effect destroyed and recreated preview lines that useQuickOrder was tracking in its local array, breaking the fill/cancel cleanup path.
-
-**Key lesson:** preview line lifecycle must stay in ONE place. useQuickOrder already manages creation, tracking (local array), and cleanup (pendingFillUnsub → removePreviewLines). The rehydration should happen inside useQuickOrder's effect body, reusing the same local array and watcher pattern.
-
-### Fix Plan
-
-Add rehydration to `useQuickOrder`'s effect body (not useOrderLines):
-
-1. **Persist `qoPendingPreview` to sessionStorage** in tradingSlice setter; rehydrate on store init.
-2. **Store `entryOrderId`** to sessionStorage after placeOrder resolves.
-3. **In useQuickOrder's effect**, after guards pass: if `qoPendingPreview` exists in the store (rehydrated) and `entryOrderId` is in sessionStorage, recreate SL/TP lines into the local `qoPreviewLines` array and set up `pendingFillUnsub` using the same watcher pattern. The existing cleanup path (`removePreviewLines`) handles cancel/fill/effect-cleanup identically to the normal flow.
-4. **Conditional Suspended skip** in useOrderLines and buildOrderLabels: skip Suspended orders only when preview lines actually exist (`qoLinesActive`), not unconditionally.
+All order rendering now goes through one path: `openOrders[]` → `useOrderLines` → `buildOrderLabels`. The "quick order" + button is just a UI convenience for placing a limit order.

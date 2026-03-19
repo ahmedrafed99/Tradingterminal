@@ -231,37 +231,46 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
       // When a bracket leg transitions from Suspended to Working (entry just filled),
       // the gateway always activates it at the original bracket tick offset — ignoring any
       // modifyOrder calls we made while it was Suspended. Correct the price now by
-      // modifying the Working order to the user's desired price from qoPendingPreview.
+      // modifying the Working order to the user's desired price from pendingBracketInfo.
       if (order.status === OrderStatus.Working && order.customTag) {
         const st = useStore.getState();
-        const qo = st.qoPendingPreview;
+        const bi = st.pendingBracketInfo;
         const acctId = st.activeAccountId;
-        if (qo && acctId) {
-          if (order.customTag.endsWith('-SL') && order.stopPrice != null && qo.slPrice != null
-              && Math.abs(qo.slPrice - order.stopPrice) > 0.001) {
-            orderService.modifyOrder({ accountId: acctId, orderId: order.id, stopPrice: qo.slPrice }).catch((err) => {
+        if (bi && acctId) {
+          if (order.customTag.endsWith('-SL') && order.stopPrice != null && bi.slPrice != null
+              && Math.abs(bi.slPrice - order.stopPrice) > 0.001) {
+            orderService.modifyOrder({ accountId: acctId, orderId: order.id, stopPrice: bi.slPrice }).catch((err) => {
               console.error('[OrderPanel] SL bracket correction failed:', err instanceof Error ? err.message : err);
             });
             // Use the desired price in the store immediately so chart doesn't flicker
             upsertOrder({
               id: order.id, contractId: order.contractId, type: order.type,
               side: order.side, size: order.size, status: order.status,
-              stopPrice: qo.slPrice, customTag: order.customTag,
+              stopPrice: bi.slPrice, customTag: order.customTag,
             });
             return;
           }
-          if (order.customTag.endsWith('-TP') && order.limitPrice != null && qo.tpPrices[0] != null
-              && Math.abs(qo.tpPrices[0] - order.limitPrice) > 0.001) {
-            orderService.modifyOrder({ accountId: acctId, orderId: order.id, limitPrice: qo.tpPrices[0] }).catch((err) => {
+          if (order.customTag.endsWith('-TP') && order.limitPrice != null && bi.tpPrices[0] != null
+              && Math.abs(bi.tpPrices[0] - order.limitPrice) > 0.001) {
+            orderService.modifyOrder({ accountId: acctId, orderId: order.id, limitPrice: bi.tpPrices[0] }).catch((err) => {
               console.error('[OrderPanel] TP bracket correction failed:', err instanceof Error ? err.message : err);
             });
             upsertOrder({
               id: order.id, contractId: order.contractId, type: order.type,
               side: order.side, size: order.size, status: order.status,
-              limitPrice: qo.tpPrices[0], customTag: order.customTag,
+              limitPrice: bi.tpPrices[0], customTag: order.customTag,
             });
             return;
           }
+        }
+      }
+
+      // Clear pendingBracketInfo when the entry order fills or is cancelled
+      if (order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled) {
+        const st = useStore.getState();
+        if (st.pendingEntryOrderId && order.id === st.pendingEntryOrderId) {
+          st.setPendingBracketInfo(null);
+          st.setPendingEntryOrderId(null);
         }
       }
 

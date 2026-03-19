@@ -28,7 +28,7 @@ export function buildOrderLabels(
   openOrders: Order[],
   positions: Position[],
   activeAccountId: string | null,
-  qoPendingPreview: unknown,
+  pendingBracketInfo: { entryPrice: number; slPrice: number | null; tpPrices: number[]; side: OrderSide; orderSize: number; tpSizes: number[] } | null,
   previewHideEntry: boolean,
   previewSide: OrderSide,
 ): { pnlUpdaters: (() => void)[]; cleanup: () => void } {
@@ -97,7 +97,6 @@ export function buildOrderLabels(
 
   for (const order of openOrders) {
     if (String(order.contractId) !== String(contract.id)) continue;
-    if (order.status === OrderStatus.Suspended) continue;
     let price: number | undefined;
     if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
       price = order.stopPrice;
@@ -112,6 +111,7 @@ export function buildOrderLabels(
     const oSize = order.size;
     const oSide = order.side;
     const oType = order.type;
+    const isSuspended = order.status === OrderStatus.Suspended;
 
     function profitColor(p: number): string {
       return computeOrderLineColor(order, p, pos);
@@ -137,7 +137,26 @@ export function buildOrderLabels(
       (pos.type === PositionType.Short && oSide === OrderSide.Sell)
     );
 
-    if (pos && !isSameSideEntry) {
+    if (isSuspended && pendingBracketInfo) {
+      // Suspended bracket leg — show P&L relative to entry price from pendingBracketInfo
+      const ep = pendingBracketInfo.entryPrice;
+      const isSl = oType === OrderType.Stop || oType === OrderType.TrailingStop;
+      const diff = isSl
+        ? (pendingBracketInfo.side === OrderSide.Buy ? ep - price : price - ep)
+        : (pendingBracketInfo.side === OrderSide.Buy ? price - ep : ep - price);
+      const pnl = calcPnl(diff, contract, oSize);
+      initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+      initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
+
+      orderPnlCompute = () => {
+        const curPrice = getOrderRefPrice();
+        const d = isSl
+          ? (pendingBracketInfo.side === OrderSide.Buy ? ep - curPrice : curPrice - ep)
+          : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - ep : ep - curPrice);
+        const p = calcPnl(d, contract, oSize);
+        return { text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`, bg: isSl ? SELL_COLOR : BUY_COLOR, color: LABEL_TEXT };
+      };
+    } else if (pos && !isSameSideEntry) {
       const isLong = pos.type === PositionType.Long;
       const diff = isLong ? price - pos.averagePrice : pos.averagePrice - price;
       const projPnl = calcPnl(diff, contract, oSize);
@@ -174,8 +193,8 @@ export function buildOrderLabels(
     const orderLine = orderLineIdx >= 0 ? refs.orderLines.current[orderLineIdx] : null;
     if (!orderLine) continue;
 
-    const isEntryOrder = oType === OrderType.Limit && (
-      (qoPendingPreview != null && oSide === (qoPendingPreview as { side: OrderSide }).side) ||
+    const isEntryOrder = oType === OrderType.Limit && !isSuspended && (
+      (pendingBracketInfo != null && oSide === pendingBracketInfo.side) ||
       (previewHideEntry && oSide === previewSide)
     );
     if (isEntryOrder) orderLine.setLabelLeft(0.65);
@@ -259,16 +278,45 @@ export function buildOrderLabels(
     }
 
     // Cancel-X button (priority 0)
+    const cancelOrder = order;
     refs.hitTargets.current.push({
       el: cells[2],
       priority: 0,
       handler: () => {
-        console.log('[buildOrderLabels] chart cancel clicked for order:', orderId);
         const acct = useStore.getState().activeAccountId;
-        if (!acct) { console.warn('[buildOrderLabels] no activeAccountId'); return; }
-        orderService.cancelOrder(acct, orderId).catch((err) => {
+        if (!acct) return;
+
+        // Optimistically remove from store
+        useStore.getState().removeOrder(cancelOrder.id);
+        orderService.cancelOrder(acct, cancelOrder.id).catch((err) => {
+          useStore.getState().upsertOrder(cancelOrder);
           showToast('error', 'Failed to cancel order', errorMessage(err));
         });
+
+        // For Suspended bracket legs, also update bracketEngine + pendingBracketInfo
+        if (cancelOrder.status === OrderStatus.Suspended) {
+          const st = useStore.getState();
+          const bi = st.pendingBracketInfo;
+          const isSl = cancelOrder.customTag?.endsWith('-SL') ?? (cancelOrder.type === OrderType.Stop || cancelOrder.type === OrderType.TrailingStop);
+          if (isSl) {
+            bracketEngine.updateArmedConfig((cfg) => ({ ...cfg, stopLoss: { ...cfg.stopLoss, points: 0 } }));
+            if (bi) st.setPendingBracketInfo({ ...bi, slPrice: null });
+          } else {
+            const tpIdx = cancelOrder.customTag?.endsWith('-TP')
+              ? 0
+              : (bi?.tpPrices.findIndex((p) => Math.abs(p - (cancelOrder.limitPrice ?? 0)) < 0.001) ?? -1);
+            if (tpIdx >= 0) {
+              bracketEngine.updateArmedConfig((cfg) => ({ ...cfg, takeProfits: cfg.takeProfits.filter((_, i) => i !== tpIdx) }));
+              if (bi) {
+                st.setPendingBracketInfo({
+                  ...bi,
+                  tpPrices: bi.tpPrices.filter((_, i) => i !== tpIdx),
+                  tpSizes: bi.tpSizes.filter((_, i) => i !== tpIdx),
+                });
+              }
+            }
+          }
+        }
       },
     });
 
@@ -307,6 +355,48 @@ export function buildOrderLabels(
         orderLine.updateSection(0, result.text, result.bg, result.color);
       });
     }
+  }
+
+  // Phantom bracket labels (lines rendered from pendingBracketInfo with no real order)
+  for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
+    const meta = refs.orderLineMeta.current[k];
+    if (meta.kind !== 'phantom-bracket') continue;
+
+    const phantomLine = refs.orderLines.current[k];
+    if (!phantomLine) continue;
+
+    const bi = meta.bracketInfo;
+    const phantomPrice = refs.orderLinePrices.current[k];
+    const isSl = meta.bracketType === 'sl';
+    const phantomSize = isSl ? bi.orderSize : (bi.tpSizes[meta.tpIndex ?? 0] ?? bi.orderSize);
+
+    // P&L relative to entry price
+    const diff = isSl
+      ? (bi.side === OrderSide.Buy ? bi.entryPrice - phantomPrice : phantomPrice - bi.entryPrice)
+      : (bi.side === OrderSide.Buy ? phantomPrice - bi.entryPrice : bi.entryPrice - phantomPrice);
+    const pnl = calcPnl(diff, contract, phantomSize);
+    const pnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+    const pnlBg = isSl ? SELL_COLOR : BUY_COLOR;
+
+    phantomLine.setLabel([
+      { text: pnlText, bg: pnlBg, color: LABEL_TEXT },
+      { text: String(phantomSize), bg: pnlBg, color: LABEL_TEXT },
+    ]);
+
+    // P&L updater (tracks price if dragged)
+    const capturedK = k;
+    const capturedIsSl = isSl;
+    const capturedSize = phantomSize;
+    const capturedBi = bi;
+    pnlUpdaters.push(() => {
+      const curPrice = refs.orderLinePrices.current[capturedK];
+      if (curPrice == null) return;
+      const d = capturedIsSl
+        ? (capturedBi.side === OrderSide.Buy ? capturedBi.entryPrice - curPrice : curPrice - capturedBi.entryPrice)
+        : (capturedBi.side === OrderSide.Buy ? curPrice - capturedBi.entryPrice : capturedBi.entryPrice - curPrice);
+      const p = calcPnl(d, contract, capturedSize);
+      phantomLine.updateSection(0, `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`, pnlBg);
+    });
   }
 
   // TP size hover detection (RAF-throttled to avoid per-move getBoundingClientRect)

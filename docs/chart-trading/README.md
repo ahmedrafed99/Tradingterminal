@@ -156,10 +156,10 @@ Price offsets computed via `pointsToPrice(points, contract)` from `utils/instrum
 4. Engine listens for fill and places SL + TPs as separate orders
 
 Both paths:
-- Set `qoPendingPreview` in the store with computed prices/sizes
+- Set `pendingBracketInfo` in the store (persisted to sessionStorage) with computed prices/sizes, and store the entry order ID via `setPendingEntryOrderId`
 - Remove hover labels (permanent ones take over via overlay label effect)
-- Destroy the entry reference line immediately (the live order line replaces it); only SL/TP preview lines persist
-- Subscribe to store for fill/cancel detection to clean up preview lines
+- Destroy the entry reference line immediately (the live order line replaces it); Suspended bracket lines are rendered by `useOrderLines` with dashed style
+- Subscribe to store for fill/cancel detection to clean up `pendingBracketInfo`
 
 ```ts
 // Dual-path decision
@@ -171,9 +171,9 @@ if (!nativeBrackets) {
 orderService.placeOrder({ ...baseParams, ...nativeBrackets });
 ```
 
-**On error** — full cleanup: disarms bracket engine if armed (`clearSession()`), clears `qoPendingPreview`, removes preview lines and hover labels, shows error toast.
+**On error** — full cleanup: disarms bracket engine if armed (`clearSession()`), clears `pendingBracketInfo`, removes hover labels, shows error toast.
 
-**Market-closed guard** — `placeQuickOrder()` calls `isFuturesMarketOpen()` before any bracket arming or API call. If closed: shows a warning toast, calls `removePreviewLines()`, clears `qoPendingPreview`, and returns. No preview lines are left lingering.
+**Market-closed guard** — `placeQuickOrder()` calls `isFuturesMarketOpen()` before any bracket arming or API call. If closed: shows a warning toast, clears `pendingBracketInfo`, and returns.
 
 **No preset selected** — places a naked limit order with no SL/TP.
 
@@ -274,7 +274,7 @@ The first cell (P&L) contains a 1px-wide vertical grip bar (14px tall, `#000`) o
 Entry and position labels are positioned at 65% of the plot width (`setLabelLeft(0.65)`), while SL/TP labels stay centered at 50%. This prevents overlap when entry and SL/TP prices are close together (e.g. a tight 4-point stop loss when zoomed out). The offset applies to:
 - Position labels (live position entry line)
 - Preview entry labels (order panel preview)
-- Pending entry order labels (+ button flow with `qoPendingPreview`, or Buy/Sell flow with `previewHideEntry`)
+- Pending entry order labels (+ button flow with `pendingBracketInfo`, or Buy/Sell flow with `previewHideEntry`)
 
 **All overlay labels use `pointer-events: none`** — mouse events pass through to the LWC canvas so the crosshair stays visible when hovering over any label. Interactions (click, drag) are detected via coordinate-based hit testing at the chart container level using `getBoundingClientRect()`.
 
@@ -349,7 +349,7 @@ Size hover:  [│ +$50.00 ][ − 2 + ][ × ]
 
 Smooth positioning for all `PriceLevelLine` instances during interaction:
 
-- `updatePositions()` calls `line.syncPosition()` on every live line (preview, order, QO-preview, posDragLine), then runs P&L updater closures
+- `updatePositions()` calls `line.syncPosition()` on every live line (preview, order, posDragLine), then runs P&L updater closures
 - **Single RAF coalescing**: All sync triggers (lastPrice subscription, `visibleLogicalRangeChange`, drag mousemove, ResizeObserver, wheel) funnel through a single `scheduleSync()` that uses one `requestAnimationFrame` flag. This guarantees at most one `updatePositions()` call per frame, even when a price tick, a scroll event, and a drag mousemove all fire within the same 16ms window
 - `scheduleOverlaySync` ref is shared between the label-config effect (price subscription) and the sync-loop effect (scroll/drag/resize) so both use the same coalescing flag
 - Also listens to `visibleLogicalRangeChange` (horizontal scroll), `ResizeObserver`, and `wheel` events — all deferred to RAF
@@ -375,10 +375,8 @@ Click label to edit price:
 
 ### Order drag
 - On mouse up calls `orderService.modifyOrder()` with new `stopPrice` or `limitPrice`
-- **Limit entry drag shifts bracket previews**: when dragging a pending limit entry order, all associated SL/TP preview lines shift by the same delta. Two paths:
-  - *QO pending preview* (+ button flow): reads `qoPendingPreview` from store, shifts `qoPreviewLines` and `qoPreviewPrices` ref. On mouseup, optimistically commits shifted prices to `qoPendingPreview` store state. On API error, reverts all positions.
+- **Limit entry drag shifts bracket lines**: when dragging a pending limit entry order, all associated SL/TP lines (Suspended orders or phantom bracket lines from `pendingBracketInfo`) shift by the same delta. On mouseup, optimistically commits shifted prices to `pendingBracketInfo` store state and calls `modifyOrder`. On API error, reverts all positions.
   - *Preview with hidden entry* (Buy/Sell button flow): shifts `previewPrices` and `previewLines` refs using `resolvePreviewConfig()` offsets. On mouseup, updates `limitPrice` in store. On API error, reverts.
-- **Real-time P&L during entry drag**: `qoPreviewPrices.entry` ref field tracks the dragged entry price. P&L updater closures in `useOverlayLabels` read from this ref (not a stale closure) so P&L values update correctly during drag.
 
 ### Position drag
 - Drag from position label to create SL/TP orders directly (see Position label above)
@@ -440,12 +438,12 @@ Status 8 = `Suspended` (renamed from the incorrectly named `Bracket` — the Pro
 
 SignalR delivers Suspended bracket leg orders with `limitPrice=undefined` and `stopPrice=undefined`. Prices are only transmitted when the order transitions to Working (status=1) after the parent entry fills.
 
-**Workaround**: `upsertOrder` in `tradingSlice.ts` injects prices from `qoPendingPreview` when a Suspended order with no prices arrives:
+**Workaround**: `upsertOrder` in `tradingSlice.ts` injects prices from `pendingBracketInfo` when a Suspended order with no prices arrives:
 
-- `customTag` is checked first (reliable — see below). If the tag ends with `-SL`, the `slPrice` from `qoPendingPreview` is injected as `stopPrice`. If it ends with `-TP`, `tpPrices[0]` is injected as `limitPrice`.
+- `customTag` is checked first (reliable — see below). If the tag ends with `-SL`, the `slPrice` from `pendingBracketInfo` is injected as `stopPrice`. If it ends with `-TP`, `tpPrices[0]` is injected as `limitPrice`.
 - Falls back to side+type heuristic when `customTag` is absent: opposite side + Stop/TrailingStop type = SL; opposite side + Limit type = TP.
 
-This makes Suspended bracket legs display at the correct prices in the orders tab immediately after the entry is placed, rather than showing undefined prices.
+This makes Suspended bracket legs display at the correct prices in the orders tab and on the chart immediately after the entry is placed, rather than showing undefined prices.
 
 ---
 
@@ -457,9 +455,9 @@ On entry fill, the gateway always activates the SL/TP at the original tick offse
 
 **This is a known, undocumented ProjectX gateway limitation.**
 
-**Workaround — Post-fill price correction in `OrderPanel.tsx`**: When a bracket leg transitions from Suspended to Working (`status === OrderStatus.Working && order.customTag`), the handler compares the incoming gateway-activated price against `qoPendingPreview.slPrice` or `tpPrices[0]`. If the prices differ by more than 0.001:
+**Workaround — Post-fill price correction in `OrderPanel.tsx`**: When a bracket leg transitions from Suspended to Working (`status === OrderStatus.Working && order.customTag`), the handler compares the incoming gateway-activated price against `pendingBracketInfo.slPrice` or `tpPrices[0]`. If the prices differ by more than 0.001:
 
-1. Calls `orderService.modifyOrder()` with the desired price from `qoPendingPreview`.
+1. Calls `orderService.modifyOrder()` with the desired price from `pendingBracketInfo`.
 2. Calls `upsertOrder()` optimistically so the store reflects the desired price immediately.
 3. Returns early to skip the normal upsert that would write the wrong gateway price.
 
@@ -484,23 +482,20 @@ Uses of `customTag` throughout the codebase:
 | `upsertOrder` (`tradingSlice.ts`) | Primary key for price injection into Suspended legs; `customTag` match takes priority over side+type heuristic |
 | `OrderPanel.tsx` REST refresh guard | Only fires for `!order.customTag` — bracket legs skip the REST refresh |
 | `OrderPanel.tsx` post-fill correction | Checks `order.customTag` to identify bracket legs and determine SL vs TP |
-| `buildQoPendingLabels.ts` cancel handlers | Cancel button calls `orderService.cancelOrder()` + `removeOrder` using the identified bracket leg order |
-| `usePreviewDrag.ts` drag handlers | Finds the Suspended bracket leg by `customTag` to call `modifyOrder` (acknowledged but not honored — see above) |
+| `useOrderDrag.ts` drag handlers | Finds the Suspended bracket leg by `customTag` to call `modifyOrder` (acknowledged but not honored — see above) |
 
 When `customTag` is absent (returns `undefined`), fallback heuristics using `side`, `type`, and `size` are used. These can incorrectly match the wrong order if multiple open orders share the same side/type/size combination.
 
 ---
 
-### Dual line system: qoPreviewLines vs order lines
+### Unified order line rendering
 
-The chart uses two separate systems for displaying SL/TP lines, one for each phase of the bracket lifecycle:
+All order rendering goes through one path: `openOrders[]` → `useOrderLines` → `buildOrderLabels`. There is no longer a "dual line system" with separate `qoPreviewLines`.
 
-- **Before entry fill**: `qoPreviewLines` (managed by `useQuickOrder.ts`) show the SL/TP at the desired prices from `qoPendingPreview`. These are dashed preview-style lines, not real order lines.
-- **After entry fill**: real order lines from `useOrderLines.ts` take over, fed by `openOrders` in the store.
-
-**Problem**: After `upsertOrder` started injecting prices into Suspended orders (so they display correctly in the orders tab), `useOrderLines` began seeing Suspended orders with valid prices and created solid chart lines for them on top of the existing `qoPreviewLines`. This caused a visual glitch: two sets of overlapping SL/TP lines on the chart before the entry filled.
-
-**Fix**: Both `useOrderLines.ts` and `buildOrderLabels.ts` skip orders with `status === OrderStatus.Suspended`. Suspended orders are managed entirely by the `qoPreviewLines` system until the entry fills and they transition to Working.
+- **Suspended orders** (status=8, bracket legs before entry fill) are rendered by `useOrderLines` with **dashed line style**, visually distinguishing them from Working orders (solid lines).
+- **After entry fill**: Suspended orders transition to Working (status=1) and their lines automatically switch to solid style.
+- **Phantom bracket lines**: When `pendingBracketInfo` is set (entry placed with brackets but Suspended legs haven't arrived via SignalR yet), `useOrderLines` creates temporary phantom lines from `pendingBracketInfo` prices. These are replaced by real Suspended order lines as they arrive.
+- **`useQuickOrder.ts`** is now hover-preview-only — it no longer tracks post-placement lines or manages fill/cancel watchers for bracket lines. The `pendingBracketInfo` cleanup (on fill/cancel) is handled by `OrderPanel.tsx`.
 
 ---
 
@@ -508,86 +503,19 @@ The chart uses two separate systems for displaying SL/TP lines, one for each pha
 
 A 1.5-second delayed `searchOpenOrders` REST call fires after any Working order SignalR event to hydrate externally-placed orders (orders opened outside the app that don't appear in the store).
 
-**Problem**: When bracket legs transitioned from Suspended to Working (entry just filled), this REST refresh was triggered for them. But `searchOpenOrders` returns orders at their gateway-activated prices (the original tick offset), not the desired dragged prices stored in `qoPendingPreview`. This overwrote the store with the wrong prices, undoing any optimistic price updates.
+**Problem**: When bracket legs transitioned from Suspended to Working (entry just filled), this REST refresh was triggered for them. But `searchOpenOrders` returns orders at their gateway-activated prices (the original tick offset), not the desired dragged prices stored in `pendingBracketInfo`. This overwrote the store with the wrong prices, undoing any optimistic price updates.
 
 **Fix**: The refresh only fires when `!order.customTag`. Regular Working orders (no `customTag`) trigger the REST refresh normally. Bracket legs (present `customTag`) skip it — they won't appear in `searchOpenOrders` while Suspended, and their post-fill prices are handled entirely by the post-fill correction block described above.
 
 ---
 
-## Quick-Order Pending Preview
+## Pending Bracket Info
 
-After placing via the + button with brackets armed, SL/TP preview lines and labels persist until the entry fills:
-
-### Persistent preview after order placement
-
-Two mechanisms keep the preview visible:
-
-1. **Chart price lines** (`qoPreviewLines`): kept alive by skipping `removePreviewLines()` on click/leave when `pendingFillUnsub` is set.
-
-2. **Overlay labels** (`qoPendingPreview` in store): the overlay label effect reads this state and creates HTML labels (same style as main preview labels) for SL and TP lines. Labels show projected P&L and size.
-
-A Zustand `subscribe()` watches for three events:
-
-1. **Entry order fills or cancels** → full cleanup (all lines + `qoPendingPreview`)
-2. **SL bracket leg cancelled externally** (orders tab) → destroy SL preview line, update `qoPendingPreview.slPrice = null`
-3. **TP bracket leg cancelled externally** (orders tab) → destroy TP preview line, update `qoPendingPreview`
-
-```ts
-let seenSlId: number | null = null;
-let seenTpId: number | null = null;
-
-pendingFillUnsub = useStore.subscribe((state) => {
-  const o = state.openOrders.find((ord) => ord.id === orderId);
-  // Entry filled/cancelled → full cleanup
-  if (!o || o.status === Filled || o.status === Cancelled) {
-    pendingFillUnsub?.();        // unsubscribe FIRST (prevents recursive re-entry)
-    pendingFillUnsub = null;
-    removePreviewLines();
-    setQoPendingPreview(null);   // clears overlay labels
-    return;
-  }
-  // Track Suspended bracket leg IDs as they arrive via SignalR
-  for (const ord of state.openOrders) {
-    if (String(ord.contractId) !== contractId || ord.status !== Suspended) continue;
-    if (seenSlId == null && ord.customTag?.endsWith('-SL')) seenSlId = ord.id;
-    if (seenTpId == null && ord.customTag?.endsWith('-TP')) seenTpId = ord.id;
-  }
-  // SL cancelled via orders tab — clear ID BEFORE store write to prevent re-entry
-  if (seenSlId != null && !state.openOrders.some(o => o.id === seenSlId)) {
-    refs.qoPreviewLines.current.sl?.destroy();
-    refs.qoPreviewLines.current.sl = null;
-    seenSlId = null;
-    const qo = state.qoPendingPreview;
-    if (qo) setQoPendingPreview({ ...qo, slPrice: null });
-  }
-  // TP cancelled via orders tab — same re-entry guard pattern
-  if (seenTpId != null && !state.openOrders.some(o => o.id === seenTpId)) {
-    refs.qoPreviewLines.current.tps[0]?.destroy();
-    refs.qoPreviewLines.current.tps = [];
-    seenTpId = null;
-    const qo = state.qoPendingPreview;
-    if (qo) setQoPendingPreview({ ...qo, tpPrices: [], tpSizes: [] });
-  }
-});
-```
-
-**Critical re-entry rule**: Any closure variable used as a guard (`seenSlId`, `seenTpId`, `pendingFillUnsub`) **must be nulled before the store write** that triggers it. Zustand subscribers fire synchronously — the subscriber re-enters before the line after the write executes. Setting the guard after the write causes `Maximum call stack size exceeded`.
-
-`seenSlId` / `seenTpId` start as `null` and are only set once the Suspended orders arrive via SignalR. This prevents false positives if the subscriber fires before the bracket leg events have been received.
-
-Each label has an independent X cancel button — cancelling a single TP/SL removes only that line and updates the bracket engine's armed config via `bracketEngine.updateArmedConfig()`. Cancel uses **optimistic update with rollback**: the order is removed from the store immediately, then `cancelOrder` is sent to the gateway. If the gateway call fails, the order is re-added to the store via `upsertOrder` and an error toast is shown (`'SL cancel failed'` / `'TP cancel failed'`). This prevents ghost orders (visible in gateway but invisible in UI). A no-op `pendingFillUnsub` placeholder is set synchronously before the async `placeOrder` call so that `onLeave` does not prematurely remove preview lines.
-
-### Quick-order pending preview drag
-
-SL/TP labels from the + button pending preview are draggable (same pattern as order panel preview lines). Drag uses `qoPreviewPricesRef` for flicker-free movement; on mouseup the new price is committed to `qoPendingPreview` store state and `bracketEngine.updateArmedConfig()` so the actual bracket orders use the adjusted prices when the entry fills.
-
-**Optimistic update with rollback**: On mouseup, `usePreviewDrag` updates the store immediately (via `upsertOrder`) then sends `modifyOrder` to the gateway. If the gateway call fails, the store is rolled back to the previous price and an error toast is shown (`'SL modify failed'` / `'TP modify failed'`). This prevents silent divergence between what the UI shows and what the gateway actually has.
-
-> **Note**: `modifyOrder` calls on Suspended orders are acknowledged by the gateway but silently ignored at activation. See the "Native Bracket Order Lifecycle" section for the post-fill correction that handles this.
+After placing via the + button (or Buy/Sell button) with brackets armed, `pendingBracketInfo` tracks the expected bracket prices until the entry fills or is cancelled. This state is persisted to **sessionStorage** so it survives page refreshes.
 
 ### Store state
 
-`qoPendingPreview` in `useStore`:
+`pendingBracketInfo` in `useStore`:
 ```ts
 {
   entryPrice: number;
@@ -599,7 +527,24 @@ SL/TP labels from the + button pending preview are draggable (same pattern as or
 } | null
 ```
 
-Set on click (with brackets), cleared on fill/cancel/effect cleanup. The overlay label effect includes `qoPendingPreview` in its dependency array so labels rebuild automatically.
+`pendingEntryOrderId` in `useStore`: `number | null` — the entry order ID, also persisted to sessionStorage.
+
+Set on click (with brackets), cleared on entry fill/cancel by `OrderPanel.tsx`.
+
+### How it integrates with the unified rendering path
+
+- `useOrderLines` reads `pendingBracketInfo` and creates **phantom bracket lines** (dashed) at the expected SL/TP prices while the real Suspended order events haven't arrived yet from SignalR.
+- Once Suspended orders arrive with prices (injected by `upsertOrder` from `pendingBracketInfo`), the phantom lines are replaced by real Suspended order lines (also dashed).
+- On entry fill, Suspended orders transition to Working and lines become solid. `OrderPanel.tsx` clears `pendingBracketInfo`.
+- On entry cancel, `OrderPanel.tsx` clears `pendingBracketInfo`.
+
+### Suspended order drag
+
+Suspended bracket leg drag is handled by `useOrderDrag.ts` (same as Working order drag). On mouseup, `modifyOrder` is called with the new price. The gateway acknowledges but silently ignores the modify — the post-fill correction in `OrderPanel.tsx` applies the desired price when the leg transitions to Working.
+
+### Bracket leg cancel
+
+Cancel buttons on Suspended order labels use optimistic update with rollback: the order is removed from the store immediately, then `cancelOrder` is sent to the gateway. If the gateway call fails, the order is re-added via `upsertOrder` and an error toast is shown.
 
 ---
 
@@ -666,7 +611,8 @@ interface OrderPanelState {
   draftTpPoints: (number | null)[]
   adHocSlPoints: number | null
   adHocTpLevels: { points: number; size: number }[]
-  qoPendingPreview: { ... } | null
+  pendingBracketInfo: { ... } | null    // persisted to sessionStorage
+  pendingEntryOrderId: number | null     // persisted to sessionStorage
 }
 ```
 
@@ -678,21 +624,20 @@ interface OrderPanelState {
 |------|------|
 | `frontend/src/components/chart/PriceLevelLine.ts` | Unified imperative class — owns horizontal line, label pill, and axis label as HTML elements. Used by all price lines (orders, positions, previews, QO hover). |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Orchestrator: declares refs, init effect, delegates to 6 hooks. Exposes `setCrosshairPrice()` for dual-chart sync. |
-| `frontend/src/components/chart/hooks/useOrderLines.ts` | Orchestrator hook — delegates to 4 sub-hooks, directly manages live order/position `PriceLevelLine` creation |
+| `frontend/src/components/chart/hooks/useOrderLines.ts` | Orchestrator hook — renders ALL orders (Working + Suspended with dashed style) + phantom bracket lines from `pendingBracketInfo` |
 | `frontend/src/components/chart/hooks/usePreviewLines.ts` | Preview line lifecycle: creates/destroys `PriceLevelLine` instances on config change + Zustand price subscription for flicker-free updates |
-| `frontend/src/components/chart/hooks/usePreviewDrag.ts` | Preview line drag: handles entry/SL/TP drag + QO pending preview drag; finds Suspended bracket legs by `customTag` and calls `modifyOrder` on mouseup with optimistic store update + rollback on failure (error toast shown). Gateway may silently ignore Suspended modify — post-fill correction in OrderPanel handles actual price application. |
-| `frontend/src/components/chart/hooks/useOrderDrag.ts` | Live order drag: `orderService.modifyOrder()` with bracket preview shift, SL validation, optimistic updates + rollback |
+| `frontend/src/components/chart/hooks/usePreviewDrag.ts` | Preview line drag: handles entry/SL/TP drag for order panel preview lines |
+| `frontend/src/components/chart/hooks/useOrderDrag.ts` | Live order drag (Working + Suspended): `orderService.modifyOrder()` with bracket line shift, SL validation, optimistic updates + rollback |
 | `frontend/src/components/chart/hooks/usePositionDrag.ts` | Position drag-to-create: drag from position label to place SL/TP orders via `orderService.placeOrder()` |
 | `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
-| `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: creates PriceLevelLine instances with baked-in labels for hover preview |
-| `frontend/src/components/chart/hooks/buildQoPendingLabels.ts` | Builds overlay labels for `qoPendingPreview` SL/TP lines (post-placement pending preview); cancel handlers use optimistic `removeOrder` + `cancelOrder` with rollback (`upsertOrder` + error toast) on failure |
+| `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: hover-preview-only; creates PriceLevelLine instances with baked-in labels for hover preview, no post-placement line tracking |
 | `frontend/src/components/chart/hooks/labelUtils.ts` | Shared utilities: `computeOrderLineColor()` (profit/loss color logic), `installSizeButtons()` (hover-reveal +/- DOM factory), `formatSlPnl()`/`formatTpPnl()` (P&L text), `darken()`, shared color constants, drag helpers |
 | `frontend/src/components/chart/hooks/resolvePreviewConfig.ts` | `resolvePreviewConfig()` — unified BracketConfig resolver; `fitTpsToOrderSize()` — trims TPs to fit within orderSize |
 | `frontend/src/components/order-panel/OrderPanel.tsx` | SignalR event wiring, limit order cancel cleanup, position close auto-cancel |
 | `frontend/src/components/order-panel/BuySellButtons.tsx` | Bracket arming, draft/ad-hoc merge, order placement |
 | `frontend/src/services/orderService.ts` | placeOrder, cancelOrder, modifyOrder, searchOpenOrders |
 | `frontend/src/services/bracketEngine.ts` | Bracket engine (arm/confirm/fill handling) |
-| `frontend/src/store/useStore.ts` | Chart trading state, preview state, draft overrides, ad-hoc brackets, qoPendingPreview |
+| `frontend/src/store/useStore.ts` | Chart trading state, preview state, draft overrides, ad-hoc brackets, pendingBracketInfo (sessionStorage) |
 
 ---
 

@@ -6,17 +6,15 @@ import type { ChartRefs } from './types';
 import { buildPositionLabel } from './buildPositionLabel';
 import { buildOrderLabels } from './buildOrderLabels';
 import { buildPreviewLabels } from './buildPreviewLabels';
-import { buildQoPendingLabels } from './buildQoPendingLabels';
 
 /**
  * Configures labels on PriceLevelLine instances, registers hit targets,
  * and runs the sync loop (scroll/zoom/resize/tick repositioning).
  *
- * Orchestrator — delegates label building to 4 builder functions:
+ * Orchestrator — delegates label building to 3 builder functions:
  *  1. buildPositionLabel — position P&L label + close button
- *  2. buildOrderLabels — open order labels with TP size +/- buttons
+ *  2. buildOrderLabels — open order labels (including Suspended bracket legs)
  *  3. buildPreviewLabels — preview ghost labels (entry, SL, TP)
- *  4. buildQoPendingLabels — quick-order pending bracket labels
  */
 export function useOverlayLabels(
   refs: ChartRefs,
@@ -30,7 +28,7 @@ export function useOverlayLabels(
     bracketPresets, activePresetId,
     orderType, limitPrice, orderSize,
     draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels,
-    qoPendingPreview,
+    pendingBracketInfo,
   } = useStore(useShallow((s) => ({
     openOrders: s.openOrders,
     positions: s.positions,
@@ -47,7 +45,7 @@ export function useOverlayLabels(
     draftTpPoints: s.draftTpPoints,
     adHocSlPoints: s.adHocSlPoints,
     adHocTpLevels: s.adHocTpLevels,
-    qoPendingPreview: s.qoPendingPreview,
+    pendingBracketInfo: s.pendingBracketInfo,
   })));
 
   // -- Label configuration + hit-target registration --
@@ -60,11 +58,6 @@ export function useOverlayLabels(
     // Clear previous labels + hit targets
     for (const line of refs.previewLines.current) line.setLabel(null);
     for (const line of refs.orderLines.current) line.setLabel(null);
-    if (qoPendingPreview) {
-      const qoPrev = refs.qoPreviewLines.current;
-      if (qoPrev.sl) qoPrev.sl.setLabel(null);
-      for (const tp of qoPrev.tps) if (tp) tp.setLabel(null);
-    }
     refs.hitTargets.current = [];
 
     const pnlUpdaters: (() => void)[] = [];
@@ -79,7 +72,7 @@ export function useOverlayLabels(
     if (contract) {
       const result = buildOrderLabels(
         refs, contract, openOrders, positions, activeAccountId,
-        qoPendingPreview, previewHideEntry, previewSide,
+        pendingBracketInfo, previewHideEntry, previewSide,
       );
       pnlUpdaters.push(...result.pnlUpdaters);
       orderLabelsCleanup = result.cleanup;
@@ -90,18 +83,10 @@ export function useOverlayLabels(
       pnlUpdaters.push(...buildPreviewLabels(refs, contract));
     }
 
-    // 4. Quick-order pending preview labels
-    if (qoPendingPreview && contract) {
-      pnlUpdaters.push(...buildQoPendingLabels(refs, contract, qoPendingPreview));
-    }
-
     // --- Sync function (repositions all lines + updates P&L) ---
     function updatePositions() {
       for (const line of refs.previewLines.current) line.syncPosition();
       for (const line of refs.orderLines.current) line.syncPosition();
-      const qoLines = refs.qoPreviewLines.current;
-      if (qoLines.sl) qoLines.sl.syncPosition();
-      for (const tp of qoLines.tps) if (tp) tp.syncPosition();
       if (refs.posDragLine.current) refs.posDragLine.current.syncPosition();
 
       if (refs.posDragLabel.current && refs.posDrag.current && refs.series.current) {
@@ -135,17 +120,12 @@ export function useOverlayLabels(
       orderLabelsCleanup?.();
       for (const line of refs.previewLines.current) line.setLabel(null);
       for (const line of refs.orderLines.current) line.setLabel(null);
-      if (qoPendingPreview) {
-        const qoClean = refs.qoPreviewLines.current;
-        if (qoClean.sl) qoClean.sl.setLabel(null);
-        for (const tp of qoClean.tps) if (tp) tp.setLabel(null);
-      }
       refs.hitTargets.current = [];
       refs.updateOverlay.current = () => {};
     };
   }, [isOrderChart, openOrders, positions, contract, activeAccountId, previewEnabled, previewSide, previewHideEntry,
     bracketPresets, activePresetId, orderType, limitPrice, orderSize,
-    draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels, qoPendingPreview]);
+    draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels, pendingBracketInfo]);
 
   // -- Sync overlay positions on chart scroll/zoom/resize/price-scale-drag --
   useEffect(() => {

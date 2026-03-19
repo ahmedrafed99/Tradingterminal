@@ -318,7 +318,7 @@ This already happens naturally in the adapter pattern — just document it as a 
 
 ---
 
-## Unify Order Line Rendering (Pending)
+## Unify Order Line Rendering ✅
 
 The chart has 2 parallel rendering paths for order lines: one for "normal" orders (`useOrderLines`) and one for quick-order pending brackets (`useQuickOrder` + `buildQoPendingLabels`). The QO path maintains its own local `PriceLevelLine` array, its own fill/cancel watcher, its own drag handlers, and its own label builder — all for orders that are just regular Suspended orders on the server. This split is the root cause of the TP/SL bracket lines vanishing after refresh (issue #1) and the overall complexity.
 

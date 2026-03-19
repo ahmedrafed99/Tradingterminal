@@ -8,9 +8,9 @@ This file tracks known architectural issues and improvement suggestions. These a
 
 ### 1.1 Replace heuristic bracket leg identification with customTag throughout
 
-**Problem**: In several places, bracket legs are identified by matching `side + type + size` against `qoPendingPreview`. This is fragile — it can match the wrong order if multiple bracket orders of similar shape are open simultaneously.
+**Problem**: In several places, bracket legs are identified by matching `side + type + size` against `pendingBracketInfo`. This is fragile — it can match the wrong order if multiple bracket orders of similar shape are open simultaneously.
 
-**Current heuristic pattern** (in tradingSlice.ts, buildQoPendingLabels.ts, usePreviewDrag.ts):
+**Current heuristic pattern** (in tradingSlice.ts, buildOrderLabels.ts):
 ```typescript
 const isSl = order.customTag?.endsWith('-SL') ?? (
   order.side === oppSide && (order.type === OrderType.Stop || order.type === OrderType.TrailingStop)
@@ -19,7 +19,7 @@ const isSl = order.customTag?.endsWith('-SL') ?? (
 
 **Desired**: Remove the `?? (heuristic)` fallback entirely. Require `customTag` to be present and correct. Log a warning if it's missing. This requires verifying that the ProjectX gateway _always_ sends `customTag` for bracket legs (confirmed via logs: `AutoBracket{guid}-SL` / `-TP`).
 
-**Files affected**: `tradingSlice.ts:97-107`, `buildQoPendingLabels.ts:51-56`, `buildQoPendingLabels.ts:111-119`, `usePreviewDrag.ts:127-132`, `usePreviewDrag.ts:156-163`
+**Files affected**: `tradingSlice.ts`, `buildOrderLabels.ts`
 
 **Risk**: Low — customTag has been confirmed reliable in production logs. The heuristic fallback was a defensive measure added before customTag was discovered.
 
@@ -37,17 +37,9 @@ However, the 2+ TP path does NOT use native brackets (it places TPs via bracketE
 
 ---
 
-### 1.3 qoPendingPreview is not cleared after post-fill correction
+### 1.3 ~~pendingBracketInfo is not cleared after post-fill correction~~ RESOLVED
 
-**Problem**: `qoPendingPreview` is set when a quick order (+) is placed with brackets, and cleared by `pendingFillUnsub` in `useQuickOrder.ts` when the entry fills. The post-fill correction in `OrderPanel.tsx` fires when the bracket legs transition to Working (after entry fill), but relies on `qoPendingPreview` still being populated at that moment.
-
-The `pendingFillUnsub` clears it when `order.status === 2 (Filled)` for the entry order. The bracket legs transition to Working shortly after the entry fills. There's a race: if the `pendingFillUnsub` subscriber fires and clears `qoPendingPreview` before the bracket leg Working events arrive, the post-fill correction silently skips (no crash, just no correction).
-
-**In practice**: SignalR events arrive in the order: entry Filled → bracket legs Working. JavaScript is single-threaded and the Zustand subscriber runs synchronously, so in practice this works. But it's dependent on event ordering.
-
-**Desired**: Store `qoPendingPreview` prices in a stable ref or delay clearing it until after bracket legs are confirmed Working.
-
-**Files affected**: `OrderPanel.tsx:243-270`, `useQuickOrder.ts` (pendingFillUnsub subscriber)
+**Status**: Resolved by unified order line refactor. `pendingBracketInfo` is now persisted to sessionStorage and cleared by `OrderPanel.tsx` on entry fill/cancel. `useQuickOrder.ts` no longer manages post-placement state or fill watchers, eliminating the race condition between `pendingFillUnsub` and the post-fill correction.
 
 ---
 
@@ -76,13 +68,9 @@ The `pendingFillUnsub` clears it when `order.status === 2 (Filled)` for the entr
 
 ## Priority 2 — Medium Risk
 
-### 2.1 Suspended order chart lines are excluded by status check — but should be excluded by qoPendingPreview
+### 2.1 ~~Suspended order chart lines are excluded by status check~~ RESOLVED
 
-**Problem**: `useOrderLines.ts` and `buildOrderLabels.ts` skip `OrderStatus.Suspended` orders to prevent duplicate lines over `qoPreviewLines`. This is correct, but it means that if a Suspended order arrives WITHOUT a corresponding `qoPendingPreview` (e.g. externally placed bracket order, or after page refresh), it will never appear on the chart at all — not as a preview line and not as an order line.
-
-**Desired**: The exclusion logic should check for the presence of a matching `qoPendingPreview` entry rather than unconditionally skipping all Suspended orders. This would correctly show Suspended orders that weren't placed through the + button.
-
-**Files affected**: `useOrderLines.ts:67`, `buildOrderLabels.ts:118`
+**Status**: Resolved by unified order line refactor. `useOrderLines` now renders ALL orders including Suspended (with dashed line style). There is no longer a separate `qoPreviewLines` system, so no exclusion is needed.
 
 ---
 
@@ -90,7 +78,7 @@ The `pendingFillUnsub` clears it when `order.status === 2 (Filled)` for the entr
 
 **Problem**: The 1.5s delayed `searchOpenOrders` REST call was added to hydrate bracket prices for Suspended orders. But:
 - Suspended orders are excluded from `searchOpenOrders` (gateway only returns Working orders)
-- After our fix, Suspended prices are injected from `qoPendingPreview` instead
+- After our fix, Suspended prices are injected from `pendingBracketInfo` instead
 - The guard `!order.customTag` correctly prevents this from firing for bracket legs post-fill
 
 The refresh is still useful for one case: detecting externally placed orders that haven't arrived via SignalR. But the variable name `bracketRefreshTimerRef` and the surrounding comment are misleading.
@@ -153,12 +141,12 @@ The bug required navigating four interacting systems:
 
 1. **Undocumented gateway behavior** — The ProjectX API swagger documents `status=8` as "Suspended" but says nothing about prices being absent or modifyOrder being silently ignored. This had to be discovered from live logs.
 
-2. **Two separate visual representations** — Before fill: `qoPreviewLines` (chart DOM elements). After fill: Zustand store `openOrders` → `useOrderLines` chart lines. Both existed simultaneously during the transition window, causing visual glitches when prices were injected into the store.
+2. **Two separate visual representations** (now resolved) — Before fill: `qoPreviewLines` (chart DOM elements). After fill: Zustand store `openOrders` → `useOrderLines` chart lines. Both existed simultaneously during the transition window, causing visual glitches when prices were injected into the store. This was resolved by the unified order line rendering refactor — all orders now render through `useOrderLines`.
 
 3. **Enum misname** — `OrderStatus.Bracket = 8` instead of `Suspended = 8` made the code misleading. Every reader had to mentally translate "bracket" to "suspended-contingent" to understand what the status meant.
 
 4. **Silent gateway failures** — `modifyOrder` on a Suspended order returns success but does nothing. There was no error, no warning — just the order activating at the wrong price after fill. Silent failures are the hardest class of bug to diagnose.
 
-5. **Race-dependent correctness** — The post-fill correction relies on `qoPendingPreview` being non-null when bracket leg Working events arrive. This works due to JavaScript's event loop ordering, but the dependency is invisible in the code.
+5. **Race-dependent correctness** — The post-fill correction relies on `pendingBracketInfo` being non-null when bracket leg Working events arrive. This works due to JavaScript's event loop ordering, but the dependency is invisible in the code.
 
 The code architecture itself is sound — the split into hooks, the bracket engine pattern, the Zustand slice design. The difficulty came entirely from working against an underdocumented external API.

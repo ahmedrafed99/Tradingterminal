@@ -3,9 +3,8 @@ import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
-import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
+import { OrderType, OrderSide } from '../../../types/enums';
 import { orderService } from '../../../services/orderService';
-import type { PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { pointsToPrice, calcPnl } from '../../../utils/instrument';
 import { snapToTickSize, getPriceScaleWidth } from '../barUtils';
@@ -15,7 +14,7 @@ import { isFuturesMarketOpen } from '../../../utils/marketHours';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_DIM, COLOR_BORDER } from '../../../constants/colors';
-import { BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT, CLOSE_BG } from './labelUtils';
+import { BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT } from './labelUtils';
 
 export function useQuickOrder(
   refs: ChartRefs,
@@ -46,26 +45,18 @@ export function useQuickOrder(
     let isBuy = true;
     let isHovered = false;
     let hideTimer: number | null = null;
-    let qoPreviewLines: PriceLevelLine[] = [];
-    let pendingFillUnsub: (() => void) | null = null;
-    let qoComputedPrices: {
-      entryPrice: number; slPrice: number | null;
-      tpPrices: number[]; tpSizes: number[];
-      side: 0 | 1; orderSize: number;
-    } | null = null;
+    let hoverPreviewLines: PriceLevelLine[] = [];
     let isDragging = false;
     let awaitingClick = false;
     let cancelAwaitHandler: ((e: MouseEvent) => void) | null = null;
 
     function removePreviewLines() {
-      qoPreviewLines.forEach((l) => l.destroy());
-      qoPreviewLines = [];
-      refs.qoPreviewLines.current = { sl: null, tps: [] };
+      hoverPreviewLines.forEach((l) => l.destroy());
+      hoverPreviewLines = [];
     }
 
     function createPreviewLines() {
       removePreviewLines();
-      qoComputedPrices = null;
       if (snappedPrice == null) return;
       const st = useStore.getState();
       const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
@@ -82,13 +73,11 @@ export function useQuickOrder(
         lineColor: COLOR_TEXT_MUTED, lineStyle: 'dashed', lineWidth: 1,
         axisLabelVisible: true, tickSize,
       });
-      qoPreviewLines.push(entryLine);
+      hoverPreviewLines.push(entryLine);
 
       // SL line (with P&L label)
-      let computedSlPrice: number | null = null;
-      refs.qoPreviewLines.current = { sl: null, tps: [] };
       if (bc.stopLoss.points > 0) {
-        computedSlPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
+        const computedSlPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
         const slDiff = side === OrderSide.Buy ? ep - computedSlPrice : computedSlPrice - ep;
         const slPnl = calcPnl(slDiff, contract!, st.orderSize);
         const slLine = new PriceLevelLine({
@@ -100,18 +89,13 @@ export function useQuickOrder(
             { text: String(st.orderSize), bg: SELL_COLOR, color: LABEL_TEXT },
           ],
         });
-        qoPreviewLines.push(slLine);
-        refs.qoPreviewLines.current.sl = slLine;
+        hoverPreviewLines.push(slLine);
       }
 
       // TP lines (with P&L labels) — trim to fit within orderSize
       const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
-      const computedTpPrices: number[] = [];
-      const computedTpSizes: number[] = [];
       fittedTps.forEach((tp) => {
         const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
-        computedTpPrices.push(tpPrice);
-        computedTpSizes.push(tp.size);
         const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
         const tpPnl = calcPnl(tpDiff, contract!, tp.size);
         const tpLine = new PriceLevelLine({
@@ -123,19 +107,12 @@ export function useQuickOrder(
             { text: String(tp.size), bg: BUY_COLOR, color: LABEL_TEXT },
           ],
         });
-        qoPreviewLines.push(tpLine);
-        refs.qoPreviewLines.current.tps.push(tpLine);
+        hoverPreviewLines.push(tpLine);
       });
-
-      qoComputedPrices = {
-        entryPrice: ep, slPrice: computedSlPrice,
-        tpPrices: computedTpPrices, tpSizes: computedTpSizes,
-        side, orderSize: st.orderSize,
-      };
     }
 
     function updatePreviewPrices(ep: number) {
-      if (qoPreviewLines.length === 0) return;
+      if (hoverPreviewLines.length === 0) return;
       const st = useStore.getState();
       const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
       const bc = activePreset?.config;
@@ -143,29 +120,29 @@ export function useQuickOrder(
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
       // Entry line (index 0)
-      qoPreviewLines[0].setPrice(ep);
-      qoPreviewLines[0].syncPosition();
+      hoverPreviewLines[0].setPrice(ep);
+      hoverPreviewLines[0].syncPosition();
 
       let lineIdx = 1;
       if (bc) {
-        if (bc.stopLoss.points > 0 && qoPreviewLines[lineIdx]) {
+        if (bc.stopLoss.points > 0 && hoverPreviewLines[lineIdx]) {
           const slPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
-          qoPreviewLines[lineIdx].setPrice(slPrice);
-          qoPreviewLines[lineIdx].syncPosition();
+          hoverPreviewLines[lineIdx].setPrice(slPrice);
+          hoverPreviewLines[lineIdx].syncPosition();
           const slDiff = side === OrderSide.Buy ? ep - slPrice : slPrice - ep;
           const slPnl = calcPnl(slDiff, contract!, st.orderSize);
-          qoPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, SELL_COLOR);
+          hoverPreviewLines[lineIdx].updateSection(0, `-$${Math.abs(slPnl).toFixed(2)}`, SELL_COLOR);
           lineIdx++;
         }
         const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
         fittedTps.forEach((tp) => {
-          if (!qoPreviewLines[lineIdx]) return;
+          if (!hoverPreviewLines[lineIdx]) return;
           const tpPrice = side === OrderSide.Buy ? ep + toPrice(tp.points) : ep - toPrice(tp.points);
-          qoPreviewLines[lineIdx].setPrice(tpPrice);
-          qoPreviewLines[lineIdx].syncPosition();
+          hoverPreviewLines[lineIdx].setPrice(tpPrice);
+          hoverPreviewLines[lineIdx].syncPosition();
           const tpDiff = side === OrderSide.Buy ? tpPrice - ep : ep - tpPrice;
           const tpPnl = calcPnl(tpDiff, contract!, tp.size);
-          qoPreviewLines[lineIdx].updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, BUY_COLOR);
+          hoverPreviewLines[lineIdx].updateSection(0, `+$${Math.abs(tpPnl).toFixed(2)}`, BUY_COLOR);
           lineIdx++;
         });
       }
@@ -381,9 +358,7 @@ export function useQuickOrder(
       if (snappedPrice != null && timeToUse != null) {
         chart.setCrosshairPosition(snappedPrice, timeToUse as Parameters<typeof chart.setCrosshairPosition>[1], series);
       }
-      if (!pendingFillUnsub) {
-        createPreviewLines();
-      }
+      createPreviewLines();
     };
 
     const onLeave = () => {
@@ -396,9 +371,7 @@ export function useQuickOrder(
       plusEl.style.borderRadius = '2px';
       plusEl.style.background = COLOR_BORDER;
       chart.clearCrosshairPosition();
-      if (!pendingFillUnsub) {
-        removePreviewLines();
-      }
+      removePreviewLines();
       hideTimer = window.setTimeout(() => {
         if (!isHovered) el.style.display = 'none';
       }, 100);
@@ -409,7 +382,6 @@ export function useQuickOrder(
       if (!isFuturesMarketOpen()) {
         showToast('warning', 'Market closed', 'Futures market is closed. Orders cannot be placed.');
         removePreviewLines();
-        useStore.getState().setQoPendingPreview(null);
         return;
       }
       const st = useStore.getState();
@@ -461,11 +433,11 @@ export function useQuickOrder(
             bracketsArmed = true;
           }
 
-          // Publish pending preview for overlay labels — trim TPs to fit orderSize
+          // Store bracket info so useOrderLines can render Suspended legs with correct prices
           const toP = (points: number) => pointsToPrice(points, contract!);
           const ep = snappedPrice;
           const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
-          st.setQoPendingPreview({
+          st.setPendingBracketInfo({
             entryPrice: ep,
             slPrice: bc.stopLoss.points > 0
               ? (side === OrderSide.Buy ? ep - toP(bc.stopLoss.points) : ep + toP(bc.stopLoss.points))
@@ -480,19 +452,8 @@ export function useQuickOrder(
         }
       }
 
-      // Remove hover labels (labels on preview lines)
-      for (const line of qoPreviewLines) line.setLabel(null);
-      if (!bracketsArmed && !nativeBrackets) {
-        removePreviewLines();
-      } else {
-        // Destroy the entry reference line — the live order line replaces it
-        const entryLine = qoPreviewLines.shift();
-        if (entryLine) entryLine.destroy();
-      }
-
-      // Set placeholder immediately so onLeave won't remove preview lines
-      // before the async .then() replaces it with the real subscription
-      if (bracketsArmed || nativeBrackets) pendingFillUnsub = () => {};
+      // Destroy all hover preview lines — useOrderLines will render the Suspended orders
+      removePreviewLines();
 
       orderService.placeOrder({
         accountId: st.activeAccountId,
@@ -507,67 +468,17 @@ export function useQuickOrder(
         if (bracketsArmed) {
           bracketEngine.confirmEntryOrderId(orderId);
         }
+        // Store the entry order ID so OrderPanel can clear pendingBracketInfo on fill/cancel
         if (bracketsArmed || nativeBrackets) {
-          // Keep preview lines until entry fills/cancels, then remove.
-          // Also detect individual bracket leg cancellations from the orders tab.
-          let seenSlId: string | null = null;
-          let seenTpId: string | null = null; // at most 1 Suspended TP exists pre-fill (0-1 TP path)
-          pendingFillUnsub = useStore.subscribe((state) => {
-            const o = state.openOrders.find((ord) => ord.id === orderId);
-            // Entry filled/cancelled → full cleanup
-            if (!o || o.status === OrderStatus.Filled || o.status === OrderStatus.Cancelled) {
-              // Unsubscribe FIRST to prevent recursive re-entry from setQoPendingPreview
-              pendingFillUnsub?.();
-              pendingFillUnsub = null;
-              removePreviewLines();
-              useStore.getState().setQoPendingPreview(null);
-              return;
-            }
-
-            // Track Suspended bracket leg IDs as they arrive via SignalR
-            const cid = contract!.id;
-            for (const ord of state.openOrders) {
-              if (String(ord.contractId) !== String(cid) || ord.status !== OrderStatus.Suspended) continue;
-              if (seenSlId == null && ord.customTag?.endsWith('-SL')) seenSlId = ord.id;
-              if (seenTpId == null && ord.customTag?.endsWith('-TP')) seenTpId = ord.id;
-            }
-
-            // SL cancelled via orders tab — destroy its preview line.
-            // Clear seenSlId BEFORE the store write to prevent recursive re-entry.
-            if (seenSlId != null && !state.openOrders.some(ord => ord.id === seenSlId)) {
-              const sl = refs.qoPreviewLines.current.sl;
-              if (sl) { sl.destroy(); refs.qoPreviewLines.current.sl = null; }
-              seenSlId = null;
-              const qo = state.qoPendingPreview;
-              if (qo) useStore.getState().setQoPendingPreview({ ...qo, slPrice: null });
-            }
-
-            // TP cancelled via orders tab — destroy its preview line.
-            // Clear seenTpId BEFORE the store write to prevent recursive re-entry.
-            if (seenTpId != null && !state.openOrders.some(ord => ord.id === seenTpId)) {
-              const tp = refs.qoPreviewLines.current.tps[0];
-              if (tp) { tp.destroy(); refs.qoPreviewLines.current.tps[0] = null; }
-              seenTpId = null;
-              const qo = state.qoPendingPreview;
-              if (qo) {
-                refs.qoPreviewLines.current.tps = refs.qoPreviewLines.current.tps.filter((_, i) => i !== 0);
-                useStore.getState().setQoPendingPreview({ ...qo, tpPrices: [], tpSizes: [] });
-              }
-            }
-          });
+          st.setPendingEntryOrderId(orderId);
         }
       }).catch((err) => {
         showToast('error', 'Quick order failed', errorMessage(err));
-        // Cleanup: remove stale preview state
-        if (pendingFillUnsub) {
-          pendingFillUnsub();
-          pendingFillUnsub = null;
-        }
         if (bracketsArmed) {
           bracketEngine.clearSession();
         }
-        useStore.getState().setQoPendingPreview(null);
-        removePreviewLines();
+        useStore.getState().setPendingBracketInfo(null);
+        useStore.getState().setPendingEntryOrderId(null);
       });
     }
 
@@ -695,10 +606,6 @@ export function useQuickOrder(
       sizePlusEl = null;
       sizeButtonsActive = false;
       refs.qoHovered.current = false;
-      if (pendingFillUnsub) {
-        pendingFillUnsub(); pendingFillUnsub = null;
-        useStore.getState().setQoPendingPreview(null);
-      }
       removePreviewLines();
       chart.unsubscribeCrosshairMove(onMove);
       wrap.removeEventListener('mouseenter', onEnter);

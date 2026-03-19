@@ -151,13 +151,15 @@ interface OrderPanelState {
   updateAdHocTpPoints: (index: number, points: number) => void
   clearAdHocBrackets: () => void
 
-  // Quick Order pending preview (tracks SL/TP while entry is pending fill)
-  qoPendingPreview: {
+  // Pending bracket info (tracks SL/TP while entry is pending fill — persisted to sessionStorage)
+  pendingBracketInfo: {
     entryPrice: number; slPrice: number | null;
     tpPrices: number[]; side: OrderSide;
     orderSize: number; tpSizes: number[];
   } | null
-  setQoPendingPreview: (preview: ...) => void
+  setPendingBracketInfo: (preview: ...) => void
+  pendingEntryOrderId: number | null
+  setPendingEntryOrderId: (id: number | null) => void
 
   // Actions
   setOrderContract: (contract: Contract) => void
@@ -230,7 +232,7 @@ After any Working (status=1) order event, a 1.5-second delayed `searchOpenOrders
 This guard fires **only for `!order.customTag`** (regular Working orders). Bracket legs skip the REST refresh for two reasons:
 
 1. While Suspended (status=8), bracket legs do not appear in `searchOpenOrders` at all — the endpoint only returns Working orders.
-2. After transition to Working (post-fill), `searchOpenOrders` returns orders at their gateway-activated prices (the original bracket tick offset), which would overwrite the desired dragged prices stored in `qoPendingPreview`. The post-fill correction block handles price accuracy for bracket legs instead.
+2. After transition to Working (post-fill), `searchOpenOrders` returns orders at their gateway-activated prices (the original bracket tick offset), which would overwrite the desired dragged prices stored in `pendingBracketInfo`. The post-fill correction block handles price accuracy for bracket legs instead.
 
 ### Post-fill price correction
 
@@ -238,9 +240,9 @@ This guard fires **only for `!order.customTag`** (regular Working orders). Brack
 
 When `order.status === OrderStatus.Working && order.customTag`, the handler executes the post-fill correction:
 
-1. Reads `qoPendingPreview` and `activeAccountId` from the store.
-2. For an `-SL` bracket leg: compares `order.stopPrice` against `qoPendingPreview.slPrice`. If they differ by more than 0.001, calls `orderService.modifyOrder()` with `stopPrice: qo.slPrice` and calls `upsertOrder()` optimistically with the desired price, then returns early.
-3. For a `-TP` bracket leg: compares `order.limitPrice` against `qoPendingPreview.tpPrices[0]`. If they differ by more than 0.001, calls `orderService.modifyOrder()` with `limitPrice: qo.tpPrices[0]` and calls `upsertOrder()` optimistically with the desired price, then returns early.
+1. Reads `pendingBracketInfo` and `activeAccountId` from the store.
+2. For an `-SL` bracket leg: compares `order.stopPrice` against `pendingBracketInfo.slPrice`. If they differ by more than 0.001, calls `orderService.modifyOrder()` with `stopPrice: qo.slPrice` and calls `upsertOrder()` optimistically with the desired price, then returns early.
+3. For a `-TP` bracket leg: compares `order.limitPrice` against `pendingBracketInfo.tpPrices[0]`. If they differ by more than 0.001, calls `orderService.modifyOrder()` with `limitPrice: qo.tpPrices[0]` and calls `upsertOrder()` optimistically with the desired price, then returns early.
 
 The early return skips the normal `upsertOrder` path that would write the wrong gateway-activated price into the store. The optimistic update ensures the chart and orders tab show the user's intended price immediately while the `modifyOrder` API call is in flight.
 

@@ -26,7 +26,7 @@ import { useOverlayLabels } from './hooks/useOverlayLabels';
 import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
-import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, QoPreviewLines, PosDragState } from './hooks/types';
+import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
   chartId: 'left' | 'right';
@@ -73,10 +73,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const labelHoveredRef = useRef(false);
 
   // --- Refs declared here for all hooks (stable across renders) ---
-
-  // Quick-order preview line refs
-  const qoPreviewLinesRef = useRef<QoPreviewLines>({ sl: null, tps: [] });
-  const qoPreviewPricesRef = useRef<{ entry: number; sl: number | null; tps: number[] }>({ entry: 0, sl: null, tps: [] });
 
   // Preview line refs
   const previewLinesRef = useRef<PriceLevelLine[]>([]);
@@ -152,8 +148,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     orderLineMeta: orderLineMetaRef,
     orderLinePrices: orderLinePricesRef,
     orderDragState: orderDragStateRef,
-    qoPreviewLines: qoPreviewLinesRef,
-    qoPreviewPrices: qoPreviewPricesRef,
     posDrag: posDragRef,
     posDragLine: posDragLineRef,
     posDragLabel: posDragLabelRef,

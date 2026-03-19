@@ -15,7 +15,7 @@ store/
     ├── connectionSlice.ts   ← auth state, accounts, connection status
     ├── instrumentSlice.ts   ← contracts, timeframes, pinned instruments
     ├── tradingSlice.ts      ← orders, positions, order panel state, bracket presets
-    │                           upsertOrder enrichments: (1) injects prices from qoPendingPreview
+    │                           upsertOrder enrichments: (1) injects prices from pendingBracketInfo
     │                           for Suspended bracket legs that arrive without prices; (2) price-
     │                           preserving merge for all orders (status-only updates do not erase
     │                           previously known prices)
@@ -218,7 +218,7 @@ All services call the local Express proxy (never ProjectX directly). See `docs/a
 
 **Important gateway behavior for `Suspended` orders**:
 - Never appears in `searchOpenOrders` REST responses — the gateway only returns Working orders
-- SignalR delivers Suspended bracket legs with no `limitPrice` / `stopPrice` — prices must be sourced from `qoPendingPreview` in the store and injected by `upsertOrder`
+- SignalR delivers Suspended bracket legs with no `limitPrice` / `stopPrice` — prices must be sourced from `pendingBracketInfo` in the store and injected by `upsertOrder`
 - `modifyOrder` called on a Suspended order is acknowledged (no error) but silently ignored by the gateway until the parent entry fills
 
 ---
@@ -236,13 +236,12 @@ Large chart hooks have been split into focused sub-hooks:
 | `useConditionPreviewDrag` | Preview drag handling |
 | `useConditionLinesSync` | Repositioning sync loop |
 
-### `useOverlayLabels` → 5 files
+### `useOverlayLabels` → 4 files
 | Hook | Responsibility |
 |------|---------------|
 | `usePositionLabel` | Position label lifecycle |
-| `useOrderLabels` | Open order labels |
+| `useOrderLabels` | Open order labels (Working + Suspended) |
 | `usePreviewLabels` | Preview ghost labels |
-| `useQoPendingLabels` | Quick-order pending labels |
 | `useOverlaySyncLoop` | Sync loop setup |
 
 ### `useChartDrawings` → 4 files
