@@ -1,36 +1,42 @@
-# Error Handling Issues
+# Known Issues
 
-Audit of try-catch blocks across the codebase. All items below need proper error handling.
+## 1. TP/SL bracket lines vanish after page refresh
 
----
+**Status:** Open
+**Severity:** High — user loses visual confirmation of pending bracket orders
 
-## Critical — Silent Error Swallowing (`.catch(() => {})`)
+### Symptom
 
-### Frontend
+After submitting a quick order with TP/SL brackets (entry not yet filled), all three lines (entry, SL, TP) display correctly. On page refresh, only the entry line remains — SL and TP lines disappear.
 
-- [x] **App.tsx** (lines 91, 103, 117, 134) — Contract search, order contract setup, session trades fetch
-- [x] **OrderPanel.tsx** (lines 128, 221, 237, 248, 382) — Position fetch, order refresh/modify, last price fetch
-- [x] **ChartArea.tsx** (line 46) — MNQ contract auto-load
-- [x] **ConditionsTab.tsx** (line 79) — Initial conditions fetch
-- [x] **TradesTab.tsx** (lines 67, 95, 120) — Trades fetch and count computation
-- [x] **TopBar.tsx** (line 96) — Account search
-- [x] **useSettingsSync.ts** (lines 73, 100, 122) — Settings persistence (including page unload)
+### Root Cause
 
-### Backend
+Two rendering systems both refuse to draw Suspended bracket orders after refresh:
 
-- [x] **barAggregator.ts** (line 221) — Initial poll on startup
-- [x] **backfillService.ts** (lines 328, 331) — Auto-sync startup and periodic sync
-- [x] **databaseService.ts** (lines 296, 299) — Auto-backup startup and periodic backup
+1. **`useOrderLines`** ([useOrderLines.ts:68](frontend/src/components/chart/hooks/useOrderLines.ts#L68)) intentionally skips `Suspended` orders because `qoPendingPreview` is supposed to render them.
+2. **`useOverlayLabels`** ([useOverlayLabels.ts:94](frontend/src/components/chart/hooks/useOverlayLabels.ts#L94)) skips `buildQoPendingLabels()` entirely because `qoPendingPreview` is `null`.
 
----
+`qoPendingPreview` is in-memory Zustand state ([tradingSlice.ts:252](frontend/src/store/slices/tradingSlice.ts#L252)) — set only at order submission time ([useQuickOrder.ts:464-480](frontend/src/components/chart/hooks/useQuickOrder.ts#L464-L480)) and never persisted. On refresh, the store reinitializes to `null`, so the Suspended bracket orders exist in `openOrders[]` (fetched from the server) but no rendering path picks them up.
 
-## Warning — DEV-Only Logging (Silent in Production)
+### Data Flow
 
-- [x] **OrderPanel.tsx** (lines 62-63, 143) — Trade fetch for position inference, order REST fetch — removed DEV gate
+```
+BEFORE REFRESH (works):
+  openOrders[Entry=Working, SL=Suspended, TP=Suspended]
+  qoPendingPreview = { entryPrice, slPrice, tpPrices, ... }
+  → useOrderLines renders Entry (skips Suspended)
+  → qoPendingPreview renders SL + TP lines       ✅
 
----
+AFTER REFRESH (broken):
+  openOrders[Entry=Working, SL=Suspended, TP=Suspended]  ← server returns all 3
+  qoPendingPreview = null                                 ← lost, not persisted
+  → useOrderLines skips Suspended                         ⛔
+  → qoPendingPreview is null, labels block skipped        ⛔
+  → SL + TP lines orphaned — nobody renders them          💀
+```
 
-## Warning — Comment-Only Catch Bodies
+### Fix Options
 
-- [x] **ConditionsTab.tsx** (lines 112-113, 124-125) — `// toast handled by SSE`, `// stay in list on failure`
-- [x] **DatabaseTab.tsx** (lines 34-36, 59-61, 80-82, 108, 115) — Multiple `// silent` blocks
+1. **Reconstruct `qoPendingPreview`** from Suspended orders in `openOrders[]` on page load (entry price, SL/TP prices are on the order objects).
+2. **Fallback in `useOrderLines`**: render Suspended orders when `qoPendingPreview` is `null`.
+3. **Persist `qoPendingPreview`** to sessionStorage.
