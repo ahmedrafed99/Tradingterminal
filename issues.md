@@ -35,8 +35,23 @@ AFTER REFRESH (broken):
   → SL + TP lines orphaned — nobody renders them          💀
 ```
 
-### Fix Options
+### Previous Fix Attempts (reverted)
 
-1. **Reconstruct `qoPendingPreview`** from Suspended orders in `openOrders[]` on page load (entry price, SL/TP prices are on the order objects).
-2. **Fallback in `useOrderLines`**: render Suspended orders when `qoPendingPreview` is `null`.
-3. **Persist `qoPendingPreview`** to sessionStorage.
+Several approaches were tried and reverted (commits `b5479ae`–`0989f98`) because fixing the refresh case broke the normal flow:
+
+1. **Rehydration effect in `useOrderLines`** — persisted `qoPendingPreview` to sessionStorage and added a separate effect to recreate dashed preview lines after refresh. Failed because two systems (useQuickOrder + useOrderLines) were managing the same preview lines, causing timing races: lines were destroyed by useQuickOrder's cleanup before the rehydration effect could run, or the fill/cancel watcher missed state transitions due to effect ordering.
+
+2. **Enriching `setOpenOrders`** — injected `qoPendingPreview` prices into Suspended orders during REST bulk load. Failed because REST `searchOpenOrders` does not return Suspended bracket legs at all — there's nothing to enrich.
+
+3. **Subscribing to `qoPendingPreview` in live-lines effect** — made the effect reactive to preview state changes. Caused conflicts with useQuickOrder's line management: the effect destroyed and recreated preview lines that useQuickOrder was tracking in its local array, breaking the fill/cancel cleanup path.
+
+**Key lesson:** preview line lifecycle must stay in ONE place. useQuickOrder already manages creation, tracking (local array), and cleanup (pendingFillUnsub → removePreviewLines). The rehydration should happen inside useQuickOrder's effect body, reusing the same local array and watcher pattern.
+
+### Fix Plan
+
+Add rehydration to `useQuickOrder`'s effect body (not useOrderLines):
+
+1. **Persist `qoPendingPreview` to sessionStorage** in tradingSlice setter; rehydrate on store init.
+2. **Store `entryOrderId`** to sessionStorage after placeOrder resolves.
+3. **In useQuickOrder's effect**, after guards pass: if `qoPendingPreview` exists in the store (rehydrated) and `entryOrderId` is in sessionStorage, recreate SL/TP lines into the local `qoPreviewLines` array and set up `pendingFillUnsub` using the same watcher pattern. The existing cleanup path (`removePreviewLines`) handles cancel/fill/effect-cleanup identically to the normal flow.
+4. **Conditional Suspended skip** in useOrderLines and buildOrderLabels: skip Suspended orders only when preview lines actually exist (`qoLinesActive`), not unconditionally.
