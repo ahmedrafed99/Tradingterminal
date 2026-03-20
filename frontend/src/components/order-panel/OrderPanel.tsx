@@ -78,33 +78,32 @@ async function inferPositionsFromOrders(accountId: string, orders: Order[]) {
     const posSize = slOrder.size;
     const entrySide = isLong ? OrderSide.Buy : OrderSide.Sell;
 
-    // Find opening trades for this contract+side (profitAndLoss is null for opening half-turns)
-    const openingTrades = trades.filter(
-      (t) => String(t.contractId) === String(contractId)
-        && t.side === entrySide
-        && !t.voided,
-    );
+    // Find opening trades for this contract+side, sorted newest-first.
+    // Only use the most recent fills that sum up to the position size — earlier
+    // trades from previous round trips in the same session must be excluded.
+    const openingTrades = trades
+      .filter(
+        (t) => String(t.contractId) === String(contractId)
+          && t.side === entrySide
+          && !t.voided
+          && t.profitAndLoss === null, // opening half-turns only
+      )
+      .sort((a, b) => new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime());
 
     if (openingTrades.length === 0) continue;
 
-    // Compute weighted average entry price from opening trades
+    // Take newest trades until we've accumulated the position size
     let totalSize = 0;
     let weightedPrice = 0;
     for (const t of openingTrades) {
-      // Only use opening half-turns (profitAndLoss === null) or, if all have P&L, use latest
-      if (t.profitAndLoss === null) {
-        weightedPrice += t.price * t.size;
-        totalSize += t.size;
-      }
+      const remaining = posSize - totalSize;
+      if (remaining <= 0) break;
+      const used = Math.min(t.size, remaining);
+      weightedPrice += t.price * used;
+      totalSize += used;
     }
-    // Fallback: if no opening half-turns found, use the most recent trade
-    if (totalSize === 0) {
-      const latest = openingTrades.sort(
-        (a, b) => new Date(b.creationTimestamp).getTime() - new Date(a.creationTimestamp).getTime(),
-      )[0];
-      weightedPrice = latest.price * latest.size;
-      totalSize = latest.size;
-    }
+
+    if (totalSize === 0) continue;
 
     const avgPrice = weightedPrice / totalSize;
 

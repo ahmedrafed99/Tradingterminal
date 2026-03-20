@@ -43,4 +43,5 @@ Originally fixed in commit `0989f98` (inline trade fetch fallback), but the fix 
 
 ### Fix
 
-Re-applied the inline trade fetch in `inferPositionsFromOrders`: when `sessionTrades` is empty, fetch trades directly via `tradeService.searchTrades()` before bailing. This eliminates the dependency on `App.tsx` load order.
+1. Re-applied the inline trade fetch in `inferPositionsFromOrders`: when `sessionTrades` is empty, fetch trades directly via `tradeService.searchTrades()` before bailing. This eliminates the dependency on `App.tsx` load order.
+2. Fixed average price calculation: the weighted average now takes only the most recent opening trades (newest-first) up to the position size, excluding earlier trades from previous round trips in the same session.
