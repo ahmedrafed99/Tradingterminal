@@ -124,29 +124,35 @@ class RectPreviewRenderer implements IPrimitivePaneRenderer {
   }
 
   draw(target: CanvasRenderingTarget2D): void {
-    target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const left = Math.min(this._x1, this._x2);
-      const top = Math.min(this._y1, this._y2);
-      const w = Math.abs(this._x2 - this._x1);
-      const h = Math.abs(this._y2 - this._y1);
+    target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
+      const rawLeft = Math.min(this._x1, this._x2) * hpr;
+      const rawTop = Math.min(this._y1, this._y2) * vpr;
+      const rawW = Math.abs(this._x2 - this._x1) * hpr;
+      const rawH = Math.abs(this._y2 - this._y1) * vpr;
 
-      if (w < 1 && h < 1) return;
+      if (rawW < 1 && rawH < 1) return;
 
       ctx.fillStyle = this._fillColor;
-      ctx.fillRect(left, top, w, h);
+      ctx.fillRect(rawLeft, rawTop, rawW, rawH);
 
+      // Snap edges to pixel grid + 0.5 offset for crisp lines
+      const left = Math.round(rawLeft) + 0.5;
+      const top = Math.round(rawTop) + 0.5;
+      const right = Math.round(rawLeft + rawW) + 0.5;
+      const bottom = Math.round(rawTop + rawH) + 0.5;
       ctx.strokeStyle = this._color;
       ctx.lineWidth = this._strokeWidth;
-      ctx.strokeRect(left, top, w, h);
+      ctx.strokeRect(left, top, right - left, bottom - top);
 
       // Corner handles
-      const handles = [[left, top], [left + w, top], [left, top + h], [left + w, top + h]];
+      const hr = Math.round(5 * vpr);
+      const handles = [[left, top], [right, top], [left, bottom], [right, bottom]];
       ctx.fillStyle = COLOR_LABEL_TEXT;
       ctx.strokeStyle = COLOR_HANDLE_STROKE;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = Math.round(1.5 * vpr);
       for (const [hx, hy] of handles) {
         ctx.beginPath();
-        ctx.arc(hx, hy, 5, 0, 2 * Math.PI);
+        ctx.arc(hx, hy, hr, 0, 2 * Math.PI);
         ctx.fill();
         ctx.stroke();
       }

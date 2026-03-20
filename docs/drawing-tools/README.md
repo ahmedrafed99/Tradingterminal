@@ -252,7 +252,7 @@ Implements `ISeriesPrimitive<Time>`. Manages an array of `HLinePaneView | RectPa
 Key methods:
 - `setDrawings(drawings, selectedIds)` — rebuilds views, calls `requestUpdate()`
 - `setDragPreview(x1, y1, x2, y2, fillColor?)` / `clearDragPreview()` — ellipse preview with fill + cardinal handles during oval creation
-- `setRectPreview(x1, y1, x2, y2)` / `clearRectPreview()` — rect preview with corner handles during rect creation
+- `setRectPreview(x1, y1, x2, y2)` / `clearRectPreview()` — rect preview with corner handles during rect creation (uses `useBitmapCoordinateSpace` with pixel-snapped strokes to match finalized rendering)
 - `setArrowPathPreview(points)` / `clearArrowPathPreview()` — polyline preview with node handles during arrow path creation
 - `setFreeDrawPreview(points, color, strokeWidth)` / `clearFreeDrawPreview()` — live brush stroke during free draw creation
 - `setRulerDragPreview(x1, y1, x2, y2, metrics, decimals)` / `clearRulerDragPreview()` — ruler rectangle + label preview
@@ -274,10 +274,10 @@ Draws a full-width horizontal line at the drawing's price level.
 
 ### RectRenderer
 
-Draws a rectangle defined by two diagonal corners (p1, p2).
+Draws a rectangle defined by two diagonal corners (p1, p2). Uses `useBitmapCoordinateSpace` for device-pixel rendering.
 
-- Fill: `drawing.fillColor` (rgba with opacity support)
-- Stroke: `drawing.color`, `drawing.strokeWidth`
+- Fill: `drawing.fillColor` (rgba with opacity support), raw coordinates for full coverage
+- Stroke: `drawing.color`, `drawing.strokeWidth` (1 = 1 device pixel). Stroke coordinates are snapped to pixel grid (`Math.round() + 0.5`) for crisp lines — prevents anti-aliasing from blurring 1px strokes across 2 device pixels
 - Selected: 4 circular corner handles (nw, ne, sw, se) — same white fill + color stroke style as path nodes
 - Text label: positioned relative to rectangle edges
 - Hit test: proximity to any of the 4 edges via `hitTestRectEdges()` (6px tolerance)
@@ -370,6 +370,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - **Ctrl = horizontal snap**: holding Ctrl while drawing locks Y to the last point's Y, forcing a perfectly horizontal continuation from the current position
 - Escape or right-click cancels in-progress stroke
 - **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (pixel distance / bar spacing) instead of `coordinateToTime()` which snaps to discrete bar positions. On render: `pixelX = timeToCoordinate(anchorTime) + barOffset * currentBarSpacing`
+- **Stroke rendering**: `strokeWidth` is used directly in bitmap coordinate space (1 = 1 device pixel, the thinnest possible line) — not scaled by pixel ratio
 - Selected state shows start and end node handles (`COLOR_LABEL_TEXT` fill, `COLOR_HANDLE_STROKE` border — same style as arrow path)
 - Edit toolbar shows only color + stroke width (no text, template, or extend controls)
 

@@ -50,7 +50,7 @@ class FreeDrawRendererImpl implements IPrimitivePaneRenderer {
 
       ctx.beginPath();
       ctx.strokeStyle = this._drawing.color;
-      ctx.lineWidth = this._drawing.strokeWidth * Math.min(hpr, vpr);
+      ctx.lineWidth = this._drawing.strokeWidth;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
       ctx.moveTo(cssPts[0].x * hpr, cssPts[0].y * vpr);

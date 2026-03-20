@@ -49,23 +49,27 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
       const x2 = cssX2 * hpr;
       const y2 = cssY2 * vpr;
 
-      const left = Math.min(x1, x2);
-      const top = Math.min(y1, y2);
-      const w = Math.abs(x2 - x1);
-      const h = Math.abs(y2 - y1);
+      const rawLeft = Math.min(x1, x2);
+      const rawTop = Math.min(y1, y2);
+      const rawW = Math.abs(x2 - x1);
+      const rawH = Math.abs(y2 - y1);
 
-      if (w < 1 && h < 1) return;
+      if (rawW < 1 && rawH < 1) return;
 
-      // Fill
+      // Fill (use raw coords for full coverage)
       if (this._drawing.fillColor) {
         ctx.fillStyle = this._drawing.fillColor;
-        ctx.fillRect(left, top, w, h);
+        ctx.fillRect(rawLeft, rawTop, rawW, rawH);
       }
 
-      // Stroke
+      // Stroke — snap edges to pixel grid + 0.5 offset for crisp lines
+      const left = Math.round(rawLeft) + 0.5;
+      const top = Math.round(rawTop) + 0.5;
+      const right = Math.round(rawLeft + rawW) + 0.5;
+      const bottom = Math.round(rawTop + rawH) + 0.5;
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth;
-      ctx.strokeRect(left, top, w, h);
+      ctx.strokeRect(left, top, right - left, bottom - top);
 
       // Selection: 4 corner handles
       if (this._selected) {
