@@ -302,27 +302,92 @@ function IndicatorsDropdown() {
   );
 }
 
-function NewsToggle() {
-  const newsVisible = useStore((s) => s.newsVisible);
-  const setNewsVisible = useStore((s) => s.setNewsVisible);
+const IMPACT_LEVELS = [
+  { key: 'high' as const,   label: 'High Impact',   color: 'var(--color-sell)' },
+  { key: 'medium' as const, label: 'Medium Impact',  color: 'var(--color-warning)' },
+  { key: 'low' as const,    label: 'Low Impact',     color: 'var(--color-text-muted)' },
+];
+
+function NewsDropdown() {
+  const newsImpactFilter = useStore((s) => s.newsImpactFilter);
+  const setNewsImpactFilter = useStore((s) => s.setNewsImpactFilter);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useClickOutside(ref, open, close);
+
+  const anyActive = newsImpactFilter.high || newsImpactFilter.medium || newsImpactFilter.low;
+
+  const toggle = (level: 'high' | 'medium' | 'low') => {
+    setNewsImpactFilter({ ...newsImpactFilter, [level]: !newsImpactFilter[level] });
+  };
 
   return (
-    <button
-      onClick={() => setNewsVisible(!newsVisible)}
-      className={`self-stretch flex items-center gap-1.5 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
-        newsVisible ? 'text-(--color-warning)' : 'text-(--color-text-muted) hover:text-(--color-text)'
-      }`}
-      style={{ paddingLeft: 12, paddingRight: 12 }}
-      title={newsVisible ? 'Hide economic calendar' : 'Show economic calendar'}
-    >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
-        <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9h4" />
-        <path d="M10 7h6" />
-        <path d="M10 11h6" />
-        <path d="M10 15h4" />
-      </svg>
-      News
-    </button>
+    <div ref={ref} className="relative self-stretch flex items-center">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`h-full flex items-center gap-1.5 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
+          anyActive ? 'text-(--color-warning)' : 'text-(--color-text-muted) hover:text-(--color-text)'
+        }`}
+        style={{ paddingLeft: 12, paddingRight: 12 }}
+        title="Economic calendar filter"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
+          <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9h4" />
+          <path d="M10 7h6" />
+          <path d="M10 11h6" />
+          <path d="M10 15h4" />
+        </svg>
+        News
+        <ChevronDown />
+      </button>
+
+      {open && (
+        <div
+          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, minWidth: 180 }}
+        >
+          <div style={{ padding: 6 }}>
+            {IMPACT_LEVELS.map(({ key, label, color }) => (
+              <div
+                key={key}
+                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg cursor-pointer"
+                style={{ padding: '8px 10px' }}
+                onClick={() => toggle(key)}
+              >
+                <button
+                  style={{
+                    width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
+                    border: newsImpactFilter[key] ? 'none' : '1.5px solid var(--color-text-muted)',
+                    background: newsImpactFilter[key] ? 'var(--color-accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {newsImpactFilter[key] && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
+                      <path d="M2 5l2.5 2.5L8 3" />
+                    </svg>
+                  )}
+                </button>
+
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: color, marginLeft: 10, flexShrink: 0,
+                }} />
+
+                <span
+                  className="text-xs text-(--color-text) select-none"
+                  style={{ marginLeft: 8 }}
+                >
+                  {label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -601,7 +666,7 @@ export function ChartToolbar() {
       <IndicatorsDropdown />
 
       {/* News calendar toggle */}
-      <NewsToggle />
+      <NewsDropdown />
 
       {/* Spacer */}
       <div className="flex-1" />

@@ -85,11 +85,17 @@ export interface VolumeProfileState {
 // ---------------------------------------------------------------------------
 // News
 // ---------------------------------------------------------------------------
+export interface NewsImpactFilter {
+  high: boolean;
+  medium: boolean;
+  low: boolean;
+}
+
 export interface NewsState {
   newsEvents: NewsEvent[];
-  newsVisible: boolean;
+  newsImpactFilter: NewsImpactFilter;
   setNewsEvents: (events: NewsEvent[]) => void;
-  setNewsVisible: (visible: boolean) => void;
+  setNewsImpactFilter: (filter: NewsImpactFilter) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +194,7 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
 
   // News
   newsEvents: [] as NewsEvent[],
-  newsVisible: true,
+  newsImpactFilter: { high: true, medium: false, low: false } as NewsImpactFilter,
   setNewsEvents: (newsEvents) => set({ newsEvents }),
-  setNewsVisible: (newsVisible) => set({ newsVisible }),
+  setNewsImpactFilter: (newsImpactFilter) => set({ newsImpactFilter }),
 });

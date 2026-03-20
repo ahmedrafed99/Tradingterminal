@@ -21,8 +21,8 @@ GET https://calendar-api.fxstreet.com/en/api/v1/eventDates/{from}/{to}
 ### Filtering (server-side)
 
 - `countryCode === 'US' || currencyCode === 'USD'`
-- `volatility === 'HIGH' || volatility === 'MEDIUM'` (low-impact events excluded server-side)
-- Medium-impact events are filtered out on the frontend (only HIGH shown on chart)
+- `volatility === 'HIGH' || volatility === 'MEDIUM' || volatility === 'LOW'` (only `NONE` excluded)
+- Frontend filters by user-selected impact levels via `newsImpactFilter` (default: high only)
 
 ### Caching
 
@@ -50,7 +50,7 @@ FXStreet Calendar API
 +-----------------------------------------+
 |  Backend: GET /news/economic            |
 |  Disk cache (news-calendar.json, 4h)    |
-|  + memory cache, filter US + HIGH/MED   |
+|  + memory cache, filter US + H/M/L      |
 +-----------------------------------------+
        |  JSON
        v
@@ -62,7 +62,7 @@ FXStreet Calendar API
        v
 +-----------------------------------------+
 |  Zustand: NewsState slice               |
-|  newsEvents[], newsVisible (persisted)  |
+|  newsEvents[], newsImpactFilter (persisted) |
 +-----------------------------------------+
        |
        v
@@ -90,7 +90,7 @@ FXStreet Calendar API
   - Time: `HH:MM am/pm ET` format (time only, no date)
   - Multiple events per marker separated by dividers, scrollable (max-height 260px)
   - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
-- **Toggle**: Newspaper icon + "News" text label in chart toolbar (active: #f0a830, inactive: #787b86), matches Indicators button style
+- **Toolbar dropdown**: Newspaper icon + "News" + chevron in chart toolbar. Click opens a dropdown with three checkbox rows (High / Medium / Low impact), each with a colored dot (red / orange / gray). Button text is orange (#f0a830) when any filter is active, muted (#787b86) when all off. Follows the same dropdown pattern as the Indicators button.
 
 ---
 
@@ -119,15 +119,15 @@ interface NewsEvent {
 | File | Purpose |
 |------|---------|
 | `backend/src/routes/newsRoutes.ts` | Express route — `GET /news/economic` |
-| `backend/src/services/newsService.ts` | FXStreet fetch, disk + memory cache (4h), filter US HIGH/MEDIUM, categorise |
+| `backend/src/services/newsService.ts` | FXStreet fetch, disk + memory cache (4h), filter US HIGH/MEDIUM/LOW, categorise |
 | `backend/data/news-calendar.json` | Disk cache for economic events (auto-generated, survives restarts) |
 | `frontend/src/types/news.ts` | `NewsEvent` interface |
 | `frontend/src/services/newsService.ts` | HTTP client + 4h in-memory cache + in-flight dedup |
 | `frontend/src/components/chart/primitives/NewsEventsPrimitive.ts` | ISeriesPrimitive — canvas markers + HTML tooltip |
 | `frontend/src/components/chart/hooks/useNewsEvents.ts` | Fetch on mount, store sync, mouse/click event wiring |
-| `frontend/src/store/useStore.ts` | `NewsState` slice (`newsEvents[]`, `newsVisible`) |
+| `frontend/src/store/useStore.ts` | `NewsState` slice (`newsEvents[]`, `newsImpactFilter`) |
 | `frontend/src/components/chart/CandlestickChart.tsx` | Attach primitive + call hook |
-| `frontend/src/components/chart/ChartToolbar.tsx` | `NewsToggle` button |
+| `frontend/src/components/chart/ChartToolbar.tsx` | `NewsDropdown` — impact filter dropdown |
 
 ### Primitive Attachment Order
 
@@ -157,6 +157,6 @@ All rendering is canvas-based (LWC primitive) + vanilla DOM (tooltip). No new pa
 
 ---
 
-## Phase 2: News Settings Panel
+## Impact Filter
 
-Filter by impact/category. Not yet built.
+The toolbar dropdown exposes three checkboxes persisted to localStorage as `newsImpactFilter: { high, medium, low }`. Default: `{ high: true, medium: false, low: false }`. A Zustand persist migration (v0→v1) converts the old `newsVisible` boolean to the new shape. Filtering is frontend-only — all events are fetched once and filtered in-memory when the user toggles checkboxes (no additional API calls).

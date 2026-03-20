@@ -23,15 +23,16 @@ export function useNewsEvents(refs: ChartRefs): void {
     if (!primitive) return;
 
     function sync() {
-      const { newsEvents, newsVisible } = useStore.getState();
-      primitive!.setEnabled(newsVisible);
-      primitive!.setEvents(newsEvents.filter(e => e.impact !== 'medium'));
+      const { newsEvents, newsImpactFilter } = useStore.getState();
+      const anyActive = newsImpactFilter.high || newsImpactFilter.medium || newsImpactFilter.low;
+      primitive!.setEnabled(anyActive);
+      primitive!.setEvents(newsEvents.filter(e => newsImpactFilter[e.impact]));
     }
 
     sync();
 
     const unsub = useStore.subscribe((s, prev) => {
-      if (s.newsEvents !== prev.newsEvents || s.newsVisible !== prev.newsVisible) {
+      if (s.newsEvents !== prev.newsEvents || s.newsImpactFilter !== prev.newsImpactFilter) {
         sync();
       }
     });

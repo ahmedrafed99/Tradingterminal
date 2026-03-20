@@ -49,6 +49,17 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'chart-store',
+      version: 1,
+      migrate: (persisted: any, version: number) => {
+        if (version === 0) {
+          const wasVisible = persisted.newsVisible ?? true;
+          delete persisted.newsVisible;
+          persisted.newsImpactFilter = wasVisible
+            ? { high: true, medium: false, low: false }
+            : { high: false, medium: false, low: false };
+        }
+        return persisted;
+      },
       // Only persist settings-like data, not live state
       partialize: (s) => ({
         baseUrl: s.baseUrl,
@@ -81,7 +92,7 @@ export const useStore = create<Store>()(
         secondContract: s.secondContract,
         orderContract: s.orderContract,
         orderLinkedToChart: s.orderLinkedToChart,
-        newsVisible: s.newsVisible,
+        newsImpactFilter: s.newsImpactFilter,
         orderPanelSide: s.orderPanelSide,
         conditionServerUrl: s.conditionServerUrl,
         chartSettings: s.chartSettings,
