@@ -5,6 +5,8 @@ import { SECTION_LABEL } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
 import { orderService, type Order } from '../../services/orderService';
 import { positionService } from '../../services/positionService';
+import { tradeService } from '../../services/tradeService';
+import { getCmeSessionStart } from '../../utils/cmeSession';
 import { marketDataService } from '../../services/marketDataService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
@@ -54,8 +56,16 @@ async function inferPositionsFromOrders(accountId: string, orders: Order[]) {
 
   if (needsInference.length === 0) return;
 
-  // Use session trades already loaded by App.tsx (avoids duplicate fetch)
-  const trades = useStore.getState().sessionTrades;
+  // Use session trades if already loaded; otherwise fetch them (race with App.tsx)
+  let trades = useStore.getState().sessionTrades;
+  if (trades.length === 0) {
+    try {
+      trades = await tradeService.searchTrades(accountId, getCmeSessionStart());
+      if (trades.length > 0) useStore.getState().setSessionTrades(trades);
+    } catch {
+      // trades fetch failed — can't infer
+    }
+  }
   if (trades.length === 0) return;
 
   for (const contractId of needsInference) {

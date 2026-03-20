@@ -25,3 +25,22 @@ The dual rendering system was eliminated entirely:
 6. **`OrderPanel.tsx` clears `pendingBracketInfo`** on entry fill/cancel.
 
 All order rendering now goes through one path: `openOrders[]` → `useOrderLines` → `buildOrderLabels`. The "quick order" + button is just a UI convenience for placing a limit order.
+
+## 2. Position line and P&L missing after refresh with open position
+
+**Status:** Fixed
+**Severity:** High — user has no visual confirmation of open position after refresh
+
+### Symptom
+
+After an entry fills and brackets are active, refreshing the page loses the position entry line and bracket label P&L. SL/TP lines show but with no projected dollar amounts.
+
+### Root Cause
+
+Race condition between `App.tsx` session trades fetch and `OrderPanel.tsx` position hydration. `inferPositionsFromOrders` reads `sessionTrades` from the Zustand store, but `App.tsx` fetches trades asynchronously and hasn't resolved yet. `sessionTrades` is `[]`, so inference bails silently → no position in store → no position line, bracket labels fall back to generic text.
+
+Originally fixed in commit `0989f98` (inline trade fetch fallback), but the fix was accidentally reverted during the bracket line refresh fix attempts.
+
+### Fix
+
+Re-applied the inline trade fetch in `inferPositionsFromOrders`: when `sessionTrades` is empty, fetch trades directly via `tradeService.searchTrades()` before bailing. This eliminates the dependency on `App.tsx` load order.
