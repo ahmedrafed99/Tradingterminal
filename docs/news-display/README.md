@@ -90,7 +90,7 @@ FXStreet Calendar API
   - Time: `HH:MM am/pm ET` format (time only, no date)
   - Multiple events per marker separated by dividers, scrollable (max-height 260px)
   - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
-- **Toolbar dropdown**: Newspaper icon + "News" + chevron in chart toolbar. Click opens a dropdown with three checkbox rows (High / Medium / Low impact), each with a colored dot (red / orange / gray). Button text is orange (#f0a830) when any filter is active, muted (#787b86) when all off. Follows the same dropdown pattern as the Indicators button.
+- **Toolbar dropdown**: Newspaper icon + "News" + chevron in chart toolbar. Click opens a dropdown with three rows (High / Medium / Low impact). Each row shows an accent-colored checkmark that fades+scales in when active (same pattern as "Invert scale" in chart settings). Button text is orange (#f0a830) when any filter is active, muted (#787b86) when all off.
 
 ---
 

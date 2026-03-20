@@ -303,9 +303,9 @@ function IndicatorsDropdown() {
 }
 
 const IMPACT_LEVELS = [
-  { key: 'high' as const,   label: 'High Impact',   color: 'var(--color-sell)' },
-  { key: 'medium' as const, label: 'Medium Impact',  color: 'var(--color-warning)' },
-  { key: 'low' as const,    label: 'Low Impact',     color: 'var(--color-text-muted)' },
+  { key: 'high' as const,   label: 'High Impact' },
+  { key: 'medium' as const, label: 'Medium Impact' },
+  { key: 'low' as const,    label: 'Low Impact' },
 ];
 
 function NewsDropdown() {
@@ -348,38 +348,29 @@ function NewsDropdown() {
           style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, minWidth: 180 }}
         >
           <div style={{ padding: 6 }}>
-            {IMPACT_LEVELS.map(({ key, label, color }) => (
+            {IMPACT_LEVELS.map(({ key, label }) => (
               <div
                 key={key}
                 className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg cursor-pointer"
-                style={{ padding: '8px 10px' }}
+                style={{ padding: '6px 10px', gap: 8 }}
                 onClick={() => toggle(key)}
               >
-                <button
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
                   style={{
-                    width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
-                    border: newsImpactFilter[key] ? 'none' : '1.5px solid var(--color-text-muted)',
-                    background: newsImpactFilter[key] ? 'var(--color-accent)' : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer',
+                    opacity: newsImpactFilter[key] ? 1 : 0,
+                    transform: newsImpactFilter[key] ? 'scale(1)' : 'scale(0.5)',
+                    transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
+                    flexShrink: 0,
                   }}
                 >
-                  {newsImpactFilter[key] && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
-                      <path d="M2 5l2.5 2.5L8 3" />
-                    </svg>
-                  )}
-                </button>
+                  <path d="M2 6.5l2.5 2.5L10 3" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
 
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: color, marginLeft: 10, flexShrink: 0,
-                }} />
-
-                <span
-                  className="text-xs text-(--color-text) select-none"
-                  style={{ marginLeft: 8 }}
-                >
+                <span className="text-xs text-(--color-text) select-none">
                   {label}
                 </span>
               </div>
