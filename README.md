@@ -34,6 +34,7 @@ docs/
 │   └── bracket-settings/ — Preset UI: SL, multi-TP, conditions
 ├── bracket-engine/       — Runtime SL/TP placement after fill, condition evaluation
 ├── bottom-panel/         — Orders + Trades tabs, trade zone visualization
+├── stats-dashboard/      — Stats popover: KPI cards, equity curve, PnL calendar, breakdowns
 ├── chat-bot/             — AI chat panel with tool use
 ├── conditional-orders/   — Candle-close triggered orders
 ├── database/             — Local SQLite for 1-min candles
@@ -69,6 +70,7 @@ docs/
 | Dual chart layout + crosshair sync          | `docs/chart-layout/` |
 | Crosshair price label + primitive z-order   | `docs/candlestick-chart/` → Price Scale Primitives |
 | Orders and Trades tabs                      | `docs/bottom-panel/` |
+| Stats dashboard (KPI, equity curve, calendar)| `docs/stats-dashboard/` |
 | Trade zone visualization (FIFO matching)    | `docs/bottom-panel/` (chart primitive in `frontend/`) |
 | Chart settings gear + modal                 | `docs/chart-settings-menu/` |
 | Design tokens (colors, font, z-index, shadows, radii) | `docs/design-tokens/` |
