@@ -30,14 +30,14 @@ export interface UiState {
 export interface BottomPanelState {
   bottomPanelOpen: boolean;
   bottomPanelRatio: number;
-  bottomPanelTab: 'orders' | 'trades' | 'conditions';
+  bottomPanelTab: 'orders' | 'trades' | 'conditions' | 'stats';
   tradesDatePreset: DatePreset;
   sessionTrades: Trade[];
   displayTrades: Trade[];
   visibleTradeIds: string[];
   setBottomPanelOpen: (open: boolean) => void;
   setBottomPanelRatio: (ratio: number) => void;
-  setBottomPanelTab: (tab: 'orders' | 'trades') => void;
+  setBottomPanelTab: (tab: 'orders' | 'trades' | 'conditions' | 'stats') => void;
   setTradesDatePreset: (preset: DatePreset) => void;
   setSessionTrades: (trades: Trade[]) => void;
   setDisplayTrades: (trades: Trade[]) => void;
@@ -132,7 +132,7 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   // Bottom Panel
   bottomPanelOpen: false,
   bottomPanelRatio: 0,
-  bottomPanelTab: 'orders' as 'orders' | 'trades' | 'conditions',
+  bottomPanelTab: 'orders' as 'orders' | 'trades' | 'conditions' | 'stats',
   tradesDatePreset: 'today' as DatePreset,
   sessionTrades: [] as Trade[],
   displayTrades: [] as Trade[],

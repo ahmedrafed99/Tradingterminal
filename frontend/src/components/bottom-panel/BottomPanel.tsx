@@ -3,6 +3,7 @@ import { TabButton } from '../shared/TabButton';
 import { OrdersTab } from './OrdersTab';
 import { TradesTab } from './TradesTab';
 import { ConditionsTab } from './ConditionsTab';
+import { StatsPopover } from '../stats/StatsPopover';
 
 function Separator() {
   return <div className="w-px h-4 bg-(--color-border) shrink-0" />;
@@ -39,17 +40,28 @@ export function BottomPanel() {
           count={conditions.filter((c) => c.status === 'armed').length}
           onClick={() => setTab('conditions')}
         />
+        <Separator />
+        <TabButton
+          label="Stats"
+          active={tab === 'stats'}
+          onClick={() => setTab(tab === 'stats' ? 'trades' : 'stats')}
+        />
       </div>
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-auto border-t border-(--color-border)">
         {tab === 'orders' && <OrdersTab />}
-        {tab === 'trades' && <TradesTab />}
+        {(tab === 'trades' || tab === 'stats') && <TradesTab />}
         {/* Keep ConditionsTab mounted (SSE connection alive) but hidden when inactive */}
         <div className={tab === 'conditions' ? undefined : 'hidden'}>
           <ConditionsTab />
         </div>
       </div>
+
+      {/* Stats popover */}
+      {tab === 'stats' && (
+        <StatsPopover onClose={() => setTab('trades')} />
+      )}
     </div>
   );
 }
