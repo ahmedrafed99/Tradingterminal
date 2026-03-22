@@ -38,26 +38,47 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     return () => ro.disconnect();
   }, [measure]);
 
+  const animRef = useRef(0);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
     canvas.height = CHART_HEIGHT * dpr;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, CHART_HEIGHT);
 
-    const points: typeof pointsRef.current = [];
+    cancelAnimationFrame(animRef.current);
+    const startTime = performance.now();
+    const duration = 700;
 
-    if (mode === 'equity') {
-      drawEquityCurve(ctx, width, stats.equityCurve, points);
-    } else {
-      drawDailyBars(ctx, width, dailyData, points);
-    }
+    const frame = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const progress = 1 - Math.pow(1 - t, 3);
 
-    pointsRef.current = points;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, CHART_HEIGHT);
+
+      const points: typeof pointsRef.current = [];
+
+      if (mode === 'equity') {
+        drawEquityCurve(ctx, width, stats.equityCurve, points, progress);
+      } else {
+        drawDailyBars(ctx, width, dailyData, points, progress);
+      }
+
+      pointsRef.current = points;
+      ctx.restore();
+
+      if (t < 1) animRef.current = requestAnimationFrame(frame);
+    };
+
+    animRef.current = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animRef.current);
   }, [width, mode, stats, dailyData]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -270,16 +291,20 @@ function drawEquityCurve(
   w: number,
   curve: number[],
   hitPoints: { x: number; y: number; label: string; value: string; sub?: string; color: string }[],
+  progress = 1,
 ) {
   if (curve.length === 0) {
     drawEmpty(ctx, w, 'No trades');
     return;
   }
 
+  // Animate: scale all values by progress (rise from zero line)
+  const animCurve = curve.map((v) => v * progress);
+
   const plotW = w - PAD.left - PAD.right;
   const plotH = CHART_HEIGHT - PAD.top - PAD.bottom;
 
-  const minY = Math.min(0, ...curve);
+  const minY = Math.min(0, ...curve); // use full range for stable axis
   const maxY = Math.max(0, ...curve);
   const rangeY = maxY - minY || 1;
 
@@ -308,8 +333,8 @@ function drawEquityCurve(
   ctx.clip();
   ctx.beginPath();
   ctx.moveTo(toX(0), zeroY);
-  for (let i = 0; i < curve.length; i++) ctx.lineTo(toX(i), toY(curve[i]));
-  ctx.lineTo(toX(curve.length - 1), zeroY);
+  for (let i = 0; i < animCurve.length; i++) ctx.lineTo(toX(i), toY(animCurve[i]));
+  ctx.lineTo(toX(animCurve.length - 1), zeroY);
   ctx.closePath();
   const greenGrad = ctx.createLinearGradient(0, PAD.top, 0, zeroY);
   greenGrad.addColorStop(0, 'rgba(38, 166, 154, 0.25)');
@@ -325,8 +350,8 @@ function drawEquityCurve(
   ctx.clip();
   ctx.beginPath();
   ctx.moveTo(toX(0), zeroY);
-  for (let i = 0; i < curve.length; i++) ctx.lineTo(toX(i), toY(curve[i]));
-  ctx.lineTo(toX(curve.length - 1), zeroY);
+  for (let i = 0; i < animCurve.length; i++) ctx.lineTo(toX(i), toY(animCurve[i]));
+  ctx.lineTo(toX(animCurve.length - 1), zeroY);
   ctx.closePath();
   const redGrad = ctx.createLinearGradient(0, zeroY, 0, CHART_HEIGHT - PAD.bottom);
   redGrad.addColorStop(0, 'rgba(239, 83, 80, 0.02)');
@@ -337,29 +362,24 @@ function drawEquityCurve(
 
   // Line segments — green above zero, red below zero
   ctx.lineWidth = 1.5;
-  for (let i = 1; i < curve.length; i++) {
-    const prev = curve[i - 1];
-    const curr = curve[i];
+  for (let i = 1; i < animCurve.length; i++) {
+    const prev = animCurve[i - 1];
+    const curr = animCurve[i];
 
-    // If segment crosses zero, split it
     if ((prev >= 0 && curr >= 0) || (prev < 0 && curr < 0)) {
-      // Whole segment is one color
       ctx.beginPath();
       ctx.moveTo(toX(i - 1), toY(prev));
       ctx.lineTo(toX(i), toY(curr));
       ctx.strokeStyle = curr >= 0 ? GREEN : RED;
       ctx.stroke();
     } else {
-      // Crosses zero — find the crossing point
-      const t = prev / (prev - curr); // interpolation factor where value = 0
+      const t = prev / (prev - curr);
       const crossX = toX(i - 1) + t * (toX(i) - toX(i - 1));
-      // First half
       ctx.beginPath();
       ctx.moveTo(toX(i - 1), toY(prev));
       ctx.lineTo(crossX, zeroY);
       ctx.strokeStyle = prev >= 0 ? GREEN : RED;
       ctx.stroke();
-      // Second half
       ctx.beginPath();
       ctx.moveTo(crossX, zeroY);
       ctx.lineTo(toX(i), toY(curr));
@@ -369,13 +389,13 @@ function drawEquityCurve(
   }
 
   // Data points
-  if (curve.length <= 30) {
-    for (let i = 0; i < curve.length; i++) {
+  if (animCurve.length <= 30) {
+    for (let i = 0; i < animCurve.length; i++) {
       ctx.beginPath();
-      ctx.arc(toX(i), toY(curve[i]), 3, 0, Math.PI * 2);
+      ctx.arc(toX(i), toY(animCurve[i]), 3, 0, Math.PI * 2);
       ctx.fillStyle = '#0d1117';
       ctx.fill();
-      ctx.strokeStyle = curve[i] >= 0 ? GREEN : RED;
+      ctx.strokeStyle = animCurve[i] >= 0 ? GREEN : RED;
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
@@ -392,7 +412,7 @@ function drawEquityCurve(
     const sign = tradePnl[i] > 0 ? '+' : '';
     hitPoints.push({
       x: toX(i),
-      y: toY(curve[i]),
+      y: toY(animCurve[i]),
       label: `Trade #${i + 1}`,
       value: `$${curve[i] > 0 ? '+' : ''}${curve[i].toFixed(2)}`,
       sub: `Trade P&L: ${sign}$${Math.abs(tradePnl[i]).toFixed(2)}`,
@@ -421,6 +441,7 @@ function drawDailyBars(
   w: number,
   data: DayPnl[],
   hitPoints: { x: number; y: number; label: string; value: string; sub?: string; color: string }[],
+  progress = 1,
 ) {
   if (data.length === 0) {
     drawEmpty(ctx, w, 'No daily data');
@@ -455,12 +476,13 @@ function drawDailyBars(
   ctx.stroke();
   ctx.setLineDash([]);
 
-  // Bars + hit targets
+  // Bars + hit targets (scale height by progress for animation)
   for (let i = 0; i < data.length; i++) {
     const x = PAD.left + gap + i * (barW + gap);
-    const y = toY(data[i].net);
+    const animNet = data[i].net * progress;
+    const y = toY(animNet);
     const h = Math.abs(y - zeroY);
-    const top = data[i].net >= 0 ? y : zeroY;
+    const top = animNet >= 0 ? y : zeroY;
     const barColor = data[i].net >= 0 ? GREEN : RED;
 
     ctx.fillStyle = barColor;
@@ -471,7 +493,7 @@ function drawDailyBars(
     const sign = data[i].net > 0 ? '+' : '';
     hitPoints.push({
       x: x + barW / 2,
-      y: data[i].net >= 0 ? top : top + Math.max(1, h),
+      y: data[i].net >= 0 ? toY(data[i].net) : toY(data[i].net) + Math.abs(toY(data[i].net) - zeroY),
       label: data[i].date,
       value: `${sign}$${Math.abs(data[i].net).toFixed(2)}`,
       sub: `${data[i].tradeCount} ${data[i].tradeCount === 1 ? 'trade' : 'trades'}`,

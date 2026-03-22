@@ -7,6 +7,7 @@ import { StatsPnlChart } from './StatsPnlChart';
 import { StatsCalendarGrid } from './StatsCalendarGrid';
 import { StatsBreakdowns } from './StatsBreakdowns';
 import { StatsDayDetail } from './StatsDayDetail';
+import { AnimateIn } from './AnimateIn';
 import {
   groupTrades,
   computeStats,
@@ -181,15 +182,23 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
             />
           ) : (
             <div className="flex flex-col" style={{ gap: 16 }}>
-              <StatsKpiCards stats={stats} />
-              <StatsPnlChart stats={stats} dailyData={calendarData} />
-              <StatsCalendarGrid dailyData={calendarData} onDayClick={setSelectedDay} />
-              <StatsBreakdowns
-                hourlyData={hourlyData}
-                directionStats={directionStats}
-                dayOfWeekData={dayOfWeekData}
-                durationData={durationData}
-              />
+              <AnimateIn>
+                <StatsKpiCards stats={stats} />
+              </AnimateIn>
+              <AnimateIn>
+                <StatsPnlChart stats={stats} dailyData={calendarData} />
+              </AnimateIn>
+              <AnimateIn>
+                <StatsCalendarGrid dailyData={calendarData} onDayClick={setSelectedDay} />
+              </AnimateIn>
+              <AnimateIn>
+                <StatsBreakdowns
+                  hourlyData={hourlyData}
+                  directionStats={directionStats}
+                  dayOfWeekData={dayOfWeekData}
+                  durationData={durationData}
+                />
+              </AnimateIn>
             </div>
           )}
         </div>

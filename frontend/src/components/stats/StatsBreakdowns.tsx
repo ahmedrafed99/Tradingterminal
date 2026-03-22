@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { HourPnl, DirectionStats, DayOfWeekPnl, DurationComparison } from '../../utils/tradeStats';
 import { formatDuration } from '../../utils/formatters';
 
@@ -132,15 +132,18 @@ function MiniDonut({ rate, color, size = 40 }: { rate: number; color: string; si
   const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
   const arc = circ * rate;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth={4} />
       <circle
         cx={size / 2} cy={size / 2} r={r}
         fill="none" stroke={color} strokeWidth={4}
-        strokeDasharray={`${arc} ${circ}`}
+        strokeDasharray={`${mounted ? arc : 0} ${circ}`}
         strokeLinecap="round"
         opacity={0.85}
+        style={{ transition: 'stroke-dasharray 0.8s cubic-bezier(0.16, 1, 0.3, 1)' }}
       />
     </svg>
   );

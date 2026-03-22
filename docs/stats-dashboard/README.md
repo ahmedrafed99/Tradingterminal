@@ -149,16 +149,28 @@ No new store fields. Popover open state is derived from `bottomPanelTab === 'sta
 
 ---
 
+## Animations
+
+Entrance animations trigger on mount or when sections scroll into view:
+
+- **Section reveal**: Each section (KPI cards, chart, calendar, breakdowns) is wrapped in `AnimateIn` — fades in + slides up (600ms ease) when it enters the viewport via `IntersectionObserver` (threshold 0.1, triggers once).
+- **Number counters**: All dollar values, percentages, and integers animate from 0 to their target over 1200ms with ease-out cubic (`useAnimatedValue` hook using `requestAnimationFrame`).
+- **SVG donuts**: Win rate gauge arc and Long/Short mini donuts animate from `strokeDasharray: 0` to their target arc length over 800ms via CSS transition (`cubic-bezier(0.16, 1, 0.3, 1)`).
+- **Chart transitions**: Switching between Equity and Daily mode animates over 700ms (ease-out cubic). Equity curve values scale from 0 (flat at zero line) to full. Daily bars rise from the zero line to their full height. Uses `requestAnimationFrame` loop with a `progress` parameter passed to the draw functions.
+
+---
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `components/stats/StatsPopover.tsx` | Popover container — backdrop, scroll, animation, dismiss, day drill-down state |
-| `components/stats/StatsKpiCards.tsx` | 3×2 grid of KPI cards with SVG donut, proportional bars |
-| `components/stats/StatsPnlChart.tsx` | Canvas equity curve + daily bar chart with crosshair + tooltip |
+| `components/stats/StatsKpiCards.tsx` | 3×2 grid of KPI cards with SVG donut, animated counters |
+| `components/stats/StatsPnlChart.tsx` | Canvas equity curve + daily bar chart with crosshair, tooltip, entrance animation |
 | `components/stats/StatsCalendarGrid.tsx` | Weekly calendar heatmap with clickable day cells |
 | `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve with crosshair + trade list table |
-| `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short, Day of Week, Duration |
+| `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short (with mini donuts), Day of Week, Duration |
+| `components/stats/AnimateIn.tsx` | Scroll-triggered fade-in + slide-up wrapper using IntersectionObserver |
 | `utils/tradeStats.ts` | Pure functions: `groupTrades()`, `computeStats()`, `buildCalendarData()`, `buildHourlyData()`, `buildDirectionStats()`, `buildDayOfWeekData()`, `buildDurationComparison()` |
 
 All components live under `frontend/src/components/stats/`.
