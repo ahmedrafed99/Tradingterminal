@@ -9,15 +9,18 @@
 
     :root {
       --editor-bg: #0d0d0d;
-      --panel-bg: #161616;
+      --panel-bg: #111111;
       --panel-border: #2a2e39;
       --text: #d1d4dc;
       --text-muted: #787b86;
       --text-dim: #434651;
       --accent: #2962ff;
-      --swatch-border: #4a4a4a;
+      --swatch-border: #3a3e49;
       --font: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
       --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      --card-bg: #1a1e28;
+      --card-border: #242836;
+      --card-radius: 12px;
     }
 
     body {
@@ -32,8 +35,8 @@
 
     /* ── Sidebar ── */
     .sidebar {
-      width: 320px;
-      min-width: 320px;
+      width: 400px;
+      min-width: 400px;
       height: 100vh;
       background: var(--panel-bg);
       border-right: 1px solid var(--panel-border);
@@ -54,7 +57,7 @@
     .sidebar-actions {
       display: flex;
       gap: 6px;
-      padding: 10px 20px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--panel-border);
       flex-shrink: 0;
       flex-wrap: wrap;
@@ -63,7 +66,7 @@
     .sidebar-actions button {
       padding: 6px 0;
       border: 1px solid var(--panel-border);
-      border-radius: 4px;
+      border-radius: 6px;
       background: transparent;
       color: var(--text-muted);
       font-family: var(--font);
@@ -94,7 +97,7 @@
     .token-list {
       flex: 1;
       overflow-y: auto;
-      padding: 0 0 20px;
+      padding: 8px 0 24px;
     }
 
     .token-list::-webkit-scrollbar { width: 6px; }
@@ -102,52 +105,118 @@
     .token-list::-webkit-scrollbar-thumb { background: #2a2e39; border-radius: 3px; }
     .token-list::-webkit-scrollbar-thumb:hover { background: #3a3e49; }
 
-    .category { padding: 0 20px; }
+    /* ── Cards ── */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--card-radius);
+      margin: 8px 12px;
+      overflow: hidden;
+    }
 
-    .category-title {
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px 8px;
+    }
+
+    .card-title {
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: var(--text-muted);
-      padding: 14px 0 8px;
-      border-bottom: 1px solid var(--panel-border);
-      margin-bottom: 2px;
-      position: sticky;
-      top: 0;
-      background: var(--panel-bg);
-      z-index: 1;
+      font-weight: 600;
     }
 
-    .token-row {
+    .card-badge {
+      font-size: 9px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 8px;
+      padding: 1px 6px;
+      display: none;
+    }
+
+    .card-badge.visible { display: inline; }
+
+    .card-body { padding: 0 14px 14px; }
+
+    /* ── Color swatch grid ── */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+      gap: 6px;
+    }
+
+    .color-swatch-item {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 10px;
-      padding: 7px 0;
-      border-bottom: 1px solid #1a1a1a;
-      transition: background 0.15s;
-    }
-
-    .token-row:last-child { border-bottom: none; }
-    .token-row.highlight { background: #1e222d; }
-
-    .swatch-wrap { position: relative; flex-shrink: 0; }
-
-    .swatch {
-      width: 28px;
-      height: 28px;
-      border-radius: 4px;
-      border: 1px solid var(--swatch-border);
+      gap: 4px;
       cursor: pointer;
-      transition: border-color 0.15s;
     }
 
-    .swatch:hover { border-color: #666; }
-    .swatch.active { border-color: #fff; box-shadow: 0 0 0 1px var(--accent); }
+    .color-swatch-lg {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 8px;
+      border: 2px solid transparent;
+      transition: transform 0.12s, border-color 0.15s, box-shadow 0.15s;
+      position: relative;
+    }
 
-    .token-info { flex: 1; min-width: 0; }
+    .color-swatch-item:hover .color-swatch-lg {
+      transform: scale(1.08);
+      border-color: rgba(255,255,255,0.15);
+    }
 
-    .token-name {
-      font-size: 11px;
+    .color-swatch-lg.selected {
+      border-color: #fff;
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .color-swatch-label {
+      font-size: 8px;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.2;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-transform: lowercase;
+    }
+
+    /* ── Color detail panel (shown when swatch selected) ── */
+    .color-detail {
+      display: none;
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      animation: fadeSlide 0.15s ease-out;
+    }
+
+    .color-detail.open { display: flex; align-items: center; gap: 10px; }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .color-detail-swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid var(--swatch-border);
+      flex-shrink: 0;
+    }
+
+    .color-detail-info { flex: 1; min-width: 0; }
+
+    .color-detail-name {
+      font-size: 10px;
       font-family: var(--mono);
       color: var(--text);
       white-space: nowrap;
@@ -155,35 +224,33 @@
       text-overflow: ellipsis;
     }
 
-    .token-hex {
+    .color-detail-hex {
       font-size: 10px;
       font-family: var(--mono);
       color: var(--text-muted);
-      cursor: text;
-      width: 70px;
       background: transparent;
       border: 1px solid transparent;
       border-radius: 3px;
       padding: 1px 4px;
+      width: 70px;
       outline: none;
       transition: border-color 0.15s;
     }
 
-    .token-hex:focus { border-color: var(--accent); background: #111; }
+    .color-detail-hex:focus { border-color: var(--accent); background: rgba(0,0,0,0.3); }
 
-    .token-changed {
-      display: none;
+    .color-detail-dot {
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background: var(--accent);
       flex-shrink: 0;
+      display: none;
     }
 
-    .token-row.changed .token-changed { display: block; }
+    .color-detail.changed .color-detail-dot { display: block; }
 
-    .token-reset {
-      display: none;
+    .color-detail-reset {
       background: none;
       border: none;
       color: var(--text-dim);
@@ -193,10 +260,167 @@
       line-height: 1;
       transition: color 0.15s;
       flex-shrink: 0;
+      display: none;
     }
 
-    .token-reset:hover { color: var(--text); }
-    .token-row.changed .token-reset { display: block; }
+    .color-detail-reset:hover { color: var(--text); }
+    .color-detail.changed .color-detail-reset { display: block; }
+
+    /* ── Typography card ── */
+    .typo-hero {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 0 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      margin-bottom: 12px;
+    }
+
+    .typo-hero-text {
+      font-size: 56px;
+      font-weight: 300;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -1px;
+    }
+
+    .typo-family-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+
+    .typo-family-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .typo-family-input {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 3px 6px;
+      flex: 1;
+      min-width: 0;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .typo-family-input:focus { border-color: var(--accent); background: rgba(0,0,0,0.3); }
+
+    .typo-family-changed { display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .typo-family-row.changed .typo-family-changed { display: block; }
+
+    .typo-family-reset {
+      background: none; border: none; color: var(--text-dim); font-size: 13px;
+      cursor: pointer; padding: 0; line-height: 1; transition: color 0.15s; flex-shrink: 0; display: none;
+    }
+    .typo-family-reset:hover { color: var(--text); }
+    .typo-family-row.changed .typo-family-reset { display: block; }
+
+    .typo-scale { display: flex; flex-direction: column; gap: 2px; }
+
+    .typo-scale-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      transition: background 0.12s;
+    }
+
+    .typo-scale-row:hover { background: rgba(255,255,255,0.03); }
+
+    .typo-scale-label {
+      font-size: 9px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      color: var(--text-dim);
+      width: 32px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .typo-scale-sample {
+      flex: 1;
+      min-width: 0;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    .typo-scale-input {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      padding: 1px 2px;
+      width: 28px;
+      text-align: right;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    .typo-scale-input:focus { border-color: var(--accent); background: rgba(0,0,0,0.3); }
+
+    .typo-scale-unit {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-left: -3px;
+    }
+
+    .typo-scale-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex-shrink: 0; display: none; }
+    .typo-scale-row.changed .typo-scale-dot { display: block; }
+
+    .typo-scale-reset {
+      background: none; border: none; color: var(--text-dim); font-size: 12px;
+      cursor: pointer; padding: 0; line-height: 1; transition: color 0.15s; flex-shrink: 0; display: none;
+    }
+    .typo-scale-reset:hover { color: var(--text); }
+    .typo-scale-row.changed .typo-scale-reset { display: block; }
+
+    /* ── Component preview card ── */
+    .comp-preview { display: flex; flex-direction: column; gap: 12px; }
+
+    .comp-row { display: flex; gap: 8px; align-items: center; }
+
+    .comp-btn {
+      flex: 1;
+      padding: 8px 0;
+      border: none;
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+      cursor: default;
+      transition: background 0.15s;
+    }
+
+    .comp-input-preview {
+      flex: 1;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    .comp-text-stack { display: flex; flex-direction: column; gap: 4px; }
 
     /* ── Color picker popover ── */
     .cpick {
@@ -492,6 +716,38 @@
       font-style: italic;
     }
 
+    /* ── Inspect font info ── */
+    .inspect-font-section {
+      padding: 6px 14px 8px;
+      border-top: 1px solid #2a2e39;
+    }
+
+    .inspect-font-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 0;
+    }
+
+    .inspect-font-preview {
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .inspect-font-info {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+    }
+
+    .inspect-font-token {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text);
+    }
+
     /* ── Export modal ── */
     .modal-overlay {
       display: none;
@@ -616,7 +872,7 @@
   <div class="sidebar">
     <div class="sidebar-header">
       <h1>Theme Editor</h1>
-      <p>Edit tokens.css colors with live preview</p>
+      <p>Edit colors &amp; typography with live preview</p>
     </div>
 
     <div class="sidebar-actions">
@@ -745,6 +1001,24 @@
       ]},
     ];
 
+    // ═══ Typography token definitions ═══
+    const FONT_FAMILY_TOKEN = {
+      name: '--font-family',
+      default: "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif",
+    };
+
+    const FONT_SIZE_TOKENS = [
+      { name: '--font-size-xxxs', label: 'XXXS', default: '8px', desc: 'Tiny icon labels' },
+      { name: '--font-size-xxs', label: 'XXS', default: '9px', desc: 'Compact secondary' },
+      { name: '--font-size-xs', label: 'XS', default: '10px', desc: 'Small labels' },
+      { name: '--font-size-sm', label: 'SM', default: '11px', desc: 'Section labels' },
+      { name: '--font-size-base', label: 'BASE', default: '12px', desc: 'Body text' },
+      { name: '--font-size-md', label: 'MD', default: '13px', desc: 'Medium text' },
+      { name: '--font-size-lg', label: 'LG', default: '14px', desc: 'Buttons' },
+      { name: '--font-size-xl', label: 'XL', default: '16px', desc: 'Section titles' },
+      { name: '--font-size-xxl', label: 'XXL', default: '18px', desc: 'Modal titles' },
+    ];
+
     // ═══ State ═══
     const currentValues = {};
     const defaultValues = {};
@@ -753,82 +1027,378 @@
 
     // ═══ Color picker state ═══
     let cpickOpen = false;
-    let cpickToken = null; // which token is being edited
-    let cpickSource = null; // 'sidebar' | 'inspect'
+    let cpickToken = null;
+    let cpickSource = null;
+
+    // ═══ Component preview refs ═══
+    let compBuyBtn = null;
+    let compSellBtn = null;
+    let compInput = null;
+    let compTextHeadline = null;
+    let compTextBody = null;
+    let compTextLabel = null;
+
+    // ═══ Typography refs ═══
+    let typoHeroEl = null;
+
+    // ═══ Helpers ═══
+    function shortLabel(tokenName) {
+      return tokenName.replace(/^--(?:color-|font-size-)/, '').replace(/-/g, ' ');
+    }
+
+    function normalizeHex(val) {
+      let v = val.trim();
+      if (!v.startsWith('#')) v = '#' + v;
+      if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v[1]+v[1] + v[2]+v[2] + v[3]+v[3];
+      if (/^#[0-9a-f]{6}$/i.test(v) || /^#[0-9a-f]{8}$/i.test(v)) return v.toLowerCase();
+      return null;
+    }
+
+    function rgbToHex(rgb) {
+      if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
+      const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if (!m) return null;
+      return ('#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('')).toLowerCase();
+    }
+
+    function updateChangeCount() {
+      let count = 0;
+      for (const name of Object.keys(currentValues)) {
+        if (currentValues[name] !== defaultValues[name]) count++;
+      }
+      document.getElementById('changeCountInline').textContent = count;
+      const badge = document.getElementById('changeBadge');
+      badge.textContent = count;
+      badge.classList.toggle('visible', count > 0);
+    }
+
+    function findTokensForHex(hex, el) {
+      if (!hex) return [];
+      const matches = [];
+      for (const [name, value] of Object.entries(currentValues)) {
+        if (name.startsWith('--color-') && value.toLowerCase() === hex.toLowerCase()) matches.push(name);
+      }
+      if (matches.length === 0) return [];
+      if (!el) return matches;
+      let node = el;
+      for (let i = 0; i < 3 && node; i++) {
+        const markup = (node.className || '') + ' ' + (node.getAttribute('style') || '');
+        const referenced = matches.filter(name => markup.includes(name));
+        if (referenced.length > 0) return referenced;
+        node = node.parentElement;
+      }
+      if (matches.length === 1) return matches;
+      return [];
+    }
+
+    function findFontSizeToken(px) {
+      for (const fs of FONT_SIZE_TOKENS) {
+        if (parseInt(currentValues[fs.name] || fs.default, 10) === px) return fs;
+      }
+      return null;
+    }
 
     // ═══ Build sidebar ═══
     function buildTokenList() {
       const container = document.getElementById('tokenList');
       container.innerHTML = '';
 
+      // ── Color cards ──
       for (const group of TOKEN_GROUPS) {
-        const cat = document.createElement('div');
-        cat.className = 'category';
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const header = document.createElement('div');
+        header.className = 'card-header';
         const title = document.createElement('div');
-        title.className = 'category-title';
+        title.className = 'card-title';
         title.textContent = group.title;
-        cat.appendChild(title);
+        header.appendChild(title);
+        card.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+
+        // Swatch grid
+        const grid = document.createElement('div');
+        grid.className = 'color-grid';
+
+        // Detail panel (shown when swatch clicked)
+        const detail = document.createElement('div');
+        detail.className = 'color-detail';
+        detail.dataset.group = group.title;
+
+        const detailSwatch = document.createElement('div');
+        detailSwatch.className = 'color-detail-swatch';
+        const detailInfo = document.createElement('div');
+        detailInfo.className = 'color-detail-info';
+        const detailName = document.createElement('div');
+        detailName.className = 'color-detail-name';
+        const detailHex = document.createElement('input');
+        detailHex.className = 'color-detail-hex';
+        detailHex.spellcheck = false;
+        detailInfo.appendChild(detailName);
+        detailInfo.appendChild(detailHex);
+        const detailDot = document.createElement('div');
+        detailDot.className = 'color-detail-dot';
+        const detailReset = document.createElement('button');
+        detailReset.className = 'color-detail-reset';
+        detailReset.textContent = '\u21BA';
+        detailReset.title = 'Reset to default';
+        detail.appendChild(detailSwatch);
+        detail.appendChild(detailInfo);
+        detail.appendChild(detailDot);
+        detail.appendChild(detailReset);
 
         for (const token of group.tokens) {
           defaultValues[token.name] = token.default;
           currentValues[token.name] = token.default;
 
-          const row = document.createElement('div');
-          row.className = 'token-row';
-          row.dataset.token = token.name;
+          const item = document.createElement('div');
+          item.className = 'color-swatch-item';
+          item.dataset.token = token.name;
 
-          const swatchWrap = document.createElement('div');
-          swatchWrap.className = 'swatch-wrap';
           const swatch = document.createElement('div');
-          swatch.className = 'swatch';
+          swatch.className = 'color-swatch-lg';
           swatch.style.background = token.default;
-          swatch.addEventListener('click', (e) => {
+          swatch.dataset.token = token.name;
+
+          const label = document.createElement('div');
+          label.className = 'color-swatch-label';
+          label.textContent = shortLabel(token.name);
+
+          item.appendChild(swatch);
+          item.appendChild(label);
+          grid.appendChild(item);
+
+          // Click to select & show detail + open color picker
+          item.addEventListener('click', (e) => {
             e.stopPropagation();
+            // Deselect previous
+            grid.querySelectorAll('.color-swatch-lg.selected').forEach(s => s.classList.remove('selected'));
+            swatch.classList.add('selected');
+
+            // Populate detail
+            const val = currentValues[token.name];
+            detailSwatch.style.background = val;
+            detailName.textContent = token.name;
+            detailHex.value = val;
+            detail.classList.add('open');
+            detail.dataset.token = token.name;
+            detail.classList.toggle('changed', val !== defaultValues[token.name]);
+
+            // Wire hex input
+            detailHex.onchange = () => {
+              const v = normalizeHex(detailHex.value);
+              if (v) updateToken(token.name, v);
+              else detailHex.value = currentValues[token.name];
+            };
+            detailHex.onkeydown = (ev) => { if (ev.key === 'Enter') detailHex.blur(); };
+
+            // Wire reset
+            detailReset.onclick = () => updateToken(token.name, defaultValues[token.name]);
+
+            // Open color picker
             openColorPicker(token.name, swatch, 'sidebar');
           });
-          swatchWrap.appendChild(swatch);
-
-          const info = document.createElement('div');
-          info.className = 'token-info';
-          const nameEl = document.createElement('div');
-          nameEl.className = 'token-name';
-          nameEl.textContent = token.name;
-          const hex = document.createElement('input');
-          hex.className = 'token-hex';
-          hex.value = token.default;
-          hex.spellcheck = false;
-          hex.addEventListener('change', (e) => {
-            const v = normalizeHex(e.target.value);
-            if (v) updateToken(token.name, v);
-            else e.target.value = currentValues[token.name];
-          });
-          hex.addEventListener('keydown', (e) => { if (e.key === 'Enter') hex.blur(); });
-          info.appendChild(nameEl);
-          info.appendChild(hex);
-
-          const dot = document.createElement('div');
-          dot.className = 'token-changed';
-
-          const reset = document.createElement('button');
-          reset.className = 'token-reset';
-          reset.textContent = '\u21BA';
-          reset.title = 'Reset to default';
-          reset.addEventListener('click', () => updateToken(token.name, defaultValues[token.name]));
-
-          row.appendChild(swatchWrap);
-          row.appendChild(info);
-          row.appendChild(dot);
-          row.appendChild(reset);
-          cat.appendChild(row);
         }
 
-        container.appendChild(cat);
+        body.appendChild(grid);
+        body.appendChild(detail);
+        card.appendChild(body);
+        container.appendChild(card);
       }
+
+      // ── Typography card ──
+      const typoCard = document.createElement('div');
+      typoCard.className = 'card';
+
+      const typoHeader = document.createElement('div');
+      typoHeader.className = 'card-header';
+      const typoTitle = document.createElement('div');
+      typoTitle.className = 'card-title';
+      typoTitle.textContent = 'Typography';
+      typoHeader.appendChild(typoTitle);
+      typoCard.appendChild(typoHeader);
+
+      const typoBody = document.createElement('div');
+      typoBody.className = 'card-body';
+
+      // Hero "Aa"
+      const hero = document.createElement('div');
+      hero.className = 'typo-hero';
+      const heroText = document.createElement('div');
+      heroText.className = 'typo-hero-text';
+      heroText.textContent = 'Aa';
+      typoHeroEl = heroText;
+      hero.appendChild(heroText);
+      typoBody.appendChild(hero);
+
+      // Font family row
+      defaultValues[FONT_FAMILY_TOKEN.name] = FONT_FAMILY_TOKEN.default;
+      currentValues[FONT_FAMILY_TOKEN.name] = FONT_FAMILY_TOKEN.default;
+
+      const ffRow = document.createElement('div');
+      ffRow.className = 'typo-family-row';
+      ffRow.dataset.token = FONT_FAMILY_TOKEN.name;
+      const ffLabel = document.createElement('div');
+      ffLabel.className = 'typo-family-label';
+      ffLabel.textContent = 'Font';
+      const ffInput = document.createElement('input');
+      ffInput.className = 'typo-family-input';
+      ffInput.value = FONT_FAMILY_TOKEN.default;
+      ffInput.spellcheck = false;
+      ffInput.addEventListener('change', () => {
+        const val = ffInput.value.trim();
+        if (val) updateToken(FONT_FAMILY_TOKEN.name, val);
+        else ffInput.value = currentValues[FONT_FAMILY_TOKEN.name];
+      });
+      ffInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') ffInput.blur(); });
+      const ffDot = document.createElement('div');
+      ffDot.className = 'typo-family-changed';
+      const ffReset = document.createElement('button');
+      ffReset.className = 'typo-family-reset';
+      ffReset.textContent = '\u21BA';
+      ffReset.title = 'Reset to default';
+      ffReset.addEventListener('click', () => updateToken(FONT_FAMILY_TOKEN.name, defaultValues[FONT_FAMILY_TOKEN.name]));
+      ffRow.appendChild(ffLabel);
+      ffRow.appendChild(ffInput);
+      ffRow.appendChild(ffDot);
+      ffRow.appendChild(ffReset);
+      typoBody.appendChild(ffRow);
+
+      // Font size scale
+      const scale = document.createElement('div');
+      scale.className = 'typo-scale';
+
+      for (const fs of FONT_SIZE_TOKENS) {
+        defaultValues[fs.name] = fs.default;
+        currentValues[fs.name] = fs.default;
+
+        const row = document.createElement('div');
+        row.className = 'typo-scale-row';
+        row.dataset.token = fs.name;
+
+        const label = document.createElement('div');
+        label.className = 'typo-scale-label';
+        label.textContent = fs.label;
+        label.title = fs.desc;
+
+        const sample = document.createElement('div');
+        sample.className = 'typo-scale-sample';
+        sample.textContent = fs.label === 'XXXS' || fs.label === 'XXS' ? 'Aa' : 'The quick brown fox';
+        sample.style.fontSize = fs.default;
+
+        const valInput = document.createElement('input');
+        valInput.className = 'typo-scale-input';
+        valInput.type = 'number';
+        valInput.min = '4';
+        valInput.max = '72';
+        valInput.value = parseInt(fs.default, 10);
+        valInput.addEventListener('change', () => {
+          const n = parseInt(valInput.value, 10);
+          if (n >= 4 && n <= 72) updateToken(fs.name, n + 'px');
+          else valInput.value = parseInt(currentValues[fs.name], 10);
+        });
+        valInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') valInput.blur(); });
+
+        const unit = document.createElement('span');
+        unit.className = 'typo-scale-unit';
+        unit.textContent = 'px';
+
+        const dot = document.createElement('div');
+        dot.className = 'typo-scale-dot';
+
+        const reset = document.createElement('button');
+        reset.className = 'typo-scale-reset';
+        reset.textContent = '\u21BA';
+        reset.title = 'Reset to default';
+        reset.addEventListener('click', () => updateToken(fs.name, defaultValues[fs.name]));
+
+        row.appendChild(label);
+        row.appendChild(sample);
+        row.appendChild(valInput);
+        row.appendChild(unit);
+        row.appendChild(dot);
+        row.appendChild(reset);
+        scale.appendChild(row);
+      }
+
+      typoBody.appendChild(scale);
+      typoCard.appendChild(typoBody);
+      container.appendChild(typoCard);
+
+      // ── Component preview card ──
+      const compCard = document.createElement('div');
+      compCard.className = 'card';
+
+      const compHeader = document.createElement('div');
+      compHeader.className = 'card-header';
+      const compTitle = document.createElement('div');
+      compTitle.className = 'card-title';
+      compTitle.textContent = 'Component Preview';
+      compHeader.appendChild(compTitle);
+      compCard.appendChild(compHeader);
+
+      const compBody = document.createElement('div');
+      compBody.className = 'card-body comp-preview';
+
+      // Buy / Sell buttons
+      const btnRow = document.createElement('div');
+      btnRow.className = 'comp-row';
+      compBuyBtn = document.createElement('button');
+      compBuyBtn.className = 'comp-btn';
+      compBuyBtn.textContent = 'Buy';
+      compBuyBtn.style.background = currentValues['--color-btn-buy'];
+      compSellBtn = document.createElement('button');
+      compSellBtn.className = 'comp-btn';
+      compSellBtn.textContent = 'Sell';
+      compSellBtn.style.background = currentValues['--color-btn-sell'];
+      btnRow.appendChild(compBuyBtn);
+      btnRow.appendChild(compSellBtn);
+      compBody.appendChild(btnRow);
+
+      // Input preview
+      const inputRow = document.createElement('div');
+      inputRow.className = 'comp-row';
+      compInput = document.createElement('div');
+      compInput.className = 'comp-input-preview';
+      compInput.textContent = 'Search instruments...';
+      compInput.style.background = currentValues['--color-input'];
+      compInput.style.border = '1px solid ' + currentValues['--color-border'];
+      compInput.style.color = currentValues['--color-text-dim'];
+      inputRow.appendChild(compInput);
+      compBody.appendChild(inputRow);
+
+      // Text hierarchy
+      const textStack = document.createElement('div');
+      textStack.className = 'comp-text-stack';
+      compTextHeadline = document.createElement('div');
+      compTextHeadline.textContent = 'Headline';
+      compTextHeadline.style.fontSize = currentValues['--font-size-xxl'] || '18px';
+      compTextHeadline.style.color = currentValues['--color-text-bright'];
+      compTextHeadline.style.fontWeight = '600';
+      compTextBody = document.createElement('div');
+      compTextBody.textContent = 'Body text for regular content and descriptions.';
+      compTextBody.style.fontSize = currentValues['--font-size-base'] || '12px';
+      compTextBody.style.color = currentValues['--color-text'];
+      compTextLabel = document.createElement('div');
+      compTextLabel.textContent = 'SECTION LABEL';
+      compTextLabel.style.fontSize = currentValues['--font-size-xs'] || '10px';
+      compTextLabel.style.color = currentValues['--color-text-muted'];
+      compTextLabel.style.textTransform = 'uppercase';
+      compTextLabel.style.letterSpacing = '0.1em';
+      textStack.appendChild(compTextHeadline);
+      textStack.appendChild(compTextBody);
+      textStack.appendChild(compTextLabel);
+      compBody.appendChild(textStack);
+
+      compCard.appendChild(compBody);
+      container.appendChild(compCard);
     }
 
     // ═══ Color Picker ═══
     function openColorPicker(tokenName, anchorEl, source) {
-      // If same token is already open, close it
       if (cpickOpen && cpickToken === tokenName) { closeColorPicker(); return; }
       closeColorPicker();
 
@@ -839,13 +1409,16 @@
       const cpick = document.getElementById('cpick');
       const currentColor = currentValues[tokenName] || '#000000';
 
-      // Build picker HTML
       let html = '';
 
-      // Theme token presets row
+      // Theme token presets
       html += '<div class="cpick-section-label">Theme tokens</div>';
       html += '<div class="cpick-tokens-row">';
-      const uniqueTokenColors = [...new Set(Object.values(currentValues))];
+      const uniqueTokenColors = [...new Set(
+        Object.entries(currentValues)
+          .filter(([k]) => k.startsWith('--color-'))
+          .map(([,v]) => v)
+      )];
       for (const c of uniqueTokenColors) {
         const sel = c.toLowerCase() === currentColor.toLowerCase() ? ' selected' : '';
         html += `<div class="cpick-cell${sel}" style="background:${c}" data-color="${c}"></div>`;
@@ -863,7 +1436,6 @@
       }
       html += '</div>';
 
-      // Bottom: custom picker + hex input + preview
       html += `<div class="cpick-bottom">
         <div class="cpick-preview" id="cpickPreview" style="background:${currentColor}"></div>
         <input class="cpick-hex-input" id="cpickHexInput" value="${currentColor}" spellcheck="false">
@@ -877,16 +1449,16 @@
       const anchorRect = anchorEl.getBoundingClientRect();
       let left = anchorRect.right + 8;
       let top = anchorRect.top;
-      // Keep within viewport
       if (left + 260 > window.innerWidth) left = anchorRect.left - 260;
       if (top + 340 > window.innerHeight) top = Math.max(8, window.innerHeight - 340);
       cpick.style.left = left + 'px';
       cpick.style.top = top + 'px';
       cpick.classList.add('open');
 
-      // Mark active swatch in sidebar
-      document.querySelectorAll('.swatch.active').forEach(s => s.classList.remove('active'));
-      anchorEl.classList.add('active');
+      // Mark active swatch
+      document.querySelectorAll('.color-swatch-lg.selected').forEach(s => {
+        if (s.dataset.token !== tokenName) s.classList.remove('selected');
+      });
 
       // Wire up cell clicks
       cpick.querySelectorAll('.cpick-cell').forEach(cell => {
@@ -906,7 +1478,7 @@
       });
       hexInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') hexInput.blur(); });
 
-      // Wire up custom color button → native picker
+      // Wire up custom color button
       document.getElementById('cpickCustomBtn').addEventListener('click', () => {
         document.getElementById('cpickNativeInput').click();
       });
@@ -935,16 +1507,13 @@
       cpickOpen = false;
       cpickToken = null;
       document.getElementById('cpick').classList.remove('open');
-      document.querySelectorAll('.swatch.active').forEach(s => s.classList.remove('active'));
     }
 
-    // Close picker on outside click
     document.addEventListener('mousedown', (e) => {
       if (!cpickOpen) return;
       const cpick = document.getElementById('cpick');
       if (cpick.contains(e.target)) return;
-      // Don't close if clicking a swatch (it handles its own toggle)
-      if (e.target.classList.contains('swatch')) return;
+      if (e.target.closest('.color-swatch-item') || e.target.classList.contains('color-swatch-lg')) return;
       closeColorPicker();
     });
 
@@ -952,12 +1521,57 @@
     function updateToken(name, value) {
       currentValues[name] = value;
 
-      // Sidebar row
-      const row = document.querySelector(`.token-row[data-token="${name}"]`);
-      if (row) {
-        row.querySelector('.swatch').style.background = value;
-        row.querySelector('.token-hex').value = value;
-        row.classList.toggle('changed', value !== defaultValues[name]);
+      // ── Color swatch in grid ──
+      const swatchEl = document.querySelector(`.color-swatch-lg[data-token="${name}"]`);
+      if (swatchEl) {
+        swatchEl.style.background = value;
+      }
+
+      // ── Color detail panel ──
+      const detail = document.querySelector(`.color-detail[data-token="${name}"]`);
+      if (detail) {
+        detail.querySelector('.color-detail-swatch').style.background = value;
+        detail.querySelector('.color-detail-hex').value = value;
+        detail.classList.toggle('changed', value !== defaultValues[name]);
+      }
+
+      // ── Typography: font family ──
+      const ffRow = document.querySelector(`.typo-family-row[data-token="${name}"]`);
+      if (ffRow) {
+        ffRow.querySelector('.typo-family-input').value = value;
+        ffRow.classList.toggle('changed', value !== defaultValues[name]);
+        if (typoHeroEl) typoHeroEl.style.fontFamily = value;
+      }
+
+      // ── Typography: font size scale ──
+      const scaleRow = document.querySelector(`.typo-scale-row[data-token="${name}"]`);
+      if (scaleRow) {
+        scaleRow.querySelector('.typo-scale-input').value = parseInt(value, 10);
+        scaleRow.querySelector('.typo-scale-sample').style.fontSize = value;
+        scaleRow.classList.toggle('changed', value !== defaultValues[name]);
+      }
+
+      // ── Component preview updates ──
+      if (compBuyBtn) {
+        if (name === '--color-btn-buy') compBuyBtn.style.background = value;
+        if (name === '--color-btn-sell') compSellBtn.style.background = value;
+        if (name === '--color-input') compInput.style.background = value;
+        if (name === '--color-border') compInput.style.borderColor = value;
+        if (name === '--color-text-dim') compInput.style.color = value;
+        if (name === '--color-text-bright') compTextHeadline.style.color = value;
+        if (name === '--color-text') compTextBody.style.color = value;
+        if (name === '--color-text-muted') compTextLabel.style.color = value;
+        if (name === '--font-size-xxl') compTextHeadline.style.fontSize = value;
+        if (name === '--font-size-base') compTextBody.style.fontSize = value;
+        if (name === '--font-size-xs') compTextLabel.style.fontSize = value;
+        if (name === '--font-family') {
+          compBuyBtn.style.fontFamily = value;
+          compSellBtn.style.fontFamily = value;
+          compInput.style.fontFamily = value;
+          compTextHeadline.style.fontFamily = value;
+          compTextBody.style.fontFamily = value;
+          compTextLabel.style.fontFamily = value;
+        }
       }
 
       applyToIframe(name, value);
@@ -993,56 +1607,6 @@
           if (value !== defaultValues[name]) root.style.setProperty(name, value);
         }
       } catch (e) { /* */ }
-    }
-
-    // ═══ Helpers ═══
-    function normalizeHex(val) {
-      let v = val.trim();
-      if (!v.startsWith('#')) v = '#' + v;
-      if (/^#[0-9a-f]{3}$/i.test(v)) v = '#' + v[1]+v[1] + v[2]+v[2] + v[3]+v[3];
-      if (/^#[0-9a-f]{6}$/i.test(v) || /^#[0-9a-f]{8}$/i.test(v)) return v.toLowerCase();
-      return null;
-    }
-
-    function rgbToHex(rgb) {
-      if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return null;
-      const m = rgb.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (!m) return null;
-      return ('#' + [m[1],m[2],m[3]].map(n => parseInt(n).toString(16).padStart(2,'0')).join('')).toLowerCase();
-    }
-
-    function updateChangeCount() {
-      let count = 0;
-      for (const name of Object.keys(currentValues)) {
-        if (currentValues[name] !== defaultValues[name]) count++;
-      }
-      document.getElementById('changeCountInline').textContent = count;
-      const badge = document.getElementById('changeBadge');
-      badge.textContent = count;
-      badge.classList.toggle('visible', count > 0);
-    }
-
-    function findTokensForHex(hex, el) {
-      if (!hex) return [];
-      const matches = [];
-      for (const [name, value] of Object.entries(currentValues)) {
-        if (value.toLowerCase() === hex.toLowerCase()) matches.push(name);
-      }
-      if (matches.length === 0) return [];
-      if (!el) return matches;
-      // Check the element (and a few ancestors) for a class/style referencing a token.
-      // Tailwind classes like bg-(--color-border) contain the token name verbatim.
-      let node = el;
-      for (let i = 0; i < 3 && node; i++) {
-        const markup = (node.className || '') + ' ' + (node.getAttribute('style') || '');
-        const referenced = matches.filter(name => markup.includes(name));
-        if (referenced.length > 0) return referenced;
-        node = node.parentElement;
-      }
-      // If only one token matches, it's unambiguous — show it
-      if (matches.length === 1) return matches;
-      // Multiple tokens share this hex and none are referenced — don't guess
-      return [];
     }
 
     // ═══ Apply to File (via Vite dev server plugin) ═══
@@ -1114,8 +1678,6 @@
         const isTarget = depth === 0;
         const suffix = isTarget ? '' : ` (${current.tagName.toLowerCase()})`;
 
-        // Collect bg — stop walking for bg once we find the first opaque one,
-        // since parent bgs are hidden behind it visually.
         const bg = rgbToHex(cs.backgroundColor);
         const bgAlreadyFound = Array.from(seen).some(k => k.startsWith('bg:'));
         if (bg && !bgAlreadyFound) {
@@ -1125,7 +1687,6 @@
 
         const color = rgbToHex(cs.color);
         if (color && !seen.has('text:' + color)) {
-          // Only show text color if this element (or its subtree for the target) has visible text
           const hasDirectText = Array.from(current.childNodes).some(n => n.nodeType === 3 && n.textContent.trim());
           const hasSubtreeText = isTarget && current.textContent?.trim();
           if (hasDirectText || hasSubtreeText) {
@@ -1135,7 +1696,6 @@
         }
 
         if (isTarget) {
-          // Check all four border sides
           for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
             if (parseFloat(cs[`border${side}Width`]) > 0) {
               const bc = rgbToHex(cs[`border${side}Color`]);
@@ -1143,7 +1703,7 @@
                 seen.add('border:' + bc);
                 props.push({ prop: 'border', hex: bc, el: current });
               }
-              break; // one border color is enough
+              break;
             }
           }
         }
@@ -1197,6 +1757,37 @@
       }
 
       html += '</div>';
+
+      // Font info section
+      try {
+        const frame = document.getElementById('appFrame');
+        if (frame?.contentWindow) {
+          const cs = frame.contentWindow.getComputedStyle(el);
+          const fontSize = Math.round(parseFloat(cs.fontSize));
+          const fontFamily = cs.fontFamily;
+          const fontToken = findFontSizeToken(fontSize);
+
+          html += '<div class="inspect-font-section">';
+          html += '<div class="inspect-prop-label" style="margin-bottom:6px">Typography</div>';
+
+          html += '<div class="inspect-font-row">';
+          html += `<div class="inspect-font-preview" style="font-size:${fontSize}px">A</div>`;
+          if (fontToken) {
+            html += `<div class="inspect-font-info"><span class="inspect-font-token">${fontToken.label}</span> · ${fontSize}px · ${fontToken.name}</div>`;
+          } else {
+            html += `<div class="inspect-font-info">${fontSize}px · <span style="color:var(--text-dim);font-style:italic">no token match</span></div>`;
+          }
+          html += '</div>';
+
+          const shortFamily = fontFamily.length > 40 ? fontFamily.slice(0, 40) + '...' : fontFamily;
+          html += '<div class="inspect-font-row">';
+          html += `<div class="inspect-font-info" title="${fontFamily.replace(/"/g, '&quot;')}" style="color:var(--text-dim)">font: ${shortFamily}</div>`;
+          html += '</div>';
+
+          html += '</div>';
+        }
+      } catch (e) { /* cross-origin */ }
+
       popover.innerHTML = html;
 
       // Position
@@ -1279,13 +1870,11 @@
     function resetAll() {
       for (const name of Object.keys(defaultValues)) {
         currentValues[name] = defaultValues[name];
-        const row = document.querySelector(`.token-row[data-token="${name}"]`);
-        if (row) {
-          row.querySelector('.swatch').style.background = defaultValues[name];
-          row.querySelector('.token-hex').value = defaultValues[name];
-          row.classList.remove('changed');
-        }
       }
+
+      // Re-build the entire sidebar (simplest way to reset all DOM)
+      buildTokenList();
+
       try {
         const frame = document.getElementById('appFrame');
         if (frame?.contentDocument) {
@@ -1300,13 +1889,19 @@
 
     // ═══ Generate CSS ═══
     function generateTokensCSS() {
-      let css = `/**\n * Design tokens — THE single source of truth for all colors.\n * constants/colors.ts reads from these variables at runtime.\n *\n * To change a color, edit it HERE only — everything else picks it up automatically.\n *\n * Usage in Tailwind:  bg-(--color-surface)  text-(--color-text-muted)\n * Usage in inline:    var(--color-surface)\n * Usage in canvas:    import { COLOR_SURFACE } from 'constants/colors'\n */\n\n:root {\n`;
+      let css = `/**\n * Design tokens — THE single source of truth for all colors and typography.\n * constants/colors.ts and constants/layout.ts read from these variables at runtime.\n *\n * To change a color or font, edit it HERE only — everything else picks it up automatically.\n *\n * Usage in Tailwind:  bg-(--color-surface)  text-(--color-text-muted)\n * Usage in inline:    var(--color-surface)\n * Usage in canvas:    import { COLOR_SURFACE } from 'constants/colors'\n */\n\n:root {\n`;
       for (const group of TOKEN_GROUPS) {
         css += `  /* ── ${group.title} ── */\n`;
         for (const token of group.tokens) css += `  ${token.name}: ${currentValues[token.name] || token.default};\n`;
         css += '\n';
       }
-      css += `  /* ── Transitions ── */\n  --transition-fast: 0.15s;\n  --disabled-opacity: 0.5;\n}\n`;
+      css += `  /* ── Typography ── */\n`;
+      css += `  ${FONT_FAMILY_TOKEN.name}: ${currentValues[FONT_FAMILY_TOKEN.name] || FONT_FAMILY_TOKEN.default};\n`;
+      for (const fs of FONT_SIZE_TOKENS) {
+        css += `  ${fs.name}: ${currentValues[fs.name] || fs.default};\n`;
+      }
+      css += '\n';
+      css += `  /* ── Transitions ── */\n  --transition-fast: 0.15s;\n  --transition-normal: 0.2s;\n  --transition-slow: 0.25s;\n  --disabled-opacity: 0.5;\n}\n`;
       return css;
     }
 

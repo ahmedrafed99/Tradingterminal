@@ -8,7 +8,7 @@ This document defines strict rules for how font family, z-index, box shadows, bo
 
 ## The Golden Rule
 
-**Never hardcode a font-family string, z-index number, box-shadow value, or border-radius number in a component file.**
+**Never hardcode a font-family string, font-size number, z-index number, box-shadow value, or border-radius number in a component file.**
 
 All layout tokens come from `constants/layout.ts` (JS) or `tokens.css` (CSS transitions). If the value you need doesn't exist as a token, you either:
 1. Use the closest existing token, or
@@ -22,10 +22,11 @@ All layout tokens come from `constants/layout.ts` (JS) or `tokens.css` (CSS tran
 layout.ts  ──────────────────────────────  THE source of truth (JS tokens)
     │
     ├──► Inline styles     fontFamily: FONT_FAMILY
+    ├──► Inline styles     fontSize: FONT_SIZE.BASE
     ├──► Inline styles     zIndex: Z.DROPDOWN
     ├──► Inline styles     boxShadow: SHADOW.LG
     ├──► Inline styles     borderRadius: RADIUS.XL
-    └──► Canvas/ctx code   ctx.font = `12px ${FONT_FAMILY}`
+    └──► Canvas/ctx code   ctx.font = `${FONT_SIZE.BASE}px ${FONT_FAMILY}`
 
 tokens.css  ─────────────────────────────  THE source of truth (CSS transitions)
     │
@@ -33,7 +34,7 @@ tokens.css  ──────────────────────�
     └──► cssText strings   transition:opacity var(--transition-fast)
 ```
 
-- **`frontend/src/constants/layout.ts`** — Exports `FONT_FAMILY`, `Z`, `SHADOW`, and `RADIUS`. This is the only place these values are defined.
+- **`frontend/src/constants/layout.ts`** — Exports `FONT_FAMILY`, `FONT_SIZE`, `Z`, `SHADOW`, and `RADIUS`. This is the only place these values are defined.
 - **`frontend/src/styles/tokens.css`** — Defines `--transition-fast`, `--transition-normal`, and `--transition-slow` alongside color tokens. These are CSS custom properties on `:root`.
 
 ---
@@ -47,10 +48,23 @@ tokens.css  ──────────────────────�
 style={{ fontFamily: FONT_FAMILY }}
 
 // Canvas context
-ctx.font = `12px ${FONT_FAMILY}`;
+ctx.font = `${FONT_SIZE.BASE}px ${FONT_FAMILY}`;
 
 // In a cssText string (imperative DOM)
 el.style.cssText = `font-family:${FONT_FAMILY};`;
+```
+
+### Font Size
+
+```tsx
+// Inline style
+style={{ fontSize: FONT_SIZE.SM }}
+
+// Canvas context
+ctx.font = `${FONT_SIZE.BASE}px ${FONT_FAMILY}`;
+
+// In a cssText string (imperative DOM)
+el.style.cssText = `font-size:${FONT_SIZE.MD}px;`;
 ```
 
 ### Z-Index
@@ -116,6 +130,20 @@ el.style.cssText = 'transition:opacity var(--transition-fast);';
 
 One font stack for the entire app — components, canvas primitives, imperative DOM.
 
+### Font Sizes
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `FONT_SIZE.XXXS` | `8` | Tiny icon labels, density indicators |
+| `FONT_SIZE.XXS` | `9` | Compact secondary text |
+| `FONT_SIZE.XS` | `10` | Small labels, captions |
+| `FONT_SIZE.SM` | `11` | Section labels, form fields, compact UI |
+| `FONT_SIZE.BASE` | `12` | Body text, charts, default size |
+| `FONT_SIZE.MD` | `13` | Medium text, inputs |
+| `FONT_SIZE.LG` | `14` | Buttons, subheadings |
+| `FONT_SIZE.XL` | `16` | Section titles |
+| `FONT_SIZE.XXL` | `18` | Modal titles, large headings |
+
 ### Z-Index Stack
 
 | Token | Value | Usage |
@@ -177,15 +205,18 @@ Never write `borderRadius: 4`. Use `RADIUS.LG`. Exceptions: compound values (`'2
 ### 4. No copy-pasted font-family strings
 Never write the font stack inline. Import `FONT_FAMILY` from `constants/layout`.
 
-### 5. No hardcoded transition durations
+### 5. No raw font-size numbers
+Never write `fontSize: 12` or `text-[11px]`. Use `FONT_SIZE.BASE` or `FONT_SIZE.SM`. For Tailwind classes, use inline `style={{ fontSize: FONT_SIZE.SM }}` instead of `text-[11px]`.
+
+### 6. No hardcoded transition durations
 Never write `transition: 'opacity 0.15s'`. Use `transition: 'opacity var(--transition-fast)'`. The only exceptions are long-running animations (`1s`, `1.2s`) like recording pulses.
 
-### 6. Adding a new token
+### 7. Adding a new token
 1. Add the constant to `layout.ts` under the appropriate section (or add a CSS variable to `tokens.css` for transitions)
 2. Use a semantic name that describes the purpose, not the value
 3. Update this document's token reference table
 
-### 7. Changing an existing token
+### 8. Changing an existing token
 Edit the value in `layout.ts` (or `tokens.css`). Everything updates automatically — all imports resolve to the new value.
 
 ---
@@ -210,6 +241,6 @@ Everything else must use a token.
 |---|---|
 | See all layout tokens | `frontend/src/constants/layout.ts` |
 | See transition duration tokens | `frontend/src/styles/tokens.css` |
-| Use font, z-index, shadow, or radius in a component | `import { FONT_FAMILY, Z, SHADOW, RADIUS } from 'constants/layout'` |
+| Use font, font size, z-index, shadow, or radius in a component | `import { FONT_FAMILY, FONT_SIZE, Z, SHADOW, RADIUS } from 'constants/layout'` |
 | See color tokens (separate system) | `docs/design-tokens/colors.md` |
 | See reusable Tailwind class strings | `frontend/src/constants/styles.ts` |

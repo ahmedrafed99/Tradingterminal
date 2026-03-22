@@ -1,8 +1,8 @@
 /**
- * Design tokens — THE single source of truth for all colors.
- * constants/colors.ts reads from these variables at runtime.
+ * Design tokens — THE single source of truth for all colors and typography.
+ * constants/colors.ts and constants/layout.ts read from these variables at runtime.
  *
- * To change a color, edit it HERE only — everything else picks it up automatically.
+ * To change a color or font, edit it HERE only — everything else picks it up automatically.
  *
  * Usage in Tailwind:  bg-(--color-surface)  text-(--color-text-muted)
  * Usage in inline:    var(--color-surface)
@@ -60,6 +60,18 @@
   --color-label-close: #e0e0e0;
   --color-label-close-hover: #b8b8b8;
   --color-handle-stroke: #4a90d9;
+
+  /* ── Typography ── */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  --font-size-xxxs: 8px;
+  --font-size-xxs: 9px;
+  --font-size-xs: 10px;
+  --font-size-sm: 11px;
+  --font-size-base: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 14px;
+  --font-size-xl: 16px;
+  --font-size-xxl: 18px;
 
   /* ── Transitions ── */
   --transition-fast: 0.15s;

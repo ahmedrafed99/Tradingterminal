@@ -1,17 +1,37 @@
 /**
- * Layout tokens — single source of truth for font family, z-index stack,
- * box shadows, and border radii.
+ * Layout tokens — single source of truth for font family, font sizes,
+ * z-index stack, box shadows, and border radii.
  *
  * Usage:
- *   import { FONT_FAMILY, Z, SHADOW, RADIUS } from 'constants/layout';
+ *   import { FONT_FAMILY, FONT_SIZE, Z, SHADOW, RADIUS } from 'constants/layout';
  *
  * For canvas ctx.font strings:
- *   ctx.font = `${size}px ${FONT_FAMILY}`;
+ *   ctx.font = `${FONT_SIZE.BASE}px ${FONT_FAMILY}`;
  */
 
+// ── CSS var reader (same pattern as colors.ts) ──
+const root = getComputedStyle(document.documentElement);
+const v = (name: string) => root.getPropertyValue(name).trim();
+const px = (name: string) => parseInt(v(name), 10) || 0;
+
 // ── Font Family ──
+// Reads from --font-family in tokens.css
 export const FONT_FAMILY =
-  "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+  v('--font-family') || "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+
+// ── Font Sizes ──
+// Reads from --font-size-* in tokens.css — never use a raw number, always reference FONT_SIZE.*
+export const FONT_SIZE = {
+  XXXS: px('--font-size-xxxs') || 8,   // tiny icon labels, density indicators
+  XXS: px('--font-size-xxs') || 9,     // compact secondary text
+  XS: px('--font-size-xs') || 10,      // small labels, captions
+  SM: px('--font-size-sm') || 11,      // section labels, form fields, compact UI
+  BASE: px('--font-size-base') || 12,  // body text, charts, default
+  MD: px('--font-size-md') || 13,      // medium text, inputs
+  LG: px('--font-size-lg') || 14,      // buttons, subheadings
+  XL: px('--font-size-xl') || 16,      // section titles
+  XXL: px('--font-size-xxl') || 18,    // modal titles, large headings
+};
 
 // ── Z-Index Stack ──
 // Ordered layers — never use a raw number, always reference Z.*

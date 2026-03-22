@@ -185,15 +185,17 @@ Everything else must use a token.
 A live theme editor is available at `/theme-editor.html` when running the Vite dev server.
 
 **Features:**
-- Sidebar with all 28 tokens grouped by category — click any swatch to open a color picker
+- Card-based sidebar (400px) with color tokens grouped by category — click any swatch to open a color picker
+- **Typography card** — large "Aa" hero preview, editable font-family, and a font-size scale with live sample text at each tier
+- **Component Preview card** — live mini-previews of Buy/Sell buttons, inputs, and text hierarchy that update in real-time
 - Live preview via iframe — changes update instantly in the preview
-- **Inspect Mode** — hover over any element in the preview to see which tokens control it, click to edit matched colors in-place
+- **Inspect Mode** — hover over any element in the preview to see which color and typography tokens control it, click to edit matched tokens in-place
 - **Apply to File** — writes changes directly to `tokens.css` via a Vite dev server plugin (`POST /__theme-write`). Vite HMR picks up the change and hot-reloads the app automatically
 
 **How to use:**
 1. Start the dev server (`npm run dev`)
 2. Open `http://localhost:5173/theme-editor.html`
-3. Edit colors in the sidebar or use Inspect Mode to find and change specific element colors
+3. Edit colors, font family, or font sizes in the sidebar cards — or use Inspect Mode to find and change specific element tokens
 4. Click "Apply to File" to persist changes to `tokens.css`
 
 > **Note:** Canvas-rendered elements (chart primitives using `colors.ts`) read CSS variables at module init time. After applying file changes, a full page reload may be needed for canvas colors to update.
