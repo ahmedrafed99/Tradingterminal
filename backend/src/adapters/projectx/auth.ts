@@ -52,7 +52,7 @@ export const projectXAuth: ExchangeAuth = {
     store.token = null;
 
     const url = `${store.baseUrl}/api/Auth/loginKey`;
-    console.log(`[auth] POST ${url} | userName: ${username}`);
+    console.log(`[auth] POST ${url}`);
 
     let response;
     try {
@@ -63,7 +63,7 @@ export const projectXAuth: ExchangeAuth = {
       );
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response) {
-        console.error(`[auth] HTTP ${err.response.status}`, err.response.data);
+        console.error(`[auth] HTTP ${err.response.status}`);
         const data = err.response.data as { errorMessage?: string } | undefined;
         throw new Error(data?.errorMessage ?? `HTTP ${err.response.status} from gateway`);
       }
@@ -77,7 +77,7 @@ export const projectXAuth: ExchangeAuth = {
     }
 
     store.token = response.data.token as string;
-    console.log(`[auth] ✓ connected as ${username}`);
+    console.log(`[auth] ✓ connected`);
   },
 
   disconnect() {

@@ -121,9 +121,7 @@ async function executeCondition(condition: Condition): Promise<void> {
     }
   }
 
-  console.log(`[conditionEngine] Placing order for condition ${condition.id}:`, orderParams);
   const result = await adapter.orders.place(orderParams) as { success?: boolean; errorMessage?: string };
-  console.log(`[conditionEngine] Order result for ${condition.id}:`, JSON.stringify(result));
 
   if (result && result.success === false) {
     throw new Error(result.errorMessage || 'Gateway returned success=false');
