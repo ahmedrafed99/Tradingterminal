@@ -36,6 +36,7 @@ export const COLOR_INPUT = v('--color-input');
 export const COLOR_HOVER_ROW = v('--color-hover-row');
 export const COLOR_HOVER_TOOLBAR = v('--color-hover-toolbar');
 export const COLOR_TABLE_STRIPE = v('--color-table-stripe');
+export const COLOR_POPOVER = v('--color-popover');
 export const COLOR_FOCUS_RING = v('--color-focus-ring');
 
 // ── Status ──

@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { TradeStats, DayPnl } from '../../utils/tradeStats';
+import { COLOR_BUY, COLOR_SELL, COLOR_TABLE_STRIPE, COLOR_POPOVER, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../constants/colors';
+import { niceStep, hexToRgba } from './statsHelpers';
 
 type Mode = 'equity' | 'daily';
 
@@ -18,16 +20,21 @@ interface HoverInfo {
 export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyData: DayPnl[] }) {
   const [mode, setMode] = useState<Mode>('equity');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
   const [hover, setHover] = useState<HoverInfo | null>(null);
 
   // Store computed positions for hit testing
   const pointsRef = useRef<{ x: number; y: number; label: string; value: string; sub?: string; color: string }[]>([]);
+  const rectRef = useRef<DOMRect | null>(null);
 
   const measure = useCallback(() => {
     if (containerRef.current) {
       setWidth(containerRef.current.clientWidth);
+    }
+    if (canvasRef.current) {
+      rectRef.current = canvasRef.current.getBoundingClientRect();
     }
   }, []);
 
@@ -81,10 +88,32 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     return () => cancelAnimationFrame(animRef.current);
   }, [width, mode, stats, dailyData]);
 
+  // Keep overlay sized to match base canvas
+  useEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    const dpr = window.devicePixelRatio || 1;
+    overlay.width = width * dpr;
+    overlay.height = CHART_HEIGHT * dpr;
+  }, [width]);
+
+  const clearOverlay = useCallback(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    const ctx = overlay.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, CHART_HEIGHT);
+    ctx.restore();
+  }, [width]);
+
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    if (!rectRef.current) rectRef.current = overlay.getBoundingClientRect();
+    const rect = rectRef.current;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
@@ -94,32 +123,23 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
 
     for (const p of pointsRef.current) {
       const dist = mode === 'equity'
-        ? Math.abs(p.x - mx) // For equity curve, snap to nearest x
-        : Math.abs(p.x - mx) + Math.abs(p.y - my) * 0.3; // For bars, weight x more
+        ? Math.abs(p.x - mx)
+        : Math.abs(p.x - mx) + Math.abs(p.y - my) * 0.3;
       if (dist < minDist) {
         minDist = dist;
         closest = p;
       }
     }
 
+    const ctx = overlay.getContext('2d');
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, CHART_HEIGHT);
+
     if (closest && minDist < 60) {
       setHover({ ...closest });
-
-      // Draw crosshair
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      const dpr = window.devicePixelRatio || 1;
-      ctx.save();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      // Redraw base chart
-      ctx.clearRect(0, 0, width, CHART_HEIGHT);
-      const pts: typeof pointsRef.current = [];
-      if (mode === 'equity') {
-        drawEquityCurve(ctx, width, stats.equityCurve, pts);
-      } else {
-        drawDailyBars(ctx, width, dailyData, pts);
-      }
 
       // Vertical crosshair line
       ctx.strokeStyle = 'rgba(255,255,255,0.15)';
@@ -142,52 +162,27 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
       // Highlight dot
       ctx.beginPath();
       ctx.arc(closest.x, closest.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#0a0a0f';
+      ctx.fillStyle = COLOR_POPOVER;
       ctx.fill();
       ctx.strokeStyle = closest.color;
       ctx.lineWidth = 2;
       ctx.stroke();
-
-      ctx.restore();
     } else {
-      if (hover) {
-        setHover(null);
-        // Redraw without crosshair
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          const dpr = window.devicePixelRatio || 1;
-          ctx.save();
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-          ctx.clearRect(0, 0, width, CHART_HEIGHT);
-          const pts: typeof pointsRef.current = [];
-          if (mode === 'equity') drawEquityCurve(ctx, width, stats.equityCurve, pts);
-          else drawDailyBars(ctx, width, dailyData, pts);
-          ctx.restore();
-        }
-      }
+      setHover(null);
     }
-  }, [mode, width, stats, dailyData, hover]);
+
+    ctx.restore();
+  }, [mode, width]);
 
   const handleMouseLeave = useCallback(() => {
     setHover(null);
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const dpr = window.devicePixelRatio || 1;
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, CHART_HEIGHT);
-    const pts: typeof pointsRef.current = [];
-    if (mode === 'equity') drawEquityCurve(ctx, width, stats.equityCurve, pts);
-    else drawDailyBars(ctx, width, dailyData, pts);
-    ctx.restore();
-  }, [mode, width, stats, dailyData]);
+    clearOverlay();
+  }, [clearOverlay]);
 
   return (
     <div
       style={{
-        background: '#0d1117',
+        background: 'var(--color-table-stripe)',
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         padding: '20px 24px',
@@ -239,7 +234,11 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
       <div ref={containerRef} style={{ borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
         <canvas
           ref={canvasRef}
-          style={{ width: '100%', height: CHART_HEIGHT, display: 'block', cursor: 'crosshair' }}
+          style={{ width: '100%', height: CHART_HEIGHT, display: 'block' }}
+        />
+        <canvas
+          ref={overlayRef}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: CHART_HEIGHT, display: 'block', cursor: 'crosshair' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         />
@@ -251,7 +250,7 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
               position: 'absolute',
               left: Math.min(hover.x + 12, width - 140),
               top: Math.max(hover.y - 50, 4),
-              background: 'rgba(13, 17, 23, 0.95)',
+              background: hexToRgba(COLOR_TABLE_STRIPE, 0.95),
               border: '1px solid var(--color-border)',
               borderRadius: 6,
               padding: '8px 12px',
@@ -280,10 +279,8 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
 
 // ── Canvas renderers ─────────────────────────────────────────────────────────
 
-const GREEN = '#26a69a';
-const RED = '#ef5350';
-const GRID_COLOR = 'rgba(42, 46, 57, 0.4)';
-const TEXT_COLOR = '#787b86';
+const GRID_COLOR = hexToRgba(COLOR_BORDER, 0.4);
+const TEXT_COLOR = COLOR_TEXT_MUTED;
 const FONT = '10px -apple-system, BlinkMacSystemFont, sans-serif';
 
 function drawEquityCurve(
@@ -337,8 +334,8 @@ function drawEquityCurve(
   ctx.lineTo(toX(animCurve.length - 1), zeroY);
   ctx.closePath();
   const greenGrad = ctx.createLinearGradient(0, PAD.top, 0, zeroY);
-  greenGrad.addColorStop(0, 'rgba(38, 166, 154, 0.25)');
-  greenGrad.addColorStop(1, 'rgba(38, 166, 154, 0.02)');
+  greenGrad.addColorStop(0, hexToRgba(COLOR_BUY, 0.25));
+  greenGrad.addColorStop(1, hexToRgba(COLOR_BUY, 0.02));
   ctx.fillStyle = greenGrad;
   ctx.fill();
   ctx.restore();
@@ -354,8 +351,8 @@ function drawEquityCurve(
   ctx.lineTo(toX(animCurve.length - 1), zeroY);
   ctx.closePath();
   const redGrad = ctx.createLinearGradient(0, zeroY, 0, CHART_HEIGHT - PAD.bottom);
-  redGrad.addColorStop(0, 'rgba(239, 83, 80, 0.02)');
-  redGrad.addColorStop(1, 'rgba(239, 83, 80, 0.25)');
+  redGrad.addColorStop(0, hexToRgba(COLOR_SELL, 0.02));
+  redGrad.addColorStop(1, hexToRgba(COLOR_SELL, 0.25));
   ctx.fillStyle = redGrad;
   ctx.fill();
   ctx.restore();
@@ -370,7 +367,7 @@ function drawEquityCurve(
       ctx.beginPath();
       ctx.moveTo(toX(i - 1), toY(prev));
       ctx.lineTo(toX(i), toY(curr));
-      ctx.strokeStyle = curr >= 0 ? GREEN : RED;
+      ctx.strokeStyle = curr >= 0 ? COLOR_BUY : COLOR_SELL;
       ctx.stroke();
     } else {
       const t = prev / (prev - curr);
@@ -378,12 +375,12 @@ function drawEquityCurve(
       ctx.beginPath();
       ctx.moveTo(toX(i - 1), toY(prev));
       ctx.lineTo(crossX, zeroY);
-      ctx.strokeStyle = prev >= 0 ? GREEN : RED;
+      ctx.strokeStyle = prev >= 0 ? COLOR_BUY : COLOR_SELL;
       ctx.stroke();
       ctx.beginPath();
       ctx.moveTo(crossX, zeroY);
       ctx.lineTo(toX(i), toY(curr));
-      ctx.strokeStyle = curr >= 0 ? GREEN : RED;
+      ctx.strokeStyle = curr >= 0 ? COLOR_BUY : COLOR_SELL;
       ctx.stroke();
     }
   }
@@ -393,9 +390,9 @@ function drawEquityCurve(
     for (let i = 0; i < animCurve.length; i++) {
       ctx.beginPath();
       ctx.arc(toX(i), toY(animCurve[i]), 3, 0, Math.PI * 2);
-      ctx.fillStyle = '#0d1117';
+      ctx.fillStyle = COLOR_TABLE_STRIPE;
       ctx.fill();
-      ctx.strokeStyle = animCurve[i] >= 0 ? GREEN : RED;
+      ctx.strokeStyle = animCurve[i] >= 0 ? COLOR_BUY : COLOR_SELL;
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
@@ -416,7 +413,7 @@ function drawEquityCurve(
       label: `Trade #${i + 1}`,
       value: `$${curve[i] > 0 ? '+' : ''}${curve[i].toFixed(2)}`,
       sub: `Trade P&L: ${sign}$${Math.abs(tradePnl[i]).toFixed(2)}`,
-      color: curve[i] >= 0 ? GREEN : RED,
+      color: curve[i] >= 0 ? COLOR_BUY : COLOR_SELL,
     });
   }
 
@@ -483,7 +480,7 @@ function drawDailyBars(
     const y = toY(animNet);
     const h = Math.abs(y - zeroY);
     const top = animNet >= 0 ? y : zeroY;
-    const barColor = data[i].net >= 0 ? GREEN : RED;
+    const barColor = data[i].net >= 0 ? COLOR_BUY : COLOR_SELL;
 
     ctx.fillStyle = barColor;
     ctx.beginPath();
@@ -536,18 +533,6 @@ function drawHorizontalGrid(
     ctx.stroke();
     ctx.fillText(`$${v.toFixed(0)}`, PAD.left - 8, y + 3);
   }
-}
-
-function niceStep(range: number, targetLines: number): number {
-  const rough = range / targetLines;
-  const mag = Math.pow(10, Math.floor(Math.log10(rough)));
-  const norm = rough / mag;
-  let nice: number;
-  if (norm <= 1.5) nice = 1;
-  else if (norm <= 3.5) nice = 2;
-  else if (norm <= 7.5) nice = 5;
-  else nice = 10;
-  return nice * mag || 1;
 }
 
 function drawEmpty(ctx: CanvasRenderingContext2D, w: number, text: string) {

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import type { HourPnl, DirectionStats, DayOfWeekPnl, DurationComparison } from '../../utils/tradeStats';
 import { formatDuration } from '../../utils/formatters';
+import { pnlColor, hexToRgba } from './statsHelpers';
+import { COLOR_BUY, COLOR_SELL, COLOR_TABLE_STRIPE } from '../../constants/colors';
 
 const CARD: React.CSSProperties = {
-  background: '#0d1117',
+  background: 'var(--color-table-stripe)',
   border: '1px solid var(--color-border)',
   borderRadius: 10,
   padding: '20px 24px',
@@ -16,12 +18,6 @@ const LABEL: React.CSSProperties = {
   marginBottom: 16,
   letterSpacing: '0.02em',
 };
-
-function pnlColor(v: number): string {
-  if (v > 0) return 'var(--color-buy)';
-  if (v < 0) return 'var(--color-sell)';
-  return 'var(--color-text-muted)';
-}
 
 // ── Shared tooltip ───────────────────────────────────────────────────────────
 
@@ -47,7 +43,7 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
             left: pos.x,
             top: pos.y,
             transform: 'translate(-50%, -100%)',
-            background: 'rgba(13, 17, 23, 0.95)',
+            background: hexToRgba(COLOR_TABLE_STRIPE, 0.95),
             border: '1px solid var(--color-border)',
             borderRadius: 5,
             padding: '5px 10px',
@@ -98,7 +94,7 @@ function TimeOfDay({ data }: { data: HourPnl[] }) {
                       top: 1,
                       width: `${barW}%`,
                       height: 14,
-                      background: isPos ? 'rgba(38, 166, 154, 0.55)' : 'rgba(239, 83, 80, 0.55)',
+                      background: isPos ? hexToRgba(COLOR_BUY, 0.55) : hexToRgba(COLOR_SELL, 0.55),
                       borderRadius: 4,
                       minWidth: h.count > 0 ? 6 : 0,
                       transition: 'width 0.3s ease',
@@ -268,7 +264,7 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
                       top: 2,
                       width: `${barW}%`,
                       height: 14,
-                      background: d.avgNet >= 0 ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)',
+                      background: d.avgNet >= 0 ? hexToRgba(COLOR_BUY, 0.5) : hexToRgba(COLOR_SELL, 0.5),
                       borderRadius: 4,
                       minWidth: d.count > 0 ? 6 : 0,
                       transition: 'width 0.3s ease',

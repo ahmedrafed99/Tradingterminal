@@ -43,11 +43,14 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
   // Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
+      if (e.key === 'Escape') {
+        setVisible(false);
+        setTimeout(onClose, 200);
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [onClose]);
 
   // Ensure trades are fetched
   useEffect(() => {
@@ -78,7 +81,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
     }).catch(() => {});
 
     return () => { cancelled = true; };
-  }, [connected, activeAccountId, displayTrades]);
+  }, [connected, activeAccountId, tradesDatePreset]);
 
   // Stats computation
   const grouped = useMemo(() => groupTrades(displayTrades), [displayTrades]);
@@ -112,7 +115,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
       className="fixed inset-0"
       style={{
         zIndex: Z.DROPDOWN,
-        background: visible ? 'rgba(0,0,0,0.65)' : 'rgba(0,0,0,0)',
+        background: visible ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0)',
         transition: 'background 0.25s ease',
       }}
       onClick={(e) => {
@@ -124,7 +127,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
         style={{
           top: visible ? '4%' : '100%',
           opacity: visible ? 1 : 0,
-          background: '#0a0a0f',
+          background: 'var(--color-popover)',
           borderTop: '1px solid var(--color-border)',
           borderRadius: '14px 14px 0 0',
           transition: 'top 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
@@ -135,7 +138,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
           className="sticky top-0 flex items-center justify-between"
           style={{
             padding: '16px 28px 14px',
-            background: '#0a0a0f',
+            background: 'var(--color-popover)',
             borderBottom: '1px solid var(--color-border)',
             zIndex: 1,
           }}
@@ -147,9 +150,8 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
             <DatePresetSelector counts={presetCounts} />
             <button
               onClick={handleClose}
-              className="transition-colors cursor-pointer"
+              className="transition-colors cursor-pointer text-(--color-text-dim) hover:text-(--color-text-bright)"
               style={{
-                color: 'var(--color-text-dim)',
                 fontSize: 18,
                 lineHeight: 1,
                 padding: '2px 6px',
@@ -157,8 +159,6 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
                 border: 'none',
                 background: 'transparent',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-text-bright)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-dim)')}
             >
               ✕
             </button>

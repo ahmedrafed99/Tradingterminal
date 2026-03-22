@@ -1,4 +1,6 @@
 import type { DayPnl } from '../../utils/tradeStats';
+import { pnlColor, hexToRgba } from './statsHelpers';
+import { COLOR_BUY, COLOR_SELL } from '../../constants/colors';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
@@ -6,14 +8,8 @@ function cellBg(net: number, maxAbs: number): string {
   if (net === 0 || maxAbs === 0) return 'transparent';
   const intensity = Math.min(Math.abs(net) / maxAbs, 1) * 0.40 + 0.08;
   return net > 0
-    ? `rgba(38, 166, 154, ${intensity})`
-    : `rgba(239, 83, 80, ${intensity})`;
-}
-
-function pnlColor(v: number): string {
-  if (v > 0) return 'var(--color-buy)';
-  if (v < 0) return 'var(--color-sell)';
-  return 'var(--color-text-dim)';
+    ? hexToRgba(COLOR_BUY, intensity)
+    : hexToRgba(COLOR_SELL, intensity);
 }
 
 export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDayClick?: (date: string) => void }) {
@@ -21,7 +17,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
     return (
       <div
         style={{
-          background: '#0d1117',
+          background: 'var(--color-table-stripe)',
           border: '1px solid var(--color-border)',
           borderRadius: 10,
           padding: '24px 28px',
@@ -58,7 +54,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
   return (
     <div
       style={{
-        background: '#0d1117',
+        background: 'var(--color-table-stripe)',
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         padding: '24px 28px',

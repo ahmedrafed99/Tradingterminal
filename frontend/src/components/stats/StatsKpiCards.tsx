@@ -162,7 +162,7 @@ function WinRateDonut({ winRate, winners, losers }: { winRate: number; winners: 
 // ── Card shell ───────────────────────────────────────────────────────────────
 
 const CARD_STYLE: React.CSSProperties = {
-  background: '#0d1117',
+  background: 'var(--color-table-stripe)',
   border: '1px solid var(--color-border)',
   borderRadius: 10,
   padding: '20px 24px',
@@ -181,16 +181,7 @@ function StatCard({ label, children }: { label: string; children: React.ReactNod
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function pnlColor(v: number): string {
-  if (v > 0) return 'var(--color-buy)';
-  if (v < 0) return 'var(--color-sell)';
-  return 'var(--color-text-muted)';
-}
-
-function fmtDollar(v: number): string {
-  const sign = v > 0 ? '+' : '';
-  return `${sign}$${Math.abs(v).toFixed(2)}`;
-}
+import { pnlColor } from './statsHelpers';
 
 // ── Main Export ──────────────────────────────────────────────────────────────
 

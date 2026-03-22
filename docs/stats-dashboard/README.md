@@ -8,11 +8,11 @@ A near-full-screen popover triggered by a **Stats** tab in the bottom panel. Dis
 
 - **Stats** appears as a fourth tab in the bottom panel tab bar (after Orders, Trades, Conditions).
 - Clicking the Stats tab opens a **popover overlay** that rises from the bottom panel, covering ~96% of the viewport height.
-- The main chart and UI remain mounted behind a semi-transparent backdrop (`rgba(0,0,0,0.65)`).
+- The main chart and UI remain mounted behind a semi-transparent backdrop (`bg-black/60`).
 - The popover is **scrollable** vertically — all stats content lives inside a single scroll container with `maxWidth: 1200` centered.
 - Dismiss by: clicking the Stats tab again (toggles back to Trades), pressing Escape, or clicking the backdrop.
 - Opening/closing animates with a slide-up transition (`cubic-bezier(0.16, 1, 0.3, 1)`, 300ms).
-- Background: `#0a0a0f`. Cards: `#0d1117` with `border-(--color-border)` and `border-radius: 10px`.
+- Background: `var(--color-popover)`. Cards: `var(--color-table-stripe)` with `border-(--color-border)` and `border-radius: 10px`.
 
 ### Date Range
 
@@ -26,7 +26,7 @@ A near-full-screen popover triggered by a **Stats** tab in the bottom panel. Dis
 
 ### 1. KPI Cards
 
-3-column grid of dark cards (`#0d1117`), each with `20px 24px` padding and `10px` border-radius.
+3-column grid of dark cards (`var(--color-table-stripe)`), each with `20px 24px` padding and `10px` border-radius.
 
 **Row 1:**
 
@@ -56,7 +56,7 @@ Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity
 - Line color changes per-segment: **green above zero, red below zero**. Segments crossing zero are split at the intersection.
 - Area fill: green gradient above zero line, red gradient below — rendered via canvas clipping.
 - Data point dots when ≤ 30 trades.
-- Interactive **crosshair** on hover: dashed vertical + horizontal lines, highlighted dot, floating tooltip showing trade #, cumulative P&L, and individual trade P&L.
+- Interactive **crosshair** on hover: drawn on a transparent overlay canvas (avoids redrawing the base chart). Dashed vertical + horizontal lines, highlighted dot, floating tooltip showing trade #, cumulative P&L, and individual trade P&L.
 
 **Daily Bar Chart mode:**
 - X-axis: calendar date (MM-DD).
@@ -171,6 +171,7 @@ Entrance animations trigger on mount or when sections scroll into view:
 | `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve with crosshair + trade list table |
 | `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short (with mini donuts), Day of Week, Duration |
 | `components/stats/AnimateIn.tsx` | Scroll-triggered fade-in + slide-up wrapper using IntersectionObserver |
+| `components/stats/statsHelpers.ts` | Shared utilities: `pnlColor()`, `fmtDollar()`, `niceStep()`, `hexToRgba()` |
 | `utils/tradeStats.ts` | Pure functions: `groupTrades()`, `computeStats()`, `buildCalendarData()`, `buildHourlyData()`, `buildDirectionStats()`, `buildDayOfWeekData()`, `buildDurationComparison()` |
 
 All components live under `frontend/src/components/stats/`.

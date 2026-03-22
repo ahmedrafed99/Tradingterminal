@@ -79,6 +79,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | `--color-hover-row` | `#1e222d` | Dropdown item / list row hover |
 | `--color-hover-toolbar` | `#363a45` | Toolbar icon button hover |
 | `--color-table-stripe` | `#0d1117` | Alternating table row (use with `/40` opacity) |
+| `--color-popover` | `#0a0a0f` | Popover / overlay panel background |
 
 ### Text
 | Token | Value | Usage |
