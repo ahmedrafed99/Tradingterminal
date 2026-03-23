@@ -155,29 +155,22 @@ const commands = {
 
   async 'place-order'(args) {
     require(args, 'accountId', 'contractId', 'side', 'size', 'type');
-    // OrderType: Limit=1, Market=2, Stop=4, TrailingStop=5
-    const typeMap = { market: 2, limit: 1, stop: 4 };
-    const sideMap = { buy: 0, sell: 1 };
-    const orderType = typeMap[args.type.toLowerCase()];
-    const orderSide = sideMap[args.side.toLowerCase()];
-    if (orderType === undefined) die(`invalid --type: ${args.type} (market|limit|stop)`);
-    if (orderSide === undefined) die(`invalid --side: ${args.side} (buy|sell)`);
-
-    const isBuy = orderSide === 0;
+    // Routes through frontend's placeOrderWithBrackets via SSE — same path as UI
     const body = {
       accountId: args.accountId,
       contractId: args.contractId,
-      type: orderType,
-      side: orderSide,
+      type: args.type.toLowerCase(),
+      side: args.side.toLowerCase(),
       size: Number(args.size),
     };
     if (args.price) body.limitPrice = Number(args.price);
     if (args.stopPrice) body.stopPrice = Number(args.stopPrice);
-    // Ticks are signed: buy SL negative (below), buy TP positive (above); reversed for sell
-    if (args.sl) body.stopLossBracket = { ticks: Number(args.sl) * (isBuy ? -1 : 1), type: 4 };
-    if (args.tp) body.takeProfitBracket = { ticks: Number(args.tp) * (isBuy ? 1 : -1), type: 1 };
+    // SL/TP in ticks (unsigned) — frontend handles sign + bracket building
+    if (args.sl) body.slTicks = Number(args.sl);
+    if (args.tp) body.tpTicks = Number(args.tp);
+    if (args.usePreset) body.usePreset = true;
 
-    const result = await post('/orders/place', body);
+    const result = await post('/drawings/place-order', body);
     console.log(JSON.stringify(result));
   },
 

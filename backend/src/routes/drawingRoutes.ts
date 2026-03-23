@@ -53,4 +53,15 @@ router.post('/clear-chart', (_req, res) => {
   res.json({ success: true });
 });
 
+// POST /drawings/place-order — broadcast order request to frontend (uses shared placeOrderWithBrackets)
+router.post('/place-order', (req, res) => {
+  const order = req.body;
+  if (!order || !order.contractId || !order.accountId) {
+    res.status(400).json({ success: false, errorMessage: 'Missing accountId or contractId' });
+    return;
+  }
+  broadcast({ _command: 'placeOrder', ...order });
+  res.json({ success: true });
+});
+
 export default router;

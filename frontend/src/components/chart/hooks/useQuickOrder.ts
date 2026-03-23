@@ -2,10 +2,8 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
-import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import { OrderType, OrderSide } from '../../../types/enums';
-import { orderService } from '../../../services/orderService';
-import { bracketEngine } from '../../../services/bracketEngine';
+import { placeOrderWithBrackets } from '../../../services/placeOrderWithBrackets';
 import { pointsToPrice, calcPnl } from '../../../utils/instrument';
 import { snapToTickSize, getPriceScaleWidth } from '../barUtils';
 import { fitTpsToOrderSize } from './resolvePreviewConfig';
@@ -389,96 +387,21 @@ export function useQuickOrder(
 
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
       const activePreset = st.bracketPresets.find((p) => p.id === st.activePresetId);
-      let bracketsArmed = false;
-
-      // Use gateway-native brackets for <= 1 TP (atomic placement).
-      // For 2+ TPs, attach native SL bracket (zero-latency SL) + arm engine for TPs only.
-      let nativeBrackets: ReturnType<typeof buildNativeBracketParams> = null;
-      let nativeSL: ReturnType<typeof buildNativeSLOnly> = null;
-
-      if (activePreset) {
-        const bc = activePreset.config;
-        const bracketsActive = bc.stopLoss.points >= 1 || bc.takeProfits.length >= 1;
-        const hasPriceTriggers = bc.conditions.some((c) => c.trigger.kind === 'profitReached');
-        if (bracketsActive || hasPriceTriggers) {
-          // Skip native brackets when profitReached conditions need the engine
-          nativeBrackets = !hasPriceTriggers
-            ? buildNativeBracketParams(bc, side, contract!)
-            : null;
-
-          if (!nativeBrackets && bracketsActive) {
-            // 2+ TPs or profitReached — attach native SL for zero-latency protection, engine handles TPs after fill
-            nativeSL = buildNativeSLOnly(bc, side, contract!);
-
-            bracketEngine.armForEntry({
-              accountId: st.activeAccountId,
-              contractId: contract!.id,
-              entrySide: side,
-              entrySize: st.orderSize,
-              config: bc,
-              contract: contract!,
-              nativeSL: !!nativeSL,
-            });
-            bracketsArmed = true;
-          } else if (!nativeBrackets && hasPriceTriggers) {
-            // No SL/TP brackets but profitReached conditions — arm engine for price monitoring only
-            bracketEngine.armForEntry({
-              accountId: st.activeAccountId,
-              contractId: contract!.id,
-              entrySide: side,
-              entrySize: st.orderSize,
-              config: bc,
-              contract: contract!,
-            });
-            bracketsArmed = true;
-          }
-
-          // Store bracket info so useOrderLines can render Suspended legs with correct prices
-          const toP = (points: number) => pointsToPrice(points, contract!);
-          const ep = snappedPrice;
-          const fittedTps = fitTpsToOrderSize(bc.takeProfits, st.orderSize);
-          st.setPendingBracketInfo({
-            entryPrice: ep,
-            slPrice: bc.stopLoss.points > 0
-              ? (side === OrderSide.Buy ? ep - toP(bc.stopLoss.points) : ep + toP(bc.stopLoss.points))
-              : null,
-            tpPrices: fittedTps.map((tp) =>
-              side === OrderSide.Buy ? ep + toP(tp.points) : ep - toP(tp.points),
-            ),
-            side,
-            orderSize: st.orderSize,
-            tpSizes: fittedTps.map((tp) => tp.size),
-          });
-        }
-      }
 
       // Destroy all hover preview lines — useOrderLines will render the Suspended orders
       removePreviewLines();
 
-      orderService.placeOrder({
+      placeOrderWithBrackets({
         accountId: st.activeAccountId,
         contractId: contract!.id,
-        type: OrderType.Limit,
+        contract: contract!,
         side,
         size: st.orderSize,
+        orderType: OrderType.Limit,
         limitPrice: snappedPrice,
-        ...nativeBrackets,
-        ...nativeSL,
-      }).then(({ orderId }) => {
-        if (bracketsArmed) {
-          bracketEngine.confirmEntryOrderId(orderId);
-        }
-        // Store the entry order ID so OrderPanel can clear pendingBracketInfo on fill/cancel
-        if (bracketsArmed || nativeBrackets) {
-          st.setPendingEntryOrderId(orderId);
-        }
+        bracketConfig: activePreset?.config ?? null,
       }).catch((err) => {
         showToast('error', 'Quick order failed', errorMessage(err));
-        if (bracketsArmed) {
-          bracketEngine.clearSession();
-        }
-        useStore.getState().setPendingBracketInfo(null);
-        useStore.getState().setPendingEntryOrderId(null);
       });
     }
 

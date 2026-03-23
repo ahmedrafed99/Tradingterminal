@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
-import { orderService } from '../../services/orderService';
-import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide } from '../../types/enums';
 import { showToast } from '../../utils/toast';
-import type { PlaceOrderParams } from '../../services/orderService';
 import type { BracketConfig } from '../../types/bracket';
-import { buildNativeBracketParams, buildNativeSLOnly } from '../../types/bracket';
+import { placeOrderWithBrackets } from '../../services/placeOrderWithBrackets';
 import { isFuturesMarketOpen, useMarketStatus } from '../../utils/marketHours';
 
 export function BuySellButtons() {
@@ -52,18 +49,6 @@ export function BuySellButtons() {
     setPlacing(label);
     setError(null);
 
-    const params: PlaceOrderParams = {
-      accountId: activeAccountId,
-      contractId: orderContract.id,
-      type: orderType === 'market' ? OrderType.Market : OrderType.Limit,
-      side,
-      size: orderSize,
-    };
-
-    if (orderType === 'limit' && limitPrice != null) {
-      params.limitPrice = limitPrice;
-    }
-
     // Build bracket config from preset+drafts or ad-hoc state
     const activePreset = bracketPresets.find((p) => p.id === activePresetId);
     const bc = activePreset?.config;
@@ -90,60 +75,23 @@ export function BuySellButtons() {
       };
     }
 
-    const bracketsActive = mergedConfig != null
-      && (mergedConfig.stopLoss.points >= 1 || mergedConfig.takeProfits.length >= 1);
-    const hasPriceTriggers = mergedConfig?.conditions.some((c) => c.trigger.kind === 'profitReached') ?? false;
-
-    // Use gateway-native brackets for <= 1 TP (atomic placement, zero latency gap).
-    // For 2+ TPs, attach native SL bracket (zero-latency SL) + arm engine for TPs only.
-    // If profitReached conditions exist, always arm the engine (for price monitoring).
-    const nativeBrackets = bracketsActive && mergedConfig && !hasPriceTriggers
-      ? buildNativeBracketParams(mergedConfig, side, orderContract)
-      : null;
-
-    const engineNeeded = (bracketsActive && !nativeBrackets) || hasPriceTriggers;
-
-    if (nativeBrackets) {
-      Object.assign(params, nativeBrackets);
-    } else if (bracketsActive && mergedConfig) {
-      // 2+ TPs or profitReached — attach native SL for zero-latency protection, engine handles TPs after fill
-      const nativeSL = buildNativeSLOnly(mergedConfig, side, orderContract);
-      if (nativeSL) Object.assign(params, nativeSL);
-
-      bracketEngine.armForEntry({
-        accountId: activeAccountId,
-        contractId: orderContract.id,
-        entrySide: side,
-        entrySize: orderSize,
-        config: mergedConfig,
-        contract: orderContract,
-        nativeSL: !!nativeSL,
-      });
-    } else if (hasPriceTriggers && mergedConfig) {
-      // No SL/TP brackets but profitReached conditions exist — arm engine for price monitoring only
-      bracketEngine.armForEntry({
-        accountId: activeAccountId,
-        contractId: orderContract.id,
-        entrySide: side,
-        entrySize: orderSize,
-        config: mergedConfig,
-        contract: orderContract,
-      });
-    }
-
     try {
-      const { orderId } = await orderService.placeOrder(params);
+      await placeOrderWithBrackets({
+        accountId: activeAccountId,
+        contractId: orderContract.id,
+        contract: orderContract,
+        side,
+        size: orderSize,
+        orderType: orderType === 'market' ? OrderType.Market : OrderType.Limit,
+        limitPrice: orderType === 'limit' ? limitPrice ?? undefined : undefined,
+        bracketConfig: mergedConfig,
+      });
 
-      // Confirm orderId — engine checks buffered fills
-      if (engineNeeded) {
-        bracketEngine.confirmEntryOrderId(orderId);
-      }
       clearDraftOverrides();
       if (orderType === 'market' && useStore.getState().previewEnabled) {
         clearAdHocBrackets();
         useStore.getState().togglePreview();
       } else if (orderType === 'limit' && useStore.getState().previewEnabled) {
-        // Keep ad-hoc SL/TP visible — only hide the entry line
         useStore.setState({ previewHideEntry: true });
       } else {
         clearAdHocBrackets();
@@ -152,10 +100,6 @@ export function BuySellButtons() {
       const msg = err instanceof Error ? err.message : 'Order failed';
       setError(msg);
       showToast('error', 'Order placement failed', msg);
-      // Disarm bracket engine if it was armed for this order
-      if (engineNeeded) {
-        bracketEngine.clearSession();
-      }
     } finally {
       setPlacing(null);
     }
