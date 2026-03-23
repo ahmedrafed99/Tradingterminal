@@ -67,7 +67,7 @@ export function PositionDisplay() {
       >
         {/* Top section: direction badge + size + entry */}
         <div style={{ padding: '10px 12px 8px' }}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-center">
             <div className="flex items-center" style={{ gap: 6 }}>
               <span
                 className="rounded text-[9px] font-bold uppercase"
@@ -90,7 +90,7 @@ export function PositionDisplay() {
         {/* P&L section — hero element */}
         <div
           className="transition-colors"
-          style={{ background: pnlBg, padding: '8px 12px' }}
+          style={{ background: pnlBg, padding: '8px 12px', textAlign: 'center' }}
         >
           <div
             className="font-bold tabular-nums"

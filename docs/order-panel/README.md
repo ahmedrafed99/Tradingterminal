@@ -105,8 +105,8 @@ and the preview toggle that overlays ghost lines on the chart.
 - Shows current net position for the active account + instrument
 - **Position lookup** filters by both `activeAccountId` and `contractId` (with `String()` coercion — SignalR may send contractId as number while REST API returns string)
 - **Card layout**: `bg-(--color-surface)` card with `border-(--color-border)` and a 3px left accent bar colored by direction (green for long, red for short)
-  - **Header row**: colored direction badge pill (Long=`--color-buy`, Short=`--color-btn-sell`) + position size/entry in `−3 @ 25,052.75` format
-  - **P&L hero**: large 18px bold number with directional color (green/red/muted) on a subtle tinted background (`rgba` of buy/sell at 8% opacity). Dollar sign inline.
+  - **Header row**: centered colored direction badge pill (Long=`--color-buy`, Short=`--color-btn-sell`) + position size/entry in `−3 @ 25,052.75` format
+  - **P&L hero**: centered large 18px bold number with directional color (green/red/muted) on a subtle tinted background (`rgba` of buy/sell at 8% opacity). Dollar sign inline.
 - **Close** button: solid red `bg-(--color-btn-sell)` with white text and ✕ icon. Market order to flatten position, always visible when position exists. Shows error toast on failure.
 - **SL to BE** button: amber outline `border-(--color-warning)/40` with amber text and shield icon. Always visible when a position exists, disabled when not in profit. Shows error toast on failure. Three paths:
   1. **Bracket session active**: delegates to `bracketEngine.moveSLToBreakeven()` (modifies tracked SL order)
