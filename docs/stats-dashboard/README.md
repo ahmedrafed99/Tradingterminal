@@ -184,7 +184,7 @@ Entrance animations trigger on mount or when sections scroll into view:
 | `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve (via shared component) + trade list table |
 | `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short (with mini donuts), Day of Week, Duration |
 | `components/stats/AnimateIn.tsx` | Scroll-triggered fade-in + slide-up wrapper using IntersectionObserver |
-| `components/stats/statsHelpers.ts` | Shared utilities: `pnlColor()`, `fmtDollar()`, `niceStep()`, `hexToRgba()` |
+| `components/stats/statsHelpers.ts` | Shared utilities: `pnlColor()`, `fmtDollar()`, `niceStep()`, `hexToRgba()`. `fmtDollar()` formats as `+$X.XX` / `-$X.XX` / `$0.00` — all inline P&L formatting must use this sign convention (`+` for positive, `-` for negative, none for zero) |
 | `utils/tradeStats.ts` | Pure functions: `groupTrades()`, `computeStats()`, `buildCalendarData()`, `buildHourlyData()`, `buildDirectionStats()`, `buildDayOfWeekData()`, `buildDurationComparison()` |
 
 All components live under `frontend/src/components/stats/`.

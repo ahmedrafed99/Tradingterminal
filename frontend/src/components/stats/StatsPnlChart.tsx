@@ -400,7 +400,7 @@ function drawDailyBars(
     ctx.fill();
     ctx.globalAlpha = 1.0;
 
-    const sign = data[i].net > 0 ? '+' : '';
+    const sign = data[i].net > 0 ? '+' : data[i].net < 0 ? '-' : '';
     hitPoints.push({
       x: x + barW / 2,
       y: toY(data[i].net),

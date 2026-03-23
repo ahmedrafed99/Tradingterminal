@@ -170,7 +170,7 @@ export function drawEquityCurve(
   for (let i = 1; i < curve.length; i++) tradePnl.push(curve[i] - curve[i - 1]);
 
   for (let i = 0; i < curve.length; i++) {
-    const sign = tradePnl[i] > 0 ? '+' : '';
+    const sign = tradePnl[i] > 0 ? '+' : tradePnl[i] < 0 ? '-' : '';
     const pnlStr = `${sign}$${Math.abs(tradePnl[i]).toFixed(2)}`;
     let timeStr = '';
     if (exitTimes[i]) {

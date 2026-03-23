@@ -48,8 +48,8 @@ export function PositionDisplay() {
   const dirColor = isLong ? 'var(--color-buy)' : 'var(--color-sell)';
   // Subtle tinted glow behind P&L
   const pnlBg = pnl > 0
-    ? 'rgba(38,166,154,0.08)'
-    : pnl < 0 ? 'rgba(239,83,80,0.08)' : 'transparent';
+    ? 'color-mix(in srgb, var(--color-buy) 8%, transparent)'
+    : pnl < 0 ? 'color-mix(in srgb, var(--color-sell) 8%, transparent)' : 'transparent';
 
   return (
     <div className="border-t border-(--color-border) mt-2" style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 16 }}>
@@ -59,8 +59,7 @@ export function PositionDisplay() {
         className="rounded overflow-hidden"
         style={{
           background: 'var(--color-surface)',
-          borderLeft: `3px solid ${dirColor}`,
-          border: `1px solid var(--color-border)`,
+          border: '1px solid var(--color-border)',
           borderLeftWidth: 3,
           borderLeftColor: dirColor,
         }}
@@ -73,7 +72,7 @@ export function PositionDisplay() {
                 className="rounded text-[9px] font-bold uppercase"
                 style={{
                   background: isLong ? dirColor : 'var(--color-btn-sell)',
-                  color: '#fff',
+                  color: 'var(--color-text-bright)',
                   padding: '1px 5px',
                   letterSpacing: '0.04em',
                 }}

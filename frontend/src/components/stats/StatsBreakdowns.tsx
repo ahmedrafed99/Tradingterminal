@@ -76,7 +76,7 @@ function TimeOfDay({ data }: { data: HourPnl[] }) {
           const pct = maxAbs > 0 ? Math.abs(h.net) / maxAbs : 0;
           const barW = Math.max(0, pct * 100);
           const isPos = h.net >= 0;
-          const sign = h.net > 0 ? '+' : '';
+          const sign = h.net > 0 ? '+' : h.net < 0 ? '-' : '';
           const avg = h.count > 0 ? h.net / h.count : 0;
           const tooltipText = `${h.count} trades · Net: ${sign}$${Math.abs(h.net).toFixed(0)} · Avg: $${avg.toFixed(0)}`;
 
@@ -255,7 +255,7 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
         {data.map((d) => {
           const pct = maxAbs > 0 ? Math.abs(d.avgNet) / maxAbs : 0;
           const barW = Math.max(0, pct * 100);
-          const sign = d.totalNet > 0 ? '+' : '';
+          const sign = d.totalNet > 0 ? '+' : d.totalNet < 0 ? '-' : '';
           const tooltipText = d.count > 0
             ? `${d.count} days · Total: ${sign}$${Math.abs(d.totalNet).toFixed(0)} · Avg: $${d.avgNet.toFixed(0)}`
             : 'No trades';

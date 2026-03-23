@@ -15,7 +15,7 @@ export function pnlColor(v: number): string {
 }
 
 export function fmtDollar(v: number): string {
-  const sign = v > 0 ? '+' : '';
+  const sign = v > 0 ? '+' : v < 0 ? '-' : '';
   return `${sign}$${Math.abs(v).toFixed(2)}`;
 }
 
