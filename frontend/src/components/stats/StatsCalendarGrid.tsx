@@ -1,12 +1,8 @@
 import type { DayPnl } from '../../utils/tradeStats';
 import { pnlColor, hexToRgba } from './statsHelpers';
-import { COLOR_BUY, COLOR_SELL } from '../../constants/colors';
+import { COLOR_HEAT_GREEN, COLOR_HEAT_RED } from '../../constants/colors';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-
-// Softer heatmap tones — desaturated teal/rose instead of raw buy/sell
-const HEAT_GREEN = '#1a6b5a';
-const HEAT_RED = '#6b2a2a';
 
 function cellBg(net: number, maxAbs: number): string {
   if (net === 0 || maxAbs === 0) return 'transparent';
@@ -14,8 +10,8 @@ function cellBg(net: number, maxAbs: number): string {
   const ratio = Math.min(Math.abs(net) / maxAbs, 1);
   const intensity = Math.sqrt(ratio) * 0.55 + 0.15;
   return net > 0
-    ? hexToRgba(HEAT_GREEN, intensity)
-    : hexToRgba(HEAT_RED, intensity);
+    ? hexToRgba(COLOR_HEAT_GREEN, intensity)
+    : hexToRgba(COLOR_HEAT_RED, intensity);
 }
 
 export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDayClick?: (date: string) => void }) {

@@ -17,9 +17,7 @@ interface HoverInfo {
   color: string;
 }
 
-interface HitPoint extends HoverInfo {
-  barRect?: { x: number; y: number; w: number; h: number };
-}
+type HitPoint = HoverInfo;
 
 export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyData: DayPnl[] }) {
   const [mode, setMode] = useState<Mode>('equity');
@@ -31,15 +29,15 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
 
   // Store computed positions for hit testing
   const pointsRef = useRef<HitPoint[]>([]);
-  const rectRef = useRef<DOMRect | null>(null);
   const hoveredBarRef = useRef<number>(-1);
+  const rectRef = useRef<DOMRect | null>(null);
 
   const measure = useCallback(() => {
     if (containerRef.current) {
       setWidth(containerRef.current.clientWidth);
     }
-    if (canvasRef.current) {
-      rectRef.current = canvasRef.current.getBoundingClientRect();
+    if (overlayRef.current) {
+      rectRef.current = overlayRef.current.getBoundingClientRect();
     }
   }, []);
 
@@ -47,7 +45,12 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     measure();
     const ro = new ResizeObserver(measure);
     if (containerRef.current) ro.observe(containerRef.current);
-    return () => ro.disconnect();
+    // Update cached rect on scroll so hit-testing stays accurate
+    const onScroll = () => {
+      if (overlayRef.current) rectRef.current = overlayRef.current.getBoundingClientRect();
+    };
+    window.addEventListener('scroll', onScroll, true);
+    return () => { ro.disconnect(); window.removeEventListener('scroll', onScroll, true); };
   }, [measure]);
 
   const animRef = useRef(0);
@@ -133,7 +136,8 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const overlay = overlayRef.current;
     if (!overlay) return;
-    const rect = overlay.getBoundingClientRect();
+    if (!rectRef.current) rectRef.current = overlay.getBoundingClientRect();
+    const rect = rectRef.current;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
@@ -203,7 +207,7 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     }
 
     ctx.restore();
-  }, [mode, width]);
+  }, [mode, width, redrawBase]);
 
   const handleMouseLeave = useCallback(() => {
     setHover(null);
@@ -548,19 +552,14 @@ function drawDailyBars(
     ctx.fill();
     ctx.globalAlpha = 1.0;
 
-    const fullY = toY(data[i].net);
-    const fullH = Math.abs(fullY - zeroY);
-    const fullTop = data[i].net >= 0 ? fullY : zeroY;
-
     const sign = data[i].net > 0 ? '+' : '';
     hitPoints.push({
       x: x + barW / 2,
-      y: fullY,
+      y: toY(data[i].net),
       label: data[i].date,
       value: `${sign}$${Math.abs(data[i].net).toFixed(2)}`,
       sub: `${data[i].tradeCount} ${data[i].tradeCount === 1 ? 'trade' : 'trades'}`,
       color: barColor,
-      barRect: { x, y: fullTop, w: barW, h: Math.max(1, fullH) },
     });
   }
 

@@ -116,6 +116,12 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | `--color-btn-sell` | `#8b2232` | Sell button background |
 | `--color-btn-sell-hover` | `#a62a3d` | Sell button hover |
 
+### Heatmap
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--color-heat-green` | `#1a6b5a` | Desaturated green for calendar heatmap cells |
+| `--color-heat-red` | `#6b2a2a` | Desaturated red for calendar heatmap cells |
+
 ### Chart Lines
 | Token | Value | Usage |
 |-------|-------|-------|

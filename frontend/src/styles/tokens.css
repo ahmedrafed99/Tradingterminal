@@ -55,6 +55,10 @@
   --color-line-sell: #ff0000;
   --color-line-sell-hover: #cc0000;
 
+  /* ── Heatmap ── */
+  --color-heat-green: #1a6b5a;
+  --color-heat-red: #6b2a2a;
+
   /* ── Label System ── */
   --color-label-bg: #cac9cb;
   --color-label-text: #000000;

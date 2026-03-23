@@ -71,7 +71,7 @@ Table-based calendar heatmap showing daily performance.
 - Columns: Sun–Fri + Weekly Total (CME futures open Sunday 6pm ET).
 - Rows: one per week within the selected date range.
 - Each cell shows: **net P&L** (20px, green/red) + **trade count** (12px, muted).
-- Cell background uses desaturated heatmap tones (`#1a6b5a` / `#6b2a2a`) with sqrt intensity scaling so small values are still visible.
+- Cell background uses desaturated heatmap tones (`--color-heat-green` / `--color-heat-red`) with sqrt intensity scaling so small values are still visible.
 - Weekly total column on the right.
 - Native `title` tooltip on each cell with date, trade count, and exact P&L.
 

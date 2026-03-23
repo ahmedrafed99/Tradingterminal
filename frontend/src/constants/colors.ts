@@ -39,6 +39,10 @@ export const COLOR_TABLE_STRIPE = v('--color-table-stripe');
 export const COLOR_POPOVER = v('--color-popover');
 export const COLOR_FOCUS_RING = v('--color-focus-ring');
 
+// ── Heatmap ──
+export const COLOR_HEAT_GREEN = v('--color-heat-green');
+export const COLOR_HEAT_RED = v('--color-heat-red');
+
 // ── Status ──
 export const COLOR_WARNING = v('--color-warning');
 export const COLOR_ERROR = v('--color-error');

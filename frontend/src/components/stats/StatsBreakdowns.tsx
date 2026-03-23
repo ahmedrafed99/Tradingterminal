@@ -85,15 +85,13 @@ function TimeOfDay({ data }: { data: HourPnl[] }) {
           return (
             <Tooltip key={h.hour} text={tooltipText}>
               <div
-                className="flex items-center transition-colors"
+                className="flex items-center transition-colors hover:bg-(--color-hover-row)"
                 style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ width: 32, fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'right', fontFeatureSettings: '"tnum"' }}>
                   {h.hour}:00
                 </div>
-                <div className="flex-1" style={{ height: 16, position: 'relative' }}>
+                <div className="flex-1 group" style={{ height: 16, position: 'relative' }}>
                   <div
                     className="transition-all"
                     style={{
@@ -187,8 +185,8 @@ function LongVsShort({ long, short }: { long: DirectionStats; short: DirectionSt
           {/* Win rate donut */}
           <div className="flex flex-col items-center" style={{ gap: 4 }}>
             <div style={{ fontSize: 12, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
-            <MiniDonut rate={long.winRate} color="var(--color-buy)" size={52} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-buy)', fontFeatureSettings: '"tnum"' }}>
+            <MiniDonut rate={long.winRate} color="var(--color-text)" size={52} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
               {(long.winRate * 100).toFixed(0)}%
             </span>
           </div>
@@ -217,8 +215,8 @@ function LongVsShort({ long, short }: { long: DirectionStats; short: DirectionSt
           {/* Win rate donut */}
           <div className="flex flex-col items-center" style={{ gap: 4 }}>
             <div style={{ fontSize: 12, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
-            <MiniDonut rate={short.winRate} color="var(--color-sell)" size={52} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-sell)', fontFeatureSettings: '"tnum"' }}>
+            <MiniDonut rate={short.winRate} color="var(--color-text)" size={52} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
               {(short.winRate * 100).toFixed(0)}%
             </span>
           </div>
@@ -266,10 +264,8 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
           return (
             <Tooltip key={d.day} text={tooltipText}>
               <div
-                className="flex items-center transition-colors"
+                className="flex items-center transition-colors hover:bg-(--color-hover-row)"
                 style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6 }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               >
                 <div style={{ width: 30, fontSize: 12, color: 'var(--color-text-muted)' }}>{d.day}</div>
                 <div className="flex-1" style={{ height: 18, position: 'relative' }}>
