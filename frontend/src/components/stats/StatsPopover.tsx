@@ -91,6 +91,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
   const directionStats = useMemo(() => buildDirectionStats(grouped), [grouped]);
   const dayOfWeekData = useMemo(() => buildDayOfWeekData(calendarData), [calendarData]);
   const durationData = useMemo(() => buildDurationComparison(grouped), [grouped]);
+  const exitTimes = useMemo(() => grouped.map(t => t.exitTime), [grouped]);
 
   // Day drill-down
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -186,7 +187,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
                 <StatsKpiCards stats={stats} />
               </AnimateIn>
               <AnimateIn>
-                <StatsPnlChart stats={stats} dailyData={calendarData} />
+                <StatsPnlChart stats={stats} dailyData={calendarData} exitTimes={exitTimes} singleDay={tradesDatePreset === 'today'} />
               </AnimateIn>
               <AnimateIn>
                 <StatsCalendarGrid dailyData={calendarData} onDayClick={setSelectedDay} />

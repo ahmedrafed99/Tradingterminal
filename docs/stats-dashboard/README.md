@@ -48,15 +48,18 @@ Card titles: 14px, `font-weight: 600`, `color: var(--color-text)`.
 
 ### 2. Equity Curve / Daily P&L Chart
 
-Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity / Daily).
+Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity / Daily). When the date filter is **Today**, the toggle is hidden and the chart is locked to equity curve mode (a single daily bar would be useless).
 
 **Equity Curve mode:**
-- X-axis: trade number (nice round steps via `niceStep()`).
-- Y-axis: cumulative net P&L ($).
+- X-axis: **no static labels** — trade exit time (NY timezone, e.g. "9:42 AM") appears on the X-axis only on hover.
+- Y-axis: cumulative net P&L (dollar sign on right, e.g. `40$`). Font: 13px.
 - Line color changes per-segment: **green above zero, red below zero**. Segments crossing zero are split at the intersection.
 - Area fill: green gradient above zero line, red gradient below — rendered via canvas clipping.
+- **Centered node spacing**: with few trades, points cluster near the center (48px apart) instead of stretching edge-to-edge. As trade count grows, the chart fills the full width naturally.
 - Data point dots when ≤ 30 trades.
-- Interactive **crosshair** on hover: drawn on a transparent overlay canvas (avoids redrawing the base chart). Dashed vertical + horizontal lines, highlighted dot, floating tooltip showing trade #, cumulative P&L, and individual trade P&L.
+- Interactive **crosshair** on hover: drawn on a transparent overlay canvas. Dashed vertical + horizontal lines, highlighted dot. **Header tooltip** shows trade P&L (colored green/red) inline in the title bar — no floating tooltip.
+- Grid lines: `rgba(255,255,255,0.12)`, 1px width.
+- Animation plays only on data/mode changes, not on resize (prevents double-animation glitch when toggling date filters).
 
 **Daily Bar Chart mode:**
 - X-axis: calendar date (MM-DD).
@@ -77,7 +80,7 @@ Table-based calendar heatmap showing daily performance.
 
 **Day drill-down:** Clicking a calendar cell opens a **day detail view** that replaces the dashboard content:
 - **Header**: "← Back" button, full date (e.g. "Monday, March 18, 2026"), net P&L, trade count + W/L.
-- **Day equity curve**: same green/red split rendering with crosshair + tooltip interaction.
+- **Day equity curve**: uses the shared `EquityCurveCanvas` component (same rendering, tooltip, hover, and centered spacing behavior as the main equity curve — just smaller: 160px tall).
 - **Trade list table**: Time, Side, Qty, Entry, Exit, Duration, Net P&L — matching TradesTab column layout with striped rows.
 - Click "← Back" to return to the main dashboard.
 
@@ -175,9 +178,10 @@ Entrance animations trigger on mount or when sections scroll into view:
 |------|---------|
 | `components/stats/StatsPopover.tsx` | Popover container — backdrop, scroll, animation, dismiss, day drill-down state |
 | `components/stats/StatsKpiCards.tsx` | 3×2 grid of KPI cards with SVG donut, animated counters |
-| `components/stats/StatsPnlChart.tsx` | Canvas equity curve + daily bar chart with crosshair, tooltip, entrance animation |
+| `components/stats/EquityCurveCanvas.tsx` | Shared equity curve: canvas drawing function + React component with hover, crosshair, header tooltip, time-on-X-axis |
+| `components/stats/StatsPnlChart.tsx` | Equity curve (via shared component) + daily bar chart with entrance animation |
 | `components/stats/StatsCalendarGrid.tsx` | Weekly calendar heatmap with clickable day cells |
-| `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve with crosshair + trade list table |
+| `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve (via shared component) + trade list table |
 | `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short (with mini donuts), Day of Week, Duration |
 | `components/stats/AnimateIn.tsx` | Scroll-triggered fade-in + slide-up wrapper using IntersectionObserver |
 | `components/stats/statsHelpers.ts` | Shared utilities: `pnlColor()`, `fmtDollar()`, `niceStep()`, `hexToRgba()` |
