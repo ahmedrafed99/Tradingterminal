@@ -113,10 +113,16 @@ export function buildOrderLabels(
     const oType = order.type;
     const isSuspended = order.status === OrderStatus.Suspended;
 
+    // Determine if this is a bracket leg — color by role (SL=red, TP=green) not by side
+    const isBracketLeg = isSuspended && pendingBracketInfo != null;
+    const isBracketSl = isBracketLeg && (oType === OrderType.Stop || oType === OrderType.TrailingStop);
+    const bracketRoleColor = isBracketLeg ? (isBracketSl ? SELL_COLOR : BUY_COLOR) : null;
+
     function profitColor(p: number): string {
+      if (bracketRoleColor) return bracketRoleColor;
       return computeOrderLineColor(order, p, pos);
     }
-    const sizeBg = oSide === OrderSide.Sell ? SELL_COLOR : BUY_COLOR;
+    const sizeBg = bracketRoleColor ?? (oSide === OrderSide.Sell ? SELL_COLOR : BUY_COLOR);
 
     function getOrderRefPrice(): number {
       for (let k = 0; k < refs.orderLineMeta.current.length; k++) {

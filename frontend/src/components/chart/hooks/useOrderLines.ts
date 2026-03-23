@@ -90,7 +90,14 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       }
 
       const isSuspended = order.status === OrderStatus.Suspended;
-      const color = computeOrderLineColor(order, price, pos);
+      // Bracket legs: color by role (SL=red, TP=green), not by order side
+      let color: string;
+      if (isSuspended && pendingBracketInfo) {
+        const isSl = order.type === OrderType.Stop || order.type === OrderType.TrailingStop;
+        color = isSl ? SELL_COLOR : BUY_COLOR;
+      } else {
+        color = computeOrderLineColor(order, price, pos);
+      }
 
       refs.orderLines.current.push(new PriceLevelLine({
         price,
