@@ -80,25 +80,35 @@ function TimeOfDay({ data }: { data: HourPnl[] }) {
           const avg = h.count > 0 ? h.net / h.count : 0;
           const tooltipText = `${h.count} trades · Net: ${sign}$${Math.abs(h.net).toFixed(0)} · Avg: $${avg.toFixed(0)}`;
 
+          const barColor = isPos ? COLOR_BUY : COLOR_SELL;
+
           return (
             <Tooltip key={h.hour} text={tooltipText}>
-              <div className="flex items-center" style={{ gap: 10, cursor: 'default' }}>
+              <div
+                className="flex items-center transition-colors"
+                style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 <div style={{ width: 32, fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'right', fontFeatureSettings: '"tnum"' }}>
                   {h.hour}:00
                 </div>
                 <div className="flex-1" style={{ height: 16, position: 'relative' }}>
                   <div
+                    className="transition-all"
                     style={{
                       position: 'absolute',
                       left: 0,
                       top: 1,
                       width: `${barW}%`,
                       height: 14,
-                      background: isPos ? hexToRgba(COLOR_BUY, 0.55) : hexToRgba(COLOR_SELL, 0.55),
+                      background: hexToRgba(barColor, 0.5),
                       borderRadius: 4,
                       minWidth: h.count > 0 ? 6 : 0,
-                      transition: 'width 0.3s ease',
+                      transition: 'width 0.3s ease, background 0.15s ease',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.8); }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.5); }}
                   />
                 </div>
                 <div
@@ -242,7 +252,7 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
 
   return (
     <div style={CARD}>
-      <div style={LABEL}>Day of Week (Avg)</div>
+      <div style={LABEL}>Performance by Day</div>
       <div className="flex flex-col" style={{ gap: 6 }}>
         {data.map((d) => {
           const pct = maxAbs > 0 ? Math.abs(d.avgNet) / maxAbs : 0;
@@ -251,24 +261,33 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
           const tooltipText = d.count > 0
             ? `${d.count} days · Total: ${sign}$${Math.abs(d.totalNet).toFixed(0)} · Avg: $${d.avgNet.toFixed(0)}`
             : 'No trades';
+          const barColor = d.avgNet >= 0 ? COLOR_BUY : COLOR_SELL;
 
           return (
             <Tooltip key={d.day} text={tooltipText}>
-              <div className="flex items-center" style={{ gap: 10, cursor: 'default' }}>
+              <div
+                className="flex items-center transition-colors"
+                style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6 }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
                 <div style={{ width: 30, fontSize: 12, color: 'var(--color-text-muted)' }}>{d.day}</div>
                 <div className="flex-1" style={{ height: 18, position: 'relative' }}>
                   <div
+                    className="transition-all"
                     style={{
                       position: 'absolute',
                       left: 0,
                       top: 2,
                       width: `${barW}%`,
                       height: 14,
-                      background: d.avgNet >= 0 ? hexToRgba(COLOR_BUY, 0.5) : hexToRgba(COLOR_SELL, 0.5),
+                      background: hexToRgba(barColor, 0.5),
                       borderRadius: 4,
                       minWidth: d.count > 0 ? 6 : 0,
-                      transition: 'width 0.3s ease',
+                      transition: 'width 0.3s ease, background 0.15s ease',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.8); }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.5); }}
                   />
                 </div>
                 <div

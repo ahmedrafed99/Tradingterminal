@@ -2,14 +2,20 @@ import type { DayPnl } from '../../utils/tradeStats';
 import { pnlColor, hexToRgba } from './statsHelpers';
 import { COLOR_BUY, COLOR_SELL } from '../../constants/colors';
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+// Softer heatmap tones — desaturated teal/rose instead of raw buy/sell
+const HEAT_GREEN = '#1a6b5a';
+const HEAT_RED = '#6b2a2a';
 
 function cellBg(net: number, maxAbs: number): string {
   if (net === 0 || maxAbs === 0) return 'transparent';
-  const intensity = Math.min(Math.abs(net) / maxAbs, 1) * 0.40 + 0.08;
+  // Square root scale so small values are still visible
+  const ratio = Math.min(Math.abs(net) / maxAbs, 1);
+  const intensity = Math.sqrt(ratio) * 0.55 + 0.15;
   return net > 0
-    ? hexToRgba(COLOR_BUY, intensity)
-    : hexToRgba(COLOR_SELL, intensity);
+    ? hexToRgba(HEAT_GREEN, intensity)
+    : hexToRgba(HEAT_RED, intensity);
 }
 
 export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDayClick?: (date: string) => void }) {
@@ -39,7 +45,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
   for (const d of dailyData) {
     const dt = new Date(d.date + 'T12:00:00');
     const day = dt.getDay();
-    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const mondayOffset = day === 0 ? 1 : 1 - day; // Sunday → next Monday (same trading week)
     const monday = new Date(dt);
     monday.setDate(monday.getDate() + mondayOffset);
     const weekKey = monday.toISOString().slice(0, 10);
@@ -49,7 +55,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
   }
 
   const weeks = [...byWeekDay.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const gridCols = `80px repeat(5, 1fr) 100px`;
+  const gridCols = `80px repeat(6, 1fr) 100px`;
 
   return (
     <div
@@ -116,7 +122,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
                 {weekLabel}
               </div>
 
-              {[1, 2, 3, 4, 5].map((dow) => {
+              {[0, 1, 2, 3, 4, 5].map((dow) => {
                 const d = days.get(dow);
                 return (
                   <div

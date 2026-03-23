@@ -62,16 +62,16 @@ Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity
 - X-axis: calendar date (MM-DD).
 - Y-axis: daily net P&L ($).
 - Green bars for positive days, red for negative, with rounded corners.
-- Hover tooltip: date, net P&L, trade count.
+- **Hover**: hovered bar stays full opacity, all others dim to 35%. Full-height column highlight behind the hovered bar. Tooltip shows inline in the header row (centered, fixed-width segments so text doesn't shift between bars).
 
 ### 3. PnL Calendar Grid
 
 Table-based calendar heatmap showing daily performance.
 
-- Columns: Mon–Fri + Weekly Total.
+- Columns: Sun–Fri + Weekly Total (CME futures open Sunday 6pm ET).
 - Rows: one per week within the selected date range.
 - Each cell shows: **net P&L** (20px, green/red) + **trade count** (12px, muted).
-- Cell background color intensity scales with P&L magnitude (green/red rgba).
+- Cell background uses desaturated heatmap tones (`#1a6b5a` / `#6b2a2a`) with sqrt intensity scaling so small values are still visible.
 - Weekly total column on the right.
 - Native `title` tooltip on each cell with date, trade count, and exact P&L.
 
@@ -85,13 +85,13 @@ Table-based calendar heatmap showing daily performance.
 
 Four cards in a 2×2 grid:
 
-**P&L by Hour** — Horizontal bars per trading hour (ET). Each row: `hour:00` label → proportional green/red bar → dollar value. Tooltip on hover with trade count, net P&L, avg P&L.
+**P&L by Hour** — Horizontal bars per trading hour (ET). Each row: `hour:00` label → proportional green/red bar → dollar value. Tooltip on hover with trade count, net P&L, avg P&L. Row and bar highlight on hover (bar brightens from 50% to 80% opacity).
 
 **Long vs Short** — Two-column layout with vertical separator:
 - Full-width proportional trade count bar at the top (`X Long` / `X Short`).
 - Each column: Win Rate mini donut (SVG) with percentage, Avg Win/Loss inline (`+$X / -$Y`), Total Net.
 
-**Day of Week (Avg)** — Horizontal bars for Mon–Fri. Each row: day label → proportional bar → avg P&L value. Tooltip with day count, total P&L, avg P&L.
+**Performance by Day** — Horizontal bars for Sun–Fri (includes Sunday for CME session open). Each row: day label → proportional bar → avg P&L value. Tooltip with day count, total P&L, avg P&L. Row and bar highlight on hover.
 
 **Avg Trade Duration** — Winners vs Losers with proportional progress bars showing relative duration.
 

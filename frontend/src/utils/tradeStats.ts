@@ -322,8 +322,8 @@ export function buildDayOfWeekData(calendarData: DayPnl[]): DayOfWeekPnl[] {
   }
 
   const result: DayOfWeekPnl[] = [];
-  // Only weekdays (1=Mon to 5=Fri)
-  for (let i = 1; i <= 5; i++) {
+  // Sun–Fri (0=Sun, 1=Mon … 5=Fri) — CME opens Sunday 6pm ET
+  for (const i of [0, 1, 2, 3, 4, 5]) {
     const b = buckets.get(i);
     result.push({
       day: days[i],

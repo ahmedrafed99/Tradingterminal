@@ -17,6 +17,10 @@ interface HoverInfo {
   color: string;
 }
 
+interface HitPoint extends HoverInfo {
+  barRect?: { x: number; y: number; w: number; h: number };
+}
+
 export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyData: DayPnl[] }) {
   const [mode, setMode] = useState<Mode>('equity');
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -26,8 +30,9 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
   const [hover, setHover] = useState<HoverInfo | null>(null);
 
   // Store computed positions for hit testing
-  const pointsRef = useRef<{ x: number; y: number; label: string; value: string; sub?: string; color: string }[]>([]);
+  const pointsRef = useRef<HitPoint[]>([]);
   const rectRef = useRef<DOMRect | null>(null);
+  const hoveredBarRef = useRef<number>(-1);
 
   const measure = useCallback(() => {
     if (containerRef.current) {
@@ -75,7 +80,7 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
       if (mode === 'equity') {
         drawEquityCurve(ctx, width, stats.equityCurve, points, progress);
       } else {
-        drawDailyBars(ctx, width, dailyData, points, progress);
+        drawDailyBars(ctx, width, dailyData, points, progress, hoveredBarRef.current);
       }
 
       pointsRef.current = points;
@@ -87,6 +92,22 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     animRef.current = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(animRef.current);
   }, [width, mode, stats, dailyData]);
+
+  // Redraw base canvas (no animation) to reflect hovered bar change
+  const redrawBase = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || mode !== 'daily') return;
+    const dpr = window.devicePixelRatio || 1;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, CHART_HEIGHT);
+    const points: typeof pointsRef.current = [];
+    drawDailyBars(ctx, width, dailyData, points, 1, hoveredBarRef.current);
+    pointsRef.current = points;
+    ctx.restore();
+  }, [width, mode, dailyData]);
 
   // Keep overlay sized to match base canvas
   useEffect(() => {
@@ -112,8 +133,7 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const overlay = overlayRef.current;
     if (!overlay) return;
-    if (!rectRef.current) rectRef.current = overlay.getBoundingClientRect();
-    const rect = rectRef.current;
+    const rect = overlay.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
@@ -122,9 +142,7 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     let minDist = Infinity;
 
     for (const p of pointsRef.current) {
-      const dist = mode === 'equity'
-        ? Math.abs(p.x - mx)
-        : Math.abs(p.x - mx) + Math.abs(p.y - my) * 0.3;
+      const dist = Math.abs(p.x - mx);
       if (dist < minDist) {
         minDist = dist;
         closest = p;
@@ -138,37 +156,50 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, CHART_HEIGHT);
 
+    // Find hovered index for daily bar highlight
+    const closestIdx = closest ? pointsRef.current.indexOf(closest) : -1;
+
     if (closest && minDist < 60) {
       setHover({ ...closest });
 
-      // Vertical crosshair line
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      ctx.moveTo(closest.x, PAD.top);
-      ctx.lineTo(closest.x, CHART_HEIGHT - PAD.bottom);
-      ctx.stroke();
+      if (mode === 'daily') {
+        // Redraw base canvas with highlighted bar
+        if (hoveredBarRef.current !== closestIdx) {
+          hoveredBarRef.current = closestIdx;
+          redrawBase();
+        }
+      } else {
+        // Vertical crosshair line
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(closest.x, PAD.top);
+        ctx.lineTo(closest.x, CHART_HEIGHT - PAD.bottom);
+        ctx.stroke();
 
-      // Horizontal crosshair line (equity mode only)
-      if (mode === 'equity') {
+        // Horizontal crosshair line
         ctx.beginPath();
         ctx.moveTo(PAD.left, closest.y);
         ctx.lineTo(width - PAD.right, closest.y);
         ctx.stroke();
-      }
-      ctx.setLineDash([]);
+        ctx.setLineDash([]);
 
-      // Highlight dot
-      ctx.beginPath();
-      ctx.arc(closest.x, closest.y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = COLOR_POPOVER;
-      ctx.fill();
-      ctx.strokeStyle = closest.color;
-      ctx.lineWidth = 2;
-      ctx.stroke();
+        // Highlight dot
+        ctx.beginPath();
+        ctx.arc(closest.x, closest.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = COLOR_POPOVER;
+        ctx.fill();
+        ctx.strokeStyle = closest.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     } else {
       setHover(null);
+      if (mode === 'daily' && hoveredBarRef.current !== -1) {
+        hoveredBarRef.current = -1;
+        redrawBase();
+      }
     }
 
     ctx.restore();
@@ -177,7 +208,11 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
   const handleMouseLeave = useCallback(() => {
     setHover(null);
     clearOverlay();
-  }, [clearOverlay]);
+    if (hoveredBarRef.current !== -1) {
+      hoveredBarRef.current = -1;
+      redrawBase();
+    }
+  }, [clearOverlay, redrawBase]);
 
   return (
     <div
@@ -186,12 +221,27 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
         border: '1px solid var(--color-border)',
         borderRadius: 10,
         padding: '20px 24px',
+        position: 'relative',
       }}
     >
-      <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 16, position: 'relative' }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.02em' }}>
           {mode === 'equity' ? 'Equity Curve' : 'Daily P&L'}
         </div>
+        {/* Daily mode tooltip — centered in header, fixed-width segments */}
+        {mode === 'daily' && hover && (
+          <div
+            className="flex items-center justify-center"
+            style={{ position: 'absolute', left: 0, right: 0, pointerEvents: 'none', fontSize: 13 }}
+          >
+            <span style={{ flex: '0 0 90px', textAlign: 'right', color: 'var(--color-text-muted)', fontFeatureSettings: '"tnum"' }}>{hover.label}</span>
+            <span style={{ flex: '0 0 110px', textAlign: 'center', fontWeight: 600, color: hover.color, fontFeatureSettings: '"tnum"' }}>{hover.value}</span>
+            <span style={{ flex: '0 0 80px', textAlign: 'left', color: 'var(--color-text-muted)' }}>
+              <span style={{ display: 'inline-block', width: 22, textAlign: 'right', fontFeatureSettings: '"tnum"' }}>{hover.sub?.split(' ')[0]}</span>
+              {' '}{hover.sub?.split(' ').slice(1).join(' ')}
+            </span>
+          </div>
+        )}
         <div
           className="flex"
           style={{
@@ -243,8 +293,8 @@ export function StatsPnlChart({ stats, dailyData }: { stats: TradeStats; dailyDa
           onMouseLeave={handleMouseLeave}
         />
 
-        {/* Floating tooltip */}
-        {hover && (
+        {/* Floating tooltip (equity mode only — daily uses header) */}
+        {hover && mode === 'equity' && (
           <div
             style={{
               position: 'absolute',
@@ -287,7 +337,7 @@ function drawEquityCurve(
   ctx: CanvasRenderingContext2D,
   w: number,
   curve: number[],
-  hitPoints: { x: number; y: number; label: string; value: string; sub?: string; color: string }[],
+  hitPoints: HitPoint[],
   progress = 1,
 ) {
   if (curve.length === 0) {
@@ -437,8 +487,9 @@ function drawDailyBars(
   ctx: CanvasRenderingContext2D,
   w: number,
   data: DayPnl[],
-  hitPoints: { x: number; y: number; label: string; value: string; sub?: string; color: string }[],
+  hitPoints: HitPoint[],
   progress = 1,
+  hoveredIdx = -1,
 ) {
   if (data.length === 0) {
     drawEmpty(ctx, w, 'No daily data');
@@ -481,20 +532,35 @@ function drawDailyBars(
     const h = Math.abs(y - zeroY);
     const top = animNet >= 0 ? y : zeroY;
     const barColor = data[i].net >= 0 ? COLOR_BUY : COLOR_SELL;
+    const isHovered = hoveredIdx === i;
+    const dimmed = hoveredIdx >= 0 && !isHovered;
 
+    // Full-height column highlight behind hovered bar
+    if (isHovered) {
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillRect(x - gap / 2, PAD.top, barW + gap, plotH);
+    }
+
+    ctx.globalAlpha = dimmed ? 0.35 : 1.0;
     ctx.fillStyle = barColor;
     ctx.beginPath();
     ctx.roundRect(x, top, barW, Math.max(1, h), 3);
     ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    const fullY = toY(data[i].net);
+    const fullH = Math.abs(fullY - zeroY);
+    const fullTop = data[i].net >= 0 ? fullY : zeroY;
 
     const sign = data[i].net > 0 ? '+' : '';
     hitPoints.push({
       x: x + barW / 2,
-      y: data[i].net >= 0 ? toY(data[i].net) : toY(data[i].net) + Math.abs(toY(data[i].net) - zeroY),
+      y: fullY,
       label: data[i].date,
       value: `${sign}$${Math.abs(data[i].net).toFixed(2)}`,
       sub: `${data[i].tradeCount} ${data[i].tradeCount === 1 ? 'trade' : 'trades'}`,
       color: barColor,
+      barRect: { x, y: fullTop, w: barW, h: Math.max(1, fullH) },
     });
   }
 
