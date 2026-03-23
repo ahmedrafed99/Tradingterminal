@@ -179,62 +179,62 @@ function LongVsShort({ long, short }: { long: DirectionStats; short: DirectionSt
       </div>
 
       {/* Two-column layout with vertical separator */}
-      <div className="flex" style={{ gap: 0 }}>
+      <div className="flex" style={{ gap: 0, marginTop: 60 }}>
         {/* Long column */}
-        <div className="flex-1 flex flex-col items-center" style={{ gap: 16 }}>
+        <div className="flex-1 flex flex-col items-center" style={{ gap: 22 }}>
           {/* Win rate donut */}
-          <div className="flex flex-col items-center" style={{ gap: 4 }}>
-            <div style={{ fontSize: 12, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
-            <MiniDonut rate={long.winRate} color="var(--color-text)" size={52} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
+          <div className="flex flex-col items-center" style={{ gap: 6 }}>
+            <div style={{ fontSize: 13, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
+            <MiniDonut rate={long.winRate} color="var(--color-text)" size={64} />
+            <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
               {(long.winRate * 100).toFixed(0)}%
             </span>
           </div>
 
           {/* Avg Win/Loss */}
           <div className="text-center">
-            <div style={{ fontSize: 12, color: 'var(--color-text-dim)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Win / Loss</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Win / Loss</div>
             <div style={{ fontFeatureSettings: '"tnum"' }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-buy)' }}>{long.avgWinner > 0 ? `+$${long.avgWinner.toFixed(2)}` : '—'}</span>
-              <span style={{ fontSize: 12, color: 'var(--color-text-dim)', margin: '0 4px' }}>/</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-sell)' }}>{long.avgLoser > 0 ? `-$${long.avgLoser.toFixed(2)}` : '—'}</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-buy)' }}>{long.avgWinner > 0 ? `+$${long.avgWinner.toFixed(2)}` : '—'}</span>
+              <span style={{ fontSize: 13, color: 'var(--color-text-dim)', margin: '0 6px' }}>/</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-sell)' }}>{long.avgLoser > 0 ? `-$${long.avgLoser.toFixed(2)}` : '—'}</span>
             </div>
           </div>
 
           {/* Total net */}
           <div className="text-center">
-            <div style={{ fontSize: 12, color: 'var(--color-text-dim)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Net</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: pnlColor(long.totalNet), fontFeatureSettings: '"tnum"' }}>${long.totalNet.toFixed(2)}</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Net</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: pnlColor(long.totalNet), fontFeatureSettings: '"tnum"' }}>${long.totalNet.toFixed(2)}</div>
           </div>
         </div>
 
         {SEP}
 
         {/* Short column */}
-        <div className="flex-1 flex flex-col items-center" style={{ gap: 16 }}>
+        <div className="flex-1 flex flex-col items-center" style={{ gap: 22 }}>
           {/* Win rate donut */}
-          <div className="flex flex-col items-center" style={{ gap: 4 }}>
-            <div style={{ fontSize: 12, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
-            <MiniDonut rate={short.winRate} color="var(--color-text)" size={52} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
+          <div className="flex flex-col items-center" style={{ gap: 6 }}>
+            <div style={{ fontSize: 13, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Win Rate</div>
+            <MiniDonut rate={short.winRate} color="var(--color-text)" size={64} />
+            <span style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
               {(short.winRate * 100).toFixed(0)}%
             </span>
           </div>
 
           {/* Avg Win/Loss */}
           <div className="text-center">
-            <div style={{ fontSize: 12, color: 'var(--color-text-dim)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Win / Loss</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Avg Win / Loss</div>
             <div style={{ fontFeatureSettings: '"tnum"' }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-buy)' }}>{short.avgWinner > 0 ? `+$${short.avgWinner.toFixed(2)}` : '—'}</span>
-              <span style={{ fontSize: 12, color: 'var(--color-text-dim)', margin: '0 4px' }}>/</span>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-sell)' }}>{short.avgLoser > 0 ? `-$${short.avgLoser.toFixed(2)}` : '—'}</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-buy)' }}>{short.avgWinner > 0 ? `+$${short.avgWinner.toFixed(2)}` : '—'}</span>
+              <span style={{ fontSize: 13, color: 'var(--color-text-dim)', margin: '0 6px' }}>/</span>
+              <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-sell)' }}>{short.avgLoser > 0 ? `-$${short.avgLoser.toFixed(2)}` : '—'}</span>
             </div>
           </div>
 
           {/* Total net */}
           <div className="text-center">
-            <div style={{ fontSize: 12, color: 'var(--color-text-dim)', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Net</div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: pnlColor(short.totalNet), fontFeatureSettings: '"tnum"' }}>${short.totalNet.toFixed(2)}</div>
+            <div style={{ fontSize: 13, color: 'var(--color-text-dim)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Net</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: pnlColor(short.totalNet), fontFeatureSettings: '"tnum"' }}>${short.totalNet.toFixed(2)}</div>
           </div>
         </div>
       </div>
