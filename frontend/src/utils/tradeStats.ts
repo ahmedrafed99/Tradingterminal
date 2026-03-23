@@ -6,6 +6,7 @@
 import type { Trade } from '../services/tradeService';
 import { OrderSide } from '../types/enums';
 import { buildEntryMap } from '../components/chart/TradeZonePrimitive';
+import { tradingDurationMs } from './marketHours';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -349,7 +350,7 @@ export function buildDurationComparison(grouped: GroupedTrade[]): DurationCompar
   const avgDur = (trades: GroupedTrade[]) => {
     if (trades.length === 0) return 0;
     const total = trades.reduce(
-      (s, t) => s + (new Date(t.exitTime).getTime() - new Date(t.entryTime).getTime()),
+      (s, t) => s + tradingDurationMs(t.entryTime, t.exitTime),
       0,
     );
     return total / trades.length;

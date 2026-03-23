@@ -68,7 +68,7 @@ export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
       const entry = opens.find(
         (t) =>
           (entryIsBuy ? t.side === OrderSide.Buy : t.side !== OrderSide.Buy) &&
-          (remaining.get(t.id) ?? 0) > 0 &&
+          (remaining.get(t.id) ?? 0) >= exit.size &&
           new Date(t.creationTimestamp).getTime() <= exitTime,
       );
 

@@ -2,6 +2,7 @@ import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import type { GroupedTrade } from '../../utils/tradeStats';
 import { computeStats } from '../../utils/tradeStats';
 import { formatDuration } from '../../utils/formatters';
+import { tradingDurationMs } from '../../utils/marketHours';
 import { COLOR_BUY, COLOR_SELL, COLOR_TABLE_STRIPE, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../constants/colors';
 import { pnlColor, fmtDollar, niceStep, hexToRgba } from './statsHelpers';
 
@@ -88,7 +89,7 @@ export function StatsDayDetail({ date, trades, onBack }: {
         {trades.map((t, idx) => {
           const isLast = idx === trades.length - 1;
           const dur = t.entry
-            ? new Date(t.exitTime).getTime() - new Date(t.entryTime).getTime()
+            ? tradingDurationMs(t.entryTime, t.exitTime)
             : 0;
           const exitTime = new Date(t.exitTime).toLocaleTimeString('en-US', {
             hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/New_York',

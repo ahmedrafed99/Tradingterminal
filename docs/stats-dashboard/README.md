@@ -105,6 +105,15 @@ Multiple exits from a single entry are counted as **one trade**. Reuses `buildEn
 2. **Exit** = all fills that reduce that position back to flat.
 3. Scaling out counts as one trade with blended exit price (size-weighted), summed P&L/fees, duration from first entry to last exit.
 4. Opening half-turns (`profitAndLoss === null`) and voided trades are excluded.
+5. FIFO matching requires `remaining >= exit.size` to prevent over-consumption of entry sizes across sessions.
+
+### Duration Calculation
+
+Trade duration uses `tradingDurationMs()` from `marketHours.ts`, which excludes CME closed periods:
+- **Weekend**: Friday 17:00 ET → Sunday 18:00 ET (49h)
+- **Daily maintenance**: Mon–Thu 17:00–18:00 ET (1h each)
+
+This applies to the Trades tab, Stats duration breakdown, and day detail trade tables.
 
 ---
 

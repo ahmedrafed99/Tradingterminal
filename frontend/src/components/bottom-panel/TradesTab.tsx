@@ -7,7 +7,8 @@ import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
 import { getDateRange, type DatePreset } from '../../utils/cmeSession';
-import { shortSymbol, formatTime, durationMs, formatDuration } from '../../utils/formatters';
+import { shortSymbol, formatTime, formatDuration } from '../../utils/formatters';
+import { tradingDurationMs } from '../../utils/marketHours';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 import { DatePresetSelector } from './DatePresetSelector';
 
@@ -237,7 +238,7 @@ export function TradesTab() {
         case 'qty': return g.totalQty;
         case 'entry': return g.entry?.price ?? 0;
         case 'exit': return g.exits.length === 1 ? g.exits[0].price : g.exits.length;
-        case 'duration': return g.entry ? durationMs(g.entry.creationTimestamp, g.latestTime) : 0;
+        case 'duration': return g.entry ? tradingDurationMs(g.entry.creationTimestamp, g.latestTime) : 0;
         case 'pnl': return g.totalPnl;
         case 'fees': return g.totalFees;
         case 'net': return g.totalNet;
@@ -358,7 +359,7 @@ export function TradesTab() {
                 </div>
                 <div className="px-3 text-center text-(--color-text) whitespace-nowrap">{trade.price.toFixed(2)}</div>
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
-                  {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
+                  {group.entry ? formatDuration(tradingDurationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
                   <span className={trade.profitAndLoss! > 0 ? 'text-(--color-buy)' : trade.profitAndLoss! < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
@@ -412,7 +413,7 @@ export function TradesTab() {
                   {group.exits.length} exits {isExpanded ? '\u25BE' : '\u25B8'}
                 </div>
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
-                  {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, group.latestTime)) : '\u2014'}
+                  {group.entry ? formatDuration(tradingDurationMs(group.entry.creationTimestamp, group.latestTime)) : '\u2014'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
                   <span className={group.totalPnl > 0 ? 'text-(--color-buy)' : group.totalPnl < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
@@ -453,7 +454,7 @@ export function TradesTab() {
                     <div className="px-3 text-center" />
                     <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">{trade.price.toFixed(2)}</div>
                     <div className="px-3 text-center text-(--color-text-muted)/60 whitespace-nowrap">
-                      {group.entry ? formatDuration(durationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
+                      {group.entry ? formatDuration(tradingDurationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '\u2014'}
                     </div>
                     <div className="px-3 text-center whitespace-nowrap">
                       <span className={trade.profitAndLoss! > 0 ? 'text-(--color-buy)/70' : trade.profitAndLoss! < 0 ? 'text-(--color-sell)/70' : 'text-(--color-text-muted)'}>
