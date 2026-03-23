@@ -57,7 +57,7 @@ Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity
 - Area fill: green gradient above zero line, red gradient below — rendered via canvas clipping.
 - **Centered node spacing**: with few trades, points cluster near the center (48px apart) instead of stretching edge-to-edge. As trade count grows, the chart fills the full width naturally.
 - Data point dots when ≤ 30 trades.
-- Interactive **crosshair** on hover: drawn on a transparent overlay canvas. Dashed vertical + horizontal lines, highlighted dot. **Header tooltip** shows trade P&L (colored green/red) inline in the title bar — no floating tooltip.
+- Interactive **crosshair** on hover: drawn on a transparent overlay canvas. Dashed vertical + horizontal lines, highlighted dot. **Header tooltip** shows cumulative P&L at the hovered point (colored green/red) inline in the title bar — no floating tooltip.
 - Grid lines: `rgba(255,255,255,0.12)`, 1px width.
 - Animation plays only on data/mode changes, not on resize (prevents double-animation glitch when toggling date filters).
 
