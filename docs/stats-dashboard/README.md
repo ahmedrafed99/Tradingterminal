@@ -89,7 +89,7 @@ Four cards in a 2×2 grid:
 
 **Long vs Short** — Two-column layout with vertical separator:
 - Full-width proportional trade count bar at the top (`X Long` / `X Short`).
-- Each column: Win Rate mini donut (SVG) with percentage, Avg Win/Loss inline (`+$X / -$Y`), Total Net.
+- Each column: Win Rate mini donut (SVG, neutral `--color-text`) with percentage, Avg Win/Loss inline (`+$X / -$Y`), Total Net.
 
 **Performance by Day** — Horizontal bars for Sun–Fri (includes Sunday for CME session open). Each row: day label → proportional bar → avg P&L value. Tooltip with day count, total P&L, avg P&L. Row and bar highlight on hover.
 
