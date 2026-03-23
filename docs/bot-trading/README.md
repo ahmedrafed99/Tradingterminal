@@ -26,10 +26,18 @@ POST /drawings/add
 {
   "type": "hline",
   "price": 21300,
-  "color": "#787b86",
-  "strokeWidth": 2,
+  "color": "#5b8a72",
+  "strokeWidth": 1,
   "contractId": "CON.F.US.MNQ.M26",
-  "text": null,
+  "text": {
+    "content": "Support",
+    "color": "#5b8a72",
+    "fontSize": 12,
+    "bold": false,
+    "italic": false,
+    "hAlign": "left",
+    "vAlign": "middle"
+  },
   "startTime": 0,
   "extendLeft": true
 }
@@ -61,7 +69,7 @@ POST /drawings/add
   "type": "marker",
   "time": 1774304880,
   "price": 24427.25,
-  "color": "#4a80b0",
+  "color": "#5b8a72",
   "label": "Entry  1 @ 24427.25",
   "placement": "below",
   "strokeWidth": 1,
@@ -120,6 +128,41 @@ All endpoints return:
 ```
 
 The `id` is auto-generated if not provided in the request body. Store it to remove individual drawings later.
+
+---
+
+## Style Defaults
+
+### Color Palette
+
+Muted, eye-friendly colors that sit well on a dark chart background.
+
+| Purpose | Color | Hex |
+|---------|-------|-----|
+| Support / long entry | Soft teal | `#5b8a72` |
+| Resistance / short entry | Muted rose | `#a65d6a` |
+| Neutral level | Warm gray | `#787b86` |
+| Target / take-profit | Soft gold | `#b8a04a` |
+| Stop-loss | Dusty red | `#8b5c5c` |
+| Info / annotation | Slate blue | `#6b7ea0` |
+
+### Text Positioning
+
+All HLine labels use `vAlign: "middle"`, `hAlign: "left"` so text sits centered on the line, aligned to the left edge of the chart.
+
+```json
+{
+  "text": {
+    "content": "Support",
+    "color": "#5b8a72",
+    "fontSize": 12,
+    "bold": false,
+    "italic": false,
+    "hAlign": "left",
+    "vAlign": "middle"
+  }
+}
+```
 
 ---
 
