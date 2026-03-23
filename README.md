@@ -45,6 +45,7 @@ docs/
 ├── video-recording/      — Chart video recording for journaling
 ├── voice-notifications/  — Audible voice clips on order/TP/SL fills
 ├── frontend/             — Full index: all components, services, store slices, types
+├── bot-trading/          — Bot drawing tools: HLine, markers, SSE transport, API reference
 ├── claude-trader/        — Autonomous NQ trading system (tools, journal, state)
 ├── claude-strategies/    — Backtested algorithmic strategies (London Sniper, etc.)
 ├── trading-strategy/     — Price action reversal research (Origin method)
@@ -64,6 +65,7 @@ docs/
 | Bracket preset configuration UI             | `docs/order-panel/bracket-settings/` |
 | How realized P&L is calculated              | `docs/top-bar/` → Centre — Realized P&L |
 | How unrealized P&L is calculated            | `docs/top-bar/` → Centre — Balance + UP&L |
+| Bot drawing tools (HLine, markers, API)     | `docs/bot-trading/` |
 | Drawing renderers and hit testing           | `docs/drawing-tools/` |
 | Volume profile data source (GatewayDepth)   | `docs/candlestick-chart/indicators/volume-profile/` |
 | Chart screenshot / clipboard                | `docs/chart-screenshot/` |
