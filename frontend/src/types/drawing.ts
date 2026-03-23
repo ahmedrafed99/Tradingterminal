@@ -110,9 +110,20 @@ export interface FreeDrawDrawing extends DrawingBase {
 }
 
 // ---------------------------------------------------------------------------
+// Marker drawing (arrow + pill label at a specific time/price)
+// ---------------------------------------------------------------------------
+export interface MarkerDrawing extends DrawingBase {
+  type: 'marker';
+  time: number;             // bar timestamp (unix seconds)
+  price: number;            // price level the arrow points to
+  label: string;            // text inside the pill (e.g. "Entry  1 @ 21300.00")
+  placement: 'above' | 'below'; // arrow direction relative to anchor
+}
+
+// ---------------------------------------------------------------------------
 // Union type
 // ---------------------------------------------------------------------------
-export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
+export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing;
 
 // ---------------------------------------------------------------------------
 // Horizontal line template (saved style presets)

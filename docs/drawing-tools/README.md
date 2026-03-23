@@ -531,6 +531,39 @@ On import, each template's `id` is replaced with a fresh `crypto.randomUUID()` t
 
 ---
 
+## Marker Drawing
+
+Arrow + pill label marker that anchors to a candle's high or low. Used by the remote drawing API (`POST /drawings/add` with `type: 'marker'`) and internally by `TradeZonePrimitive` for trade entry/exit labels.
+
+### Type
+
+```ts
+interface MarkerDrawing extends DrawingBase {
+  type: 'marker';
+  time: number;                    // bar timestamp (unix seconds)
+  price: number;                   // price level (used as fallback if bar data unavailable)
+  label: string;                   // text inside the pill (e.g. "Entry  1 @ 21300.00")
+  placement: 'above' | 'below';   // arrow direction relative to candle
+}
+```
+
+### Rendering
+
+- `placement: 'below'` → arrow anchors to candle **low**, points upward into the candle
+- `placement: 'above'` → arrow anchors to candle **high**, points downward into the candle
+- Falls back to `price` if the candle bar data isn't available at the given `time`
+- Label rendered as white text with dark outline for contrast (no background pill)
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `frontend/src/components/chart/drawings/markerLabel.ts` | Shared `drawMarkerLabel()` utility — arrow + pill rendering in bitmap coords |
+| `frontend/src/components/chart/drawings/MarkerRenderer.ts` | `MarkerPaneView` — looks up candle high/low for anchor, delegates to `drawMarkerLabel()` |
+| `frontend/src/components/chart/TradeZonePrimitive.ts` | Refactored to use `drawMarkerLabel()` for entry/exit labels |
+
+---
+
 ## Persistence
 
 Drawings and hline templates are persisted to localStorage via Zustand's `persist` middleware (key: `chart-store`). The `partialize` function includes `drawings`, `drawingToolbarOpen`, and `hlineTemplates`.

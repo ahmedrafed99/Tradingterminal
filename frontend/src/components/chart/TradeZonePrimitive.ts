@@ -8,7 +8,6 @@ import type {
   IPrimitivePaneView,
   IPrimitivePaneRenderer,
 } from 'lightweight-charts';
-import { FONT_FAMILY } from '../../constants/layout';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { Trade } from '../../services/tradeService';
 import { OrderSide } from '../../types/enums';
@@ -118,7 +117,8 @@ export function matchTrades(
 
 // ── Renderer ───────────────────────────────────────────────────────────────
 
-import { COLOR_BUY, COLOR_SELL, COLOR_LABEL_TEXT, COLOR_TEXT, COLOR_BTN_SELL_HOVER } from '../../constants/colors';
+import { COLOR_BUY, COLOR_SELL, COLOR_BTN_SELL_HOVER } from '../../constants/colors';
+import { drawMarkerLabel } from './drawings/markerLabel';
 
 const GREEN = COLOR_BUY;
 const RED = COLOR_SELL;
@@ -268,71 +268,9 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     hpr: number,
     placement: 'above' | 'below',
   ): void {
-    const fontSize = Math.round(12 * vpr);
-    ctx.font = `${fontSize}px ${FONT_FAMILY}`;
-
     const priceText = trade.price.toFixed(this._decimals);
     const text = `${label}  ${trade.size} @ ${priceText}`;
-    const textWidth = ctx.measureText(text).width;
-
-    const padH = Math.round(6 * hpr);
-    const padV = Math.round(3 * vpr);
-    const pillW = textWidth + padH * 2;
-    const pillH = fontSize + padV * 2;
-    const arrowLen = Math.round(18 * vpr);
-    const gap = Math.round(14 * vpr);
-
-    // Pill position relative to candle extreme (anchorY)
-    let pillY: number;
-    let arrowStartY: number;
-    let arrowEndY: number;
-
-    if (placement === 'above') {
-      pillY = anchorY - gap - arrowLen - pillH;
-      arrowStartY = pillY + pillH;
-      arrowEndY = anchorY - gap;
-    } else {
-      pillY = anchorY + gap + arrowLen;
-      arrowStartY = pillY;
-      arrowEndY = anchorY + gap;
-    }
-
-    const pillX = x - pillW / 2;
-
-    // Arrow line
-    ctx.strokeStyle = arrowColor;
-    ctx.lineWidth = Math.round(1.5 * hpr);
-    ctx.beginPath();
-    ctx.moveTo(x, arrowStartY);
-    ctx.lineTo(x, arrowEndY);
-    ctx.stroke();
-
-    // Arrowhead
-    const headSize = Math.round(4 * vpr);
-    ctx.beginPath();
-    if (placement === 'above') {
-      ctx.moveTo(x, arrowEndY + headSize);
-      ctx.lineTo(x - headSize, arrowEndY);
-      ctx.lineTo(x + headSize, arrowEndY);
-    } else {
-      ctx.moveTo(x, arrowEndY - headSize);
-      ctx.lineTo(x - headSize, arrowEndY);
-      ctx.lineTo(x + headSize, arrowEndY);
-    }
-    ctx.closePath();
-    ctx.fillStyle = arrowColor;
-    ctx.fill();
-
-    // Label text (white with dark outline for contrast)
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const textY = pillY + pillH / 2;
-    ctx.strokeStyle = COLOR_LABEL_TEXT;
-    ctx.lineWidth = Math.round(3 * vpr);
-    ctx.lineJoin = 'round';
-    ctx.strokeText(text, x, textY);
-    ctx.fillStyle = COLOR_TEXT;
-    ctx.fillText(text, x, textY);
+    drawMarkerLabel(ctx, { x, anchorY, text, arrowColor, placement, vpr, hpr });
   }
 }
 

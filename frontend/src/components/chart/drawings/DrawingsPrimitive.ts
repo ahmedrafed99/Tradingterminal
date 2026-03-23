@@ -20,6 +20,7 @@ import { ArrowPathPaneView } from './ArrowPathRenderer';
 import { RulerPaneView } from './RulerRenderer';
 import { FreeDrawPaneView } from './FreeDrawRenderer';
 import { RectPaneView } from './RectRenderer';
+import { MarkerPaneView } from './MarkerRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -806,6 +807,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         return new RulerPaneView(d, selected, this._series!, this._chart!, this._decimals);
       } else if (d.type === 'arrowpath') {
         return new ArrowPathPaneView(d, selected, this._series!, this._chart!);
+      } else if (d.type === 'marker') {
+        return new MarkerPaneView(d, selected, this._series!, this._chart!);
       } else {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }

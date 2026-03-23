@@ -386,6 +386,22 @@ Encryption uses `scrypt(hostname + homedir + 'trading-terminal')` as key. Format
   "extendLeft": true
 }
 ```
+**POST /drawings/add body (marker):**
+```json
+{
+  "type": "marker",
+  "time": 1774304880,
+  "price": 24427.25,
+  "color": "#4a80b0",
+  "label": "Entry  1 @ 24427.25",
+  "placement": "below",
+  "strokeWidth": 1,
+  "contractId": "CON.F.US.MNQ.M26",
+  "text": null
+}
+```
+`placement: "below"` anchors the arrow to the candle's low; `"above"` anchors to the high.
+
 Returns `{ "success": true, "id": "<uuid>" }`. The `id` is auto-generated if not provided and can be used with `DELETE /drawings/remove/:id`.
 
 ### Conditions (Conditional Orders Engine)
