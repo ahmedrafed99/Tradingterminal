@@ -155,13 +155,15 @@ const commands = {
 
   async 'place-order'(args) {
     require(args, 'accountId', 'contractId', 'side', 'size', 'type');
-    const typeMap = { market: 1, limit: 2, stop: 3 };
+    // OrderType: Limit=1, Market=2, Stop=4, TrailingStop=5
+    const typeMap = { market: 2, limit: 1, stop: 4 };
     const sideMap = { buy: 0, sell: 1 };
     const orderType = typeMap[args.type.toLowerCase()];
     const orderSide = sideMap[args.side.toLowerCase()];
     if (orderType === undefined) die(`invalid --type: ${args.type} (market|limit|stop)`);
     if (orderSide === undefined) die(`invalid --side: ${args.side} (buy|sell)`);
 
+    const isBuy = orderSide === 0;
     const body = {
       accountId: args.accountId,
       contractId: args.contractId,
@@ -171,8 +173,9 @@ const commands = {
     };
     if (args.price) body.limitPrice = Number(args.price);
     if (args.stopPrice) body.stopPrice = Number(args.stopPrice);
-    if (args.sl) body.stopLossBracket = { ticks: Number(args.sl), type: 2 };
-    if (args.tp) body.takeProfitBracket = { ticks: Number(args.tp), type: 1 };
+    // Ticks are signed: buy SL negative (below), buy TP positive (above); reversed for sell
+    if (args.sl) body.stopLossBracket = { ticks: Number(args.sl) * (isBuy ? -1 : 1), type: 4 };
+    if (args.tp) body.takeProfitBracket = { ticks: Number(args.tp) * (isBuy ? 1 : -1), type: 1 };
 
     const result = await post('/orders/place', body);
     console.log(JSON.stringify(result));

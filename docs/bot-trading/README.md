@@ -69,21 +69,21 @@ POST /orders/place
 {
   "accountId": "20130833",
   "contractId": "CON.F.US.MNQ.M26",
-  "type": 2,
+  "type": 1,
   "side": 0,
   "size": 1,
   "limitPrice": 24400,
-  "stopLossBracket": { "ticks": 40, "type": 2 },
+  "stopLossBracket": { "ticks": -40, "type": 4 },
   "takeProfitBracket": { "ticks": 80, "type": 1 }
 }
 ```
 
 | Field | Values |
 |-------|--------|
-| `type` | 1 = Market, 2 = Limit, 3 = Stop |
+| `type` | 1 = Limit, 2 = Market, 4 = Stop |
 | `side` | 0 = Buy, 1 = Sell |
-| `stopLossBracket` | `ticks` = distance from fill, `type` = 2 (Stop) |
-| `takeProfitBracket` | `ticks` = distance from fill, `type` = 1 (Limit) |
+| `stopLossBracket` | `ticks` = signed distance from fill (negative for buy, positive for sell), `type` = 4 (Stop) |
+| `takeProfitBracket` | `ticks` = signed distance from fill (positive for buy, negative for sell), `type` = 1 (Limit) |
 
 Brackets are optional. Omit either for no SL or no TP.
 
