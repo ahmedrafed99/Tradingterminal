@@ -2,38 +2,39 @@ import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 
 /**
- * Polls the backend for drawings pushed via the /drawings/add API
- * and adds them to the Zustand drawing store.
+ * Connects to the backend SSE stream at /drawings/events.
+ * Drawings pushed via POST /drawings/add appear on the chart instantly.
  * Supports _command: 'clearAll' to remove all drawings.
  */
 export function useRemoteDrawings(): void {
   const addDrawing = useStore((s) => s.addDrawing);
+  const removeDrawing = useStore((s) => s.removeDrawing);
   const clearAllDrawings = useStore((s) => s.clearAllDrawings);
   const addDrawingRef = useRef(addDrawing);
+  const removeRef = useRef(removeDrawing);
   const clearAllRef = useRef(clearAllDrawings);
   addDrawingRef.current = addDrawing;
+  removeRef.current = removeDrawing;
   clearAllRef.current = clearAllDrawings;
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    const es = new EventSource('/drawings/events');
+
+    es.onmessage = (e) => {
       try {
-        const res = await fetch('/drawings/pending');
-        if (!res.ok) return;
-        const data = await res.json();
-        const drawings = data.drawings;
-        if (!Array.isArray(drawings) || drawings.length === 0) return;
-        for (const d of drawings) {
-          if (d._command === 'clearAll') {
-            clearAllRef.current();
-          } else {
-            addDrawingRef.current(d);
-          }
+        const d = JSON.parse(e.data);
+        if (d._command === 'clearAll') {
+          clearAllRef.current();
+        } else if (d._command === 'remove' && d.id) {
+          removeRef.current(d.id);
+        } else {
+          addDrawingRef.current(d);
         }
       } catch {
-        // Backend may not be running — ignore
+        // Malformed message — ignore
       }
-    }, 2000);
+    };
 
-    return () => clearInterval(interval);
+    return () => es.close();
   }, []);
 }

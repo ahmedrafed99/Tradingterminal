@@ -149,7 +149,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 | `useClickOutside` | `hooks/useClickOutside.ts` | Close dropdowns/popovers on outside click | TopBar, BracketSummary, DatePresetSelector, ConditionsTab, InstrumentSelector, InstrumentSelectorPopover |
 | `useInstrumentSearch` | `hooks/useInstrumentSearch.ts` | Debounced contract search, bookmark resolution, `isBookmarked`, `toggleBookmark` | InstrumentSelector, InstrumentSelectorPopover |
 | `useSettingsSync` | `hooks/useSettingsSync.ts` | Two-way sync between Zustand store and backend file persistence | App.tsx |
-| `useRemoteDrawings` | `hooks/useRemoteDrawings.ts` | Polls `/drawings/pending` and syncs remote drawings into store. Supports `_command: 'clearAll'` | App.tsx |
+| `useRemoteDrawings` | `hooks/useRemoteDrawings.ts` | Connects to SSE stream at `/drawings/events` and syncs remote drawings into store in real-time. Supports `_command: 'clearAll'` and `_command: 'remove'` | App.tsx |
 
 **Important**: `useInstrumentSearch` is a **data/logic hook only**. The two instrument selector components (InstrumentSelector and InstrumentSelectorPopover) have different UI — do not merge their visual implementations.
 

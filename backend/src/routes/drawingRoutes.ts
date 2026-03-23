@@ -1,46 +1,55 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import crypto from 'crypto';
 
 const router = Router();
 
-// In-memory queue of drawings waiting to be picked up by the frontend
-const MAX_PENDING_DRAWINGS = 200;
-let pendingDrawings: Record<string, unknown>[] = [];
+// SSE client registry
+const sseClients = new Set<Response>();
 
-// POST /drawings/add — push a drawing into the queue
+function broadcast(drawing: Record<string, unknown>): void {
+  const payload = `data: ${JSON.stringify(drawing)}\n\n`;
+  for (const client of sseClients) {
+    client.write(payload);
+  }
+}
+
+// GET /drawings/events — SSE stream for real-time drawing push
+router.get('/events', (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+  });
+  res.write('\n');
+  sseClients.add(res);
+  const cleanup = () => sseClients.delete(res);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
+});
+
+// POST /drawings/add — push a drawing to all connected frontends
 router.post('/add', (req, res) => {
   const drawing = req.body;
   if (!drawing || !drawing.type) {
     res.status(400).json({ success: false, errorMessage: 'Missing drawing type' });
     return;
   }
-  // Auto-generate id if not provided
   if (!drawing.id) {
     drawing.id = crypto.randomUUID();
   }
-  if (pendingDrawings.length >= MAX_PENDING_DRAWINGS) {
-    pendingDrawings = pendingDrawings.slice(-Math.floor(MAX_PENDING_DRAWINGS / 2));
-  }
-  pendingDrawings.push(drawing);
+  broadcast(drawing);
   res.json({ success: true, id: drawing.id });
 });
 
-// GET /drawings/pending — frontend polls this, returns and clears queue
-router.get('/pending', (_req, res) => {
-  const drawings = pendingDrawings;
-  pendingDrawings = [];
-  res.json({ drawings });
-});
-
-// POST /drawings/clear-chart — queue a command to clear all drawings from the chart
-router.post('/clear-chart', (_req, res) => {
-  pendingDrawings.push({ _command: 'clearAll' });
+// DELETE /drawings/remove/:id — remove a specific drawing by id
+router.delete('/remove/:id', (req, res) => {
+  broadcast({ _command: 'remove', id: req.params.id });
   res.json({ success: true });
 });
 
-// DELETE /drawings/clear — clear the queue
-router.delete('/clear', (_req, res) => {
-  pendingDrawings = [];
+// POST /drawings/clear-chart — broadcast clear command to all frontends
+router.post('/clear-chart', (_req, res) => {
+  broadcast({ _command: 'clearAll' });
   res.json({ success: true });
 });
 

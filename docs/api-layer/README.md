@@ -362,14 +362,31 @@ Encryption uses `scrypt(hostname + homedir + 'trading-terminal')` as key. Format
 | GET | /database/backup/download | Download database file |
 | GET | /database/backups | List existing backups |
 
-### Drawings (Inter-Client Queue)
+### Drawings (SSE Push)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | /drawings/add | Queue a drawing for other clients |
-| GET | /drawings/pending | Poll for pending drawings |
-| POST | /drawings/clear-chart | Queue command to clear all drawings |
-| DELETE | /drawings/clear | Clear the drawing queue |
+| GET | /drawings/events | SSE stream — frontend connects on mount, receives drawings in real-time |
+| POST | /drawings/add | Push a drawing to all connected frontends instantly via SSE |
+| DELETE | /drawings/remove/:id | Remove a specific drawing by id from the chart |
+| POST | /drawings/clear-chart | Broadcast clear-all command to all frontends |
+
+**How it works:** The frontend opens an `EventSource` to `/drawings/events` on mount. When `POST /drawings/add` is called, the drawing is broadcast to all connected clients via SSE — no polling, no queue. Drawings appear on the chart instantly.
+
+**POST /drawings/add body:**
+```json
+{
+  "type": "hline",
+  "price": 21000,
+  "color": "#ff4d4f",
+  "strokeWidth": 2,
+  "contractId": "CON.F.US.MNQ.M26",
+  "text": null,
+  "startTime": 0,
+  "extendLeft": true
+}
+```
+Returns `{ "success": true, "id": "<uuid>" }`. The `id` is auto-generated if not provided and can be used with `DELETE /drawings/remove/:id`.
 
 ### Conditions (Conditional Orders Engine)
 

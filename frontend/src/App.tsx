@@ -14,7 +14,7 @@ import { tradeService } from './services/tradeService';
 import { realtimeService } from './services/realtimeService';
 import { useStore } from './store/useStore';
 import { useSettingsSync } from './hooks/useSettingsSync';
-// import { useRemoteDrawings } from './hooks/useRemoteDrawings';
+import { useRemoteDrawings } from './hooks/useRemoteDrawings';
 import { getCmeSessionStart } from './utils/cmeSession';
 
 function VerticalSeparator({
@@ -70,8 +70,8 @@ export default function App() {
   // Sync settings to/from backend file storage
   useSettingsSync();
 
-  // // Poll backend for Claude-pushed drawings
-  // useRemoteDrawings();
+  // Poll backend for Claude-pushed drawings
+  useRemoteDrawings();
 
   // On mount, check if the backend is already connected (e.g. after page refresh)
   useEffect(() => {
