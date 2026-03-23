@@ -1,14 +1,14 @@
 # Bot Trading
 
-REST API + SSE for drawing on the chart from external bots. Base URL: `http://localhost:3001`
+REST API for drawing on the chart and placing orders from external bots. Base URL: `http://localhost:3001`
 
 Frontend connects to `GET /drawings/events` (SSE) on mount. All draws are instant.
 
 ---
 
-## Tools
+## Drawing Tools
 
-All tools use `POST /drawings/add`. Returns `{ "success": true, "id": "<uuid>" }`.
+All drawing tools use `POST /drawings/add`. Returns `{ "success": true, "id": "<uuid>" }`.
 
 ### HLine
 
@@ -54,6 +54,49 @@ Arrow + label anchored to candle high/low.
 
 - `DELETE /drawings/remove/:id` — remove one drawing
 - `POST /drawings/clear-chart` — remove all
+
+---
+
+## Order Tools
+
+### Place Order
+
+```
+POST /orders/place
+```
+
+```json
+{
+  "accountId": "20130833",
+  "contractId": "CON.F.US.MNQ.M26",
+  "type": 2,
+  "side": 0,
+  "size": 1,
+  "limitPrice": 24400,
+  "stopLossBracket": { "ticks": 40, "type": 2 },
+  "takeProfitBracket": { "ticks": 80, "type": 1 }
+}
+```
+
+| Field | Values |
+|-------|--------|
+| `type` | 1 = Market, 2 = Limit, 3 = Stop |
+| `side` | 0 = Buy, 1 = Sell |
+| `stopLossBracket` | `ticks` = distance from fill, `type` = 2 (Stop) |
+| `takeProfitBracket` | `ticks` = distance from fill, `type` = 1 (Limit) |
+
+Brackets are optional. Omit either for no SL or no TP.
+
+### Manage Orders
+
+- `POST /orders/cancel` — `{ "accountId", "orderId" }`
+- `PATCH /orders/modify` — `{ "accountId", "orderId", "limitPrice?", "stopPrice?", "size?" }`
+- `GET /orders/open?accountId=X` — list working orders
+
+### Read State
+
+- `GET /positions/open?accountId=X` — current position
+- `GET /trades/search?accountId=X` — fill history
 
 ---
 
