@@ -106,7 +106,7 @@ Multiple exits from a single entry are counted as **one trade**. Reuses `buildEn
 
 1. **Entry** = the fill that opens or adds to a position.
 2. **Exit** = all fills that reduce that position back to flat.
-3. Scaling out counts as one trade with blended exit price (size-weighted), summed P&L/fees, duration from first entry to last exit.
+3. Scaling out counts as one trade with blended exit price (size-weighted), summed P&L, **entry + exit fees**, duration from first entry to last exit.
 4. Opening half-turns (`profitAndLoss === null`) and voided trades are excluded.
 5. FIFO matching requires `remaining >= exit.size` to prevent over-consumption of entry sizes across sessions.
 
