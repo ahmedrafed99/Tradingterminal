@@ -1,5 +1,17 @@
 # Concepts
 
+## Anchor Points (provisional)
+
+### The Low
+
+The lowest price within the **7:30–9:20 AM ET** window. This candle is the starting point — from it we derive the move to the low and everything downstream.
+
+### The High
+
+The highest price within the **7:30–9:20 AM ET** window. This candle is the starting point — from it we derive the move to the high and everything downstream.
+
+---
+
 ## SOS (Structure of Support)
 
 ### Move to the Low
