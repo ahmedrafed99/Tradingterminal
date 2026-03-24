@@ -14,7 +14,7 @@ The **high** of the candle **immediately before** the low candle.
 
 When a candle **closes above** the move to the low (above the high of the low candle).
 
-### Invalidation of Strength
+### Invalidation of Strength (level)
 
 The **low** of the candle that confirmed the sign of strength.
 
@@ -34,6 +34,6 @@ The **low** of the candle **immediately before** the high candle.
 
 When a candle **closes below** the move to the high (below the low of the high candle).
 
-### Invalidation of Weakness
+### Invalidation of Weakness (level)
 
 The **high** of the candle that confirmed the sign of weakness.
