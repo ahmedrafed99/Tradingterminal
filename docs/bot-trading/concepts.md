@@ -20,7 +20,7 @@ The **low** of the candle that confirmed the sign of strength.
 
 ### Invalidation of Strength (confirmed)
 
-When a candle **closes below** the invalidation of strength level.
+When a candle **closes below** the invalidation of strength level. The sign of strength is no longer valid.
 
 ---
 
@@ -44,4 +44,4 @@ The **high** of the candle that confirmed the sign of weakness.
 
 ### Invalidation of Weakness (confirmed)
 
-When a candle **closes above** the invalidation of weakness level.
+When a candle **closes above** the invalidation of weakness level. The sign of weakness is no longer valid.
