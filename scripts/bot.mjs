@@ -232,7 +232,7 @@ const commands = {
 
   async 'analyze'(args) {
     require(args, 'contractId', 'date');
-    const { loadSession } = await import('./session.mjs');
+    const { loadSession } = await import('./sos-technical-analysis.mjs');
     const s = await loadSession(args.contractId, args.date);
 
     if (!s.sos && !s.sow) {

@@ -1,6 +1,6 @@
 # Concepts
 
-Detection scripts: [`scripts/session.mjs`](../../scripts/session.mjs) — implements all concepts below as functions. Used via `node scripts/bot.mjs analyze --contractId <id> --date <YYYY-MM-DD>`.
+Detection scripts: [`scripts/sos-technical-analysis.mjs`](../../scripts/sos-technical-analysis.mjs) — implements all concepts below as functions. Used via `node scripts/bot.mjs analyze --contractId <id> --date <YYYY-MM-DD>`.
 
 ## Anchor Points (provisional)
 
