@@ -229,6 +229,42 @@ const commands = {
     const result = await get('/market/contracts/available');
     console.log(JSON.stringify(result));
   },
+
+  async 'analyze'(args) {
+    require(args, 'contractId', 'date');
+    const { loadSession } = await import('./session.mjs');
+    const s = await loadSession(args.contractId, args.date);
+
+    if (!s.sos && !s.sow) {
+      console.log('No structure detected (no bars in 7:30-9:20 ET window)');
+      return;
+    }
+
+    const fmt = (v) => v?.toFixed(2) ?? '—';
+    const time = (bar) => bar?.t?.slice(11, 19) ?? '—';
+
+    if (s.sos) {
+      console.log('── SOS ──');
+      console.log(`  Low:                ${fmt(s.sos.lowBar.l)} @ ${time(s.sos.lowBar)}`);
+      console.log(`  Move to Low:        ${fmt(s.sos.moveToLow)}`);
+      console.log(`  Swing to Low:       ${fmt(s.sos.swingToLow)}`);
+      console.log(`  Sign of Strength:   ${s.sos.signOfStrength ? fmt(s.sos.signOfStrength.level) + ' @ ' + time(s.sos.signOfStrength.bar) : '—'}`);
+      console.log(`  Invalidation Level: ${s.sos.invalidation ? fmt(s.sos.invalidation.level) : '—'}`);
+      console.log(`  Invalidated:        ${s.sos.invalidated ? 'YES @ ' + time(s.sos.invalidated.bar) : 'No'}`);
+      console.log(`  Target (prev SOS):  ${s.sos.target?.targetLevel ? fmt(s.sos.target.targetLevel) : '—'}`);
+    }
+
+    if (s.sow) {
+      console.log('── SOW ──');
+      console.log(`  High:               ${fmt(s.sow.highBar.h)} @ ${time(s.sow.highBar)}`);
+      console.log(`  Move to High:       ${fmt(s.sow.moveToHigh)}`);
+      console.log(`  Swing to High:      ${fmt(s.sow.swingToHigh)}`);
+      console.log(`  Sign of Weakness:   ${s.sow.signOfWeakness ? fmt(s.sow.signOfWeakness.level) + ' @ ' + time(s.sow.signOfWeakness.bar) : '—'}`);
+      console.log(`  Invalidation Level: ${s.sow.invalidation ? fmt(s.sow.invalidation.level) : '—'}`);
+      console.log(`  Invalidated:        ${s.sow.invalidated ? 'YES @ ' + time(s.sow.invalidated.bar) : 'No'}`);
+      console.log(`  Target (prev SOW):  ${s.sow.target?.targetLevel ? fmt(s.sow.target.targetLevel) : '—'}`);
+    }
+  },
 };
 
 // ── Main ──
