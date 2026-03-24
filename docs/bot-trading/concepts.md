@@ -18,6 +18,10 @@ When a candle **closes above** the move to the low (above the high of the low ca
 
 The **low** of the candle that confirmed the sign of strength.
 
+### Invalidation of Strength (confirmed)
+
+When a candle **closes below** the invalidation of strength level.
+
 ---
 
 ## SOW (Structure of Weakness)
@@ -37,3 +41,7 @@ When a candle **closes below** the move to the high (below the low of the high c
 ### Invalidation of Weakness (level)
 
 The **high** of the candle that confirmed the sign of weakness.
+
+### Invalidation of Weakness (confirmed)
+
+When a candle **closes above** the invalidation of weakness level.
