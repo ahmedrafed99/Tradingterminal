@@ -22,6 +22,19 @@ The **low** of the candle that confirmed the sign of strength.
 
 When a candle **closes below** the invalidation of strength level. The sign of strength is no longer valid.
 
+### Previous Sign of Strength (target)
+
+Locates the previous structure's sign of strength by finding its low. Starting from a given move to the low:
+
+1. Scan backwards candle by candle, looking at each candle's low
+2. **Skip** candles whose low is below the move to the low level
+3. **Stop** at the first candle whose low is above the move to the low level
+4. From that candle, scan backwards for the first **UP candle** (bullish, close > open)
+5. Continue scanning backwards for another **UP candle** that is **higher** than the first
+6. The **lowest point** between these two UP candles is the previous structure's low
+
+Once found, apply the standard SOS definitions: its high = the previous move to the low, and the candle that closed above it = the previous sign of strength. That sign of strength level is the **target**.
+
 ---
 
 ## SOW (Structure of Weakness)
@@ -45,3 +58,16 @@ The **high** of the candle that confirmed the sign of weakness.
 ### Invalidation of Weakness (confirmed)
 
 When a candle **closes above** the invalidation of weakness level. The sign of weakness is no longer valid.
+
+### Previous Sign of Weakness (target)
+
+Locates the previous structure's sign of weakness by finding its high. Starting from a given move to the high:
+
+1. Scan backwards candle by candle, looking at each candle's high
+2. **Skip** candles whose high is above the move to the high level
+3. **Stop** at the first candle whose high is below the move to the high level
+4. From that candle, scan backwards for the first **DOWN candle** (bearish, close < open)
+5. Continue scanning backwards for another **DOWN candle** that is **lower** than the first
+6. The **highest point** between these two DOWN candles is the previous structure's high
+
+Once found, apply the standard SOW definitions: its low = the previous move to the high, and the candle that closed below it = the previous sign of weakness. That sign of weakness level is the **target**.
