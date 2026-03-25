@@ -278,10 +278,20 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
 
   if (!closestBar) return null;
 
-  // Find the lowest point between closestBar (inclusive) and the previous SOS confirmation
+  // Find highest point between closestBar and the previous SOS confirmation
+  let highestBar = closestBar;
+  let highestIdx = closestIdx;
+  for (let i = closestIdx; i <= prevSOSIndex; i++) {
+    if (bars[i].h > highestBar.h) {
+      highestBar = bars[i];
+      highestIdx = i;
+    }
+  }
+
+  // Narrow range: from closestBar (inclusive) to highest point (exclusive)
   let trendLow = closestBar;
   let trendLowIdx = closestIdx;
-  for (let i = closestIdx; i <= prevSOSIndex; i++) {
+  for (let i = closestIdx; i < highestIdx; i++) {
     if (bars[i].l < trendLow.l) {
       trendLow = bars[i];
       trendLowIdx = i;
@@ -497,10 +507,20 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
 
   if (!closestBar) return null;
 
-  // Find the highest point between closestBar (inclusive) and the previous SOW confirmation
+  // Find lowest point between closestBar and the previous SOW confirmation
+  let lowestBar = closestBar;
+  let lowestIdx = closestIdx;
+  for (let i = closestIdx; i <= prevSOWIndex; i++) {
+    if (bars[i].l < lowestBar.l) {
+      lowestBar = bars[i];
+      lowestIdx = i;
+    }
+  }
+
+  // Narrow range: from closestBar (inclusive) to lowest point (exclusive)
   let trendHigh = closestBar;
   let trendHighIdx = closestIdx;
-  for (let i = closestIdx; i <= prevSOWIndex; i++) {
+  for (let i = closestIdx; i < lowestIdx; i++) {
     if (bars[i].h > trendHigh.h) {
       trendHigh = bars[i];
       trendHighIdx = i;
