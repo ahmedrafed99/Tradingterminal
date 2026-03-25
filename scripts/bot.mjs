@@ -560,8 +560,46 @@ const commands = {
       }
     }
 
+    // Signal detection — shared between Phase 2 and Phase 3
+    function checkForSignal(bars, low, high, side) {
+      let sos = null, sow = null;
+
+      if ((side === 'long' || side === 'auto') && low) {
+        const sosRaw = detectSOS(bars, low.index);
+        if (sosRaw.signOfStrength && !sosRaw.invalidated) sos = sosRaw;
+      }
+      if ((side === 'short' || side === 'auto') && high) {
+        const sowRaw = detectSOW(bars, high.index);
+        if (sowRaw.signOfWeakness && !sowRaw.invalidated) sow = sowRaw;
+      }
+
+      if (side === 'auto') {
+        if (sos && sow) {
+          if (sos.signOfStrength.index >= sow.signOfWeakness.index) {
+            log('Auto: SOS is more recent — going long');
+            return { type: 'long', sos, bars };
+          } else {
+            log('Auto: SOW is more recent — going short');
+            return { type: 'short', sow, bars };
+          }
+        } else if (sos) {
+          log('Auto: only SOS detected — going long');
+          return { type: 'long', sos, bars };
+        } else if (sow) {
+          log('Auto: only SOW detected — going short');
+          return { type: 'short', sow, bars };
+        }
+      } else if (side === 'long' && sos) {
+        return { type: 'long', sos, bars };
+      } else if (side === 'short' && sow) {
+        return { type: 'short', sow, bars };
+      }
+      return null;
+    }
+
     // ── Phase 1 & 2: Wait + Anchor window ──
     let low = null, high = null, bars = [];
+    let earlySignal = null;
 
     await post('/drawings/clear-chart', {});
 
@@ -586,7 +624,7 @@ const commands = {
       }
       log(`Watch started for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
 
-      // Phase 2: Anchor window
+      // Phase 2: Anchor window — also checks for signals
       if (WINDOW_END > 0 && nowETMinutes() < WINDOW_END) {
         log(`Phase 2: Tracking anchors (until ${windowEndArg} ET)`);
         while (nowETMinutes() < WINDOW_END) {
@@ -597,18 +635,27 @@ const commands = {
             if (low || high) {
               log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
               await drawAnchors(bars, low, high);
+
+              // Check for signals during anchor window
+              earlySignal = checkForSignal(bars, low, high, side);
+              if (earlySignal) {
+                log('Signal detected during anchor window — proceeding to order');
+                break;
+              }
             }
           } catch (e) { log('Fetch error: ' + e.message); }
           await sleep(60_000);
         }
       }
 
-      // Final anchor fetch
-      bars = await getBars();
-      low = findAnchorLow(bars);
-      high = findAnchorHigh(bars);
-      log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
-      await drawAnchors(bars, low, high);
+      if (!earlySignal) {
+        // Final anchor fetch
+        bars = await getBars();
+        low = findAnchorLow(bars);
+        high = findAnchorHigh(bars);
+        log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+        await drawAnchors(bars, low, high);
+      }
     }
 
     if (side === 'long' && !low) { log('No anchor low found. Exiting.'); return; }
@@ -616,13 +663,12 @@ const commands = {
     if (side === 'auto' && !low && !high) { log('No anchors found. Exiting.'); return; }
 
     // ── Phase 3: Wait for SOS/SOW with live drawing updates ──
-    log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
-    let signal = null;
+    let signal = earlySignal || null;
     const RTH_CLOSE = 16 * 60; // 4 PM ET
 
-    // Track running high/low for dynamic move-to-high/low updates
-    let runningHighBar = high ? bars[high.index] : null;
-    let runningLowBar = low ? bars[low.index] : null;
+    if (!signal) {
+      log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
+    }
 
     while (!signal) {
       if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
@@ -631,64 +677,8 @@ const commands = {
         bars = await getBars();
         low = findAnchorLow(bars);
         high = findAnchorHigh(bars);
-
-        let sos = null, sow = null;
-
-        if ((side === 'long' || side === 'auto') && low) {
-          const sosRaw = detectSOS(bars, low.index);
-
-          // Update running high and move-to-high dynamically
-          for (let i = low.index; i < bars.length; i++) {
-            if (!runningHighBar || bars[i].h > runningHighBar.h) runningHighBar = bars[i];
-          }
-          if (runningHighBar) {
-            await hline('moveToHigh', runningHighBar.l, 'Move to High', COLORS.resistance, runningHighBar.ts);
-          }
-
-          if (sosRaw.signOfStrength && !sosRaw.invalidated) {
-            sos = sosRaw;
-            await hline('moveToLow', sosRaw.moveToLow, 'Move to Low (SOS)', COLORS.support, bars[low.index].ts);
-          }
-        }
-
-        if ((side === 'short' || side === 'auto') && high) {
-          const sowRaw = detectSOW(bars, high.index);
-
-          // Update running low and move-to-low dynamically
-          for (let i = high.index; i < bars.length; i++) {
-            if (!runningLowBar || bars[i].l < runningLowBar.l) runningLowBar = bars[i];
-          }
-          if (runningLowBar) {
-            await hline('moveToLow', runningLowBar.h, 'Move to Low', COLORS.support, runningLowBar.ts);
-          }
-
-          if (sowRaw.signOfWeakness && !sowRaw.invalidated) {
-            sow = sowRaw;
-            await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High (SOW)', COLORS.resistance, bars[high.index].ts);
-          }
-        }
-
-        if (side === 'auto') {
-          if (sos && sow) {
-            if (sos.signOfStrength.index >= sow.signOfWeakness.index) {
-              signal = { type: 'long', sos, bars };
-              log('Auto: SOS is more recent — going long');
-            } else {
-              signal = { type: 'short', sow, bars };
-              log('Auto: SOW is more recent — going short');
-            }
-          } else if (sos) {
-            signal = { type: 'long', sos, bars };
-            log('Auto: only SOS detected — going long');
-          } else if (sow) {
-            signal = { type: 'short', sow, bars };
-            log('Auto: only SOW detected — going short');
-          }
-        } else if (side === 'long' && sos) {
-          signal = { type: 'long', sos, bars };
-        } else if (side === 'short' && sow) {
-          signal = { type: 'short', sow, bars };
-        }
+        await drawAnchors(bars, low, high);
+        signal = checkForSignal(bars, low, high, side);
       } catch (e) { log('Fetch error: ' + e.message); }
 
       if (!signal) await sleep(60_000);
