@@ -105,32 +105,24 @@ export function detectSOS(bars, lowIndex) {
   // Swing to the low — high of candle before the low
   const swingToLow = lowIndex > 0 ? bars[lowIndex - 1].h : null;
 
-  // Sign of strength — first candle closing above move to the low
+  // Sign of strength — scan forward, track latest SOS and invalidation state
+  // If invalidated, look for re-confirmation (new candle closing above move to low)
   let signOfStrength = null;
-  for (let i = lowIndex + 1; i < bars.length; i++) {
-    if (bars[i].c > moveToLow) {
-      signOfStrength = { level: moveToLow, bar: bars[i], index: i };
-      break;
-    }
-  }
-
-  // Invalidation of strength — low of the SOS confirmation candle
   let invalidation = null;
-  if (signOfStrength) {
-    invalidation = {
-      level: signOfStrength.bar.l,
-      bar: signOfStrength.bar,
-      index: signOfStrength.index,
-    };
-  }
-
-  // Invalidation confirmed — candle closing below the invalidation level
   let invalidated = null;
-  if (invalidation) {
-    for (let i = invalidation.index + 1; i < bars.length; i++) {
+
+  for (let i = lowIndex + 1; i < bars.length; i++) {
+    if (!signOfStrength || invalidated) {
+      // Looking for (re-)confirmation: candle closing above move to low
+      if (bars[i].c > moveToLow) {
+        signOfStrength = { level: moveToLow, bar: bars[i], index: i };
+        invalidation = { level: bars[i].l, bar: bars[i], index: i };
+        invalidated = null; // reset invalidation
+      }
+    } else if (invalidation && !invalidated) {
+      // SOS is active — check for invalidation: candle closing below invalidation level
       if (bars[i].c < invalidation.level) {
         invalidated = { bar: bars[i], index: i };
-        break;
       }
     }
   }
@@ -304,32 +296,24 @@ export function detectSOW(bars, highIndex) {
   // Swing to the high — low of candle before the high
   const swingToHigh = highIndex > 0 ? bars[highIndex - 1].l : null;
 
-  // Sign of weakness — first candle closing below move to the high
+  // Sign of weakness — scan forward, track latest SOW and invalidation state
+  // If invalidated, look for re-confirmation (new candle closing below move to high)
   let signOfWeakness = null;
-  for (let i = highIndex + 1; i < bars.length; i++) {
-    if (bars[i].c < moveToHigh) {
-      signOfWeakness = { level: moveToHigh, bar: bars[i], index: i };
-      break;
-    }
-  }
-
-  // Invalidation of weakness — high of the SOW confirmation candle
   let invalidation = null;
-  if (signOfWeakness) {
-    invalidation = {
-      level: signOfWeakness.bar.h,
-      bar: signOfWeakness.bar,
-      index: signOfWeakness.index,
-    };
-  }
-
-  // Invalidation confirmed — candle closing above the invalidation level
   let invalidated = null;
-  if (invalidation) {
-    for (let i = invalidation.index + 1; i < bars.length; i++) {
+
+  for (let i = highIndex + 1; i < bars.length; i++) {
+    if (!signOfWeakness || invalidated) {
+      // Looking for (re-)confirmation: candle closing below move to high
+      if (bars[i].c < moveToHigh) {
+        signOfWeakness = { level: moveToHigh, bar: bars[i], index: i };
+        invalidation = { level: bars[i].h, bar: bars[i], index: i };
+        invalidated = null; // reset invalidation
+      }
+    } else if (invalidation && !invalidated) {
+      // SOW is active — check for invalidation: candle closing above invalidation level
       if (bars[i].c > invalidation.level) {
         invalidated = { bar: bars[i], index: i };
-        break;
       }
     }
   }
