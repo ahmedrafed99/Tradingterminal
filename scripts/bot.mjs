@@ -472,6 +472,11 @@ const commands = {
     const dryRun = !!args.dryRun;
     const startNow = !!args.now;
     const startAt = args.startAt || '7:30';
+    const windowEndArg = args.windowEnd || '9:20';
+    const WINDOW_END = windowEndArg === '0' ? 0 : (() => {
+      const [h, m] = windowEndArg.split(':').map(Number);
+      return h * 60 + m;
+    })();
 
     const fmt = (v) => v?.toFixed(2) ?? '—';
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -578,11 +583,9 @@ const commands = {
       }
       log(`Watch started for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
 
-      // Phase 2: Anchor window (7:30–9:20 AM ET)
-      const WINDOW_END = 9 * 60 + 20;
-
-      if (nowETMinutes() < WINDOW_END) {
-        log('Phase 2: Tracking anchors (7:30-9:20 ET)');
+      // Phase 2: Anchor window
+      if (WINDOW_END > 0 && nowETMinutes() < WINDOW_END) {
+        log(`Phase 2: Tracking anchors (until ${windowEndArg} ET)`);
         while (nowETMinutes() < WINDOW_END) {
           try {
             bars = await getBars();
