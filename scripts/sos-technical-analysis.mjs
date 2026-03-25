@@ -241,35 +241,45 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
 
   // Widening loop: find SOS within the two UP candles, widen if needed
   while (true) {
-    // Find lowest point between second and first UP candles
-    let prevLow = bars[secondUp.index];
-    let prevLowIdx = secondUp.index;
-    for (let i = secondUp.index; i <= firstUp.index; i++) {
-      if (bars[i].l < prevLow.l) {
-        prevLow = bars[i];
-        prevLowIdx = i;
-      }
+    // Must have at least 1 down candle between the two UP candles for valid structure
+    let hasDown = false;
+    for (let i = secondUp.index + 1; i < firstUp.index; i++) {
+      if (bars[i].c < bars[i].o) { hasDown = true; break; }
     }
 
-    const prevMoveToLow = prevLow.h;
-
-    // Scan forward from lowest point, capped at firstUp.index
-    let prevSOS = null;
-    for (let i = prevLowIdx + 1; i < firstUp.index; i++) {
-      if (bars[i].c > prevMoveToLow) {
-        prevSOS = { level: prevMoveToLow, bar: bars[i], index: i };
-        break;
+    if (hasDown) {
+      // Find lowest point between second and first UP candles — must be a down candle
+      let prevLow = null;
+      let prevLowIdx = -1;
+      for (let i = secondUp.index; i <= firstUp.index; i++) {
+        if (bars[i].c < bars[i].o && (prevLow === null || bars[i].l < prevLow.l)) {
+          prevLow = bars[i];
+          prevLowIdx = i;
+        }
       }
-    }
 
-    if (prevSOS) {
-      return {
-        prevLowBar: prevLow,
-        prevLowIndex: prevLowIdx,
-        prevMoveToLow,
-        signOfStrength: prevSOS,
-        targetLevel: prevMoveToLow,
-      };
+      if (prevLow) {
+        const prevMoveToLow = prevLow.h;
+
+        // Scan forward from lowest point, capped at firstUp.index
+        let prevSOS = null;
+        for (let i = prevLowIdx + 1; i < firstUp.index; i++) {
+          if (bars[i].c > prevMoveToLow) {
+            prevSOS = { level: prevMoveToLow, bar: bars[i], index: i };
+            break;
+          }
+        }
+
+        if (prevSOS) {
+          return {
+            prevLowBar: prevLow,
+            prevLowIndex: prevLowIdx,
+            prevMoveToLow,
+            signOfStrength: prevSOS,
+            targetLevel: prevMoveToLow,
+          };
+        }
+      }
     }
 
     // SOS not found within range — widen: keep firstUp fixed, find next UP candle before current secondUp
@@ -430,35 +440,45 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
 
   // Widening loop: find SOW within the two DOWN candles, widen if needed
   while (true) {
-    // Find highest point between second and first DOWN candles
-    let prevHigh = bars[secondDown.index];
-    let prevHighIdx = secondDown.index;
-    for (let i = secondDown.index; i <= firstDown.index; i++) {
-      if (bars[i].h > prevHigh.h) {
-        prevHigh = bars[i];
-        prevHighIdx = i;
-      }
+    // Must have at least 1 up candle between the two DOWN candles for valid structure
+    let hasUp = false;
+    for (let i = secondDown.index + 1; i < firstDown.index; i++) {
+      if (bars[i].c > bars[i].o) { hasUp = true; break; }
     }
 
-    const prevMoveToHigh = prevHigh.l;
-
-    // Scan forward from highest point, capped at firstDown.index
-    let prevSOW = null;
-    for (let i = prevHighIdx + 1; i < firstDown.index; i++) {
-      if (bars[i].c < prevMoveToHigh) {
-        prevSOW = { level: prevMoveToHigh, bar: bars[i], index: i };
-        break;
+    if (hasUp) {
+      // Find highest point between second and first DOWN candles — must be an up candle
+      let prevHigh = null;
+      let prevHighIdx = -1;
+      for (let i = secondDown.index; i <= firstDown.index; i++) {
+        if (bars[i].c > bars[i].o && (prevHigh === null || bars[i].h > prevHigh.h)) {
+          prevHigh = bars[i];
+          prevHighIdx = i;
+        }
       }
-    }
 
-    if (prevSOW) {
-      return {
-        prevHighBar: prevHigh,
-        prevHighIndex: prevHighIdx,
-        prevMoveToHigh,
-        signOfWeakness: prevSOW,
-        targetLevel: prevMoveToHigh,
-      };
+      if (prevHigh) {
+        const prevMoveToHigh = prevHigh.l;
+
+        // Scan forward from highest point, capped at firstDown.index
+        let prevSOW = null;
+        for (let i = prevHighIdx + 1; i < firstDown.index; i++) {
+          if (bars[i].c < prevMoveToHigh) {
+            prevSOW = { level: prevMoveToHigh, bar: bars[i], index: i };
+            break;
+          }
+        }
+
+        if (prevSOW) {
+          return {
+            prevHighBar: prevHigh,
+            prevHighIndex: prevHighIdx,
+            prevMoveToHigh,
+            signOfWeakness: prevSOW,
+            targetLevel: prevMoveToHigh,
+          };
+        }
+      }
     }
 
     // SOW not found within range — widen: keep firstDown fixed, find next DOWN candle before current secondDown
