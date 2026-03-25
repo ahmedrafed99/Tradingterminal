@@ -55,41 +55,33 @@ export function etHourMin(bar) {
 // ── Core detection ──
 
 export function findAnchorLow(bars, startMinute = 450, endMinute = null) {
-  // Lowest price from startMinute (default 7:30=450) onwards. Pass endMinute to cap.
-  const window = bars.filter((b) => {
-    const m = etHourMin(b);
-    return m >= startMinute && (endMinute === null || m <= endMinute);
-  });
-  if (window.length === 0) return null;
-
-  let lowest = window[0];
-  let lowestIdx = bars.indexOf(window[0]);
-  for (const b of window) {
-    if (b.l < lowest.l) {
-      lowest = b;
-      lowestIdx = bars.indexOf(b);
+  let lowest = null;
+  let lowestIdx = -1;
+  for (let i = 0; i < bars.length; i++) {
+    const m = etHourMin(bars[i]);
+    if (m < startMinute) continue;
+    if (endMinute !== null && m > endMinute) continue;
+    if (lowest === null || bars[i].l < lowest.l) {
+      lowest = bars[i];
+      lowestIdx = i;
     }
   }
-  return { bar: lowest, index: lowestIdx };
+  return lowest ? { bar: lowest, index: lowestIdx } : null;
 }
 
 export function findAnchorHigh(bars, startMinute = 450, endMinute = null) {
-  // Highest price from startMinute (default 7:30=450) onwards. Pass endMinute to cap.
-  const window = bars.filter((b) => {
-    const m = etHourMin(b);
-    return m >= startMinute && (endMinute === null || m <= endMinute);
-  });
-  if (window.length === 0) return null;
-
-  let highest = window[0];
-  let highestIdx = bars.indexOf(window[0]);
-  for (const b of window) {
-    if (b.h > highest.h) {
-      highest = b;
-      highestIdx = bars.indexOf(b);
+  let highest = null;
+  let highestIdx = -1;
+  for (let i = 0; i < bars.length; i++) {
+    const m = etHourMin(bars[i]);
+    if (m < startMinute) continue;
+    if (endMinute !== null && m > endMinute) continue;
+    if (highest === null || bars[i].h > highest.h) {
+      highest = bars[i];
+      highestIdx = i;
     }
   }
-  return { bar: highest, index: highestIdx };
+  return highest ? { bar: highest, index: highestIdx } : null;
 }
 
 // ── SOS detection ──
@@ -217,8 +209,9 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
 
   // Step 2a: scan backwards from escape, find a candle whose high was gained (SOS)
   // AND after that gain there was a SOW (confirmed by highest point's move-to-high being lost)
-  let prevSOSCandle = null; // the candle whose high was gained
-  let prevSOSIndex = null;  // index of the candle that closed above (the SOS confirmation)
+  let prevSOSCandle = null;    // the candle whose high was gained
+  let prevSOSCandleIdx = -1;   // index of that candle
+  let prevSOSIndex = null;     // index of the candle that closed above (the SOS confirmation)
 
   for (let i = escapeIndex; i >= 0; i--) {
     const candidateHigh = bars[i].h;
@@ -236,20 +229,21 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
     // Found a gain — now check for SOW in the range [i .. lowIndex)
     // Find highest point in range [gainIndex .. lowIndex)
     let highestBar = bars[gainIndex];
+    let highestIdx = gainIndex;
     for (let j = gainIndex; j < lowIndex; j++) {
-      if (bars[j].h > highestBar.h) highestBar = bars[j];
+      if (bars[j].h > highestBar.h) { highestBar = bars[j]; highestIdx = j; }
     }
     const moveToHigh = highestBar.l;
 
     // Check if any candle closed below moveToHigh (SOW) after the highest, before lowIndex
     let sowFound = false;
-    const highestIdx = bars.indexOf(highestBar);
     for (let j = highestIdx + 1; j < lowIndex; j++) {
       if (bars[j].c < moveToHigh) { sowFound = true; break; }
     }
 
     if (sowFound) {
       prevSOSCandle = bars[i];
+      prevSOSCandleIdx = i;
       prevSOSIndex = gainIndex;
       break;
     }
@@ -259,7 +253,6 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
 
   // Step 2b: scan backwards from escape for candle whose low is closest to moveToLowLevel
   // from above (low >= moveToLowLevel), AND older than the previous SOS candle
-  const prevSOSCandleIdx = bars.indexOf(prevSOSCandle);
   let closestBar = null;
   let closestIdx = -1;
   let closestDiff = Infinity;
@@ -447,6 +440,7 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
   // Step 2a: scan backwards from escape, find a candle whose low was gained (SOW)
   // AND after that gain there was a SOS (confirmed by lowest point's move-to-low being gained)
   let prevSOWCandle = null;
+  let prevSOWCandleIdx = -1;
   let prevSOWIndex = null;
 
   for (let i = escapeIndex; i >= 0; i--) {
@@ -465,20 +459,21 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
     // Found a gain — now check for SOS in the range [gainIndex .. highIndex)
     // Find lowest point in range
     let lowestBar = bars[gainIndex];
+    let lowestIdx = gainIndex;
     for (let j = gainIndex; j < highIndex; j++) {
-      if (bars[j].l < lowestBar.l) lowestBar = bars[j];
+      if (bars[j].l < lowestBar.l) { lowestBar = bars[j]; lowestIdx = j; }
     }
     const moveToLow = lowestBar.h;
 
     // Check if any candle closed above moveToLow (SOS) after the lowest, before highIndex
     let sosFound = false;
-    const lowestIdx = bars.indexOf(lowestBar);
     for (let j = lowestIdx + 1; j < highIndex; j++) {
       if (bars[j].c > moveToLow) { sosFound = true; break; }
     }
 
     if (sosFound) {
       prevSOWCandle = bars[i];
+      prevSOWCandleIdx = i;
       prevSOWIndex = gainIndex;
       break;
     }
@@ -488,7 +483,6 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
 
   // Step 2b: scan backwards from escape for candle whose high is closest to moveToHighLevel
   // from below (high <= moveToHighLevel), AND older than the previous SOW candle
-  const prevSOWCandleIdx = bars.indexOf(prevSOWCandle);
   let closestBar = null;
   let closestIdx = -1;
   let closestDiff = Infinity;
@@ -745,9 +739,16 @@ function scanShortManagement(bars, startIndex) {
 
 export async function loadSession(contractId, date, { startMinute = 450, endMinute = null } = {}) {
   // Fetch bars from 4:00 AM to 11:00 PM ET to have enough history for backwards scanning
+  // Use Intl to get correct UTC offset for the date (handles EDT/EST automatically)
+  const etDate = new Date(date + 'T12:00:00Z'); // noon to avoid DST edge
+  const etStr = etDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
+  const utcHour = etDate.getUTCHours();
+  const etHour = parseInt(etStr.split(', ')[1].split(':')[0]);
+  const etOffset = utcHour - etHour; // hours ahead of ET (4 for EDT, 5 for EST)
+
   const d = new Date(date + 'T00:00:00Z');
-  const from = new Date(d); from.setUTCHours(8, 0, 0, 0);   // 4 AM ET (UTC-4)
-  const to = new Date(d); to.setUTCHours(27, 0, 0, 0);      // 11 PM ET
+  const from = new Date(d); from.setUTCHours(4 + etOffset, 0, 0, 0);   // 4 AM ET
+  const to = new Date(d); to.setUTCHours(23 + etOffset, 0, 0, 0);      // 11 PM ET
 
   const bars = await fetchBars(contractId, from.toISOString(), to.toISOString());
   if (bars.length === 0) return { bars: [], low: null, high: null, sos: null, sow: null };

@@ -122,6 +122,7 @@ node scripts/bot.mjs watch --contractId <id> --accountId <id> [options]
 | `--windowEnd` | `9:20` | ET time to lock anchors. `0` = no window, straight to signals |
 | `--manage` | off | Keep running after fill, trail SL on recovery |
 | `--size` | `1` | Number of contracts |
+| `--from` | `7:30` | ET time to start scanning for anchors (e.g. `--from 12:00`) |
 | `--dryRun` | off | Log actions without placing orders |
 
 **Phases:**
@@ -146,15 +147,17 @@ node scripts/bot.mjs watch --contractId <id> --accountId <id> [options]
 Print detected structure for a date.
 
 ```
-node scripts/bot.mjs analyze --contractId <id> --date <YYYY-MM-DD>
+node scripts/bot.mjs analyze --contractId <id> --date <YYYY-MM-DD> [--from HH:MM] [--to HH:MM]
 ```
+
+Optional `--from` / `--to` override the anchor scan window (default 7:30 to end of day).
 
 ### draw-analysis
 
 Draw all levels, markers, and SL trails for a historical date in one shot.
 
 ```
-node scripts/bot.mjs draw-analysis --contractId <id> --date <YYYY-MM-DD> --side long|short
+node scripts/bot.mjs draw-analysis --contractId <id> --date <YYYY-MM-DD> --side long|short [--from HH:MM] [--to HH:MM]
 ```
 
 ### manage

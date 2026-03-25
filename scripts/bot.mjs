@@ -91,7 +91,7 @@ const COLORS = {
   resistance: '#a65d6a',
   neutral: '#787b86',
   tp: '#b8a04a',
-  sl: '#8b5c5c',
+  sl: '#c13030',
   info: '#6b7ea0',
 };
 
@@ -196,7 +196,7 @@ const commands = {
       // Draw levels
       await hline(sos.moveToLow, 'Move to Low', COLORS.support, sos.lowBar.ts);
       if (sos.invalidation) await hline(entryPrice, 'Invalidation of Strength', COLORS.sl, sos.invalidation.bar.ts);
-      await hline(initialSL, 'Stop Loss', '#c13030', sos.lowBar.ts);
+      await hline(initialSL, 'Stop Loss', COLORS.sl, sos.lowBar.ts);
       if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.tp, sos.importantTarget.prevLowBar.ts);
 
       // Find entry fill candle
@@ -230,7 +230,7 @@ const commands = {
           for (let k = 0; k < events.length; k++) {
             const e = events[k];
             if (e.sowBar.ts >= exitTs) break;
-            await hline(e.newSL, `SL Trail #${k + 1}`, '#c13030', e.lowestBar.ts);
+            await hline(e.newSL, `SL Trail #${k + 1}`, COLORS.sl, e.lowestBar.ts);
           }
         }
       }
@@ -247,7 +247,7 @@ const commands = {
       // Draw levels
       await hline(sow.moveToHigh, 'Move to High', COLORS.resistance, sow.highBar.ts);
       if (sow.invalidation) await hline(entryPrice, 'Invalidation of Weakness', COLORS.sl, sow.invalidation.bar.ts);
-      await hline(initialSL, 'Stop Loss', '#c13030', sow.highBar.ts);
+      await hline(initialSL, 'Stop Loss', COLORS.sl, sow.highBar.ts);
       if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.tp, sow.importantTarget.prevHighBar.ts);
 
       // Find entry fill candle
@@ -281,7 +281,7 @@ const commands = {
           for (let k = 0; k < events.length; k++) {
             const e = events[k];
             if (e.sosBar.ts >= exitTs) break;
-            await hline(e.newSL, `SL Trail #${k + 1}`, '#c13030', e.highestBar.ts);
+            await hline(e.newSL, `SL Trail #${k + 1}`, COLORS.sl, e.highestBar.ts);
           }
         }
       }
@@ -507,11 +507,14 @@ const commands = {
     }
 
     function todayFrom4amET() {
-      // Build today's 4:00 AM ET as ISO string
+      // Build today's 4:00 AM ET as ISO string (handles EDT/EST)
+      const now = new Date();
+      const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
+      const etHour = parseInt(etStr.split(', ')[1].split(':')[0]);
+      const etOffset = now.getUTCHours() - etHour; // 4 for EDT, 5 for EST
       const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
       const y = etDate.getFullYear(), mo = etDate.getMonth(), d = etDate.getDate();
-      // 4 AM ET ≈ 08:00 UTC (EDT) or 09:00 UTC (EST)
-      const utc4am = new Date(Date.UTC(y, mo, d, 8, 0, 0));
+      const utc4am = new Date(Date.UTC(y, mo, d, 4 + etOffset, 0, 0));
       return utc4am.toISOString();
     }
 
@@ -562,7 +565,7 @@ const commands = {
         const sosRaw = detectSOS(bars, low.index);
         const sosLabel = sosRaw.signOfStrength && !sosRaw.invalidated ? 'Move to Low (SOS)' : 'Move to Low';
         await hline('moveToLow', sosRaw.moveToLow, sosLabel, COLORS.support, bars[low.index].ts);
-        await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', '#c13030', bars[low.index].ts);
+        await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', COLORS.sl, bars[low.index].ts);
         if (sosRaw.importantTarget?.targetLevel) {
           await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous Move to Low (SOS)', COLORS.tp, sosRaw.importantTarget.prevLowBar.ts);
         }
@@ -768,12 +771,12 @@ const commands = {
     if (signal.type === 'long') {
       const sos = signal.sos;
       await hline('moveToLow', sos.moveToLow, 'Move to Low (SOS)', COLORS.support, sos.lowBar.ts);
-      await hline('slPreview', slPrice, 'Stop Loss (preview)', '#c13030', sos.lowBar.ts);
+      await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.sl, sos.lowBar.ts);
       if (tpPrice && importantTarget) await hline('prevSOS', tpPrice, 'Previous Move to Low (SOS)', COLORS.tp, importantTarget.prevLowBar.ts);
     } else {
       const sow = signal.sow;
       await hline('moveToHigh', sow.moveToHigh, 'Move to High (SOW)', COLORS.resistance, sow.highBar.ts);
-      await hline('slPreview', slPrice, 'Stop Loss (preview)', '#c13030', sow.highBar.ts);
+      await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.sl, sow.highBar.ts);
       if (tpPrice && importantTarget) await hline('prevSOW', tpPrice, 'Previous Move to High (SOW)', COLORS.tp, importantTarget.prevHighBar.ts);
     }
 
