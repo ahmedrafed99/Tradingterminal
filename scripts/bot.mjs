@@ -95,14 +95,14 @@ const COLORS = {
   info: '#6b7ea0',
 };
 
-function makeText(content, color) {
+function makeText(content, color, hAlign = 'right') {
   return {
     content,
     color,
     fontSize: 12,
     bold: false,
     italic: false,
-    hAlign: 'left',
+    hAlign,
     vAlign: 'middle',
   };
 }
@@ -153,6 +153,138 @@ const commands = {
   async 'clear'() {
     const result = await post('/drawings/clear-chart', {});
     console.log(JSON.stringify(result));
+  },
+
+  async 'draw-analysis'(args) {
+    require(args, 'contractId', 'date', 'side');
+    const { loadSession, scanTradeManagement, wickMidpoint } = await import('./sos-technical-analysis.mjs');
+    const s = await loadSession(args.contractId, args.date);
+    const side = args.side.toLowerCase();
+    const cid = args.contractId;
+    const fmt = (v) => v?.toFixed(2) ?? '—';
+
+    // Helper to draw an hline
+    async function hline(price, label, color, startTime) {
+      return post('/drawings/add', {
+        type: 'hline', price, color, strokeWidth: 1, contractId: cid,
+        text: makeText(label, color),
+        startTime: startTime || 0, extendLeft: !startTime,
+      });
+    }
+
+    // Helper to draw a marker
+    async function marker(time, price, label, placement, color) {
+      return post('/drawings/add', {
+        type: 'marker', time, price, color, label, placement,
+        strokeWidth: 1, contractId: cid, text: null,
+      });
+    }
+
+    // Clear existing drawings first
+    await post('/drawings/clear-chart', {});
+
+    if (side === 'long') {
+      if (!s.sos) { console.log('No SOS detected'); return; }
+      const sos = s.sos;
+      const initialSL = wickMidpoint(sos.lowBar, 'long');
+      const entryPrice = sos.invalidation?.level;
+      const targetPrice = sos.importantTarget?.targetLevel;
+
+      // Draw levels
+      await hline(sos.moveToLow, 'Move to Low', COLORS.support, sos.lowBar.ts);
+      if (sos.invalidation) await hline(entryPrice, 'Invalidation of Strength', COLORS.sl, sos.invalidation.bar.ts);
+      await hline(initialSL, 'Stop Loss', '#c13030', sos.lowBar.ts);
+      if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.tp, sos.importantTarget.prevLowBar.ts);
+
+      // Find entry fill candle
+      if (sos.signOfStrength && entryPrice) {
+        let fillTs = null;
+        for (let i = sos.signOfStrength.index + 1; i < s.bars.length; i++) {
+          if (s.bars[i].l <= entryPrice) { fillTs = s.bars[i].ts; break; }
+        }
+        if (fillTs) {
+          await marker(fillTs, entryPrice, `Long Entry 1 @ ${fmt(entryPrice)}`, 'below', COLORS.support);
+
+          // Find exit fill candle
+          if (targetPrice) {
+            const fillIdx = s.bars.findIndex(b => b.ts === fillTs);
+            for (let i = fillIdx + 1; i < s.bars.length; i++) {
+              if (s.bars[i].h >= targetPrice) {
+                await marker(s.bars[i].ts, targetPrice, `Long Exit 1 @ ${fmt(targetPrice)}`, 'above', COLORS.resistance);
+                break;
+              }
+            }
+          }
+
+          // SL trail events
+          const events = scanTradeManagement(s.bars, sos.signOfStrength.index, 'long');
+          const exitTs = targetPrice ? (() => {
+            const fi = s.bars.findIndex(b => b.ts === fillTs);
+            for (let i = fi + 1; i < s.bars.length; i++) { if (s.bars[i].h >= targetPrice) return s.bars[i].ts; }
+            return Infinity;
+          })() : Infinity;
+
+          for (let k = 0; k < events.length; k++) {
+            const e = events[k];
+            if (e.sowBar.ts >= exitTs) break;
+            await hline(e.newSL, `SL Trail #${k + 1}`, '#c13030', e.lowestBar.ts);
+          }
+        }
+      }
+
+      console.log('Long analysis drawn for ' + args.date);
+
+    } else {
+      if (!s.sow) { console.log('No SOW detected'); return; }
+      const sow = s.sow;
+      const initialSL = wickMidpoint(sow.highBar, 'short');
+      const entryPrice = sow.invalidation?.level;
+      const targetPrice = sow.importantTarget?.targetLevel;
+
+      // Draw levels
+      await hline(sow.moveToHigh, 'Move to High', COLORS.resistance, sow.highBar.ts);
+      if (sow.invalidation) await hline(entryPrice, 'Invalidation of Weakness', COLORS.sl, sow.invalidation.bar.ts);
+      await hline(initialSL, 'Stop Loss', '#c13030', sow.highBar.ts);
+      if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.tp, sow.importantTarget.prevHighBar.ts);
+
+      // Find entry fill candle
+      if (sow.signOfWeakness && entryPrice) {
+        let fillTs = null;
+        for (let i = sow.signOfWeakness.index + 1; i < s.bars.length; i++) {
+          if (s.bars[i].h >= entryPrice) { fillTs = s.bars[i].ts; break; }
+        }
+        if (fillTs) {
+          await marker(fillTs, entryPrice, `Short Entry 1 @ ${fmt(entryPrice)}`, 'above', COLORS.resistance);
+
+          // Find exit fill candle
+          if (targetPrice) {
+            const fillIdx = s.bars.findIndex(b => b.ts === fillTs);
+            for (let i = fillIdx + 1; i < s.bars.length; i++) {
+              if (s.bars[i].l <= targetPrice) {
+                await marker(s.bars[i].ts, targetPrice, `Short Exit 1 @ ${fmt(targetPrice)}`, 'below', COLORS.support);
+                break;
+              }
+            }
+          }
+
+          // SL trail events
+          const events = scanTradeManagement(s.bars, sow.signOfWeakness.index, 'short');
+          const exitTs = targetPrice ? (() => {
+            const fi = s.bars.findIndex(b => b.ts === fillTs);
+            for (let i = fi + 1; i < s.bars.length; i++) { if (s.bars[i].l <= targetPrice) return s.bars[i].ts; }
+            return Infinity;
+          })() : Infinity;
+
+          for (let k = 0; k < events.length; k++) {
+            const e = events[k];
+            if (e.sosBar.ts >= exitTs) break;
+            await hline(e.newSL, `SL Trail #${k + 1}`, '#c13030', e.highestBar.ts);
+          }
+        }
+      }
+
+      console.log('Short analysis drawn for ' + args.date);
+    }
   },
 
   async 'place-order'(args) {
