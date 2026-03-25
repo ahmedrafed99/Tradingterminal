@@ -791,12 +791,12 @@ const commands = {
     while (!filled) {
       if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed before fill. Exiting.'); return; }
       try {
+        // Check if filled
         const posResult = await get(`/positions/open?accountId=${acct}`);
         const pos = posResult.positions?.find(p => String(p.contractId) === String(cid) && p.size > 0);
         if (pos) {
           filled = true;
           log(`Filled! Position: ${pos.size} @ ${fmt(pos.averagePrice)}`);
-          // Draw entry marker at current candle
           const nowBars = await getBars();
           const lastBar = nowBars[nowBars.length - 1];
           const placement = signal.type === 'long' ? 'below' : 'above';
@@ -804,11 +804,48 @@ const commands = {
             ? `Long Entry ${size} @ ${fmt(entryPrice)}`
             : `Short Entry ${size} @ ${fmt(entryPrice)}`;
           await drawMarker('entry', lastBar.ts, entryPrice, label, placement, signal.type === 'long' ? COLORS.support : COLORS.resistance);
-          // Remove SL preview — real bracket SL is now live
           await removeDrawing('slPreview');
+          break;
+        }
+
+        // Check if target was hit before fill — cancel the order
+        if (tpPrice) {
+          const nowBars = await getBars();
+          const lastBar = nowBars[nowBars.length - 1];
+          const targetHit = signal.type === 'long' ? lastBar.h >= tpPrice : lastBar.l <= tpPrice;
+          if (targetHit) {
+            log('Target hit before fill — cancelling order...');
+            const ordResult = await get(`/orders/open?accountId=${acct}`);
+            const pendingOrder = ordResult.orders?.find(o =>
+              String(o.contractId) === String(cid) && o.status === 1
+              && o.limitPrice === entryPrice
+            );
+            if (pendingOrder) {
+              await post('/orders/cancel', { accountId: acct, orderId: String(pendingOrder.id) });
+              log('Order cancelled. Continuing to watch...');
+            }
+            break;
+          }
         }
       } catch (e) { log('Fill check error: ' + e.message); }
-      if (!filled) await sleep(10_000); // check more frequently for fill
+      if (!filled) await sleep(10_000);
+    }
+
+    if (!filled) {
+      // Target was hit before fill — go back to watching
+      signal = null;
+      // TODO: could loop back to Phase 3, for now just keep scanning
+      log('Resuming watch after order cancellation...');
+      while (true) {
+        if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed. Exiting.'); return; }
+        try {
+          bars = await getBars();
+          low = findAnchorLow(bars);
+          high = findAnchorHigh(bars);
+          await drawAnchors(bars, low, high);
+        } catch (e) { log('Fetch error: ' + e.message); }
+        await sleepUntilNextCandle();
+      }
     }
 
     if (!manage) { log('Done (no --manage). Watch complete.'); return; }
