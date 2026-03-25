@@ -539,12 +539,11 @@ const commands = {
       }
     }
 
-    // Draw current anchor levels on chart
+    // Draw current anchor levels on chart (Phase 2 only — no SOS/SOW labels)
     async function drawAnchors(bars, low, high) {
       if (low) {
         const sosRaw = detectSOS(bars, low.index);
-        const mtlLabel = sosRaw.signOfStrength && !sosRaw.invalidated ? 'Move to Low (SOS)' : 'Move to Low';
-        await hline('moveToLow', sosRaw.moveToLow, mtlLabel, COLORS.support, bars[low.index].ts);
+        await hline('moveToLow', sosRaw.moveToLow, 'Move to Low', COLORS.support, bars[low.index].ts);
         await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', '#c13030', bars[low.index].ts);
         if (sosRaw.importantTarget?.targetLevel) {
           await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous SOS', COLORS.tp, sosRaw.importantTarget.prevLowBar.ts);
@@ -552,8 +551,7 @@ const commands = {
       }
       if (high) {
         const sowRaw = detectSOW(bars, high.index);
-        const mthLabel = sowRaw.signOfWeakness && !sowRaw.invalidated ? 'Move to High (SOW)' : 'Move to High';
-        await hline('moveToHigh', sowRaw.moveToHigh, mthLabel, COLORS.resistance, bars[high.index].ts);
+        await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High', COLORS.resistance, bars[high.index].ts);
       }
     }
 
