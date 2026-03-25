@@ -684,6 +684,9 @@ const commands = {
       if (!signal) await sleep(60_000);
     }
 
+    // Re-draw anchors now that signal is confirmed (updates SOS/SOW labels)
+    await drawAnchors(bars, low, high);
+
     // ── Compute order params ──
     let entryPrice, slPrice, tpPrice, importantTarget;
 
