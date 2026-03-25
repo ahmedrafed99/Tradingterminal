@@ -685,62 +685,68 @@ const commands = {
     if (side === 'short' && !high) { log('No anchor high found. Exiting.'); return; }
     if (side === 'auto' && !low && !high) { log('No anchors found. Exiting.'); return; }
 
-    // ── Phase 3: Wait for SOS/SOW with live drawing updates ──
+    // ── Phase 3: Wait for actionable signal ──
     let signal = earlySignal || null;
     const RTH_CLOSE = 16 * 60; // 4 PM ET
+    let entryPrice, slPrice, tpPrice, importantTarget;
 
     if (!signal) {
       log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
     }
 
-    while (!signal) {
-      if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
-
-      try {
-        bars = await getBars();
-        low = findAnchorLow(bars);
-        high = findAnchorHigh(bars);
-        await drawAnchors(bars, low, high);
-        signal = checkForSignal(bars, low, high, side);
-      } catch (e) { log('Fetch error: ' + e.message); }
-
-      if (!signal) await sleepUntilNextCandle();
-    }
-
-    // Re-draw anchors now that signal is confirmed (updates SOS/SOW labels)
-    await drawAnchors(bars, low, high);
-
-    // ── Compute order params ──
-    let entryPrice, slPrice, tpPrice, importantTarget;
-
-    if (signal.type === 'long') {
-      const sos = signal.sos;
-      entryPrice = sos.invalidation.level;
-      slPrice = wickMidpoint(sos.lowBar, 'long');
-      importantTarget = sos.importantTarget;
-      tpPrice = importantTarget?.targetLevel;
-      log(`SOS detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
-    } else {
-      const sow = signal.sow;
-      entryPrice = sow.invalidation.level;
-      slPrice = wickMidpoint(sow.highBar, 'short');
-      importantTarget = sow.importantTarget;
-      tpPrice = importantTarget?.targetLevel;
-      log(`SOW detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
-    }
-
-    // Check if target was already hit
-    if (tpPrice) {
-      const signalIndex = signal.type === 'long' ? signal.sos.signOfStrength.index : signal.sow.signOfWeakness.index;
-      let targetAlreadyHit = false;
-      for (let i = signalIndex + 1; i < bars.length; i++) {
-        if (signal.type === 'long' && bars[i].h >= tpPrice) { targetAlreadyHit = true; break; }
-        if (signal.type === 'short' && bars[i].l <= tpPrice) { targetAlreadyHit = true; break; }
+    // Outer loop: find signal, check target, retry if already hit
+    let actionable = false;
+    while (!actionable) {
+      // Inner loop: wait for a signal
+      while (!signal) {
+        if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
+        try {
+          bars = await getBars();
+          low = findAnchorLow(bars);
+          high = findAnchorHigh(bars);
+          await drawAnchors(bars, low, high);
+          signal = checkForSignal(bars, low, high, side);
+        } catch (e) { log('Fetch error: ' + e.message); }
+        if (!signal) await sleepUntilNextCandle();
       }
-      if (targetAlreadyHit) {
-        log('Target already hit — skipping order. Watch complete.');
-        return;
+
+      // Re-draw with signal labels
+      await drawAnchors(bars, low, high);
+
+      // Compute order params
+      if (signal.type === 'long') {
+        const sos = signal.sos;
+        entryPrice = sos.invalidation.level;
+        slPrice = wickMidpoint(sos.lowBar, 'long');
+        importantTarget = sos.importantTarget;
+        tpPrice = importantTarget?.targetLevel;
+        log(`SOS detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
+      } else {
+        const sow = signal.sow;
+        entryPrice = sow.invalidation.level;
+        slPrice = wickMidpoint(sow.highBar, 'short');
+        importantTarget = sow.importantTarget;
+        tpPrice = importantTarget?.targetLevel;
+        log(`SOW detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
       }
+
+      // Check if target was already hit
+      if (tpPrice) {
+        const signalIndex = signal.type === 'long' ? signal.sos.signOfStrength.index : signal.sow.signOfWeakness.index;
+        let targetAlreadyHit = false;
+        for (let i = signalIndex + 1; i < bars.length; i++) {
+          if (signal.type === 'long' && bars[i].h >= tpPrice) { targetAlreadyHit = true; break; }
+          if (signal.type === 'short' && bars[i].l <= tpPrice) { targetAlreadyHit = true; break; }
+        }
+        if (targetAlreadyHit) {
+          log('Target already hit — skipping, continuing to watch...');
+          signal = null;
+          await sleepUntilNextCandle();
+          continue;
+        }
+      }
+
+      actionable = true;
     }
 
     const slTicks = Math.round(Math.abs(entryPrice - slPrice) / tickSize);
