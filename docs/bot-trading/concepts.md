@@ -65,12 +65,14 @@ Structure-based algorithm. Starting from the escape candle:
 5. If SOW confirmed → this is a valid previous SOS. Stop.
 
 **Step 2b — Find the previous trend's low:**
-1. Scan backwards from escape candle for the candle whose low is **closest to the move to low from above** (low >= move to low), AND older than the previous SOS from 2a
-2. Find the **lowest point** between that candle and the previous SOS confirmation candle (inclusive)
-3. That lowest point = previous trend's low candle. Its high = previous trend's move to low.
+1. Scan backwards from escape candle for the candle whose low is **closest to the move to low from above** (low >= move to low), AND older than the previous SOS from 2a. This is the **closest bar**.
+2. Find the **highest point** between the closest bar and the previous SOS confirmation candle
+3. Narrow the range: from the closest bar (inclusive) to the highest point (exclusive)
+4. Find the **lowest point** in that narrowed range
+5. That lowest point = previous trend's low candle. Its high = previous trend's move to low.
 
-**Step 2c — Target:**
-Apply SOS on the previous trend's move to low — find the first candle closing above it. Must occur before the previous SOS from 2a. That level is the **target**.
+**Step 2c — Target (Previous Move to Low SOS):**
+Apply SOS on the previous trend's move to low — find the first candle closing above it (up to and including the previous SOS gain candle). That level is the **target**.
 
 ---
 
@@ -125,9 +127,11 @@ Structure-based algorithm (mirror of SOS). Starting from the escape candle:
 5. If SOS confirmed → this is a valid previous SOW. Stop.
 
 **Step 2b — Find the previous trend's high:**
-1. Scan backwards from escape candle for the candle whose high is **closest to the move to high from below** (high <= move to high), AND older than the previous SOW from 2a
-2. Find the **highest point** between that candle and the previous SOW confirmation candle (inclusive)
-3. That highest point = previous trend's high candle. Its low = previous trend's move to high.
+1. Scan backwards from escape candle for the candle whose high is **closest to the move to high from below** (high <= move to high), AND older than the previous SOW from 2a. This is the **closest bar**.
+2. Find the **lowest point** between the closest bar and the previous SOW confirmation candle
+3. Narrow the range: from the closest bar (inclusive) to the lowest point (exclusive)
+4. Find the **highest point** in that narrowed range
+5. That highest point = previous trend's high candle. Its low = previous trend's move to high.
 
-**Step 2c — Target:**
-Apply SOW on the previous trend's move to high — find the first candle closing below it. Must occur before the previous SOW from 2a. That level is the **target**.
+**Step 2c — Target (Previous Move to High SOW):**
+Apply SOW on the previous trend's move to high — find the first candle closing below it (up to and including the previous SOW gain candle). That level is the **target**.

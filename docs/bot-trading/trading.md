@@ -16,7 +16,7 @@ See [concepts.md](concepts.md) for term definitions.
 - `SL = low + (lower body edge - low) / 2`
 - Where lower body edge = `min(open, close)` of the low candle
 
-**Target:** The **important previous sign of strength** level (see [concepts.md](concepts.md) → Important Previous Sign of Strength).
+**Target:** The **previous move to low (SOS)** — the move to low of the previous trend, where it was gained. Always the important previous SOS level (see [concepts.md](concepts.md) → Important Previous Sign of Strength).
 
 ---
 
@@ -32,7 +32,7 @@ See [concepts.md](concepts.md) for term definitions.
 - `SL = high - (high - upper body edge) / 2`
 - Where upper body edge = `max(open, close)` of the high candle
 
-**Target:** The **important previous sign of weakness** level (see [concepts.md](concepts.md) → Important Previous Sign of Weakness).
+**Target:** The **previous move to high (SOW)** — the move to high of the previous trend, where it was gained. Always the important previous SOW level (see [concepts.md](concepts.md) → Important Previous Sign of Weakness).
 
 ---
 
