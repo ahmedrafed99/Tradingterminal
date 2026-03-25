@@ -55,14 +55,22 @@ Once found, apply the standard SOS definitions: its high = the previous move to 
 
 ### Important Previous Sign of Strength (target)
 
-A stricter version of the previous sign of strength. Steps 1–4 are the same as Previous Sign of Strength. Then:
+Structure-based algorithm. Starting from the escape candle:
 
-5. Scan backwards for a **2nd UP candle** higher than the 1st
-6. **Validate structure**: there must be at least 1 **down candle** between the two UP candles. If not, widen.
-7. Find the **lowest point** between 2nd UP and 1st UP — **must be a down candle** (close < open). If no down candle is the lowest, widen.
-8. Scan forward from that lowest point for the SOS — **capped at 1st UP candle index**
-9. If SOS found within range → done, that level is the target
-10. If not → **widen**: keep the 1st UP candle fixed, scan backwards from the current 2nd UP for the **next UP candle** (no height requirement). Go to step 6.
+**Step 2a — Find the previous SOS with confirmed SOW:**
+1. Scan backwards from escape candle
+2. For each candle, check if its high was **gained** (a later candle closed above it, before the move to low)
+3. If gained: find the **highest point** in the range from that candle to the move to low
+4. That highest candle's low = move to high. Check if any candle **closed below** it (SOW) before the move to low
+5. If SOW confirmed → this is a valid previous SOS. Stop.
+
+**Step 2b — Find the previous trend's low:**
+1. Scan backwards from escape candle for the candle whose low is **closest to the move to low from above** (low >= move to low), AND older than the previous SOS from 2a
+2. Find the **lowest point** between that candle and the previous SOS confirmation candle (inclusive)
+3. That lowest point = previous trend's low candle. Its high = previous trend's move to low.
+
+**Step 2c — Target:**
+Apply SOS on the previous trend's move to low — find the first candle closing above it. Must occur before the previous SOS from 2a. That level is the **target**.
 
 ---
 
@@ -107,11 +115,19 @@ Once found, apply the standard SOW definitions: its low = the previous move to t
 
 ### Important Previous Sign of Weakness (target)
 
-A stricter version of the previous sign of weakness. Steps 1–4 are the same as Previous Sign of Weakness. Then:
+Structure-based algorithm (mirror of SOS). Starting from the escape candle:
 
-5. Scan backwards for a **2nd DOWN candle** lower than the 1st
-6. **Validate structure**: there must be at least 1 **up candle** between the two DOWN candles. If not, widen.
-7. Find the **highest point** between 2nd DOWN and 1st DOWN — **must be an up candle** (close > open). If no up candle is the highest, widen.
-8. Scan forward from that highest point for the SOW — **capped at 1st DOWN candle index**
-9. If SOW found within range → done, that level is the target
-10. If not → **widen**: keep the 1st DOWN candle fixed, scan backwards from the current 2nd DOWN for the **next DOWN candle** (no height requirement). Go to step 6.
+**Step 2a — Find the previous SOW with confirmed SOS:**
+1. Scan backwards from escape candle
+2. For each candle, check if its low was **gained** (a later candle closed below it, before the move to high)
+3. If gained: find the **lowest point** in the range from that candle to the move to high
+4. That lowest candle's high = move to low. Check if any candle **closed above** it (SOS) before the move to high
+5. If SOS confirmed → this is a valid previous SOW. Stop.
+
+**Step 2b — Find the previous trend's high:**
+1. Scan backwards from escape candle for the candle whose high is **closest to the move to high from below** (high <= move to high), AND older than the previous SOW from 2a
+2. Find the **highest point** between that candle and the previous SOW confirmation candle (inclusive)
+3. That highest point = previous trend's high candle. Its low = previous trend's move to high.
+
+**Step 2c — Target:**
+Apply SOW on the previous trend's move to high — find the first candle closing below it. Must occur before the previous SOW from 2a. That level is the **target**.
