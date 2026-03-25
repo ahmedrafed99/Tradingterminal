@@ -642,6 +642,7 @@ const commands = {
 
           if (sosRaw.signOfStrength && !sosRaw.invalidated) {
             sos = sosRaw;
+            await hline('moveToLow', sosRaw.moveToLow, 'Move to Low (SOS)', COLORS.support, bars[low.index].ts);
           }
         }
 
@@ -658,6 +659,7 @@ const commands = {
 
           if (sowRaw.signOfWeakness && !sowRaw.invalidated) {
             sow = sowRaw;
+            await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High (SOW)', COLORS.resistance, bars[high.index].ts);
           }
         }
 
