@@ -19,7 +19,7 @@ All drawing tools use `POST /drawings/add`. Returns `{ "success": true, "id": "<
   "color": "#5b8a72",
   "strokeWidth": 1,
   "contractId": "CON.F.US.MNQ.M26",
-  "text": { "content": "Support", "color": "#5b8a72", "fontSize": 12, "bold": false, "italic": false, "hAlign": "left", "vAlign": "middle" },
+  "text": { "content": "Support", "color": "#5b8a72", "fontSize": 12, "bold": false, "italic": false, "hAlign": "right", "vAlign": "middle" },
   "startTime": 0,
   "extendLeft": true
 }
@@ -102,7 +102,7 @@ Brackets are optional. Omit either for no SL or no TP.
 
 ## Style Defaults
 
-**Text:** `hAlign: "left"`, `vAlign: "middle"` — text sits on the line, left-aligned.
+**Text:** `hAlign: "right"`, `vAlign: "middle"` — text sits on the line, right-aligned.
 
 **Colors** (muted, dark-chart friendly):
 
@@ -112,7 +112,7 @@ Brackets are optional. Omit either for no SL or no TP.
 | Resistance / short entry | `#a65d6a` |
 | Neutral | `#787b86` |
 | Target / TP | `#b8a04a` |
-| Stop-loss | `#8b5c5c` |
+| Stop-loss | `#c13030` |
 | Info | `#6b7ea0` |
 
 ---
