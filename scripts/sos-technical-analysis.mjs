@@ -263,22 +263,24 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
     }
 
     if (prevSOS) {
-      // Found SOS within the two UP candles
-      return {
-        prevLowBar: prevLow,
-        prevLowIndex: prevLowIdx,
-        prevMoveToLow,
-        signOfStrength: prevSOS,
-        targetLevel: prevMoveToLow,
-      };
+      // Found SOS within the two UP candles — validate target is above move to low
+      if (prevMoveToLow > moveToLowLevel) {
+        return {
+          prevLowBar: prevLow,
+          prevLowIndex: prevLowIdx,
+          prevMoveToLow,
+          signOfStrength: prevSOS,
+          targetLevel: prevMoveToLow,
+        };
+      }
+      // Target below entry — discard and keep widening
     }
 
-    // SOS not found within range — widen: keep firstUp fixed, find next UP candle higher than current secondUp
-    const prevSecondH = secondUp.bar.h;
+    // SOS not found within range — widen: keep firstUp fixed, find next UP candle before current secondUp
     const searchFrom = secondUp.index - 1;
     secondUp = null;
     for (let i = searchFrom; i >= 0; i--) {
-      if (bars[i].c > bars[i].o && bars[i].h > prevSecondH) {
+      if (bars[i].c > bars[i].o) {
         secondUp = { bar: bars[i], index: i };
         break;
       }
@@ -454,21 +456,24 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
     }
 
     if (prevSOW) {
-      return {
-        prevHighBar: prevHigh,
-        prevHighIndex: prevHighIdx,
-        prevMoveToHigh,
-        signOfWeakness: prevSOW,
-        targetLevel: prevMoveToHigh,
-      };
+      // Validate target is below move to high
+      if (prevMoveToHigh < moveToHighLevel) {
+        return {
+          prevHighBar: prevHigh,
+          prevHighIndex: prevHighIdx,
+          prevMoveToHigh,
+          signOfWeakness: prevSOW,
+          targetLevel: prevMoveToHigh,
+        };
+      }
+      // Target above entry — discard and keep widening
     }
 
-    // SOW not found within range — widen: keep firstDown fixed, find next DOWN candle lower than current secondDown
-    const prevSecondL = secondDown.bar.l;
+    // SOW not found within range — widen: keep firstDown fixed, find next DOWN candle before current secondDown
     const searchFrom = secondDown.index - 1;
     secondDown = null;
     for (let i = searchFrom; i >= 0; i--) {
-      if (bars[i].c < bars[i].o && bars[i].l < prevSecondL) {
+      if (bars[i].c < bars[i].o) {
         secondDown = { bar: bars[i], index: i };
         break;
       }
