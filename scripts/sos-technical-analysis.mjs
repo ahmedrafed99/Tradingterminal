@@ -54,13 +54,12 @@ export function etHourMin(bar) {
 
 // ── Core detection ──
 
-export function findAnchorLow(bars) {
-  // Lowest price in 7:30–9:20 AM ET window
-  const start = 7 * 60 + 30;  // 450
-  const end = 9 * 60 + 20;    // 560
+export function findAnchorLow(bars, endMinute = null) {
+  // Lowest price from 7:30 AM ET onwards. Pass endMinute (e.g. 560 for 9:20) to cap.
+  const start = 7 * 60 + 30;
   const window = bars.filter((b) => {
     const m = etHourMin(b);
-    return m >= start && m <= end;
+    return m >= start && (endMinute === null || m <= endMinute);
   });
   if (window.length === 0) return null;
 
@@ -75,13 +74,12 @@ export function findAnchorLow(bars) {
   return { bar: lowest, index: lowestIdx };
 }
 
-export function findAnchorHigh(bars) {
-  // Highest price in 7:30–9:20 AM ET window
+export function findAnchorHigh(bars, endMinute = null) {
+  // Highest price from 7:30 AM ET onwards. Pass endMinute (e.g. 560 for 9:20) to cap.
   const start = 7 * 60 + 30;
-  const end = 9 * 60 + 20;
   const window = bars.filter((b) => {
     const m = etHourMin(b);
-    return m >= start && m <= end;
+    return m >= start && (endMinute === null || m <= endMinute);
   });
   if (window.length === 0) return null;
 
