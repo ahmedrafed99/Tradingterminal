@@ -470,6 +470,7 @@ const commands = {
     const size = Number(args.size || 1);
     const manage = !!args.manage;
     const dryRun = !!args.dryRun;
+    const startNow = !!args.now;
     const startAt = args.startAt || '7:30';
 
     const fmt = (v) => v?.toFixed(2) ?? '—';
@@ -507,42 +508,53 @@ const commands = {
     if (!contract) { log('Contract not found: ' + cid); return; }
     const tickSize = contract.tickSize;
 
-    // ── Phase 1: Wait for start time ──
-    const [startH, startM] = startAt.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-
-    if (nowETMinutes() < startMinutes) {
-      const wait = startMinutes - nowETMinutes();
-      log(`Waiting until ${startAt} AM ET... (${wait} minutes)`);
-      while (nowETMinutes() < startMinutes) {
-        await sleep(30_000);
-      }
-    }
-    log(`Watch started for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
-
-    // ── Phase 2: Anchor window (7:30–9:20 AM ET) ──
-    const WINDOW_END = 9 * 60 + 20; // 560
-
-    log('Phase 2: Tracking anchors (7:30-9:20 ET)');
+    // ── Phase 1 & 2: Wait + Anchor window ──
     let low = null, high = null, bars = [];
 
-    while (nowETMinutes() < WINDOW_END) {
-      try {
-        bars = await getBars();
-        low = findAnchorLow(bars);
-        high = findAnchorHigh(bars);
-        if (low || high) {
-          log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
-        }
-      } catch (e) { log('Fetch error: ' + e.message); }
-      await sleep(60_000);
-    }
+    if (startNow) {
+      log(`Watch started NOW for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
+      bars = await getBars();
+      low = findAnchorLow(bars);
+      high = findAnchorHigh(bars);
+      log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+    } else {
+      // Phase 1: Wait for start time
+      const [startH, startM] = startAt.split(':').map(Number);
+      const startMinutes = startH * 60 + startM;
 
-    // Final anchor fetch
-    bars = await getBars();
-    low = findAnchorLow(bars);
-    high = findAnchorHigh(bars);
-    log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+      if (nowETMinutes() < startMinutes) {
+        const wait = startMinutes - nowETMinutes();
+        log(`Waiting until ${startAt} AM ET... (${wait} minutes)`);
+        while (nowETMinutes() < startMinutes) {
+          await sleep(30_000);
+        }
+      }
+      log(`Watch started for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
+
+      // Phase 2: Anchor window (7:30–9:20 AM ET)
+      const WINDOW_END = 9 * 60 + 20;
+
+      if (nowETMinutes() < WINDOW_END) {
+        log('Phase 2: Tracking anchors (7:30-9:20 ET)');
+        while (nowETMinutes() < WINDOW_END) {
+          try {
+            bars = await getBars();
+            low = findAnchorLow(bars);
+            high = findAnchorHigh(bars);
+            if (low || high) {
+              log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+            }
+          } catch (e) { log('Fetch error: ' + e.message); }
+          await sleep(60_000);
+        }
+      }
+
+      // Final anchor fetch
+      bars = await getBars();
+      low = findAnchorLow(bars);
+      high = findAnchorHigh(bars);
+      log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+    }
 
     if (side === 'long' && !low) { log('No anchor low found. Exiting.'); return; }
     if (side === 'short' && !high) { log('No anchor high found. Exiting.'); return; }
