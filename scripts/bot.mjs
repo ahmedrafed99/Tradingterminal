@@ -479,6 +479,7 @@ const commands = {
     const startNow = !!args.now;
     const startAt = args.startAt || '7:30';
     const windowEndArg = args.windowEnd || '9:20';
+    const anchorStartMinute = args.from ? (() => { const [h, m] = args.from.split(':').map(Number); return h * 60 + m; })() : 450;
     const WINDOW_END = windowEndArg === '0' ? 0 : (() => {
       const [h, m] = windowEndArg.split(':').map(Number);
       return h * 60 + m;
@@ -635,8 +636,8 @@ const commands = {
     if (startNow) {
       log(`Watch started NOW for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
       bars = await getBars();
-      low = findAnchorLow(bars);
-      high = findAnchorHigh(bars);
+      low = findAnchorLow(bars, anchorStartMinute);
+      high = findAnchorHigh(bars, anchorStartMinute);
       log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
       await drawAnchors(bars, low, high);
     } else {
@@ -659,8 +660,8 @@ const commands = {
         while (nowETMinutes() < WINDOW_END) {
           try {
             bars = await getBars();
-            low = findAnchorLow(bars);
-            high = findAnchorHigh(bars);
+            low = findAnchorLow(bars, anchorStartMinute);
+            high = findAnchorHigh(bars, anchorStartMinute);
             if (low || high) {
               log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
               await drawAnchors(bars, low, high);
@@ -680,8 +681,8 @@ const commands = {
       if (!earlySignal) {
         // Final anchor fetch
         bars = await getBars();
-        low = findAnchorLow(bars);
-        high = findAnchorHigh(bars);
+        low = findAnchorLow(bars, anchorStartMinute);
+        high = findAnchorHigh(bars, anchorStartMinute);
         log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
         await drawAnchors(bars, low, high);
       }
@@ -708,8 +709,8 @@ const commands = {
         if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
         try {
           bars = await getBars();
-          low = findAnchorLow(bars);
-          high = findAnchorHigh(bars);
+          low = findAnchorLow(bars, anchorStartMinute);
+          high = findAnchorHigh(bars, anchorStartMinute);
           await drawAnchors(bars, low, high);
           signal = checkForSignal(bars, low, high, side);
         } catch (e) { log('Fetch error: ' + e.message); }
@@ -846,8 +847,8 @@ const commands = {
         if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed. Exiting.'); return; }
         try {
           bars = await getBars();
-          low = findAnchorLow(bars);
-          high = findAnchorHigh(bars);
+          low = findAnchorLow(bars, anchorStartMinute);
+          high = findAnchorHigh(bars, anchorStartMinute);
           await drawAnchors(bars, low, high);
         } catch (e) { log('Fetch error: ' + e.message); }
         await sleepUntilNextCandle();
@@ -882,8 +883,8 @@ const commands = {
 
         // Re-fetch bars and run management
         bars = await getBars();
-        low = findAnchorLow(bars);
-        high = findAnchorHigh(bars);
+        low = findAnchorLow(bars, anchorStartMinute);
+        high = findAnchorHigh(bars, anchorStartMinute);
 
         let events = [];
         if (signal.type === 'long' && low) {
