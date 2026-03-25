@@ -548,10 +548,56 @@ const commands = {
     if (side === 'short' && !high) { log('No anchor high found. Exiting.'); return; }
     if (side === 'auto' && !low && !high) { log('No anchors found. Exiting.'); return; }
 
-    // ── Phase 3: Wait for SOS/SOW ──
+    // ── Drawing helpers ──
+    const drawingIds = {}; // track drawing IDs by key for updates
+    async function hline(key, price, label, color, ts) {
+      // Remove old drawing if updating
+      if (drawingIds[key]) {
+        try { await del(`/drawings/remove/${drawingIds[key]}`); } catch {}
+      }
+      const res = await post('/drawings/add', {
+        type: 'hline', price, color, strokeWidth: 1, contractId: cid,
+        text: makeText(label, color), startTime: ts || 0, extendLeft: !ts,
+      });
+      if (res.id) drawingIds[key] = res.id;
+    }
+    async function drawMarker(key, time, price, label, placement, color) {
+      const res = await post('/drawings/add', {
+        type: 'marker', time, price, color, label, placement,
+        strokeWidth: 1, contractId: cid, text: null,
+      });
+      if (res.id) drawingIds[key] = res.id;
+    }
+    async function removeDrawing(key) {
+      if (drawingIds[key]) {
+        try { await del(`/drawings/remove/${drawingIds[key]}`); } catch {}
+        delete drawingIds[key];
+      }
+    }
+
+    // ── Phase 3: Wait for SOS/SOW with live drawing updates ──
     log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
     let signal = null;
     const RTH_CLOSE = 16 * 60; // 4 PM ET
+
+    // Draw initial levels after anchors are locked
+    await post('/drawings/clear-chart', {});
+    if (low) {
+      const sosRaw = detectSOS(bars, low.index);
+      await hline('moveToLow', sosRaw.moveToLow, 'Move to Low', COLORS.support, bars[low.index].ts);
+      await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', '#c13030', bars[low.index].ts);
+      if (sosRaw.importantTarget?.targetLevel) {
+        await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous SOS', COLORS.tp, sosRaw.importantTarget.prevLowBar.ts);
+      }
+    }
+    if (high) {
+      const sowRaw = detectSOW(bars, high.index);
+      await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High', COLORS.resistance, bars[high.index].ts);
+    }
+
+    // Track running high/low for dynamic move-to-high/low updates
+    let runningHighBar = high ? bars[high.index] : null;
+    let runningLowBar = low ? bars[low.index] : null;
 
     while (!signal) {
       if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
@@ -564,20 +610,56 @@ const commands = {
         let sos = null, sow = null;
 
         if ((side === 'long' || side === 'auto') && low) {
-          sos = detectSOS(bars, low.index);
-          if (!sos.signOfStrength || sos.invalidated) sos = null;
+          const sosRaw = detectSOS(bars, low.index);
+
+          // Update running high and move-to-high dynamically
+          for (let i = low.index; i < bars.length; i++) {
+            if (!runningHighBar || bars[i].h > runningHighBar.h) runningHighBar = bars[i];
+          }
+          if (runningHighBar) {
+            const moveToHighLevel = runningHighBar.l;
+            // Check if any candle closed below it (SOW during long watch)
+            let sowDetected = false;
+            for (let i = bars.indexOf(runningHighBar) + 1; i < bars.length; i++) {
+              if (bars[i].c < moveToHighLevel) { sowDetected = true; break; }
+            }
+            const mthLabel = sowDetected ? 'Move to High (SOW)' : 'Move to High';
+            await hline('moveToHigh', moveToHighLevel, mthLabel, COLORS.resistance, runningHighBar.ts);
+          }
+
+          if (sosRaw.signOfStrength && !sosRaw.invalidated) {
+            sos = sosRaw;
+            // Update move-to-low label to show SOS
+            await hline('moveToLow', sosRaw.moveToLow, 'Move to Low (SOS)', COLORS.support, bars[low.index].ts);
+          }
         }
+
         if ((side === 'short' || side === 'auto') && high) {
-          sow = detectSOW(bars, high.index);
-          if (!sow.signOfWeakness || sow.invalidated) sow = null;
+          const sowRaw = detectSOW(bars, high.index);
+
+          // Update running low and move-to-low dynamically
+          for (let i = high.index; i < bars.length; i++) {
+            if (!runningLowBar || bars[i].l < runningLowBar.l) runningLowBar = bars[i];
+          }
+          if (runningLowBar) {
+            const moveToLowLevel = runningLowBar.h;
+            let sosDetected = false;
+            for (let i = bars.indexOf(runningLowBar) + 1; i < bars.length; i++) {
+              if (bars[i].c > moveToLowLevel) { sosDetected = true; break; }
+            }
+            const mtlLabel = sosDetected ? 'Move to Low (SOS)' : 'Move to Low';
+            await hline('moveToLow', moveToLowLevel, mtlLabel, COLORS.support, runningLowBar.ts);
+          }
+
+          if (sowRaw.signOfWeakness && !sowRaw.invalidated) {
+            sow = sowRaw;
+            await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High (SOW)', COLORS.resistance, bars[high.index].ts);
+          }
         }
 
         if (side === 'auto') {
-          // Pick whichever signal is most recent
           if (sos && sow) {
-            const sosTime = sos.signOfStrength.index;
-            const sowTime = sow.signOfWeakness.index;
-            if (sosTime >= sowTime) {
+            if (sos.signOfStrength.index >= sow.signOfWeakness.index) {
               signal = { type: 'long', sos, bars };
               log('Auto: SOS is more recent — going long');
             } else {
@@ -626,6 +708,19 @@ const commands = {
     // ── Phase 4: Place order ──
     log(`Phase 4: Placing ${signal.type === 'long' ? 'limit buy' : 'limit sell'} @ ${fmt(entryPrice)}, SL: ${slTicks} ticks, TP: ${tpTicks} ticks`);
 
+    // Update drawings for order placement
+    if (signal.type === 'long') {
+      const sos = signal.sos;
+      await hline('moveToLow', sos.moveToLow, 'Move to Low (SOS)', COLORS.support, sos.lowBar.ts);
+      await hline('slPreview', slPrice, 'Stop Loss (preview)', '#c13030', sos.lowBar.ts);
+      if (tpPrice && importantTarget) await hline('prevSOS', tpPrice, 'Previous SOS', COLORS.tp, importantTarget.prevLowBar.ts);
+    } else {
+      const sow = signal.sow;
+      await hline('moveToHigh', sow.moveToHigh, 'Move to High (SOW)', COLORS.resistance, sow.highBar.ts);
+      await hline('slPreview', slPrice, 'Stop Loss (preview)', '#c13030', sow.highBar.ts);
+      if (tpPrice && importantTarget) await hline('prevSOW', tpPrice, 'Previous SOW', COLORS.tp, importantTarget.prevHighBar.ts);
+    }
+
     if (!dryRun) {
       const orderBody = {
         accountId: acct,
@@ -643,28 +738,31 @@ const commands = {
       log('(dry-run) Order skipped');
     }
 
-    // Draw analysis on chart
-    try {
-      await post('/drawings/clear-chart', {});
-      const hline = (price, label, color, ts) => post('/drawings/add', {
-        type: 'hline', price, color, strokeWidth: 1, contractId: cid,
-        text: makeText(label, color), startTime: ts || 0, extendLeft: !ts,
-      });
-
-      if (signal.type === 'long') {
-        const sos = signal.sos;
-        await hline(sos.moveToLow, 'Move to Low', COLORS.support, sos.lowBar.ts);
-        await hline(entryPrice, 'Invalidation of Strength', COLORS.sl, sos.invalidation.bar.ts);
-        await hline(slPrice, 'Stop Loss', '#c13030', sos.lowBar.ts);
-        if (tpPrice && importantTarget) await hline(tpPrice, 'Important Target', COLORS.tp, importantTarget.prevLowBar.ts);
-      } else {
-        const sow = signal.sow;
-        await hline(sow.moveToHigh, 'Move to High', COLORS.resistance, sow.highBar.ts);
-        await hline(entryPrice, 'Invalidation of Weakness', COLORS.sl, sow.invalidation.bar.ts);
-        await hline(slPrice, 'Stop Loss', '#c13030', sow.highBar.ts);
-        if (tpPrice && importantTarget) await hline(tpPrice, 'Important Target', COLORS.tp, importantTarget.prevHighBar.ts);
-      }
-    } catch (e) { log('Drawing error: ' + e.message); }
+    // ── Wait for fill, then add entry marker and remove SL preview ──
+    log('Waiting for fill...');
+    let filled = false;
+    while (!filled) {
+      if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed before fill. Exiting.'); return; }
+      try {
+        const posResult = await get(`/positions/open?accountId=${acct}`);
+        const pos = posResult.positions?.find(p => String(p.contractId) === String(cid) && p.size > 0);
+        if (pos) {
+          filled = true;
+          log(`Filled! Position: ${pos.size} @ ${fmt(pos.averagePrice)}`);
+          // Draw entry marker at current candle
+          const nowBars = await getBars();
+          const lastBar = nowBars[nowBars.length - 1];
+          const placement = signal.type === 'long' ? 'below' : 'above';
+          const label = signal.type === 'long'
+            ? `Long Entry ${size} @ ${fmt(entryPrice)}`
+            : `Short Entry ${size} @ ${fmt(entryPrice)}`;
+          await drawMarker('entry', lastBar.ts, entryPrice, label, placement, signal.type === 'long' ? COLORS.support : COLORS.resistance);
+          // Remove SL preview — real bracket SL is now live
+          await removeDrawing('slPreview');
+        }
+      } catch (e) { log('Fill check error: ' + e.message); }
+      if (!filled) await sleep(10_000); // check more frequently for fill
+    }
 
     if (!manage) { log('Done (no --manage). Watch complete.'); return; }
 
