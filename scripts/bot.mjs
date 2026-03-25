@@ -508,8 +508,54 @@ const commands = {
     if (!contract) { log('Contract not found: ' + cid); return; }
     const tickSize = contract.tickSize;
 
+    // ── Drawing helpers ──
+    const drawingIds = {};
+    async function hline(key, price, label, color, ts) {
+      if (drawingIds[key]) {
+        try { await del(`/drawings/remove/${drawingIds[key]}`); } catch {}
+      }
+      const res = await post('/drawings/add', {
+        type: 'hline', price, color, strokeWidth: 1, contractId: cid,
+        text: makeText(label, color), startTime: ts || 0, extendLeft: !ts,
+      });
+      if (res.id) drawingIds[key] = res.id;
+    }
+    async function drawMarker(key, time, price, label, placement, color) {
+      const res = await post('/drawings/add', {
+        type: 'marker', time, price, color, label, placement,
+        strokeWidth: 1, contractId: cid, text: null,
+      });
+      if (res.id) drawingIds[key] = res.id;
+    }
+    async function removeDrawing(key) {
+      if (drawingIds[key]) {
+        try { await del(`/drawings/remove/${drawingIds[key]}`); } catch {}
+        delete drawingIds[key];
+      }
+    }
+
+    // Draw current anchor levels on chart
+    async function drawAnchors(bars, low, high) {
+      if (low) {
+        const sosRaw = detectSOS(bars, low.index);
+        const mtlLabel = sosRaw.signOfStrength && !sosRaw.invalidated ? 'Move to Low (SOS)' : 'Move to Low';
+        await hline('moveToLow', sosRaw.moveToLow, mtlLabel, COLORS.support, bars[low.index].ts);
+        await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', '#c13030', bars[low.index].ts);
+        if (sosRaw.importantTarget?.targetLevel) {
+          await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous SOS', COLORS.tp, sosRaw.importantTarget.prevLowBar.ts);
+        }
+      }
+      if (high) {
+        const sowRaw = detectSOW(bars, high.index);
+        const mthLabel = sowRaw.signOfWeakness && !sowRaw.invalidated ? 'Move to High (SOW)' : 'Move to High';
+        await hline('moveToHigh', sowRaw.moveToHigh, mthLabel, COLORS.resistance, bars[high.index].ts);
+      }
+    }
+
     // ── Phase 1 & 2: Wait + Anchor window ──
     let low = null, high = null, bars = [];
+
+    await post('/drawings/clear-chart', {});
 
     if (startNow) {
       log(`Watch started NOW for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
@@ -517,6 +563,7 @@ const commands = {
       low = findAnchorLow(bars);
       high = findAnchorHigh(bars);
       log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+      await drawAnchors(bars, low, high);
     } else {
       // Phase 1: Wait for start time
       const [startH, startM] = startAt.split(':').map(Number);
@@ -543,6 +590,7 @@ const commands = {
             high = findAnchorHigh(bars);
             if (low || high) {
               log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+              await drawAnchors(bars, low, high);
             }
           } catch (e) { log('Fetch error: ' + e.message); }
           await sleep(60_000);
@@ -554,58 +602,17 @@ const commands = {
       low = findAnchorLow(bars);
       high = findAnchorHigh(bars);
       log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+      await drawAnchors(bars, low, high);
     }
 
     if (side === 'long' && !low) { log('No anchor low found. Exiting.'); return; }
     if (side === 'short' && !high) { log('No anchor high found. Exiting.'); return; }
     if (side === 'auto' && !low && !high) { log('No anchors found. Exiting.'); return; }
 
-    // ── Drawing helpers ──
-    const drawingIds = {}; // track drawing IDs by key for updates
-    async function hline(key, price, label, color, ts) {
-      // Remove old drawing if updating
-      if (drawingIds[key]) {
-        try { await del(`/drawings/remove/${drawingIds[key]}`); } catch {}
-      }
-      const res = await post('/drawings/add', {
-        type: 'hline', price, color, strokeWidth: 1, contractId: cid,
-        text: makeText(label, color), startTime: ts || 0, extendLeft: !ts,
-      });
-      if (res.id) drawingIds[key] = res.id;
-    }
-    async function drawMarker(key, time, price, label, placement, color) {
-      const res = await post('/drawings/add', {
-        type: 'marker', time, price, color, label, placement,
-        strokeWidth: 1, contractId: cid, text: null,
-      });
-      if (res.id) drawingIds[key] = res.id;
-    }
-    async function removeDrawing(key) {
-      if (drawingIds[key]) {
-        try { await del(`/drawings/remove/${drawingIds[key]}`); } catch {}
-        delete drawingIds[key];
-      }
-    }
-
     // ── Phase 3: Wait for SOS/SOW with live drawing updates ──
     log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
     let signal = null;
     const RTH_CLOSE = 16 * 60; // 4 PM ET
-
-    // Draw initial levels after anchors are locked
-    await post('/drawings/clear-chart', {});
-    if (low) {
-      const sosRaw = detectSOS(bars, low.index);
-      await hline('moveToLow', sosRaw.moveToLow, 'Move to Low', COLORS.support, bars[low.index].ts);
-      await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', '#c13030', bars[low.index].ts);
-      if (sosRaw.importantTarget?.targetLevel) {
-        await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous SOS', COLORS.tp, sosRaw.importantTarget.prevLowBar.ts);
-      }
-    }
-    if (high) {
-      const sowRaw = detectSOW(bars, high.index);
-      await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High', COLORS.resistance, bars[high.index].ts);
-    }
 
     // Track running high/low for dynamic move-to-high/low updates
     let runningHighBar = high ? bars[high.index] : null;
