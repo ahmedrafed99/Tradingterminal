@@ -563,13 +563,14 @@ const commands = {
     // Signal detection — shared between Phase 2 and Phase 3
     function checkForSignal(bars, low, high, side) {
       let sos = null, sow = null;
+      let sosRaw = null, sowRaw = null;
 
       if ((side === 'long' || side === 'auto') && low) {
-        const sosRaw = detectSOS(bars, low.index);
+        sosRaw = detectSOS(bars, low.index);
         if (sosRaw.signOfStrength && !sosRaw.invalidated) sos = sosRaw;
       }
       if ((side === 'short' || side === 'auto') && high) {
-        const sowRaw = detectSOW(bars, high.index);
+        sowRaw = detectSOW(bars, high.index);
         if (sowRaw.signOfWeakness && !sowRaw.invalidated) sow = sowRaw;
       }
 
@@ -579,13 +580,28 @@ const commands = {
             log('Auto: SOS is more recent — going long');
             return { type: 'long', sos, bars };
           } else {
+            // SOW is more recent, but check: is there a move to the low more recent than the SOW with no SOS?
+            if (low && low.index > sow.signOfWeakness.index && !sos) {
+              log('Auto: SOW detected but move to low is more recent with no SOS — waiting');
+              return null;
+            }
             log('Auto: SOW is more recent — going short');
             return { type: 'short', sow, bars };
           }
         } else if (sos) {
+          // SOS exists, but check: is there a move to the high more recent than the SOS with no SOW?
+          if (high && high.index > sos.signOfStrength.index && !sow) {
+            log('Auto: SOS detected but move to high is more recent with no SOW — waiting');
+            return null;
+          }
           log('Auto: only SOS detected — going long');
           return { type: 'long', sos, bars };
         } else if (sow) {
+          // SOW exists, but check: is there a move to the low more recent than the SOW with no SOS?
+          if (low && low.index > sow.signOfWeakness.index) {
+            log('Auto: SOW detected but move to low is more recent with no SOS — waiting');
+            return null;
+          }
           log('Auto: only SOW detected — going short');
           return { type: 'short', sow, bars };
         }
