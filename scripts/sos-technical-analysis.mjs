@@ -329,6 +329,188 @@ function findPreviousSOW(bars, highIndex, moveToHighLevel) {
   };
 }
 
+// ── Trade Management ──
+
+/**
+ * Midpoint of the lower wick (long SL) or upper wick (short SL).
+ */
+export function wickMidpoint(bar, side) {
+  if (side === 'long') {
+    const lowerBody = Math.min(bar.o, bar.c);
+    return bar.l + (lowerBody - bar.l) / 2;
+  } else {
+    const upperBody = Math.max(bar.o, bar.c);
+    return bar.h - (bar.h - upperBody) / 2;
+  }
+}
+
+/**
+ * Scan forward from startIndex for SL trail events.
+ * For longs: watch for sign of weakness (candle closing below running move-to-high).
+ * For shorts: watch for sign of strength (candle closing above running move-to-low).
+ *
+ * Returns an array of trail events:
+ *   { newSL, sowBar, sowIndex, recoveryBar, recoveryIndex, lowestBar, lowestIndex }
+ */
+export function scanTradeManagement(bars, startIndex, side) {
+  if (side === 'long') return scanLongManagement(bars, startIndex);
+  return scanShortManagement(bars, startIndex);
+}
+
+function scanLongManagement(bars, startIndex) {
+  const events = [];
+  let runningHighBar = bars[startIndex];
+  let i = startIndex;
+
+  while (i < bars.length) {
+    // Update running high
+    if (bars[i].h > runningHighBar.h) {
+      runningHighBar = bars[i];
+    }
+
+    const moveToHigh = runningHighBar.l;
+
+    // Detect sign of weakness: candle closing below move to high
+    if (bars[i].c < moveToHigh) {
+      const sowBar = bars[i];
+      const sowIndex = i;
+      const invalidationLevel = sowBar.h; // high of SOW candle
+
+      // Check very next candle
+      if (i + 1 >= bars.length) break;
+      const nextBar = bars[i + 1];
+
+      if (nextBar.c > invalidationLevel) {
+        // Immediate recovery — dismiss, continue from next candle
+        i = i + 2;
+        continue;
+      }
+
+      // No immediate recovery — scan forward until recovery
+      let recoveryIndex = null;
+      for (let j = i + 2; j < bars.length; j++) {
+        if (bars[j].c > invalidationLevel) {
+          recoveryIndex = j;
+          break;
+        }
+      }
+
+      if (recoveryIndex === null) {
+        // No recovery found in available data
+        break;
+      }
+
+      // Find lowest point between SOW candle and recovery candle
+      let lowestBar = bars[sowIndex];
+      let lowestIndex = sowIndex;
+      for (let j = sowIndex; j <= recoveryIndex; j++) {
+        if (bars[j].l < lowestBar.l) {
+          lowestBar = bars[j];
+          lowestIndex = j;
+        }
+      }
+
+      const newSL = wickMidpoint(lowestBar, 'long');
+
+      events.push({
+        newSL,
+        sowBar,
+        sowIndex,
+        recoveryBar: bars[recoveryIndex],
+        recoveryIndex,
+        lowestBar,
+        lowestIndex,
+      });
+
+      // Continue scanning from recovery candle, update running high
+      i = recoveryIndex;
+      // Reset running high from recovery point forward
+      runningHighBar = bars[recoveryIndex];
+      continue;
+    }
+
+    i++;
+  }
+
+  return events;
+}
+
+function scanShortManagement(bars, startIndex) {
+  const events = [];
+  let runningLowBar = bars[startIndex];
+  let i = startIndex;
+
+  while (i < bars.length) {
+    // Update running low
+    if (bars[i].l < runningLowBar.l) {
+      runningLowBar = bars[i];
+    }
+
+    const moveToLow = runningLowBar.h;
+
+    // Detect sign of strength: candle closing above move to low
+    if (bars[i].c > moveToLow) {
+      const sosBar = bars[i];
+      const sosIndex = i;
+      const invalidationLevel = sosBar.l; // low of SOS candle
+
+      // Check very next candle
+      if (i + 1 >= bars.length) break;
+      const nextBar = bars[i + 1];
+
+      if (nextBar.c < invalidationLevel) {
+        // Immediate recovery — dismiss, continue from next candle
+        i = i + 2;
+        continue;
+      }
+
+      // No immediate recovery — scan forward until recovery
+      let recoveryIndex = null;
+      for (let j = i + 2; j < bars.length; j++) {
+        if (bars[j].c < invalidationLevel) {
+          recoveryIndex = j;
+          break;
+        }
+      }
+
+      if (recoveryIndex === null) {
+        break;
+      }
+
+      // Find highest point between SOS candle and recovery candle
+      let highestBar = bars[sosIndex];
+      let highestIndex = sosIndex;
+      for (let j = sosIndex; j <= recoveryIndex; j++) {
+        if (bars[j].h > highestBar.h) {
+          highestBar = bars[j];
+          highestIndex = j;
+        }
+      }
+
+      const newSL = wickMidpoint(highestBar, 'short');
+
+      events.push({
+        newSL,
+        sosBar,
+        sosIndex,
+        recoveryBar: bars[recoveryIndex],
+        recoveryIndex,
+        highestBar,
+        highestIndex,
+      });
+
+      // Continue scanning from recovery candle, update running low
+      i = recoveryIndex;
+      runningLowBar = bars[recoveryIndex];
+      continue;
+    }
+
+    i++;
+  }
+
+  return events;
+}
+
 // ── Public API ──
 
 export async function loadSession(contractId, date) {

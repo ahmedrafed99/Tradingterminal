@@ -265,6 +265,57 @@ const commands = {
       console.log(`  Target (prev SOW):  ${s.sow.target?.targetLevel ? fmt(s.sow.target.targetLevel) : '—'}`);
     }
   },
+
+  async 'manage'(args) {
+    require(args, 'contractId', 'date', 'side');
+    const { loadSession, scanTradeManagement, wickMidpoint } = await import('./sos-technical-analysis.mjs');
+    const s = await loadSession(args.contractId, args.date);
+    const side = args.side.toLowerCase();
+
+    const fmt = (v) => v?.toFixed(2) ?? '—';
+    const time = (bar) => bar?.t?.slice(11, 19) ?? '—';
+
+    // Determine start index (from sign of strength/weakness confirmation)
+    let startIndex = null;
+    let initialSL = null;
+
+    if (side === 'long') {
+      if (!s.sos?.signOfStrength) { console.log('No sign of strength found — no long trade to manage'); return; }
+      startIndex = s.sos.signOfStrength.index;
+      initialSL = wickMidpoint(s.sos.lowBar, 'long');
+      console.log(`── Long Trade Management ──`);
+      console.log(`  Entry after SOS @ ${time(s.sos.signOfStrength.bar)}`);
+      console.log(`  Initial SL: ${fmt(initialSL)} (wick midpoint of low candle)`);
+    } else {
+      if (!s.sow?.signOfWeakness) { console.log('No sign of weakness found — no short trade to manage'); return; }
+      startIndex = s.sow.signOfWeakness.index;
+      initialSL = wickMidpoint(s.sow.highBar, 'short');
+      console.log(`── Short Trade Management ──`);
+      console.log(`  Entry after SOW @ ${time(s.sow.signOfWeakness.bar)}`);
+      console.log(`  Initial SL: ${fmt(initialSL)} (wick midpoint of high candle)`);
+    }
+
+    const events = scanTradeManagement(s.bars, startIndex, side);
+
+    if (events.length === 0) {
+      console.log('  No SL trail events detected.');
+    } else {
+      for (let k = 0; k < events.length; k++) {
+        const e = events[k];
+        if (side === 'long') {
+          console.log(`  Trail #${k + 1}:`);
+          console.log(`    SOW @ ${time(e.sowBar)} — recovery @ ${time(e.recoveryBar)}`);
+          console.log(`    Lowest point: ${fmt(e.lowestBar.l)} @ ${time(e.lowestBar)}`);
+          console.log(`    New SL: ${fmt(e.newSL)}`);
+        } else {
+          console.log(`  Trail #${k + 1}:`);
+          console.log(`    SOS @ ${time(e.sosBar)} — recovery @ ${time(e.recoveryBar)}`);
+          console.log(`    Highest point: ${fmt(e.highestBar.h)} @ ${time(e.highestBar)}`);
+          console.log(`    New SL: ${fmt(e.newSL)}`);
+        }
+      }
+    }
+  },
 };
 
 // ── Main ──
