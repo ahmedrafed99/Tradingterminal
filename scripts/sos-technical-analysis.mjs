@@ -263,17 +263,13 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
     }
 
     if (prevSOS) {
-      // Found SOS within the two UP candles — validate target is above move to low
-      if (prevMoveToLow > moveToLowLevel) {
-        return {
-          prevLowBar: prevLow,
-          prevLowIndex: prevLowIdx,
-          prevMoveToLow,
-          signOfStrength: prevSOS,
-          targetLevel: prevMoveToLow,
-        };
-      }
-      // Target below entry — discard and keep widening
+      return {
+        prevLowBar: prevLow,
+        prevLowIndex: prevLowIdx,
+        prevMoveToLow,
+        signOfStrength: prevSOS,
+        targetLevel: prevMoveToLow,
+      };
     }
 
     // SOS not found within range — widen: keep firstUp fixed, find next UP candle before current secondUp
@@ -456,17 +452,13 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
     }
 
     if (prevSOW) {
-      // Validate target is below move to high
-      if (prevMoveToHigh < moveToHighLevel) {
-        return {
-          prevHighBar: prevHigh,
-          prevHighIndex: prevHighIdx,
-          prevMoveToHigh,
-          signOfWeakness: prevSOW,
-          targetLevel: prevMoveToHigh,
-        };
-      }
-      // Target above entry — discard and keep widening
+      return {
+        prevHighBar: prevHigh,
+        prevHighIndex: prevHighIdx,
+        prevMoveToHigh,
+        signOfWeakness: prevSOW,
+        targetLevel: prevMoveToHigh,
+      };
     }
 
     // SOW not found within range — widen: keep firstDown fixed, find next DOWN candle before current secondDown
