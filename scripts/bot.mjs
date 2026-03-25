@@ -481,6 +481,13 @@ const commands = {
     const fmt = (v) => v?.toFixed(2) ?? '—';
     const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+    // Wait until the next 1m candle closes (:00 + 1.5s buffer for bar to finalize)
+    async function sleepUntilNextCandle() {
+      const now = Date.now();
+      const ms = 60_000 - (now % 60_000) + 1500;
+      await sleep(ms);
+    }
+
     function log(msg) {
       const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
       console.log(`[${et}] ${msg}`);
@@ -660,7 +667,7 @@ const commands = {
               }
             }
           } catch (e) { log('Fetch error: ' + e.message); }
-          await sleep(60_000);
+          await sleepUntilNextCandle();
         }
       }
 
@@ -697,7 +704,7 @@ const commands = {
         signal = checkForSignal(bars, low, high, side);
       } catch (e) { log('Fetch error: ' + e.message); }
 
-      if (!signal) await sleep(60_000);
+      if (!signal) await sleepUntilNextCandle();
     }
 
     // Re-draw anchors now that signal is confirmed (updates SOS/SOW labels)
@@ -836,7 +843,7 @@ const commands = {
         }
       } catch (e) { log('Management error: ' + e.message); }
 
-      await sleep(60_000);
+      await sleepUntilNextCandle();
     }
 
     log('Watch complete.');
