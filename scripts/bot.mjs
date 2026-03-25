@@ -217,10 +217,13 @@ const commands = {
     require(args, 'contractId', 'from', 'to');
     const result = await post('/market/bars', {
       contractId: args.contractId,
+      live: false,
       unit: Number(args.unit || 2),
       unitNumber: Number(args.unitNumber || 1),
       startTime: args.from,
       endTime: args.to,
+      limit: 20000,
+      includePartialBar: true,
     });
     console.log(JSON.stringify(result));
   },

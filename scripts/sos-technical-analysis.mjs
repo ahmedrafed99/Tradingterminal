@@ -17,10 +17,13 @@ async function fetchBars(contractId, from, to) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contractId,
+      live: false,
       unit: 2,        // minute bars
       unitNumber: 1,   // 1-minute
       startTime: from,
       endTime: to,
+      limit: 20000,
+      includePartialBar: true,
     }),
   });
   const data = await res.json();
@@ -360,6 +363,7 @@ export function scanTradeManagement(bars, startIndex, side) {
 function scanLongManagement(bars, startIndex) {
   const events = [];
   let runningHighBar = bars[startIndex];
+  let currentSL = -Infinity; // SL only moves up for longs
   let i = startIndex;
 
   while (i < bars.length) {
@@ -412,19 +416,22 @@ function scanLongManagement(bars, startIndex) {
 
       const newSL = wickMidpoint(lowestBar, 'long');
 
-      events.push({
-        newSL,
-        sowBar,
-        sowIndex,
-        recoveryBar: bars[recoveryIndex],
-        recoveryIndex,
-        lowestBar,
-        lowestIndex,
-      });
+      // SL only moves up for longs — skip if new SL is lower than current
+      if (newSL > currentSL) {
+        currentSL = newSL;
+        events.push({
+          newSL,
+          sowBar,
+          sowIndex,
+          recoveryBar: bars[recoveryIndex],
+          recoveryIndex,
+          lowestBar,
+          lowestIndex,
+        });
+      }
 
       // Continue scanning from recovery candle, update running high
       i = recoveryIndex;
-      // Reset running high from recovery point forward
       runningHighBar = bars[recoveryIndex];
       continue;
     }
@@ -438,6 +445,7 @@ function scanLongManagement(bars, startIndex) {
 function scanShortManagement(bars, startIndex) {
   const events = [];
   let runningLowBar = bars[startIndex];
+  let currentSL = Infinity; // SL only moves down for shorts
   let i = startIndex;
 
   while (i < bars.length) {
@@ -489,15 +497,19 @@ function scanShortManagement(bars, startIndex) {
 
       const newSL = wickMidpoint(highestBar, 'short');
 
-      events.push({
-        newSL,
-        sosBar,
-        sosIndex,
-        recoveryBar: bars[recoveryIndex],
-        recoveryIndex,
-        highestBar,
-        highestIndex,
-      });
+      // SL only moves down for shorts — skip if new SL is higher than current
+      if (newSL < currentSL) {
+        currentSL = newSL;
+        events.push({
+          newSL,
+          sosBar,
+          sosIndex,
+          recoveryBar: bars[recoveryIndex],
+          recoveryIndex,
+          highestBar,
+          highestIndex,
+        });
+      }
 
       // Continue scanning from recovery candle, update running low
       i = recoveryIndex;
