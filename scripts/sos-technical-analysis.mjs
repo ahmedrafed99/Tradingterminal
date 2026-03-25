@@ -11,7 +11,7 @@ const BASE = process.env.BOT_API_URL || 'http://localhost:3001';
 
 // ── Bar fetching ──
 
-async function fetchBars(contractId, from, to) {
+export async function fetchBars(contractId, from, to) {
   const res = await fetch(`${BASE}/market/bars`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,14 +47,14 @@ function toET(isoString) {
   return new Date(isoString).toLocaleString('en-US', { timeZone: 'America/New_York' });
 }
 
-function etHourMin(bar) {
+export function etHourMin(bar) {
   const et = new Date(toET(bar.t));
   return et.getHours() * 60 + et.getMinutes();
 }
 
 // ── Core detection ──
 
-function findAnchorLow(bars) {
+export function findAnchorLow(bars) {
   // Lowest price in 7:30–9:20 AM ET window
   const start = 7 * 60 + 30;  // 450
   const end = 9 * 60 + 20;    // 560
@@ -75,7 +75,7 @@ function findAnchorLow(bars) {
   return { bar: lowest, index: lowestIdx };
 }
 
-function findAnchorHigh(bars) {
+export function findAnchorHigh(bars) {
   // Highest price in 7:30–9:20 AM ET window
   const start = 7 * 60 + 30;
   const end = 9 * 60 + 20;
@@ -98,7 +98,7 @@ function findAnchorHigh(bars) {
 
 // ── SOS detection ──
 
-function detectSOS(bars, lowIndex) {
+export function detectSOS(bars, lowIndex) {
   const lowBar = bars[lowIndex];
   const moveToLow = lowBar.h;
 
@@ -297,7 +297,7 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
 
 // ── SOW detection ──
 
-function detectSOW(bars, highIndex) {
+export function detectSOW(bars, highIndex) {
   const highBar = bars[highIndex];
   const moveToHigh = highBar.l;
 

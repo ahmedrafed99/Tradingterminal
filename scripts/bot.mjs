@@ -455,6 +455,249 @@ const commands = {
       }
     }
   },
+
+  async 'watch'(args) {
+    require(args, 'contractId', 'accountId');
+    const {
+      fetchBars, findAnchorLow, findAnchorHigh, detectSOS, detectSOW,
+      wickMidpoint, scanTradeManagement,
+    } = await import('./sos-technical-analysis.mjs');
+
+    const cid = args.contractId;
+    const acct = args.accountId;
+    const side = (args.side || 'long').toLowerCase();
+    const size = Number(args.size || 1);
+    const manage = !!args.manage;
+    const dryRun = !!args.dryRun;
+    const startAt = args.startAt || '7:30';
+
+    const fmt = (v) => v?.toFixed(2) ?? '—';
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    function log(msg) {
+      const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
+      console.log(`[${et}] ${msg}`);
+    }
+
+    function nowETMinutes() {
+      const et = new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
+      const [h, m] = et.split(', ')[1].split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function todayFrom4amET() {
+      // Build today's 4:00 AM ET as ISO string
+      const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const y = etDate.getFullYear(), mo = etDate.getMonth(), d = etDate.getDate();
+      // 4 AM ET ≈ 08:00 UTC (EDT) or 09:00 UTC (EST)
+      const utc4am = new Date(Date.UTC(y, mo, d, 8, 0, 0));
+      return utc4am.toISOString();
+    }
+
+    function nowISO() { return new Date().toISOString(); }
+
+    async function getBars() {
+      return fetchBars(cid, todayFrom4amET(), nowISO());
+    }
+
+    // Get contract info for tick size
+    const contracts = await get('/market/contracts/available');
+    const contract = contracts.contracts?.find(c => c.id === cid);
+    if (!contract) { log('Contract not found: ' + cid); return; }
+    const tickSize = contract.tickSize;
+
+    // ── Phase 1: Wait for start time ──
+    const [startH, startM] = startAt.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+
+    if (nowETMinutes() < startMinutes) {
+      const wait = startMinutes - nowETMinutes();
+      log(`Waiting until ${startAt} AM ET... (${wait} minutes)`);
+      while (nowETMinutes() < startMinutes) {
+        await sleep(30_000);
+      }
+    }
+    log(`Watch started for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
+
+    // ── Phase 2: Anchor window (7:30–9:20 AM ET) ──
+    const WINDOW_END = 9 * 60 + 20; // 560
+
+    log('Phase 2: Tracking anchors (7:30-9:20 ET)');
+    let low = null, high = null, bars = [];
+
+    while (nowETMinutes() < WINDOW_END) {
+      try {
+        bars = await getBars();
+        low = findAnchorLow(bars);
+        high = findAnchorHigh(bars);
+        if (low || high) {
+          log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+        }
+      } catch (e) { log('Fetch error: ' + e.message); }
+      await sleep(60_000);
+    }
+
+    // Final anchor fetch
+    bars = await getBars();
+    low = findAnchorLow(bars);
+    high = findAnchorHigh(bars);
+    log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
+
+    if (side === 'long' && !low) { log('No anchor low found. Exiting.'); return; }
+    if (side === 'short' && !high) { log('No anchor high found. Exiting.'); return; }
+
+    // ── Phase 3: Wait for SOS/SOW ──
+    log('Phase 3: Waiting for signal');
+    let signal = null;
+    const RTH_CLOSE = 16 * 60; // 4 PM ET
+
+    while (!signal) {
+      if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
+
+      try {
+        bars = await getBars();
+        low = findAnchorLow(bars);
+        high = findAnchorHigh(bars);
+
+        if (side === 'long' && low) {
+          const sos = detectSOS(bars, low.index);
+          if (sos.signOfStrength && !sos.invalidated) {
+            signal = { type: 'long', sos, bars };
+          }
+        }
+        if (side === 'short' && high) {
+          const sow = detectSOW(bars, high.index);
+          if (sow.signOfWeakness && !sow.invalidated) {
+            signal = { type: 'short', sow, bars };
+          }
+        }
+      } catch (e) { log('Fetch error: ' + e.message); }
+
+      if (!signal) await sleep(60_000);
+    }
+
+    // ── Compute order params ──
+    let entryPrice, slPrice, tpPrice, importantTarget;
+
+    if (signal.type === 'long') {
+      const sos = signal.sos;
+      entryPrice = sos.invalidation.level;
+      slPrice = wickMidpoint(sos.lowBar, 'long');
+      importantTarget = sos.importantTarget;
+      tpPrice = importantTarget?.targetLevel;
+      log(`SOS detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
+    } else {
+      const sow = signal.sow;
+      entryPrice = sow.invalidation.level;
+      slPrice = wickMidpoint(sow.highBar, 'short');
+      importantTarget = sow.importantTarget;
+      tpPrice = importantTarget?.targetLevel;
+      log(`SOW detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
+    }
+
+    const slTicks = Math.round(Math.abs(entryPrice - slPrice) / tickSize);
+    const tpTicks = tpPrice ? Math.round(Math.abs(tpPrice - entryPrice) / tickSize) : 0;
+
+    // ── Phase 4: Place order ──
+    log(`Phase 4: Placing ${signal.type === 'long' ? 'limit buy' : 'limit sell'} @ ${fmt(entryPrice)}, SL: ${slTicks} ticks, TP: ${tpTicks} ticks`);
+
+    if (!dryRun) {
+      const orderBody = {
+        accountId: acct,
+        contractId: cid,
+        type: 'limit',
+        side: signal.type === 'long' ? 'buy' : 'sell',
+        size,
+        limitPrice: entryPrice,
+        slTicks,
+      };
+      if (tpTicks > 0) orderBody.tpTicks = tpTicks;
+      const result = await post('/drawings/place-order', orderBody);
+      log('Order placed: ' + JSON.stringify(result));
+    } else {
+      log('(dry-run) Order skipped');
+    }
+
+    // Draw analysis on chart
+    try {
+      await post('/drawings/clear-chart', {});
+      const hline = (price, label, color, ts) => post('/drawings/add', {
+        type: 'hline', price, color, strokeWidth: 1, contractId: cid,
+        text: makeText(label, color), startTime: ts || 0, extendLeft: !ts,
+      });
+
+      if (signal.type === 'long') {
+        const sos = signal.sos;
+        await hline(sos.moveToLow, 'Move to Low', COLORS.support, sos.lowBar.ts);
+        await hline(entryPrice, 'Invalidation of Strength', COLORS.sl, sos.invalidation.bar.ts);
+        await hline(slPrice, 'Stop Loss', '#c13030', sos.lowBar.ts);
+        if (tpPrice && importantTarget) await hline(tpPrice, 'Important Target', COLORS.tp, importantTarget.prevLowBar.ts);
+      } else {
+        const sow = signal.sow;
+        await hline(sow.moveToHigh, 'Move to High', COLORS.resistance, sow.highBar.ts);
+        await hline(entryPrice, 'Invalidation of Weakness', COLORS.sl, sow.invalidation.bar.ts);
+        await hline(slPrice, 'Stop Loss', '#c13030', sow.highBar.ts);
+        if (tpPrice && importantTarget) await hline(tpPrice, 'Important Target', COLORS.tp, importantTarget.prevHighBar.ts);
+      }
+    } catch (e) { log('Drawing error: ' + e.message); }
+
+    if (!manage) { log('Done (no --manage). Watch complete.'); return; }
+
+    // ── Phase 5: Trade management ──
+    log('Phase 5: Managing trade (SL trailing)');
+    let lastTrailCount = 0;
+    let slOrderId = null;
+
+    while (true) {
+      if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed. Exiting management.'); break; }
+
+      try {
+        // Check position
+        const posResult = await get(`/positions/open?accountId=${acct}`);
+        const pos = posResult.positions?.find(p => String(p.contractId) === String(cid) && p.size > 0);
+        if (!pos) { log('Position closed (SL or TP hit). Done.'); break; }
+
+        // Discover SL order
+        if (!slOrderId) {
+          const ordResult = await get(`/orders/open?accountId=${acct}`);
+          const oppSide = signal.type === 'long' ? 1 : 0; // opposite side
+          const slOrder = ordResult.orders?.find(o =>
+            String(o.contractId) === String(cid) && o.type === 4 && o.side === oppSide
+          );
+          if (slOrder) slOrderId = slOrder.id;
+        }
+
+        // Re-fetch bars and run management
+        bars = await getBars();
+        low = findAnchorLow(bars);
+        high = findAnchorHigh(bars);
+
+        let events = [];
+        if (signal.type === 'long' && low) {
+          const sos = detectSOS(bars, low.index);
+          if (sos.signOfStrength) events = scanTradeManagement(bars, sos.signOfStrength.index, 'long');
+        } else if (signal.type === 'short' && high) {
+          const sow = detectSOW(bars, high.index);
+          if (sow.signOfWeakness) events = scanTradeManagement(bars, sow.signOfWeakness.index, 'short');
+        }
+
+        if (events.length > lastTrailCount) {
+          const latest = events[events.length - 1];
+          log(`SL trail #${events.length}: new SL = ${fmt(latest.newSL)}`);
+
+          if (slOrderId && !dryRun) {
+            await patch('/orders/modify', { accountId: acct, orderId: String(slOrderId), stopPrice: latest.newSL });
+            log('SL order modified');
+          }
+          lastTrailCount = events.length;
+        }
+      } catch (e) { log('Management error: ' + e.message); }
+
+      await sleep(60_000);
+    }
+
+    log('Watch complete.');
+  },
 };
 
 // ── Main ──
