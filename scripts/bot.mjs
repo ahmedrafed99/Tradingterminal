@@ -729,6 +729,20 @@ const commands = {
       log(`SOW detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
     }
 
+    // Check if target was already hit
+    if (tpPrice) {
+      const signalIndex = signal.type === 'long' ? signal.sos.signOfStrength.index : signal.sow.signOfWeakness.index;
+      let targetAlreadyHit = false;
+      for (let i = signalIndex + 1; i < bars.length; i++) {
+        if (signal.type === 'long' && bars[i].h >= tpPrice) { targetAlreadyHit = true; break; }
+        if (signal.type === 'short' && bars[i].l <= tpPrice) { targetAlreadyHit = true; break; }
+      }
+      if (targetAlreadyHit) {
+        log('Target already hit — skipping order. Watch complete.');
+        return;
+      }
+    }
+
     const slTicks = Math.round(Math.abs(entryPrice - slPrice) / tickSize);
     const tpTicks = tpPrice ? Math.round(Math.abs(tpPrice - entryPrice) / tickSize) : 0;
 
