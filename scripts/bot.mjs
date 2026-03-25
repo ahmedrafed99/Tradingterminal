@@ -637,20 +637,11 @@ const commands = {
             if (!runningHighBar || bars[i].h > runningHighBar.h) runningHighBar = bars[i];
           }
           if (runningHighBar) {
-            const moveToHighLevel = runningHighBar.l;
-            // Check if any candle closed below it (SOW during long watch)
-            let sowDetected = false;
-            for (let i = bars.indexOf(runningHighBar) + 1; i < bars.length; i++) {
-              if (bars[i].c < moveToHighLevel) { sowDetected = true; break; }
-            }
-            const mthLabel = sowDetected ? 'Move to High (SOW)' : 'Move to High';
-            await hline('moveToHigh', moveToHighLevel, mthLabel, COLORS.resistance, runningHighBar.ts);
+            await hline('moveToHigh', runningHighBar.l, 'Move to High', COLORS.resistance, runningHighBar.ts);
           }
 
           if (sosRaw.signOfStrength && !sosRaw.invalidated) {
             sos = sosRaw;
-            // Update move-to-low label to show SOS
-            await hline('moveToLow', sosRaw.moveToLow, 'Move to Low (SOS)', COLORS.support, bars[low.index].ts);
           }
         }
 
@@ -662,18 +653,11 @@ const commands = {
             if (!runningLowBar || bars[i].l < runningLowBar.l) runningLowBar = bars[i];
           }
           if (runningLowBar) {
-            const moveToLowLevel = runningLowBar.h;
-            let sosDetected = false;
-            for (let i = bars.indexOf(runningLowBar) + 1; i < bars.length; i++) {
-              if (bars[i].c > moveToLowLevel) { sosDetected = true; break; }
-            }
-            const mtlLabel = sosDetected ? 'Move to Low (SOS)' : 'Move to Low';
-            await hline('moveToLow', moveToLowLevel, mtlLabel, COLORS.support, runningLowBar.ts);
+            await hline('moveToLow', runningLowBar.h, 'Move to Low', COLORS.support, runningLowBar.ts);
           }
 
           if (sowRaw.signOfWeakness && !sowRaw.invalidated) {
             sow = sowRaw;
-            await hline('moveToHigh', sowRaw.moveToHigh, 'Move to High (SOW)', COLORS.resistance, bars[high.index].ts);
           }
         }
 
