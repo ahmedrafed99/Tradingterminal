@@ -694,11 +694,13 @@ const commands = {
 
     // ── Phase 3: Wait for actionable signal ──
     let signal = earlySignal || null;
-    const RTH_CLOSE = 16 * 60; // 4 PM ET
+    const RTH_CLOSE = 17 * 60; // 5 PM ET (futures close)
     let entryPrice, slPrice, tpPrice, importantTarget;
 
     if (!signal) {
       log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
+      // Draw anchors immediately before entering the loop
+      await drawAnchors(bars, low, high);
     }
 
     // Outer loop: find signal, check target, retry if already hit
