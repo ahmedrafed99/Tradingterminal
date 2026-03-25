@@ -504,7 +504,10 @@ const commands = {
     function nowISO() { return new Date().toISOString(); }
 
     async function getBars() {
-      return fetchBars(cid, todayFrom4amET(), nowISO());
+      const allBars = await fetchBars(cid, todayFrom4amET(), nowISO());
+      // Drop the last bar (partial/still forming) — only use closed candles
+      if (allBars.length > 1) allBars.pop();
+      return allBars;
     }
 
     // Get contract info for tick size
