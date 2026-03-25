@@ -291,9 +291,9 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
   // Step 2c: this is the previous trend's low. Its high = previous trend's move to low.
   const prevTrendMTL = trendLow.h;
 
-  // Find SOS on this: first candle closing above prevTrendMTL, must be before prevSOSCandleIdx
+  // Find SOS on this: first candle closing above prevTrendMTL, up to and including the prev SOS gain
   let targetSOS = null;
-  for (let i = trendLowIdx + 1; i < prevSOSCandleIdx; i++) {
+  for (let i = trendLowIdx + 1; i <= prevSOSIndex; i++) {
     if (bars[i].c > prevTrendMTL) {
       targetSOS = { level: prevTrendMTL, bar: bars[i], index: i };
       break;
@@ -510,9 +510,9 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
   // Step 2c: this is the previous trend's high. Its low = previous trend's move to high.
   const prevTrendMTH = trendHigh.l;
 
-  // Find SOW on this: first candle closing below prevTrendMTH, must be before prevSOWCandleIdx
+  // Find SOW on this: first candle closing below prevTrendMTH, up to and including the prev SOW gain
   let targetSOW = null;
-  for (let i = trendHighIdx + 1; i < prevSOWCandleIdx; i++) {
+  for (let i = trendHighIdx + 1; i <= prevSOWIndex; i++) {
     if (bars[i].c < prevTrendMTH) {
       targetSOW = { level: prevTrendMTH, bar: bars[i], index: i };
       break;
