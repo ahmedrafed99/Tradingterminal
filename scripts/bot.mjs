@@ -158,7 +158,10 @@ const commands = {
   async 'draw-analysis'(args) {
     require(args, 'contractId', 'date', 'side');
     const { loadSession, scanTradeManagement, wickMidpoint } = await import('./sos-technical-analysis.mjs');
-    const s = await loadSession(args.contractId, args.date);
+    const opts = {};
+    if (args.from) { const [h, m] = args.from.split(':').map(Number); opts.startMinute = h * 60 + m; }
+    if (args.to) { const [h, m] = args.to.split(':').map(Number); opts.endMinute = h * 60 + m; }
+    const s = await loadSession(args.contractId, args.date, opts);
     const side = args.side.toLowerCase();
     const cid = args.contractId;
     const fmt = (v) => v?.toFixed(2) ?? '—';
@@ -370,7 +373,10 @@ const commands = {
   async 'analyze'(args) {
     require(args, 'contractId', 'date');
     const { loadSession } = await import('./sos-technical-analysis.mjs');
-    const s = await loadSession(args.contractId, args.date);
+    const opts = {};
+    if (args.from) { const [h, m] = args.from.split(':').map(Number); opts.startMinute = h * 60 + m; }
+    if (args.to) { const [h, m] = args.to.split(':').map(Number); opts.endMinute = h * 60 + m; }
+    const s = await loadSession(args.contractId, args.date, opts);
 
     if (!s.sos && !s.sow) {
       console.log('No structure detected (no bars in 7:30-9:20 ET window)');

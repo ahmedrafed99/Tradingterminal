@@ -54,12 +54,11 @@ export function etHourMin(bar) {
 
 // ── Core detection ──
 
-export function findAnchorLow(bars, endMinute = null) {
-  // Lowest price from 7:30 AM ET onwards. Pass endMinute (e.g. 560 for 9:20) to cap.
-  const start = 7 * 60 + 30;
+export function findAnchorLow(bars, startMinute = 450, endMinute = null) {
+  // Lowest price from startMinute (default 7:30=450) onwards. Pass endMinute to cap.
   const window = bars.filter((b) => {
     const m = etHourMin(b);
-    return m >= start && (endMinute === null || m <= endMinute);
+    return m >= startMinute && (endMinute === null || m <= endMinute);
   });
   if (window.length === 0) return null;
 
@@ -74,12 +73,11 @@ export function findAnchorLow(bars, endMinute = null) {
   return { bar: lowest, index: lowestIdx };
 }
 
-export function findAnchorHigh(bars, endMinute = null) {
-  // Highest price from 7:30 AM ET onwards. Pass endMinute (e.g. 560 for 9:20) to cap.
-  const start = 7 * 60 + 30;
+export function findAnchorHigh(bars, startMinute = 450, endMinute = null) {
+  // Highest price from startMinute (default 7:30=450) onwards. Pass endMinute to cap.
   const window = bars.filter((b) => {
     const m = etHourMin(b);
-    return m >= start && (endMinute === null || m <= endMinute);
+    return m >= startMinute && (endMinute === null || m <= endMinute);
   });
   if (window.length === 0) return null;
 
@@ -725,7 +723,7 @@ function scanShortManagement(bars, startIndex) {
 
 // ── Public API ──
 
-export async function loadSession(contractId, date) {
+export async function loadSession(contractId, date, { startMinute = 450, endMinute = null } = {}) {
   // Fetch bars from 4:00 AM to 11:00 PM ET to have enough history for backwards scanning
   const d = new Date(date + 'T00:00:00Z');
   const from = new Date(d); from.setUTCHours(8, 0, 0, 0);   // 4 AM ET (UTC-4)
@@ -734,8 +732,8 @@ export async function loadSession(contractId, date) {
   const bars = await fetchBars(contractId, from.toISOString(), to.toISOString());
   if (bars.length === 0) return { bars: [], low: null, high: null, sos: null, sow: null };
 
-  const low = findAnchorLow(bars);
-  const high = findAnchorHigh(bars);
+  const low = findAnchorLow(bars, startMinute, endMinute);
+  const high = findAnchorHigh(bars, startMinute, endMinute);
 
   const sos = low ? detectSOS(bars, low.index) : null;
   const sow = high ? detectSOW(bars, high.index) : null;
