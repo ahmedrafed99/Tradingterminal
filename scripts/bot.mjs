@@ -465,7 +465,8 @@ const commands = {
 
     const cid = args.contractId;
     const acct = args.accountId;
-    const side = (args.side || 'long').toLowerCase();
+    const sideArg = args.side ? args.side.toLowerCase() : 'auto';
+    let side = sideArg; // may be resolved to 'long' or 'short' in Phase 3
     const size = Number(args.size || 1);
     const manage = !!args.manage;
     const dryRun = !!args.dryRun;
@@ -545,9 +546,10 @@ const commands = {
 
     if (side === 'long' && !low) { log('No anchor low found. Exiting.'); return; }
     if (side === 'short' && !high) { log('No anchor high found. Exiting.'); return; }
+    if (side === 'auto' && !low && !high) { log('No anchors found. Exiting.'); return; }
 
     // ── Phase 3: Wait for SOS/SOW ──
-    log('Phase 3: Waiting for signal');
+    log('Phase 3: Waiting for signal' + (side === 'auto' ? ' (auto — most recent wins)' : ''));
     let signal = null;
     const RTH_CLOSE = 16 * 60; // 4 PM ET
 
@@ -559,17 +561,40 @@ const commands = {
         low = findAnchorLow(bars);
         high = findAnchorHigh(bars);
 
-        if (side === 'long' && low) {
-          const sos = detectSOS(bars, low.index);
-          if (sos.signOfStrength && !sos.invalidated) {
-            signal = { type: 'long', sos, bars };
-          }
+        let sos = null, sow = null;
+
+        if ((side === 'long' || side === 'auto') && low) {
+          sos = detectSOS(bars, low.index);
+          if (!sos.signOfStrength || sos.invalidated) sos = null;
         }
-        if (side === 'short' && high) {
-          const sow = detectSOW(bars, high.index);
-          if (sow.signOfWeakness && !sow.invalidated) {
+        if ((side === 'short' || side === 'auto') && high) {
+          sow = detectSOW(bars, high.index);
+          if (!sow.signOfWeakness || sow.invalidated) sow = null;
+        }
+
+        if (side === 'auto') {
+          // Pick whichever signal is most recent
+          if (sos && sow) {
+            const sosTime = sos.signOfStrength.index;
+            const sowTime = sow.signOfWeakness.index;
+            if (sosTime >= sowTime) {
+              signal = { type: 'long', sos, bars };
+              log('Auto: SOS is more recent — going long');
+            } else {
+              signal = { type: 'short', sow, bars };
+              log('Auto: SOW is more recent — going short');
+            }
+          } else if (sos) {
+            signal = { type: 'long', sos, bars };
+            log('Auto: only SOS detected — going long');
+          } else if (sow) {
             signal = { type: 'short', sow, bars };
+            log('Auto: only SOW detected — going short');
           }
+        } else if (side === 'long' && sos) {
+          signal = { type: 'long', sos, bars };
+        } else if (side === 'short' && sow) {
+          signal = { type: 'short', sow, bars };
         }
       } catch (e) { log('Fetch error: ' + e.message); }
 
