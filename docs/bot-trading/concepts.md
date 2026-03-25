@@ -36,6 +36,10 @@ The **low** of the candle that confirmed the sign of strength.
 
 When a candle **closes below** the invalidation of strength level. The sign of strength is no longer valid.
 
+### Re-validation of Strength
+
+If the sign of strength has been invalidated, but a later candle **closes above** the move to the low again, the sign of strength is **re-confirmed**. The invalidation level updates to the low of the new confirmation candle. This cycle can repeat — the latest state (valid or invalidated) is what matters.
+
 ### Previous Sign of Strength (target)
 
 Locates the previous structure's sign of strength by finding its low. Starting from a given move to the low:
@@ -84,6 +88,10 @@ The **high** of the candle that confirmed the sign of weakness.
 ### Invalidation of Weakness (confirmed)
 
 When a candle **closes above** the invalidation of weakness level. The sign of weakness is no longer valid.
+
+### Re-validation of Weakness
+
+If the sign of weakness has been invalidated, but a later candle **closes below** the move to the high again, the sign of weakness is **re-confirmed**. The invalidation level updates to the high of the new confirmation candle. This cycle can repeat — the latest state (valid or invalidated) is what matters.
 
 ### Previous Sign of Weakness (target)
 

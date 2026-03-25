@@ -119,13 +119,14 @@ node scripts/bot.mjs watch --contractId <id> --accountId <id> [options]
 | `--side` | `auto` | `long`, `short`, or `auto` (most recent SOS/SOW wins) |
 | `--now` | off | Skip wait and anchor window, start immediately |
 | `--startAt` | `7:30` | ET time to begin (ignored if `--now`) |
+| `--windowEnd` | `9:20` | ET time to lock anchors. `0` = no window, straight to signals |
 | `--manage` | off | Keep running after fill, trail SL on recovery |
 | `--size` | `1` | Number of contracts |
 | `--dryRun` | off | Log actions without placing orders |
 
 **Phases:**
 1. Wait until `--startAt` (skip with `--now`)
-2. Track anchors in 7:30–9:20 ET window (skip with `--now` or if past 9:20)
+2. Track anchors until `--windowEnd` — also detects signals (skip with `--now` or `--windowEnd 0`)
 3. Wait for SOS/SOW signal — draws levels live, updates text dynamically
 4. Place limit order with SL/TP brackets — wait for fill, add entry marker
 5. Trail SL (only with `--manage`)
