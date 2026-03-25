@@ -137,6 +137,7 @@ function detectSOS(bars, lowIndex) {
 
   // Previous sign of strength (target)
   const target = findPreviousSOS(bars, lowIndex, moveToLow);
+  const importantTarget = findImportantPreviousSOS(bars, lowIndex, moveToLow);
 
   return {
     lowBar,
@@ -147,6 +148,7 @@ function detectSOS(bars, lowIndex) {
     invalidation,
     invalidated,
     target,
+    importantTarget,
   };
 }
 
@@ -214,6 +216,85 @@ function findPreviousSOS(bars, lowIndex, moveToLowLevel) {
   };
 }
 
+function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
+  // Step 1-3: scan backwards, skip candles with low < level, stop at first with low > level
+  let escapeIndex = null;
+  for (let i = lowIndex - 1; i >= 0; i--) {
+    if (bars[i].l > moveToLowLevel) {
+      escapeIndex = i;
+      break;
+    }
+  }
+  if (escapeIndex === null) return null;
+
+  // Step 4: from escape, scan backwards for first UP candle
+  let firstUp = null;
+  for (let i = escapeIndex; i >= 0; i--) {
+    if (bars[i].c > bars[i].o) {
+      firstUp = { bar: bars[i], index: i };
+      break;
+    }
+  }
+  if (!firstUp) return null;
+
+  // Step 5: scan backwards for second UP candle (higher than first)
+  let secondUp = null;
+  for (let i = firstUp.index - 1; i >= 0; i--) {
+    if (bars[i].c > bars[i].o && bars[i].h > firstUp.bar.h) {
+      secondUp = { bar: bars[i], index: i };
+      break;
+    }
+  }
+  if (!secondUp) return null;
+
+  // Widening loop: find SOS within the two UP candles, widen if needed
+  while (true) {
+    // Find lowest point between second and first UP candles
+    let prevLow = bars[secondUp.index];
+    let prevLowIdx = secondUp.index;
+    for (let i = secondUp.index; i <= firstUp.index; i++) {
+      if (bars[i].l < prevLow.l) {
+        prevLow = bars[i];
+        prevLowIdx = i;
+      }
+    }
+
+    const prevMoveToLow = prevLow.h;
+
+    // Scan forward from lowest point, capped at firstUp.index
+    let prevSOS = null;
+    for (let i = prevLowIdx + 1; i < firstUp.index; i++) {
+      if (bars[i].c > prevMoveToLow) {
+        prevSOS = { level: prevMoveToLow, bar: bars[i], index: i };
+        break;
+      }
+    }
+
+    if (prevSOS) {
+      // Found SOS within the two UP candles
+      return {
+        prevLowBar: prevLow,
+        prevLowIndex: prevLowIdx,
+        prevMoveToLow,
+        signOfStrength: prevSOS,
+        targetLevel: prevMoveToLow,
+      };
+    }
+
+    // SOS not found within range — widen: keep firstUp fixed, find next UP candle higher than current secondUp
+    const prevSecondH = secondUp.bar.h;
+    const searchFrom = secondUp.index - 1;
+    secondUp = null;
+    for (let i = searchFrom; i >= 0; i--) {
+      if (bars[i].c > bars[i].o && bars[i].h > prevSecondH) {
+        secondUp = { bar: bars[i], index: i };
+        break;
+      }
+    }
+    if (!secondUp) return null;
+  }
+}
+
 // ── SOW detection ──
 
 function detectSOW(bars, highIndex) {
@@ -255,6 +336,7 @@ function detectSOW(bars, highIndex) {
 
   // Previous sign of weakness (target)
   const target = findPreviousSOW(bars, highIndex, moveToHigh);
+  const importantTarget = findImportantPreviousSOW(bars, highIndex, moveToHigh);
 
   return {
     highBar,
@@ -265,6 +347,7 @@ function detectSOW(bars, highIndex) {
     invalidation,
     invalidated,
     target,
+    importantTarget,
   };
 }
 
@@ -330,6 +413,84 @@ function findPreviousSOW(bars, highIndex, moveToHighLevel) {
     signOfWeakness: prevSOW,
     targetLevel: prevSOW ? prevMoveToHigh : null,
   };
+}
+
+function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
+  // Step 1-3: scan backwards, skip candles with high > level, stop at first with high < level
+  let escapeIndex = null;
+  for (let i = highIndex - 1; i >= 0; i--) {
+    if (bars[i].h < moveToHighLevel) {
+      escapeIndex = i;
+      break;
+    }
+  }
+  if (escapeIndex === null) return null;
+
+  // Step 4: from escape, scan backwards for first DOWN candle
+  let firstDown = null;
+  for (let i = escapeIndex; i >= 0; i--) {
+    if (bars[i].c < bars[i].o) {
+      firstDown = { bar: bars[i], index: i };
+      break;
+    }
+  }
+  if (!firstDown) return null;
+
+  // Step 5: scan backwards for second DOWN candle (lower than first)
+  let secondDown = null;
+  for (let i = firstDown.index - 1; i >= 0; i--) {
+    if (bars[i].c < bars[i].o && bars[i].l < firstDown.bar.l) {
+      secondDown = { bar: bars[i], index: i };
+      break;
+    }
+  }
+  if (!secondDown) return null;
+
+  // Widening loop: find SOW within the two DOWN candles, widen if needed
+  while (true) {
+    // Find highest point between second and first DOWN candles
+    let prevHigh = bars[secondDown.index];
+    let prevHighIdx = secondDown.index;
+    for (let i = secondDown.index; i <= firstDown.index; i++) {
+      if (bars[i].h > prevHigh.h) {
+        prevHigh = bars[i];
+        prevHighIdx = i;
+      }
+    }
+
+    const prevMoveToHigh = prevHigh.l;
+
+    // Scan forward from highest point, capped at firstDown.index
+    let prevSOW = null;
+    for (let i = prevHighIdx + 1; i < firstDown.index; i++) {
+      if (bars[i].c < prevMoveToHigh) {
+        prevSOW = { level: prevMoveToHigh, bar: bars[i], index: i };
+        break;
+      }
+    }
+
+    if (prevSOW) {
+      return {
+        prevHighBar: prevHigh,
+        prevHighIndex: prevHighIdx,
+        prevMoveToHigh,
+        signOfWeakness: prevSOW,
+        targetLevel: prevMoveToHigh,
+      };
+    }
+
+    // SOW not found within range — widen: keep firstDown fixed, find next DOWN candle lower than current secondDown
+    const prevSecondL = secondDown.bar.l;
+    const searchFrom = secondDown.index - 1;
+    secondDown = null;
+    for (let i = searchFrom; i >= 0; i--) {
+      if (bars[i].c < bars[i].o && bars[i].l < prevSecondL) {
+        secondDown = { bar: bars[i], index: i };
+        break;
+      }
+    }
+    if (!secondDown) return null;
+  }
 }
 
 // ── Trade Management ──

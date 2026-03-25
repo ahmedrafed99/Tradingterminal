@@ -113,6 +113,8 @@ const commands = {
   async 'draw-hline'(args) {
     require(args, 'price');
     const color = args.color || COLORS.neutral;
+    const startTime = args.startTime ? Number(args.startTime) : 0;
+    const extendLeft = startTime === 0;
     const result = await post('/drawings/add', {
       type: 'hline',
       price: Number(args.price),
@@ -120,8 +122,8 @@ const commands = {
       strokeWidth: Number(args.strokeWidth || 1),
       contractId: args.contractId || '',
       text: args.label ? makeText(args.label, color) : null,
-      startTime: 0,
-      extendLeft: true,
+      startTime,
+      extendLeft,
     });
     console.log(JSON.stringify(result));
   },
@@ -255,6 +257,7 @@ const commands = {
       console.log(`  Invalidation Level: ${s.sos.invalidation ? fmt(s.sos.invalidation.level) : '—'}`);
       console.log(`  Invalidated:        ${s.sos.invalidated ? 'YES @ ' + time(s.sos.invalidated.bar) : 'No'}`);
       console.log(`  Target (prev SOS):  ${s.sos.target?.targetLevel ? fmt(s.sos.target.targetLevel) : '—'}`);
+      console.log(`  Important Target:   ${s.sos.importantTarget?.targetLevel ? fmt(s.sos.importantTarget.targetLevel) : '—'}`);
     }
 
     if (s.sow) {
@@ -266,6 +269,7 @@ const commands = {
       console.log(`  Invalidation Level: ${s.sow.invalidation ? fmt(s.sow.invalidation.level) : '—'}`);
       console.log(`  Invalidated:        ${s.sow.invalidated ? 'YES @ ' + time(s.sow.invalidated.bar) : 'No'}`);
       console.log(`  Target (prev SOW):  ${s.sow.target?.targetLevel ? fmt(s.sow.target.targetLevel) : '—'}`);
+      console.log(`  Important Target:   ${s.sow.importantTarget?.targetLevel ? fmt(s.sow.importantTarget.targetLevel) : '—'}`);
     }
   },
 
