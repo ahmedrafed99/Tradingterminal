@@ -85,7 +85,7 @@ class FootprintPaneView implements IPrimitivePaneView {
     return new FootprintRenderer(this._bars);
   }
 
-  zOrder(): string {
+  zOrder(): 'bottom' {
     return 'bottom';
   }
 }
@@ -101,6 +101,7 @@ export class BidAskPrimitive implements ISeriesPrimitive<Time> {
 
   // candleTime → (price → counts)
   private _data: Map<number, Map<number, LevelCounts>> = new Map();
+  private _maxCount = 1;
   private _tickSize = 0.25;
   private _enabled = false;
 
@@ -151,6 +152,7 @@ export class BidAskPrimitive implements ISeriesPrimitive<Time> {
       const level = candle.get(bid);
       if (level) {
         level.bidCount++;
+        if (level.bidCount > this._maxCount) this._maxCount = level.bidCount;
       } else {
         candle.set(bid, { bidCount: 1, askCount: 0 });
       }
@@ -160,6 +162,7 @@ export class BidAskPrimitive implements ISeriesPrimitive<Time> {
       const level = candle.get(ask);
       if (level) {
         level.askCount++;
+        if (level.askCount > this._maxCount) this._maxCount = level.askCount;
       } else {
         candle.set(ask, { bidCount: 0, askCount: 1 });
       }
@@ -170,6 +173,7 @@ export class BidAskPrimitive implements ISeriesPrimitive<Time> {
   /** Clear all data */
   clear(): void {
     this._data.clear();
+    this._maxCount = 1;
     this._requestUpdate?.();
   }
 
@@ -197,14 +201,7 @@ export class BidAskPrimitive implements ISeriesPrimitive<Time> {
     const halfTick = this._tickSize / 2;
     const result: FootprintBar[] = [];
 
-    // Find global max count for normalization
-    let maxCount = 1;
-    for (const candle of this._data.values()) {
-      for (const level of candle.values()) {
-        if (level.bidCount > maxCount) maxCount = level.bidCount;
-        if (level.askCount > maxCount) maxCount = level.askCount;
-      }
-    }
+    const maxCount = this._maxCount;
 
     for (const [time, candle] of this._data) {
       const x = timeScale.timeToCoordinate(time as Time);
