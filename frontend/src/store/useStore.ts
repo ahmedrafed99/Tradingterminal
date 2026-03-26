@@ -84,6 +84,8 @@ export const useStore = create<Store>()(
         secondVpEnabled: s.secondVpEnabled,
         secondVpColor: s.secondVpColor,
         secondVpHoverExpand: s.secondVpHoverExpand,
+        bidAskEnabled: s.bidAskEnabled,
+        secondBidAskEnabled: s.secondBidAskEnabled,
         bottomPanelOpen: s.bottomPanelOpen,
         bottomPanelRatio: s.bottomPanelRatio,
         bottomPanelTab: s.bottomPanelTab,

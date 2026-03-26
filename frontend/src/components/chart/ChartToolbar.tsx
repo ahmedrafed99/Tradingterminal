@@ -110,6 +110,10 @@ function IndicatorsDropdown() {
     s.selectedChart === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
   const setVpHoverExpand = useStore((s) =>
     s.selectedChart === 'left' ? s.setVpHoverExpand : s.setSecondVpHoverExpand);
+  const bidAskEnabled = useStore((s) =>
+    s.selectedChart === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
+  const setBidAskEnabled = useStore((s) =>
+    s.selectedChart === 'left' ? s.setBidAskEnabled : s.setSecondBidAskEnabled);
   const [open, setOpen] = useState(false);
   const [editingVp, setEditingVp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -195,6 +199,36 @@ function IndicatorsDropdown() {
                     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
                 </button>
+              </div>
+
+              {/* Bid/Ask Footprint row */}
+              <div
+                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg"
+                style={{ padding: '8px 10px' }}
+              >
+                <button
+                  onClick={() => setBidAskEnabled(!bidAskEnabled)}
+                  style={{
+                    width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
+                    border: bidAskEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
+                    background: bidAskEnabled ? 'var(--color-accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {bidAskEnabled && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
+                      <path d="M2 5l2.5 2.5L8 3" />
+                    </svg>
+                  )}
+                </button>
+                <span
+                  className="flex-1 text-xs text-(--color-text) cursor-pointer select-none"
+                  style={{ marginLeft: 10 }}
+                  onClick={() => setBidAskEnabled(!bidAskEnabled)}
+                >
+                  Bid/Ask Footprint
+                </span>
               </div>
             </div>
           ) : (

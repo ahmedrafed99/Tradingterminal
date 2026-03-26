@@ -34,6 +34,7 @@ export function useChartBars(
   const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
   const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
   const vpHoverExpand = useStore((s) => chartId === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
+  const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
 
   // Bump to force historical bar reload on market hub reconnect
   const [reconnectCount, setReconnectCount] = useState(0);
@@ -80,6 +81,8 @@ export function useChartBars(
         const candles = sorted.map(barToCandle);
         series.setData(candles);
         refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
+        refs.bidAskPrimitive.current?.clear();
+        refs.bidAskPrimitive.current?.setTickSize(contract!.tickSize);
 
         // Push future whitespace to the separate invisible series so the
         // crosshair time label shows beyond the last candle
@@ -196,9 +199,6 @@ export function useChartBars(
     function handleQuote(quoteContractId: string, data: GatewayQuote) {
       if (quoteContractId !== contractId || !refs.series.current) return;
 
-      const price = data.lastPrice;
-      if (price == null || !isFinite(price)) return;
-
       // Skip quotes while futures market is closed (Fri 17:00 ET → Sun 18:00 ET)
       if (!isFuturesMarketOpen()) return;
 
@@ -211,6 +211,12 @@ export function useChartBars(
 
       // Skip quotes older than the current bar (lightweight-charts rejects these)
       if (candleTime < lastBar.time) return;
+
+      // Track bid/ask footprint per candle (even if lastPrice is undefined)
+      refs.bidAskPrimitive.current?.updateBidAsk(candleTime, data.bestBid, data.bestAsk);
+
+      const price = data.lastPrice;
+      if (price == null || !isFinite(price)) return;
 
       if (lastBar.time === candleTime) {
         // Update existing bar
@@ -357,6 +363,11 @@ export function useChartBars(
   useEffect(() => {
     refs.vpPrimitive.current?.setHoverExpand(vpHoverExpand);
   }, [vpHoverExpand]);
+
+  // -- Bid/Ask footprint enabled sync --
+  useEffect(() => {
+    refs.bidAskPrimitive.current?.setEnabled(bidAskEnabled);
+  }, [bidAskEnabled]);
 
   // -- VP hover tracking (crosshair move feeds hover price to primitive) --
   useEffect(() => {

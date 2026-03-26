@@ -7,6 +7,7 @@ import type { CrosshairLabelPrimitive } from '../CrosshairLabelPrimitive';
 import type { TradeZonePrimitive } from '../TradeZonePrimitive';
 import type { VolumeProfilePrimitive } from '../VolumeProfilePrimitive';
 import type { NewsEventsPrimitive } from '../primitives/NewsEventsPrimitive';
+import type { BidAskPrimitive } from '../BidAskPrimitive';
 import type { PriceLevelLine } from '../PriceLevelLine';
 
 // ── Preview line role (entry, SL, TP, or quick-order variants) ──
@@ -76,6 +77,7 @@ export interface ChartRefs {
   tradeZonePrimitive: React.MutableRefObject<TradeZonePrimitive | null>;
   vpPrimitive: React.MutableRefObject<VolumeProfilePrimitive | null>;
   newsEventsPrimitive: React.MutableRefObject<NewsEventsPrimitive | null>;
+  bidAskPrimitive: React.MutableRefObject<BidAskPrimitive | null>;
 
   // DOM elements
   ohlc: React.RefObject<HTMLDivElement | null>;

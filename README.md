@@ -22,7 +22,8 @@ docs/
 │   ├── go-to-now/        — Floating scroll-to-latest button
 │   ├── symbol-display/   — Instrument label overlay
 │   └── indicators/
-│       └── volume-profile/ — Session volume profile (GatewayDepth)
+│       ├── volume-profile/    — Session volume profile (GatewayDepth)
+│       └── bid-ask-footprint/ — Per-candle bid/ask footprint (GatewayQuote)
 ├── chart-settings-menu/  — Gear button, quick popover, full settings modal
 ├── design-tokens/        — Color palette rules + UI tokens (font, z-index, shadows, radii, transitions)
 ├── chart-trading/        — + button, order lines, preview overlay, drag, labels
@@ -68,6 +69,7 @@ docs/
 | Bot drawing tools (HLine, markers, API)     | `docs/bot-trading/` |
 | Drawing renderers and hit testing           | `docs/drawing-tools/` |
 | Volume profile data source (GatewayDepth)   | `docs/candlestick-chart/indicators/volume-profile/` |
+| Bid/Ask footprint (per-candle bid/ask bars) | `docs/candlestick-chart/indicators/bid-ask-footprint/` |
 | Chart screenshot / clipboard                | `docs/chart-screenshot/` |
 | Dual chart layout + crosshair sync          | `docs/chart-layout/` |
 | Crosshair price label + primitive z-order   | `docs/candlestick-chart/` → Price Scale Primitives |

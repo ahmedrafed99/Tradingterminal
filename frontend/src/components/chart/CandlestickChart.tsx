@@ -14,6 +14,7 @@ import { CrosshairLabelPrimitive } from './CrosshairLabelPrimitive';
 import { registerChart, unregisterChart } from './screenshot/chartRegistry';
 import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { VolumeProfilePrimitive } from './VolumeProfilePrimitive';
+import { BidAskPrimitive } from './BidAskPrimitive';
 import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
 import type { PriceLevelLine } from './PriceLevelLine';
 import { getPriceScaleWidth } from './barUtils';
@@ -63,6 +64,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const whitespaceSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const tradeZonePrimitiveRef = useRef<TradeZonePrimitive | null>(null);
   const vpPrimitiveRef = useRef<VolumeProfilePrimitive | null>(null);
+  const bidAskPrimitiveRef = useRef<BidAskPrimitive | null>(null);
   const newsEventsPrimitiveRef = useRef<NewsEventsPrimitive | null>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
   const instrumentLabelRef = useRef<HTMLDivElement>(null);
@@ -128,6 +130,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     whitespaceSeries: whitespaceSeriesRef,
     tradeZonePrimitive: tradeZonePrimitiveRef,
     vpPrimitive: vpPrimitiveRef,
+    bidAskPrimitive: bidAskPrimitiveRef,
     newsEventsPrimitive: newsEventsPrimitiveRef,
     ohlc: ohlcRef,
     instrumentLabel: instrumentLabelRef,
@@ -201,6 +204,11 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     series.attachPrimitive(vpPrimitive);
     vpPrimitiveRef.current = vpPrimitive;
 
+    // Attach bid/ask footprint primitive — per-candle bid/ask bars
+    const bidAskPrimitive = new BidAskPrimitive();
+    series.attachPrimitive(bidAskPrimitive);
+    bidAskPrimitiveRef.current = bidAskPrimitive;
+
     // Attach news events primitive — calendar markers at bottom of chart
     const newsEventsPrimitive = new NewsEventsPrimitive();
     series.attachPrimitive(newsEventsPrimitive);
@@ -253,6 +261,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       crosshairLabelRef.current = null;
       tradeZonePrimitiveRef.current = null;
       vpPrimitiveRef.current = null;
+      bidAskPrimitiveRef.current = null;
       newsEventsPrimitiveRef.current = null;
       el.removeEventListener('mousedown', onSelectClick);
     };

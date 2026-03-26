@@ -83,6 +83,16 @@ export interface VolumeProfileState {
 }
 
 // ---------------------------------------------------------------------------
+// Bid/Ask Footprint
+// ---------------------------------------------------------------------------
+export interface BidAskFootprintState {
+  bidAskEnabled: boolean;
+  secondBidAskEnabled: boolean;
+  setBidAskEnabled: (enabled: boolean) => void;
+  setSecondBidAskEnabled: (enabled: boolean) => void;
+}
+
+// ---------------------------------------------------------------------------
 // News
 // ---------------------------------------------------------------------------
 export interface NewsImpactFilter {
@@ -106,7 +116,7 @@ export interface OrderPanelPositionState {
   setOrderPanelSide: (side: 'left' | 'right') => void;
 }
 
-export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & NewsState & OrderPanelPositionState;
+export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & BidAskFootprintState & NewsState & OrderPanelPositionState;
 
 type Set = {
   (partial: Partial<LayoutSlice>): void;
@@ -187,6 +197,12 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   setSecondVpEnabled: (secondVpEnabled) => set({ secondVpEnabled }),
   setSecondVpColor: (secondVpColor) => set({ secondVpColor }),
   setSecondVpHoverExpand: (secondVpHoverExpand) => set({ secondVpHoverExpand }),
+
+  // Bid/Ask Footprint
+  bidAskEnabled: false,
+  secondBidAskEnabled: false,
+  setBidAskEnabled: (bidAskEnabled) => set({ bidAskEnabled }),
+  setSecondBidAskEnabled: (secondBidAskEnabled) => set({ secondBidAskEnabled }),
 
   // Order Panel Position
   orderPanelSide: 'left' as 'left' | 'right',
