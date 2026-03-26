@@ -34,7 +34,7 @@ A near-full-screen popover triggered by a **Stats** tab in the bottom panel. Dis
 |------|---------|
 | **Total P&L** | Large 28px colored dollar value, vertically centered |
 | **Trade Win %** | 28px percentage + SVG gauge donut (270° arc, green win / red loss). Winners count (green) at top-left of arc, losers count (red) at bottom-right |
-| **Avg Win / Avg Loss** | Side-by-side: `+$65.92 / -$24.72` in green/red at 28px |
+| **Avg Win / Avg Loss** | Side-by-side: `+$65.92 / -$24.72` in green/red at 28px. Below: `Avg RR: X.XXR` in 13px muted text with bright animated value |
 
 **Row 2:**
 

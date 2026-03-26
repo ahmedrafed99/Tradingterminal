@@ -216,6 +216,10 @@ export function StatsKpiCards({ stats }: { stats: TradeStats }) {
             <AnimatedNumber value={stats.avgWinner} fontSize={28} color="var(--color-buy)" prefix="+$" />
             <span style={{ fontSize: 20, color: 'var(--color-text-dim)', margin: '0 8px' }}>/</span>
             <AnimatedNumber value={stats.avgLoser} fontSize={28} color="var(--color-sell)" prefix="-$" />
+            <div style={{ marginTop: 8, fontSize: 13, color: 'var(--color-text-muted)' }}>
+              Avg RR:{' '}
+              <AnimatedNumber value={stats.avgRR} fontSize={13} color="var(--color-text-bright)" suffix="R" />
+            </div>
           </div>
         </div>
       </StatCard>
