@@ -56,6 +56,12 @@ Enabled via **Indicators** dropdown in the chart toolbar → "Bid/Ask Footprint"
 | `frontend/src/components/chart/ChartToolbar.tsx` | Toggle UI in Indicators dropdown |
 | `frontend/src/store/slices/layoutSlice.ts` | `BidAskFootprintState` — enabled booleans + setters |
 
+## Performance
+
+Data collection runs continuously regardless of the toggle state — each quote tick does one `Map.get` + counter increment per side, which is negligible at 100+ quotes/sec. Memory cost over a full session (~1,380 one-minute candles × ~10-20 price levels) is under 1MB. Rendering is gated by `_enabled`: when toggled off, `paneViews()` returns an empty array and no canvas work is done.
+
+This "always collect" approach means toggling the indicator on mid-session shows footprint data for all candles since page load, not just from the moment it was enabled.
+
 ## Limitations
 
 - Only shows data from the current session (no historical bid/ask data from API)
