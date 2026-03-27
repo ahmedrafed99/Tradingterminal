@@ -93,7 +93,7 @@ export function BuySellButtons() {
         useStore.getState().togglePreview();
       } else if (orderType === 'limit' && useStore.getState().previewEnabled) {
         useStore.setState({ previewHideEntry: true });
-      } else {
+      } else if (!useStore.getState().previewHideEntry) {
         clearAdHocBrackets();
       }
     } catch (err: unknown) {

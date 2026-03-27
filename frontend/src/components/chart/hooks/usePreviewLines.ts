@@ -45,7 +45,7 @@ export function usePreviewLines(
     refs.previewRoles.current = [];
     refs.previewPrices.current = [];
 
-    if (!previewEnabled || !contract) return;
+    if ((!previewEnabled && !previewHideEntry) || !contract) return;
 
     const config = resolvePreviewConfig();
     const tickSize = contract.tickSize;
@@ -110,7 +110,7 @@ export function usePreviewLines(
   // Uses direct Zustand subscription for lastPrice to avoid re-rendering on every tick
   useEffect(() => {
     if (!isOrderChart) return;
-    if (!previewEnabled || !contract) return;
+    if ((!previewEnabled && !previewHideEntry) || !contract) return;
     if (refs.previewLines.current.length === 0) return;
 
     const toPrice = (points: number) => pointsToPrice(points, contract);
@@ -172,5 +172,5 @@ export function usePreviewLines(
     });
 
     return () => { unsub(); };
-  }, [isOrderChart, previewEnabled, previewSide, bracketPresets, activePresetId, contract, orderType, limitPrice, draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels]);
+  }, [isOrderChart, previewEnabled, previewHideEntry, previewSide, bracketPresets, activePresetId, contract, orderType, limitPrice, draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels]);
 }

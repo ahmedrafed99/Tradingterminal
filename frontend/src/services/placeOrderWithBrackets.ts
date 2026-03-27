@@ -117,6 +117,20 @@ export async function placeOrderWithBrackets(
       useStore.getState().setPendingEntryOrderId(orderId);
     }
 
+    // Match the chart preview label flow (buildPreviewLabels): clear
+    // pendingBracketInfo so dragging the entry won't trigger useOrderLines
+    // to rebuild with stale bracket prices, and activate preview lines
+    // for TP/SL display during drag.
+    if (bracketsActive && limitPrice != null) {
+      useStore.getState().setPendingBracketInfo(null);
+      useStore.setState({
+        previewHideEntry: true,
+        previewSide: side,
+        limitPrice,
+        orderType: 'limit',
+      });
+    }
+
     return { orderId };
   } catch (err) {
     if (engineNeeded) {

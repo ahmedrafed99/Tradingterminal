@@ -17,11 +17,12 @@ export function usePreviewDrag(
   isOrderChart: boolean,
 ): void {
   const previewEnabled = useStore((s) => s.previewEnabled);
+  const previewHideEntry = useStore((s) => s.previewHideEntry);
 
   useEffect(() => {
     if (!isOrderChart) return;
     const container = refs.container.current;
-    if (!container || !previewEnabled || !contract) return;
+    if (!container || (!previewEnabled && !previewHideEntry) || !contract) return;
 
     function snap(price: number): number {
       const ts = contract!.tickSize;
@@ -101,5 +102,5 @@ export function usePreviewDrag(
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [isOrderChart, previewEnabled, contract]);
+  }, [isOrderChart, previewEnabled, previewHideEntry, contract]);
 }
