@@ -1,5 +1,50 @@
 # Chart Trading: Resolved Issues
 
+## Bracket SL/TP Snap Back to Preset Values After Limit Order Fill
+
+**Date resolved**: 2026-03-27
+
+**Severity**: High (bracket orders placed at wrong prices after fill)
+
+### Symptom
+
+After placing a limit order with bracket preset (e.g. SL=8pt, TP=40pt), dragging the SL/TP preview lines to adjusted positions, then waiting for the limit order to fill — the SL and TP orders snapped back to the original preset values instead of staying at the dragged positions.
+
+### Root Cause
+
+Regression from commit `f214d36` ("Unify order line rendering — eliminate dual QO preview system"). That refactoring stripped `modifyOrder` calls from `usePreviewDrag` with the note "handled by useOrderDrag". But after the ghost line fix (`422de05`), brackets in `previewHideEntry` mode render as **preview lines** — so `usePreviewDrag` handles the drag, which no longer called `modifyOrder`.
+
+Additionally, the gateway recalculates bracket prices on entry fill using `fill_price + original_tick_offsets`, overwriting any pre-fill modifications. And native bracket legs arrive without `customTag`, so the existing post-fill correction logic (which required `customTag`) never triggered.
+
+### Why previous fix attempts failed
+
+1. **modifyOrder before fill**: Gateway overwrites bracket prices on fill using original tick offsets
+2. **Post-fill correction via `customTag`**: Native bracket legs have no `customTag` — correction logic at `order.customTag` check never fired
+3. **`searchOpenOrders` REST refresh**: Returned gateway prices (original offsets) and overwrote corrected store values
+4. **`pendingBracketInfo` rebuild on drag**: Triggered `useOrderLines` re-render creating phantom line duplicates and visual snap-back flicker
+
+### Fix
+
+| File | Change |
+|------|--------|
+| `usePreviewDrag.ts` | On mouseUp in `previewHideEntry` mode, call `bracketEngine.updateArmedConfig()` to sync draft overrides (engine path). No `pendingBracketInfo` set (avoids phantom line duplication). |
+| `OrderPanel.tsx` | Post-fill correction: on entry fill, compute desired prices from `resolvePreviewConfig()` + fill price. Immediately upsert corrected prices (visual). Track order IDs in `bracketCorrectionIds` ref to suppress incoming gateway events. After 500ms delay, call `modifyOrder` on the exchange. Clear suppression after 2.5s. |
+| `OrderPanel.tsx` | Guard `searchOpenOrders` refresh with `!previewHideEntry` — skip during bracket correction window. |
+| `useOrderLines.ts` | Hide bracket order lines (opposite side of `previewSide`) when `previewHideEntry` active — preview lines handle display. Skip phantom bracket lines from `pendingBracketInfo` when `previewHideEntry` active. |
+
+### Key Insight
+
+The gateway's bracket system is opaque: bracket legs arrive as Working orders with no `customTag`, and the gateway silently recalculates bracket prices on fill regardless of pre-fill modifications. The only reliable correction window is **after the fill**, with a delay for the gateway to finish processing, plus suppression of incoming SignalR events to prevent the gateway's original prices from overwriting the optimistic store update.
+
+### Key Files
+
+- `frontend/src/components/chart/hooks/usePreviewDrag.ts` — preview line drag, engine config sync
+- `frontend/src/components/chart/hooks/useOrderLines.ts` — bracket line hiding during previewHideEntry
+- `frontend/src/components/order-panel/OrderPanel.tsx` — post-fill correction, event suppression, REST guard
+- `frontend/src/components/chart/hooks/resolvePreviewConfig.ts` — merges draft overrides with preset config
+
+---
+
 ## Ghost TP/SL Lines on Bracket Order Entry Drag
 
 **Date resolved**: 2026-03-27

@@ -50,6 +50,7 @@ docs/
 ├── claude-trader/        — Autonomous NQ trading system (tools, journal, state)
 ├── claude-strategies/    — Backtested algorithmic strategies (London Sniper, etc.)
 ├── trading-strategy/     — Price action reversal research (Origin method)
+├── account-copier/       — Copy trading: master → follower trade mirroring
 └── refactor/             — Known architectural issues and cleanup priorities
 ```
 
@@ -89,6 +90,7 @@ docs/
 | Ad-hoc brackets (+SL/+TP, no preset)       | `docs/chart-trading/` → Ad-Hoc Brackets |
 | Position drag-to-create SL/TP              | `docs/chart-trading/` → Position Drag-to-Create |
 | Conditional orders (candle-close triggers)  | `docs/conditional-orders/` |
+| Copy trading / account copier               | `docs/account-copier/` |
 | Condition deployment (Render / Docker)      | `docs/conditional-orders/` → Deployment |
 | Voice notifications on fills                | `docs/voice-notifications/` |
 | Chart video recording                       | `docs/video-recording/` |

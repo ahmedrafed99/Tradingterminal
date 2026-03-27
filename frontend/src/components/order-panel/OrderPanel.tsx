@@ -9,6 +9,8 @@ import { tradeService } from '../../services/tradeService';
 import { getCmeSessionStart } from '../../utils/cmeSession';
 import { marketDataService } from '../../services/marketDataService';
 import { bracketEngine } from '../../services/bracketEngine';
+import { resolvePreviewConfig } from '../chart/hooks/resolvePreviewConfig';
+import { pointsToPrice } from '../../utils/instrument';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
 import { showToast, errorMessage } from '../../utils/toast';
 import { audioService } from '../../services/audioService';
@@ -184,6 +186,8 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
 
   const subscribedAccountRef = useRef<string | null>(null);
   const bracketRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Order IDs being corrected post-fill — suppress incoming SignalR updates for these
+  const bracketCorrectionIds = useRef<Set<string>>(new Set());
 
   // Reset subscription guard when connection state changes (disconnect → reconnect)
   const connected = useStore((s) => s.connected);
@@ -222,7 +226,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
       // orders placed externally that we haven't received via SignalR yet.
       // Skip bracket legs (customTag present) — they don't appear in searchOpenOrders while
       // Suspended, and post-fill we handle their prices via the correction logic below.
-      if (order.status === OrderStatus.Working && !order.customTag) {
+      if (order.status === OrderStatus.Working && !order.customTag && !useStore.getState().previewHideEntry) {
         const acctId = useStore.getState().activeAccountId;
         if (acctId) {
           if (bracketRefreshTimerRef.current) clearTimeout(bracketRefreshTimerRef.current);
@@ -274,12 +278,102 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
         }
       }
 
-      // Clear pendingBracketInfo when the entry order fills or is cancelled
+      // On entry fill: correct bracket legs to user-adjusted prices if drafts differ
+      // from the preset. On cancel: just clean up.
       if (order.status === OrderStatus.Filled || order.status === OrderStatus.Cancelled) {
         const st = useStore.getState();
         if (st.pendingEntryOrderId && order.id === st.pendingEntryOrderId) {
-          st.setPendingBracketInfo(null);
           st.setPendingEntryOrderId(null);
+          st.setPendingBracketInfo(null);
+
+          if (order.status === OrderStatus.Filled && st.previewHideEntry) {
+            // Compute desired bracket prices from current draft state + fill price.
+            // resolvePreviewConfig merges draftSlPoints/draftTpPoints with preset.
+            const cfg = resolvePreviewConfig();
+            const fillPrice = order.filledPrice ?? st.limitPrice ?? 0;
+            const side = st.previewSide;
+            const contract = st.orderContract;
+
+            if (cfg && contract && fillPrice) {
+              const oppSide = side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+              const toP = (pts: number) => pointsToPrice(pts, contract);
+              const acctId = st.activeAccountId;
+
+              // Optimistically upsert corrected prices immediately (visual)
+              // and track IDs to suppress gateway events during the correction window.
+              const correctionIds: string[] = [];
+
+              if (cfg.stopLoss.points > 0) {
+                const desiredSl = side === OrderSide.Buy
+                  ? fillPrice - toP(cfg.stopLoss.points)
+                  : fillPrice + toP(cfg.stopLoss.points);
+                const slOrder = st.openOrders.find((o) =>
+                  String(o.contractId) === String(order.contractId)
+                  && o.side === oppSide
+                  && (o.type === OrderType.Stop || o.type === OrderType.TrailingStop));
+                if (slOrder) {
+                  correctionIds.push(slOrder.id);
+                  bracketCorrectionIds.current.add(slOrder.id);
+                  st.upsertOrder({ ...slOrder, stopPrice: desiredSl });
+                }
+              }
+
+              const tpOrders = st.openOrders.filter((o) =>
+                String(o.contractId) === String(order.contractId)
+                && o.side === oppSide
+                && o.type === OrderType.Limit);
+              const desiredTps: { order: typeof tpOrders[0]; price: number }[] = [];
+              cfg.takeProfits.forEach((tp, i) => {
+                const desiredTp = side === OrderSide.Buy
+                  ? fillPrice + toP(tp.points)
+                  : fillPrice - toP(tp.points);
+                const tpOrder = tpOrders[i];
+                if (tpOrder) {
+                  correctionIds.push(tpOrder.id);
+                  bracketCorrectionIds.current.add(tpOrder.id);
+                  st.upsertOrder({ ...tpOrder, limitPrice: desiredTp });
+                  desiredTps.push({ order: tpOrder, price: desiredTp });
+                }
+              });
+
+              // Delay modifyOrder: gateway recalculates bracket prices on fill
+              // using original tick offsets — wait for that to settle.
+              setTimeout(() => {
+                const st2 = useStore.getState();
+                if (!acctId) return;
+
+                if (cfg.stopLoss.points > 0) {
+                  const desiredSl = side === OrderSide.Buy
+                    ? fillPrice - toP(cfg.stopLoss.points)
+                    : fillPrice + toP(cfg.stopLoss.points);
+                  const slOrder = st2.openOrders.find((o) =>
+                    String(o.contractId) === String(order.contractId)
+                    && o.side === oppSide
+                    && (o.type === OrderType.Stop || o.type === OrderType.TrailingStop));
+                  if (slOrder) {
+                    orderService.modifyOrder({ accountId: acctId, orderId: slOrder.id, stopPrice: desiredSl }).catch((err) => {
+                      console.error('[OrderPanel] Post-fill SL correction failed:', err instanceof Error ? err.message : err);
+                    });
+                  }
+                }
+
+                desiredTps.forEach(({ order: tpOrder, price }) => {
+                  orderService.modifyOrder({ accountId: acctId, orderId: tpOrder.id, limitPrice: price }).catch((err) => {
+                    console.error('[OrderPanel] Post-fill TP correction failed:', err instanceof Error ? err.message : err);
+                  });
+                });
+
+                // Clear suppression after gateway has had time to confirm
+                setTimeout(() => {
+                  for (const id of correctionIds) bracketCorrectionIds.current.delete(id);
+                }, 2000);
+
+                useStore.setState({ previewEnabled: false, previewHideEntry: false });
+              }, 500);
+            } else {
+              useStore.setState({ previewEnabled: false, previewHideEntry: false });
+            }
+          }
         }
       }
 
@@ -324,6 +418,8 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
         }
 
       } else {
+        // Suppress gateway updates for orders being corrected post-fill
+        if (bracketCorrectionIds.current.has(order.id)) return;
         upsertOrder({
           id: order.id,
           contractId: order.contractId,

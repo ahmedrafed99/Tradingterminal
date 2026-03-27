@@ -9,12 +9,13 @@ import { DatabaseTab } from './settings/DatabaseTab';
 import { SoundTab } from './settings/SoundTab';
 import { ShortcutsTab } from './settings/ShortcutsTab';
 import { RecordingTab } from './settings/RecordingTab';
+import { CopyTradingTab } from './settings/CopyTradingTab';
 import { Modal } from './shared/Modal';
 import { CustomSelect } from './shared/CustomSelect';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
-type SettingsTab = 'datafeed' | 'database' | 'sound' | 'shortcuts' | 'recording';
+type SettingsTab = 'datafeed' | 'database' | 'sound' | 'shortcuts' | 'recording' | 'copytrading';
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'datafeed', label: 'Data Feed' },
@@ -22,6 +23,7 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'sound', label: 'Sound' },
   { id: 'shortcuts', label: 'Shortcuts' },
   { id: 'recording', label: 'Recording' },
+  { id: 'copytrading', label: 'Copy Trading' },
 ];
 
 const DATA_FEED_PROVIDERS = [
@@ -300,6 +302,7 @@ export function SettingsModal() {
           {tab === 'sound' && <SoundTab />}
           {tab === 'shortcuts' && <ShortcutsTab />}
           {tab === 'recording' && <RecordingTab />}
+          {tab === 'copytrading' && <CopyTradingTab />}
         </div>
     </Modal>
   );

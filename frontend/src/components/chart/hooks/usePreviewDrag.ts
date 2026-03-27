@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
+import { bracketEngine } from '../../../services/bracketEngine';
 import { priceToPoints } from '../../../utils/instrument';
 import type { ChartRefs } from './types';
 
@@ -82,6 +83,21 @@ export function usePreviewDrag(
           const dy = Math.abs(e.clientY - click.downY);
           if (dx < 4 && dy < 4) click.exec();
           refs.entryClick.current = null;
+        }
+
+        // Update engine's armed config so fills use adjusted bracket values (2+ TP path)
+        if (previewHideEntry && drag.role.kind !== 'entry') {
+          const st = useStore.getState();
+          bracketEngine.updateArmedConfig((cfg) => ({
+            ...cfg,
+            stopLoss: st.draftSlPoints != null
+              ? { ...cfg.stopLoss, points: st.draftSlPoints }
+              : cfg.stopLoss,
+            takeProfits: cfg.takeProfits.map((tp, i) => {
+              const draft = st.draftTpPoints[i];
+              return draft != null ? { ...tp, points: draft } : tp;
+            }),
+          }));
         }
 
         refs.previewDragState.current = null;

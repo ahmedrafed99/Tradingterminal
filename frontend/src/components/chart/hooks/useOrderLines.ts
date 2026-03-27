@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
-import { OrderType, OrderStatus } from '../../../types/enums';
+import { OrderType, OrderSide, OrderStatus } from '../../../types/enums';
 import { PriceLevelLine } from '../PriceLevelLine';
 import { COLOR_LABEL_BG } from '../../../constants/colors';
 import { computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
@@ -32,6 +32,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
   const positions = useStore((s) => s.positions);
   const activeAccountId = useStore((s) => s.activeAccountId);
   const pendingBracketInfo = useStore((s) => s.pendingBracketInfo);
+  const previewHideEntry = useStore((s) => s.previewHideEntry);
+  const previewSide = useStore((s) => s.previewSide);
 
   useEffect(() => {
     if (!isOrderChart) return;
@@ -69,8 +71,17 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     // Track which bracket prices from pendingBracketInfo are covered by real orders
     const coveredBracketPrices = new Set<number>();
 
+    // When previewHideEntry is active, bracket legs (opposite side) are shown as
+    // preview lines instead — skip them here to avoid duplicate lines during drag.
+    const hideBracketSide = previewHideEntry
+      ? (previewSide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy)
+      : null;
+
     for (const order of openOrders) {
       if (order.contractId !== contract.id) continue;
+
+      // Skip bracket legs when preview lines handle them
+      if (hideBracketSide != null && order.side === hideBracketSide) continue;
 
       let price: number | undefined;
 
@@ -111,7 +122,8 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
 
     // Phantom bracket lines: render from pendingBracketInfo for prices not covered by real orders.
     // Covers: engine-managed TPs (not yet placed), and Suspended legs lost after refresh.
-    if (pendingBracketInfo) {
+    // Skip when previewHideEntry is active — preview lines handle SL/TP display.
+    if (pendingBracketInfo && !previewHideEntry) {
       const bi = pendingBracketInfo;
 
       // Phantom SL
@@ -148,5 +160,5 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       refs.orderLineMeta.current = [];
       refs.orderLinePrices.current = [];
     };
-  }, [isOrderChart, openOrders, positions, contract, activeAccountId, pendingBracketInfo]);
+  }, [isOrderChart, openOrders, positions, contract, activeAccountId, pendingBracketInfo, previewHideEntry, previewSide]);
 }

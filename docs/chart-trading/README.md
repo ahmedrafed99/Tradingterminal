@@ -421,91 +421,50 @@ Drag from position label on chart to create real SL/TP orders directly:
 
 ---
 
-## Native Bracket Order Lifecycle (Gateway Suspended Orders)
+## Native Bracket Order Lifecycle (Gateway Bracket Orders)
 
-### What are Suspended orders?
+### How native brackets work
 
-Status 8 = `Suspended` (renamed from the incorrectly named `Bracket` — the ProjectX gateway swagger names this status "Suspended"). These are gateway-contingent SL/TP legs attached to the entry order via `stopLossBracket`/`takeProfitBracket` parameters on the `placeOrder` call.
+When a limit order is placed with `<= 1 TP` and no price-based conditions, the gateway creates bracket legs (SL/TP) via `stopLossBracket`/`takeProfitBracket` parameters on the `placeOrder` call. The bracket legs arrive via SignalR as **Working orders immediately** — they are live on the exchange from the moment the entry is placed.
 
-- When a limit order with native brackets is placed, the gateway immediately creates the SL and TP child orders in Suspended state.
-- They appear in SignalR `GotOrder` events as `status=8` at the moment the entry order is created.
-- They transition to `status=1 (Working)` via SignalR when the parent entry order fills.
-- They **never appear** in `searchOpenOrders` REST while Suspended — that endpoint only returns Working (status=1) orders. This means a REST refresh triggered by their own events would return an empty result for them.
+Key gateway behaviors:
+- Bracket legs arrive with **no `customTag`** — they cannot be reliably identified by a tag. Instead, they are matched by **opposite side + order type** (Stop/TrailingStop = SL, Limit = TP).
+- On entry fill, the gateway **recalculates bracket prices** using `fill_price + original_tick_offsets`, overwriting any `modifyOrder` calls made before the fill.
+- `modifyOrder` on bracket legs before fill is acknowledged but **silently reverted on fill** — the gateway always uses the original tick offsets from placement time.
 
----
+### Post-fill bracket price correction
 
-### ⚠ Gateway: Suspended orders carry no prices
+When a user drags SL/TP preview lines after placing a limit order (adjusting bracket positions), the gateway will reset those prices on fill. The correction flow handles this:
 
-SignalR delivers Suspended bracket leg orders with `limitPrice=undefined` and `stopPrice=undefined`. Prices are only transmitted when the order transitions to Working (status=1) after the parent entry fills.
+**Phase 1 — During drag** (`usePreviewDrag.ts`):
+- `draftSlPoints`/`draftTpPoints` are updated in the Zustand store (same as pre-placement drag)
+- `bracketEngine.updateArmedConfig()` is called for the engine path (2+ TPs)
+- No `pendingBracketInfo` is set (avoids phantom line duplication and `useOrderLines` re-render flicker)
 
-**Workaround**: `upsertOrder` in `tradingSlice.ts` injects prices from `pendingBracketInfo` when a Suspended order with no prices arrives:
+**Phase 2 — On entry fill** (`OrderPanel.tsx`):
+1. `resolvePreviewConfig()` reads the current draft state to compute desired bracket prices relative to the fill price
+2. **Immediate optimistic upsert**: bracket orders are updated in the store with corrected prices (no visual flash)
+3. **Suppression**: bracket order IDs are tracked in `bracketCorrectionIds` ref — incoming SignalR events for these orders are suppressed to prevent the gateway's original prices from overwriting the optimistic update
+4. **Delayed `modifyOrder`** (500ms): after the gateway finishes processing the fill, `modifyOrder` is called to correct the prices on the exchange
+5. **Cleanup** (2.5s): suppression is lifted, `previewHideEntry` is cleared
 
-- `customTag` is checked first (reliable — see below). If the tag ends with `-SL`, the `slPrice` from `pendingBracketInfo` is injected as `stopPrice`. If it ends with `-TP`, `tpPrices[0]` is injected as `limitPrice`.
-- Falls back to side+type heuristic when `customTag` is absent: opposite side + Stop/TrailingStop type = SL; opposite side + Limit type = TP.
+### Line rendering during `previewHideEntry`
 
-This makes Suspended bracket legs display at the correct prices in the orders tab and on the chart immediately after the entry is placed, rather than showing undefined prices.
+When `previewHideEntry` is active (limit order placed with brackets):
+- **Bracket order lines are hidden** in `useOrderLines` — orders on the opposite side of `previewSide` are skipped
+- **Phantom bracket lines are hidden** — `pendingBracketInfo` phantom lines are skipped when `previewHideEntry` is true
+- **Preview lines handle SL/TP display** — `usePreviewLines` renders dashed lines at the bracket positions, and `usePreviewDrag` handles drag interaction
+- This prevents duplicate lines during drag (preview line moving + order line stuck at original price)
 
----
+### REST refresh guard
 
-### ⚠ Gateway: modifyOrder is silently ignored on Suspended orders
+A 1.5-second delayed `searchOpenOrders` REST call fires after Working order SignalR events to hydrate externally-placed orders.
 
-Calling `modifyOrder` on a Suspended bracket leg is **acknowledged by the gateway** (it echoes back the new price in a SignalR event with `status=8` and the updated price field) but is **silently ignored on activation**.
+**Guard**: The refresh is skipped when `previewHideEntry` is active. This prevents the REST response (which returns bracket orders at gateway prices) from overwriting corrected prices in the store during the post-fill correction window.
 
-On entry fill, the gateway always activates the SL/TP at the original tick offset defined at placement time — regardless of any `modifyOrder` calls made while the order was Suspended. This was confirmed in logs: an SL was dragged to 24780 and the gateway acknowledged `stopPrice:24780, status:8`, but when the entry filled, the SL activated at 24791.75 (the original bracket tick offset).
+### customTag note
 
-**This is a known, undocumented ProjectX gateway limitation.**
-
-**Workaround — Post-fill price correction in `OrderPanel.tsx`**: When a bracket leg transitions from Suspended to Working (`status === OrderStatus.Working && order.customTag`), the handler compares the incoming gateway-activated price against `pendingBracketInfo.slPrice` or `tpPrices[0]`. If the prices differ by more than 0.001:
-
-1. Calls `orderService.modifyOrder()` with the desired price from `pendingBracketInfo`.
-2. Calls `upsertOrder()` optimistically so the store reflects the desired price immediately.
-3. Returns early to skip the normal upsert that would write the wrong gateway price.
-
-This correction fires once at the exact moment the bracket leg goes live (Working), making it the only reliable opportunity to apply user-adjusted prices to native bracket orders.
-
----
-
-### customTag: identifying bracket legs
-
-The gateway tags bracket legs as `AutoBracket{guid}-SL` and `AutoBracket{guid}-TP` in the `customTag` field of SignalR order events. This is the **reliable way** to identify SL vs TP legs.
-
-The `customTag` field is passed through the entire stack:
-- `RealtimeOrder` in `adapters/types.ts` — first point of entry from SignalR
-- `Order` in `orderService.ts` — domain type used throughout the app
-- Store `openOrders` array — persisted alongside the order
-- `upsertOrder` call in `OrderPanel.tsx` — written on every SignalR order event
-
-Uses of `customTag` throughout the codebase:
-
-| Location | Usage |
-|----------|-------|
-| `upsertOrder` (`tradingSlice.ts`) | Primary key for price injection into Suspended legs; `customTag` match takes priority over side+type heuristic |
-| `OrderPanel.tsx` REST refresh guard | Only fires for `!order.customTag` — bracket legs skip the REST refresh |
-| `OrderPanel.tsx` post-fill correction | Checks `order.customTag` to identify bracket legs and determine SL vs TP |
-| `useOrderDrag.ts` drag handlers | Finds the Suspended bracket leg by `customTag` to call `modifyOrder` (acknowledged but not honored — see above) |
-
-When `customTag` is absent (returns `undefined`), fallback heuristics using `side`, `type`, and `size` are used. These can incorrectly match the wrong order if multiple open orders share the same side/type/size combination.
-
----
-
-### Unified order line rendering
-
-All order rendering goes through one path: `openOrders[]` → `useOrderLines` → `buildOrderLabels`. There is no longer a "dual line system" with separate `qoPreviewLines`.
-
-- **Suspended orders** (status=8, bracket legs before entry fill) are rendered by `useOrderLines` with **dashed line style**, visually distinguishing them from Working orders (solid lines).
-- **After entry fill**: Suspended orders transition to Working (status=1) and their lines automatically switch to solid style.
-- **Phantom bracket lines**: When `pendingBracketInfo` is set (entry placed with brackets but Suspended legs haven't arrived via SignalR yet), `useOrderLines` creates temporary phantom lines from `pendingBracketInfo` prices. These are replaced by real Suspended order lines as they arrive.
-- **`useQuickOrder.ts`** is now hover-preview-only — it no longer tracks post-placement lines or manages fill/cancel watchers for bracket lines. The `pendingBracketInfo` cleanup (on fill/cancel) is handled by `OrderPanel.tsx`.
-
----
-
-### REST refresh guard for bracket legs
-
-A 1.5-second delayed `searchOpenOrders` REST call fires after any Working order SignalR event to hydrate externally-placed orders (orders opened outside the app that don't appear in the store).
-
-**Problem**: When bracket legs transitioned from Suspended to Working (entry just filled), this REST refresh was triggered for them. But `searchOpenOrders` returns orders at their gateway-activated prices (the original tick offset), not the desired dragged prices stored in `pendingBracketInfo`. This overwrote the store with the wrong prices, undoing any optimistic price updates.
-
-**Fix**: The refresh only fires when `!order.customTag`. Regular Working orders (no `customTag`) trigger the REST refresh normally. Bracket legs (present `customTag`) skip it — they won't appear in `searchOpenOrders` while Suspended, and their post-fill prices are handled entirely by the post-fill correction block described above.
+The gateway may tag bracket legs as `AutoBracket{guid}-SL` / `-TP` in `customTag`, but this is **not reliable for native brackets** — the ProjectX realtime adapter does not always propagate `customTag`. All bracket identification uses **side + order type heuristics** as the primary method.
 
 ---
 
@@ -531,16 +490,11 @@ After placing via the + button (or Buy/Sell button) with brackets armed, `pendin
 
 Set on click (with brackets), cleared on entry fill/cancel by `OrderPanel.tsx`.
 
-### How it integrates with the unified rendering path
+### How it integrates with rendering
 
-- `useOrderLines` reads `pendingBracketInfo` and creates **phantom bracket lines** (dashed) at the expected SL/TP prices while the real Suspended order events haven't arrived yet from SignalR.
-- Once Suspended orders arrive with prices (injected by `upsertOrder` from `pendingBracketInfo`), the phantom lines are replaced by real Suspended order lines (also dashed).
-- On entry fill, Suspended orders transition to Working and lines become solid. `OrderPanel.tsx` clears `pendingBracketInfo`.
+- `useOrderLines` reads `pendingBracketInfo` and creates **phantom bracket lines** (dashed) at the expected SL/TP prices — but **only when `previewHideEntry` is false**. When `previewHideEntry` is true, preview lines handle SL/TP display instead.
+- On entry fill, `OrderPanel.tsx` clears `pendingBracketInfo` and runs the post-fill bracket correction.
 - On entry cancel, `OrderPanel.tsx` clears `pendingBracketInfo`.
-
-### Suspended order drag
-
-Suspended bracket leg drag is handled by `useOrderDrag.ts` (same as Working order drag). On mouseup, `modifyOrder` is called with the new price. The gateway acknowledges but silently ignores the modify — the post-fill correction in `OrderPanel.tsx` applies the desired price when the leg transitions to Working.
 
 ### Bracket leg cancel
 

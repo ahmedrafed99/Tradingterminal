@@ -22,6 +22,12 @@ export interface UiState {
   setHideBalance: (v: boolean) => void;
   setHideRpnl: (v: boolean) => void;
   setHideUpnl: (v: boolean) => void;
+  copyEnabled: boolean;
+  copyMasterAccountId: string | null;
+  copyFollowerIds: string[];
+  setCopyEnabled: (v: boolean) => void;
+  setCopyMasterAccountId: (id: string | null) => void;
+  setCopyFollowerIds: (ids: string[]) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +144,12 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   setHideBalance: (hideBalance) => set({ hideBalance }),
   setHideRpnl: (hideRpnl) => set({ hideRpnl }),
   setHideUpnl: (hideUpnl) => set({ hideUpnl }),
+  copyEnabled: false,
+  copyMasterAccountId: null as string | null,
+  copyFollowerIds: [] as string[],
+  setCopyEnabled: (copyEnabled) => set({ copyEnabled }),
+  setCopyMasterAccountId: (copyMasterAccountId) => set({ copyMasterAccountId }),
+  setCopyFollowerIds: (copyFollowerIds) => set({ copyFollowerIds }),
 
   // Bottom Panel
   bottomPanelOpen: false,
