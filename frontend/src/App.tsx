@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { TopBar } from './components/TopBar';
 import { ToastContainer } from './components/Toast';
 
-const SettingsModal = lazy(() => import('./components/SettingsModal').then(m => ({ default: m.SettingsModal })));
+import { SettingsModal } from './components/SettingsModal';
 const ConditionModal = lazy(() => import('./components/bottom-panel/ConditionModal').then(m => ({ default: m.ConditionModal })));
 import { ChartArea, ChartToolbar } from './components/chart';
 import { BottomPanel } from './components/bottom-panel/BottomPanel';
@@ -183,11 +183,7 @@ export default function App() {
         {orderPanelSide === 'right' && <OrderPanel side="right" />}
       </main>
 
-      {settingsOpen && (
-        <Suspense fallback={null}>
-          <SettingsModal />
-        </Suspense>
-      )}
+      {settingsOpen && <SettingsModal />}
       {conditionModalOpen && (
         <Suspense fallback={null}>
           <ConditionModal />

@@ -45,7 +45,9 @@ The modal uses a tabbed layout shared with the Database, Sound, Shortcuts, and R
 ## Components
 
 ### `SettingsModal`
-Top-level modal with five tabs (Data Feed, Database, Sound, Shortcuts, Recording). Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use translucent glass styling (`bg-white/[0.05] border border-white/10`) matching the BracketSettingsModal design language.
+Top-level modal with six tabs (Data Feed, Database, Sound, Shortcuts, Recording, Copy Trading). Uses the shared `<Modal>` component (`shared/Modal.tsx`) for backdrop, Escape key, and click-outside behavior. Input fields use translucent glass styling (`bg-white/[0.05] border border-white/10`) matching the BracketSettingsModal design language.
+
+**Import strategy:** `SettingsModal` is statically imported (not lazy-loaded) in `App.tsx` so it opens instantly. The modal is conditionally rendered (`{settingsOpen && <SettingsModal />}`) — no `Suspense` boundary needed.
 
 ### Data Feed tab
 - **Provider** dropdown — selects exchange data feed (currently: "TopstepX by ProjectX"). Disabled while connected.
