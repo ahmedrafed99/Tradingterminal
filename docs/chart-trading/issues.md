@@ -81,14 +81,30 @@ Made the `placeOrderWithBrackets` flow match the chart preview label flow. Since
 
 | File | Change |
 |------|--------|
-| `placeOrderWithBrackets.ts` | After order placement, clear `pendingBracketInfo` and activate the preview line system: `previewHideEntry: true`, `previewSide`, `limitPrice`, `orderType: 'limit'` |
+| `placeOrderWithBrackets.ts` | After order placement, activate the preview line system: `previewHideEntry: true`, `previewSide`, `limitPrice`, `orderType: 'limit'`. **Do NOT clear `pendingBracketInfo`** — it must survive in sessionStorage for bracket line rendering after page refresh (see note below). |
 | `usePreviewLines.ts` | Widen activation gate: `(!previewEnabled && !previewHideEntry)` so preview lines render when `previewHideEntry` is set even without the preview checkbox |
 | `usePreviewDrag.ts` | Same gate widening so individual TP/SL drag adjusts bracket config points |
 | `BuySellButtons.tsx` | Don't clear ad-hoc bracket config when `previewHideEntry` is active (needed by `resolvePreviewConfig()`) |
 
+### Important: Do NOT clear `pendingBracketInfo` after placement
+
+An earlier version of this fix cleared `pendingBracketInfo` in `placeOrderWithBrackets.ts` immediately after placement. This caused a regression where **TP/SL lines disappeared after page refresh**:
+
+- `previewHideEntry` is in-memory only (not in `partialize()`, not persisted)
+- On refresh it resets to `false`, so preview lines don't activate
+- With `pendingBracketInfo` also cleared, `useOrderLines` has no data to render phantom bracket lines
+- Suspended bracket orders from the gateway have no prices → lines vanish
+
+The correct approach: keep `pendingBracketInfo` alive in sessionStorage. During drag, `previewHideEntry=true` prevents `useOrderLines` from using it (avoiding ghost lines). After refresh, `previewHideEntry` resets to `false` and `useOrderLines` falls back to `pendingBracketInfo` for phantom bracket rendering.
+
 ### Architecture Note
 
-The chart now has a single visual path for TP/SL lines after bracket order placement: the **preview line system** (`usePreviewLines` + `usePreviewDrag`). The real Suspended bracket order lines from `useOrderLines` still exist underneath (for server-price accuracy and label rendering), but the preview lines act as the visual truth layer during drag operations. This is the same architecture used when the preview checkbox is manually checked — the only difference is `previewEnabled` stays `false` (no market-price tracking, no preview checkbox side effects).
+The chart has two visual paths for TP/SL lines after bracket order placement:
+
+1. **Preview line system** (`usePreviewLines` + `usePreviewDrag`) — active when `previewHideEntry=true` (in-memory). Handles TP/SL display during drag operations. This is the same architecture used when the preview checkbox is manually checked.
+2. **Phantom bracket lines** (`useOrderLines`) — active when `previewHideEntry=false` (i.e., after refresh). Renders from `pendingBracketInfo` in sessionStorage for prices not covered by real orders.
+
+The `previewHideEntry` flag acts as the switch between these two paths. Since it's not persisted, refreshes always fall back to the phantom line path.
 
 ### Key Files
 

@@ -117,12 +117,12 @@ export async function placeOrderWithBrackets(
       useStore.getState().setPendingEntryOrderId(orderId);
     }
 
-    // Match the chart preview label flow (buildPreviewLabels): clear
-    // pendingBracketInfo so dragging the entry won't trigger useOrderLines
-    // to rebuild with stale bracket prices, and activate preview lines
-    // for TP/SL display during drag.
+    // Activate preview lines for TP/SL display during drag so that
+    // useOrderLines skips phantom bracket rendering (previewHideEntry guard).
+    // Keep pendingBracketInfo alive — it's needed to restore bracket lines
+    // after a page refresh (previewHideEntry isn't persisted, so useOrderLines
+    // falls back to pendingBracketInfo on reload).
     if (bracketsActive && limitPrice != null) {
-      useStore.getState().setPendingBracketInfo(null);
       useStore.setState({
         previewHideEntry: true,
         previewSide: side,
