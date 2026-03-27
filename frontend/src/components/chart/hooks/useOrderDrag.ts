@@ -190,11 +190,15 @@ export function useOrderDrag(
         params.limitPrice = newPrice;
       }
 
-      // Optimistically commit bracket preview positions to store
-      const prevBi = order.type === OrderType.Limit && order.status !== OrderStatus.Suspended
+      // Optimistically commit bracket preview positions to store.
+      // When previewHideEntry is active, skip setPendingBracketInfo — preview lines
+      // handle the visual via setLimitPrice, and calling setPendingBracketInfo would
+      // trigger useOrderLines to rebuild all lines from openOrders (stale server
+      // prices), causing the entry line to briefly snap back to its original price.
+      const isEntry = order.type === OrderType.Limit && order.status !== OrderStatus.Suspended;
+      const wasHideEntry = isEntry && useStore.getState().previewHideEntry;
+      const prevBi = isEntry && !wasHideEntry
         ? useStore.getState().pendingBracketInfo : null;
-      const wasHideEntry = order.type === OrderType.Limit && order.status !== OrderStatus.Suspended
-        && useStore.getState().previewHideEntry;
       if (prevBi) {
         const d = newPrice - originalPrice;
         useStore.getState().setPendingBracketInfo({
