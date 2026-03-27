@@ -297,6 +297,18 @@ Draws an ellipse inscribed in the bounding rectangle defined by p1 and p2.
 - Resize handles: 4 positions (n, s, w, e) with 6px hit tolerance — cardinal handles are axis-constrained (n/s move only vertically, w/e move only horizontally)
 - **Smooth rendering**: same `AnchoredPoint` approach as rect — no horizontal snapping to bar centers
 
+### ArrowPathRenderer
+
+Draws a multi-segment polyline with an arrowhead at the final point.
+
+- Stroke: `drawing.color`, `drawing.strokeWidth` (1 = 1 device pixel in bitmap space)
+- Line caps: `lineCap: 'butt'` for crisp 1px strokes that match HLine thickness — `'round'` caps extend each segment endpoint by half the stroke width, making thin lines appear visually thicker
+- Line joins: `lineJoin: 'round'` for smooth corners at vertices
+- Arrowhead: two wing lines from the tip of the last segment, sized proportionally (`min(40% of segment, max(8, 4×strokeWidth) × pixelRatio)`)
+- Selected: circular node handles at each vertex (`COLOR_LABEL_TEXT` fill, `COLOR_HANDLE_STROKE` border)
+- Text label: positioned at the path midpoint
+- Hit test: proximity to any polyline segment via `hitTestArrowPath()` (6px tolerance)
+
 ---
 
 ## Interactions (in CandlestickChart.tsx)

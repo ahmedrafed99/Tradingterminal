@@ -57,7 +57,7 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth;
       ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
+      ctx.lineCap = 'butt';
       ctx.moveTo(devPts[0].x, devPts[0].y);
       for (let i = 1; i < devPts.length; i++) {
         ctx.lineTo(devPts[i].x, devPts[i].y);
@@ -86,7 +86,7 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
         ctx.lineTo(wing2x, wing2y);
         ctx.strokeStyle = this._drawing.color;
         ctx.lineWidth = this._drawing.strokeWidth;
-        ctx.lineCap = 'round';
+        ctx.lineCap = 'butt';
         ctx.lineJoin = 'round';
         ctx.stroke();
       }
