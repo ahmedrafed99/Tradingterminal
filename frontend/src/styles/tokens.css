@@ -39,6 +39,10 @@
   --color-warning: #f0a830;
   --color-error: #f23645;
 
+  /* ── Copy Trading Roles ── */
+  --color-role-master: #3c9cef;
+  --color-role-follower: #5cb270;
+
   /* ── Trade Direction ── */
   --color-buy: #26a69a;
   --color-sell: #ef5350;

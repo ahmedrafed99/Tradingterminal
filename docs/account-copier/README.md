@@ -111,17 +111,20 @@ copyFollowerIds: string[];        // currently supports one follower
 When copy trading is enabled, the TopBar account selector shows role tags next to each account name:
 
 ```
-[ Account A  MASTER ▼ ]          ← active account button
+[ Practice - 69386272  Master ▼ ]     ← active account button
 
-┌──────────────────────────────┐
-│  Account A        MASTER     │  ← green (--color-buy)
-│  Account B        FOLLOWER   │  ← muted gray (--color-text-muted)
-│  Account C                   │  ← no tag (not in copy config)
-└──────────────────────────────┘
+┌───────────────────────────────────────────┐
+│  Practice - 69386272          Master      │  ← blue (--color-role-master)
+│  50K Trading Combine - 21231895  Follower 🢂│  ← green (--color-role-follower) + arrow icon
+│  Account C                                │  ← no tag (not in copy config)
+└───────────────────────────────────────────┘
 ```
 
-- Tags are `9px` uppercase, appear only when copy trading is enabled
-- Blur with privacy mode along with account names
+- Tags are `text-xs` with `font-semibold`, capitalized ("Master" / "Follower"), appear only when copy trading is enabled
+- **Master** color: `--color-role-master` (#3c9cef — VS Code blue)
+- **Follower** color: `--color-role-follower` (#5cb270 — calm green) with a forward-arrow icon
+- Dropdown uses CSS grid with `subgrid` so role badges align vertically across all rows
+- Role tags do NOT blur with privacy mode — only the account ID portion is blurred
 - Visible in both the active account button and the dropdown
 
 ---

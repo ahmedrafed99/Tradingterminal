@@ -18,7 +18,7 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 - **Background**: `bg-black`, border bottom `border-(--color-border)`
 - **Font**: `text-xs`, color `var(--color-text-muted)` throughout
 - **Height**: `h-10` (40px), `shrink-0`
-- **Layout**: Left and right sections use `w-48 shrink-0` (fixed width) so the centre balance stays anchored regardless of account name length changes from the privacy toggle
+- **Layout**: Left section is `shrink-0` (auto width), right section uses `w-48 shrink-0`. Centre balance anchored via flex spacers
 
 ---
 
@@ -35,11 +35,16 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 
 ### Left — Account Selector + Privacy Toggle
 
-- **Dropdown**: `<select>` populated from `accountService.searchAccounts()` after connection
-- **Style**: `bg-transparent border-none`, `text-xs text-[#d1d4dc] font-medium`, dropdown options use `bg-[#131722]`
-- **Privacy toggle**: eye icon button that applies a smooth CSS blur (`filter: blur(5px)`, `opacity: 0.4`, `transition: 0.2s`) to account names — no text truncation, zero layout shift. Button name truncated with ellipsis at `max-width: 100px`; full name visible only in dropdown.
+- **Dropdown**: Custom dropdown with CSS grid layout (`subgrid`) for column alignment. Populated from `accountService.searchAccounts()` after connection
+- **Style**: `bg-(--color-panel)` panel, `text-xs font-medium`, rounded-lg items with `hover:bg-(--color-hover-row)`. Active account highlighted with subtle `#0d0d0d` background. Dropdown container uses `grid-template-columns: 1fr auto` with subgrid on each row so role badges (Master/Follower) align vertically across all rows.
+- **Account name formatting**: TopstepX account names are parsed by `formatAccountName()` into label + ID:
+  - `$50K TRADING COMBINE | 50KTC-V2-440809-12345` → label: `50K Trading Combine`, id: `12345`
+  - `50KTC-V2-440809-12345` → label: `50K Trading Combine`, id: `12345`
+  - `PRAC-V2-440809-55555` → label: `Practice`, id: `55555`
+  - Non-TopstepX names pass through unchanged
+- **Privacy toggle**: Eye icon button. Only blurs the **account ID** portion — the label (e.g. "Practice", "50K Trading Combine") and role badges (Master/Follower) remain visible. Blur uses `filter: blur(5px)`, `opacity: 0.4`, `transition: var(--transition-normal)`.
 - **Default state**: `hideAccountName = false` (names visible). State is persisted to localStorage via `hideAccountName` in the Zustand store (survives hard refresh).
-- **No accounts**: shows `"No accounts"` in `text-[#434651]`
+- **No accounts**: shows `"No accounts"` in `text-(--color-text-dim)`
 
 ### Centre — Balance + RP&L + UP&L
 

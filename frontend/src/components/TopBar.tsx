@@ -41,6 +41,32 @@ function SettingsIcon() {
   );
 }
 
+function FollowIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 46.032 46.033" fill="currentColor">
+      <path d="M45.973,31.64c-1.396-5.957-5.771-14.256-18.906-16.01v-5.252c0-1.095-0.664-2.082-1.676-2.5c-0.334-0.138-0.686-0.205-1.033-0.205c-0.705,0-1.398,0.276-1.917,0.796L10.49,20.479c-1.396,1.402-1.396,3.669-0.001,5.073l11.95,12.009c0.517,0.521,1.212,0.797,1.92,0.797c0.347,0,0.697-0.066,1.031-0.205c1.012-0.418,1.676-1.404,1.676-2.5V30.57c4.494,0.004,10.963,0.596,15.564,3.463c0.361,0.225,0.77,0.336,1.176,0.336c0.457,0,0.91-0.139,1.297-0.416C45.836,33.429,46.18,32.515,45.973,31.64z" />
+    </svg>
+  );
+}
+
+/** Format TopstepX account names into { label, id } for selective privacy blur */
+function formatAccountName(raw: string): { label: string; id: string } {
+  // Practice accounts: "PRAC..." → "Practice" + id
+  if (/^prac/i.test(raw)) {
+    const id = raw.split('-').pop() ?? raw;
+    return { label: 'Practice', id };
+  }
+  // Combine accounts: "$50K TRADING COMBINE | 50KTC-V2-..." or just "50KTC-V2-..."
+  const combineMatch = raw.match(/\$?(\d+)K\s*(?:TRADING\s*COMBINE)?/i) ?? raw.match(/^(\d+)KTC/i);
+  if (combineMatch) {
+    const size = combineMatch[1];
+    const id = raw.split('-').pop() ?? raw;
+    return { label: `${size}K Trading Combine`, id };
+  }
+  // Fallback: treat whole name as label
+  return { label: raw, id: '' };
+}
+
 function aggregatePnl(trades: Trade[]): { pnl: number; fees: number } {
   let pnl = 0;
   let fees = 0;
@@ -178,52 +204,67 @@ export function TopBar() {
   return (
     <header className="flex items-center h-10 bg-(--color-panel) border-b border-(--color-border) shrink-0">
       {/* Left — account selector + privacy toggle */}
-      <div className="flex items-center gap-2 w-48 shrink-0" style={{ marginLeft: '16px' }}>
+      <div className="flex items-center gap-2 shrink-0" style={{ marginLeft: '16px' }}>
         {accounts.length > 0 ? (
           <div ref={acctRef} className="relative">
             <button
               onClick={() => setAcctOpen((o) => !o)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
+              style={{ padding: '6px 10px' }}
             >
-              <span style={{ display: 'inline-block', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>
-                {activeAccount?.name ?? ''}
+              <span style={{ display: 'inline-flex', gap: 4, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {(() => { const { label, id } = formatAccountName(activeAccount?.name ?? ''); return (<>
+                  <span>{label}</span>
+                  {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>- {id}</span>}
+                </>); })()}
               </span>
               {activeAccount && getCopyRole(activeAccount.id) && (
                 <span
-                  className="text-[9px] uppercase tracking-wider font-semibold"
-                  style={{ color: getCopyRole(activeAccount.id) === 'master' ? 'var(--color-buy)' : 'var(--color-text-muted)', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}
+                  className={`text-xs font-semibold flex items-center gap-1 ${
+                    getCopyRole(activeAccount.id) === 'master' ? 'text-(--color-role-master)' : 'text-(--color-role-follower)'
+                  }`}
+                  style={{ marginLeft: 16 }}
                 >
-                  {getCopyRole(activeAccount.id)}
+                  {getCopyRole(activeAccount.id) === 'master' ? 'Master' : 'Follower'}
+                  {getCopyRole(activeAccount.id) === 'follower' && <FollowIcon />}
                 </span>
               )}
               <ChevronDown />
             </button>
             {acctOpen && (
               <div
-                className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-1 animate-dropdown-in"
-                style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, minWidth: 160 }}
+                className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+                style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, padding: '4px 5px', whiteSpace: 'nowrap', display: 'grid', gridTemplateColumns: '1fr auto', columnGap: 20 }}
               >
                 {accounts.map((a) => {
                   const active = a.id === activeAccountId;
+                  const role = getCopyRole(a.id);
                   return (
                     <button
                       key={a.id}
                       onClick={() => { setActiveAccountId(a.id); setAcctOpen(false); }}
-                      className={`w-full text-left text-xs font-medium px-3 py-1.5 transition-colors rounded-md mx-0 hover:bg-(--color-surface) flex items-center justify-between gap-2 ${
+                      className={`text-left text-xs font-medium transition-colors rounded-lg hover:bg-(--color-hover-row) flex items-center gap-3 ${
                         active ? 'text-(--color-warning)' : 'text-(--color-text)'
                       }`}
+                      style={{ padding: '7px 10px', gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'subgrid', ...(active ? { backgroundColor: '#0d0d0d' } : {}) }}
                     >
-                      <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}>
-                        {a.name}
+                      <span>
+                        {(() => { const { label, id } = formatAccountName(a.name); return (<>
+                          <span>{label}</span>
+                          {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}> - {id}</span>}
+                        </>); })()}
                       </span>
-                      {getCopyRole(a.id) && (
+                      {role ? (
                         <span
-                          className="text-[9px] uppercase tracking-wider font-semibold shrink-0"
-                          style={{ color: getCopyRole(a.id) === 'master' ? 'var(--color-buy)' : 'var(--color-text-muted)' }}
+                          className={`text-xs font-semibold flex items-center gap-1 ${
+                            role === 'master' ? 'text-(--color-role-master)' : 'text-(--color-role-follower)'
+                          }`}
+                          style={{ marginLeft: 16 }}
                         >
-                          {getCopyRole(a.id)}
+                          {role === 'master' ? 'Master' : 'Follower'}
+                          {role === 'follower' && <FollowIcon />}
                         </span>
-                      )}
+                      ) : <span />}
                     </button>
                   );
                 })}
