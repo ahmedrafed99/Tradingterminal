@@ -106,6 +106,24 @@ copyFollowerIds: string[];        // currently supports one follower
 - Follower dropdown: pick destination (excludes master)
 - Toggle: enable/disable. Disabled when < 2 accounts or no follower selected.
 
+### Account Selector — Role Tags
+
+When copy trading is enabled, the TopBar account selector shows role tags next to each account name:
+
+```
+[ Account A  MASTER ▼ ]          ← active account button
+
+┌──────────────────────────────┐
+│  Account A        MASTER     │  ← green (--color-buy)
+│  Account B        FOLLOWER   │  ← muted gray (--color-text-muted)
+│  Account C                   │  ← no tag (not in copy config)
+└──────────────────────────────┘
+```
+
+- Tags are `9px` uppercase, appear only when copy trading is enabled
+- Blur with privacy mode along with account names
+- Visible in both the active account button and the dropdown
+
 ---
 
 ## Files
@@ -123,6 +141,7 @@ copyFollowerIds: string[];        // currently supports one follower
 | `frontend/src/store/slices/layoutSlice.ts` | Added `copyEnabled`, `copyMasterAccountId`, `copyFollowerIds` + setters |
 | `frontend/src/store/useStore.ts` | Added copy fields to `partialize` for persistence |
 | `frontend/src/components/SettingsModal.tsx` | Added "Copy Trading" tab |
+| `frontend/src/components/TopBar.tsx` | Added MASTER/FOLLOWER role tags in account selector |
 
 No backend changes.
 

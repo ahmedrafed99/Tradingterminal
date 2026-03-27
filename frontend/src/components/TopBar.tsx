@@ -74,6 +74,9 @@ export function TopBar() {
     setHideBalance,
     setHideRpnl,
     setHideUpnl,
+    copyEnabled,
+    copyMasterAccountId,
+    copyFollowerIds,
   } = useStore(useShallow((s) => ({
     connected: s.connected,
     accounts: s.accounts,
@@ -94,7 +97,17 @@ export function TopBar() {
     setHideBalance: s.setHideBalance,
     setHideRpnl: s.setHideRpnl,
     setHideUpnl: s.setHideUpnl,
+    copyEnabled: s.copyEnabled,
+    copyMasterAccountId: s.copyMasterAccountId,
+    copyFollowerIds: s.copyFollowerIds,
   })));
+
+  function getCopyRole(accountId: string): 'master' | 'follower' | null {
+    if (!copyEnabled) return null;
+    if (accountId === copyMasterAccountId) return 'master';
+    if (copyFollowerIds.includes(accountId)) return 'follower';
+    return null;
+  }
 
   const { pnl: realizedPnl, fees: realizedFees } = useMemo(() => aggregatePnl(sessionTrades), [sessionTrades]);
 
@@ -175,6 +188,14 @@ export function TopBar() {
               <span style={{ display: 'inline-block', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>
                 {activeAccount?.name ?? ''}
               </span>
+              {activeAccount && getCopyRole(activeAccount.id) && (
+                <span
+                  className="text-[9px] uppercase tracking-wider font-semibold"
+                  style={{ color: getCopyRole(activeAccount.id) === 'master' ? 'var(--color-buy)' : 'var(--color-text-muted)', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}
+                >
+                  {getCopyRole(activeAccount.id)}
+                </span>
+              )}
               <ChevronDown />
             </button>
             {acctOpen && (
@@ -188,13 +209,21 @@ export function TopBar() {
                     <button
                       key={a.id}
                       onClick={() => { setActiveAccountId(a.id); setAcctOpen(false); }}
-                      className={`w-full text-left text-xs font-medium px-3 py-1.5 transition-colors rounded-md mx-0 hover:bg-(--color-surface) ${
+                      className={`w-full text-left text-xs font-medium px-3 py-1.5 transition-colors rounded-md mx-0 hover:bg-(--color-surface) flex items-center justify-between gap-2 ${
                         active ? 'text-(--color-warning)' : 'text-(--color-text)'
                       }`}
                     >
                       <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none' }}>
                         {a.name}
                       </span>
+                      {getCopyRole(a.id) && (
+                        <span
+                          className="text-[9px] uppercase tracking-wider font-semibold shrink-0"
+                          style={{ color: getCopyRole(a.id) === 'master' ? 'var(--color-buy)' : 'var(--color-text-muted)' }}
+                        >
+                          {getCopyRole(a.id)}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
