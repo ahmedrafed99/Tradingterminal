@@ -121,9 +121,9 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
 
         const pad = Math.round(6 * vpr);
         if (text.hAlign === 'left') {
-          ctx.textAlign = 'left';
-        } else if (text.hAlign === 'right') {
           ctx.textAlign = 'right';
+        } else if (text.hAlign === 'right') {
+          ctx.textAlign = 'left';
         } else {
           ctx.textAlign = 'center';
         }

@@ -306,7 +306,7 @@ Draws a multi-segment polyline with an arrowhead at the final point.
 - Line joins: `lineJoin: 'round'` for smooth corners at vertices
 - Arrowhead: two wing lines from the tip of the last segment, sized proportionally (`min(40% of segment, max(8, 4×strokeWidth) × pixelRatio)`)
 - Selected: circular node handles at each vertex (`COLOR_LABEL_TEXT` fill, `COLOR_HANDLE_STROKE` border)
-- Text label: positioned at the path midpoint
+- Text label: positioned at the path midpoint. **hAlign is inverted** relative to `ctx.textAlign` because the anchor is a single point (not a spanning edge like HLine/Rect/Oval): `hAlign: 'left'` → `ctx.textAlign: 'right'` (text extends left of midpoint), `hAlign: 'right'` → `ctx.textAlign: 'left'` (text extends right of midpoint)
 - Hit test: proximity to any polyline segment via `hitTestArrowPath()` (6px tolerance)
 
 ---
