@@ -372,11 +372,15 @@ Click label to edit price:
 ### Preview drag
 - Entry -> sets `orderType: 'limit'` + `limitPrice`
 - SL/TP -> writes to `draftSlPoints` / `draftTpPoints` (preset mode) or `adHocSlPoints` / `updateAdHocTpPoints` (ad-hoc mode)
+- **Tick-precision rounding**: point values are rounded to the nearest tick (`Math.round(pts * tpp) / tpp`) not the nearest whole point, so SL/TP can be placed at any valid tick increment (e.g. 0.25-point steps for ES/MES/NQ/MNQ)
 
 ### Order drag
 - On mouse up calls `orderService.modifyOrder()` with new `stopPrice` or `limitPrice`
 - **Limit entry drag shifts bracket lines**: when dragging a pending limit entry order, all associated SL/TP lines (Suspended orders or phantom bracket lines from `pendingBracketInfo`) shift by the same delta. On mouseup, optimistically commits shifted prices to `pendingBracketInfo` store state and calls `modifyOrder`. On API error, reverts all positions.
   - *Preview with hidden entry* (Buy/Sell button flow): shifts `previewPrices` and `previewLines` refs using `resolvePreviewConfig()` offsets. On mouseup, updates `limitPrice` in store. On API error, reverts.
+
+### Order drag (Suspended bracket legs)
+- On mouseup, `bracketEngine.updateArmedConfig()` is called with tick-precision points (same rounding as preview drag) so SL/TP are not snapped to whole-point increments
 
 ### Position drag
 - Drag from position label to create SL/TP orders directly (see Position label above)

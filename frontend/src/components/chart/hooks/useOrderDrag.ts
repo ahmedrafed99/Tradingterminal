@@ -4,7 +4,7 @@ import { orderService } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { useStore } from '../../../store/useStore';
 import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/enums';
-import { pointsToPrice, priceToPoints } from '../../../utils/instrument';
+import { pointsToPrice, priceToPoints, getTicksPerPoint } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import { computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
@@ -217,10 +217,11 @@ export function useOrderDrag(
           if (isSl) {
             st.setPendingBracketInfo({ ...bi, slPrice: newPrice });
             const slDiff = Math.abs(bi.entryPrice - newPrice);
-            const slPoints = Math.round(priceToPoints(slDiff, contract!));
+            const tpp = getTicksPerPoint(contract!);
+            const slPoints = Math.round(priceToPoints(slDiff, contract!) * tpp) / tpp;
             bracketEngine.updateArmedConfig((cfg) => ({
               ...cfg,
-              stopLoss: { ...cfg.stopLoss, points: Math.max(1, slPoints) },
+              stopLoss: { ...cfg.stopLoss, points: Math.max(1 / tpp, slPoints) },
             }));
           } else {
             // Find which TP index this order corresponds to
@@ -232,11 +233,12 @@ export function useOrderDrag(
               newTpPrices[tpIdx] = newPrice;
               st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
               const tpDiff = Math.abs(newPrice - bi.entryPrice);
-              const tpPoints = Math.round(priceToPoints(tpDiff, contract!));
+              const tpp2 = getTicksPerPoint(contract!);
+              const tpPoints = Math.round(priceToPoints(tpDiff, contract!) * tpp2) / tpp2;
               bracketEngine.updateArmedConfig((cfg) => ({
                 ...cfg,
                 takeProfits: cfg.takeProfits.map((tp, i) =>
-                  i === tpIdx ? { ...tp, points: Math.max(1, tpPoints) } : tp),
+                  i === tpIdx ? { ...tp, points: Math.max(1 / tpp2, tpPoints) } : tp),
               }));
             }
           }

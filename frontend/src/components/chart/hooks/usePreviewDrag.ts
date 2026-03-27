@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { bracketEngine } from '../../../services/bracketEngine';
-import { priceToPoints } from '../../../utils/instrument';
+import { priceToPoints, getTicksPerPoint } from '../../../utils/instrument';
 import type { ChartRefs } from './types';
 
 // Custom white crosshair cursor (24x24 SVG, hotspot at center)
@@ -60,7 +60,8 @@ export function usePreviewDrag(
         const entryPrice = st.orderType === 'limit' ? st.limitPrice : st.lastPrice;
         if (entryPrice) {
           const pts = priceToPoints(Math.abs(entryPrice - snapped), contract!);
-          const rounded = Math.max(1, Math.round(pts));
+          const tpp = getTicksPerPoint(contract!);
+          const rounded = Math.max(1 / tpp, Math.round(pts * tpp) / tpp);
           const hasPreset = st.bracketPresets.some((p) => p.id === st.activePresetId);
           if (drag.role.kind === 'sl') {
             if (hasPreset) st.setDraftSlPoints(rounded);
