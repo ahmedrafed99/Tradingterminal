@@ -94,7 +94,7 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 | Token | Value | Usage |
 |-------|-------|-------|
 | `--color-border` | `#2a2e39` | All borders — modal edges, dividers, table borders |
-| `--color-separator` | `#000000` | Bottom panel resize handle / separator bar |
+| `--color-separator` | `#2a2e39` | Bottom panel resize handle / separator bar |
 | `--color-focus-ring` | `#1a3a6e` | Focus ring on inputs and controls |
 
 ### Accents
