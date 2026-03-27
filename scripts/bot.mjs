@@ -742,19 +742,31 @@ const commands = {
         log(`SOW detected — entry: ${fmt(entryPrice)}, SL: ${fmt(slPrice)}, TP: ${fmt(tpPrice)}`);
       }
 
-      // Check if target was already hit
+      // Check if target was already hit — only skip if invalidation was also tested
       if (tpPrice) {
         const signalIndex = signal.type === 'long' ? signal.sos.signOfStrength.index : signal.sow.signOfWeakness.index;
         let targetAlreadyHit = false;
+        let invalidationTested = false;
+        const invLevel = signal.type === 'long' ? signal.sos.invalidation?.level : signal.sow.invalidation?.level;
         for (let i = signalIndex + 1; i < bars.length; i++) {
-          if (signal.type === 'long' && bars[i].h >= tpPrice) { targetAlreadyHit = true; break; }
-          if (signal.type === 'short' && bars[i].l <= tpPrice) { targetAlreadyHit = true; break; }
+          if (signal.type === 'long') {
+            if (invLevel && bars[i].l <= invLevel) invalidationTested = true;
+            if (bars[i].h >= tpPrice) targetAlreadyHit = true;
+          }
+          if (signal.type === 'short') {
+            if (invLevel && bars[i].h >= invLevel) invalidationTested = true;
+            if (bars[i].l <= tpPrice) targetAlreadyHit = true;
+          }
+          if (targetAlreadyHit && invalidationTested) break;
         }
-        if (targetAlreadyHit) {
-          log('Target already hit — skipping, continuing to watch...');
+        if (targetAlreadyHit && invalidationTested) {
+          log('Target already hit and invalidation tested — skipping, continuing to watch...');
           signal = null;
           await sleepUntilNextCandle();
           continue;
+        }
+        if (targetAlreadyHit && !invalidationTested) {
+          log('Target hit but invalidation not tested — order still valid');
         }
       }
 

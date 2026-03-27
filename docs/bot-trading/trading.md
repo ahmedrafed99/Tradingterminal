@@ -63,3 +63,11 @@ When a sign of strength appears, check the **very next candle**:
    - Find the **highest point** between the sign of strength candle and the recovery candle
    - Move the stop loss to the **midpoint of the upper wick** of that highest candle
    - `new SL = high - (high - upper body edge) / 2` where upper body edge = `max(open, close)`
+
+---
+
+## Skip Conditions
+
+**Target already hit:** If the target price has been reached after the signal, skip the trade — UNLESS the invalidation level was never tested (price never reached entry). If the target was hit but the invalidation was not tested, the trade is still valid because the entry would not have filled.
+
+Both conditions are scanned across all bars after the signal independently — the target being hit first does not prevent checking whether the invalidation was tested later.
