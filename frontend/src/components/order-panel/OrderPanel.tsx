@@ -202,6 +202,13 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
     if (subscribedAccountRef.current === activeAccountId) return;
 
     subscribedAccountRef.current = activeAccountId;
+
+    // Clear stale data from previous account before fetching new data.
+    // Prevents old bracket lines from rendering with wrong account context.
+    const st = useStore.getState();
+    st.setOpenOrders([]);
+    st.setPendingBracketInfo(null);
+
     realtimeService.subscribeUserEvents(activeAccountId);
 
     // Hydrate positions + orders from REST so we don't depend on SignalR initial batch

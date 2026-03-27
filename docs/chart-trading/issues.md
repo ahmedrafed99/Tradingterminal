@@ -115,3 +115,35 @@ The `previewHideEntry` flag acts as the switch between these two paths. Since it
 - `frontend/src/components/chart/hooks/useOrderDrag.ts` — real order line drag (unchanged)
 - `frontend/src/components/order-panel/BuySellButtons.tsx` — order panel placement
 - `frontend/src/components/chart/hooks/buildPreviewLabels.ts` — chart preview label placement (reference implementation)
+
+---
+
+## Bracket Lines Flash Red on Account Switch
+
+**Date resolved**: 2026-03-27
+
+**Severity**: Low (cosmetic flicker, no functional impact)
+
+### Symptom
+
+After placing a bracket order on Account A, switching to Account B briefly caused TP/SL lines to turn red and position P&L to disappear (showing as plain limit/stop orders) before the lines cleared.
+
+### Root Cause
+
+`useOrderLines` depends on both `activeAccountId` and `openOrders`. When the account switches:
+
+1. `activeAccountId` changes immediately → effect re-runs
+2. `openOrders` still contains the **old account's orders** (REST fetch hasn't returned yet)
+3. Position lookup uses new `activeAccountId` → no position found (`pos = undefined`)
+4. Old bracket orders are drawn via `computeOrderLineColor(order, price, undefined)` which falls back to type/side-based coloring — SL (Stop) → red, TP (Sell Limit) → red
+5. ~200ms later REST returns new account's orders → effect re-runs correctly
+
+The `openOrders` loop in `useOrderLines` only filters by `contractId`, not `accountId`, so stale orders from the old account are rendered during the transition window.
+
+### Fix
+
+Clear `openOrders` and `pendingBracketInfo` immediately on account switch, before the REST hydration call. This ensures the chart sees an empty order list during the transition instead of stale data.
+
+### Key Files
+
+- `frontend/src/components/order-panel/OrderPanel.tsx` — account-change effect: clear stale state before hydration
