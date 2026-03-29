@@ -88,6 +88,7 @@ export const useStore = create<Store>()(
         secondBidAskEnabled: s.secondBidAskEnabled,
         bottomPanelOpen: s.bottomPanelOpen,
         bottomPanelRatio: s.bottomPanelRatio,
+        bottomPanelPreviousRatio: s.bottomPanelPreviousRatio,
         bottomPanelTab: s.bottomPanelTab,
         tradesDatePreset: s.tradesDatePreset === 'session' ? 'today' : s.tradesDatePreset,
         contract: s.contract,

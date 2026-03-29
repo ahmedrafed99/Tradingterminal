@@ -25,14 +25,26 @@ State lives in the `layoutSlice` (`store/slices/layoutSlice.ts`). See `docs/fron
 | Field | Type | Default | Persisted |
 |-------|------|---------|-----------|
 | `bottomPanelOpen` | `boolean` | `false` | Yes |
-| `bottomPanelRatio` | `number` | `0.3` | Yes |
+| `bottomPanelRatio` | `number` | `0` | Yes |
+| `bottomPanelPreviousRatio` | `number` | `0.3` | Yes |
 | `bottomPanelTab` | `'orders' \| 'trades' \| 'conditions'` | `'orders'` | Yes |
 | `tradesDatePreset` | `DatePreset` | `'today'` | Yes |
 | `sessionTrades` | `Trade[]` | `[]` | No |
 | `displayTrades` | `Trade[]` | `[]` | No |
 | `visibleTradeIds` | `string[]` | `[]` | No |
 
-Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelTab`, `setTradesDatePreset`, `setSessionTrades`, `setDisplayTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
+Actions: `setBottomPanelOpen`, `setBottomPanelRatio`, `setBottomPanelPreviousRatio`, `setBottomPanelTab`, `toggleBottomPanel`, `setTradesDatePreset`, `setSessionTrades`, `setDisplayTrades`, `toggleTradeVisibility`, `toggleTradeVisibilityBulk`, `clearVisibleTradeIds`.
+
+## Collapse / Expand Toggle
+
+A chevron button is centered on the `VerticalSeparator` drag bar in `App.tsx`:
+
+- **Hidden by default**, fades in on hover over the separator (`group-hover:opacity-100`).
+- **Always visible when collapsed** (`opacity-100`) so the user can re-expand.
+- Chevron points **down** when expanded (click to collapse), **up** when collapsed (click to expand).
+- `toggleBottomPanel()` saves the current ratio to `bottomPanelPreviousRatio` before collapsing to 0, and restores it on expand.
+- Toggle animates with a 200ms ease transition on the flex values; dragging remains instant (no transition during drag).
+- Dragging the separator still respects the `minHeight: 40` floor (tab bar always visible). Only the toggle button can fully collapse the panel.
 
 ## Orders Tab
 

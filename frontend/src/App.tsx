@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { TopBar } from './components/TopBar';
 import { ToastContainer } from './components/Toast';
 
@@ -16,13 +16,19 @@ import { useSettingsSync } from './hooks/useSettingsSync';
 import { useRemoteDrawings } from './hooks/useRemoteDrawings';
 import { getCmeSessionStart } from './utils/cmeSession';
 import { allTradesCache } from './components/bottom-panel/TradesTab';
+import { ChevronDown } from './components/icons/ChevronDown';
+import { ChevronUp } from './components/icons/ChevronUp';
 
 function VerticalSeparator({
   containerRef,
   onDrag,
+  collapsed,
+  onToggle,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
   onDrag: (ratio: number) => void;
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
 
@@ -46,11 +52,25 @@ function VerticalSeparator({
 
   return (
     <div
-      className={`h-1 cursor-row-resize flex-shrink-0 transition-colors ${
+      className={`group relative h-1 cursor-row-resize flex-shrink-0 transition-colors ${
         dragging ? 'bg-(--color-accent)' : 'bg-(--color-separator) hover:bg-(--color-text-dim)'
       }`}
       onMouseDown={(e) => { e.preventDefault(); setDragging(true); }}
-    />
+    >
+      <button
+        className={`absolute left-1/2 -translate-x-1/2 -top-2 z-10
+          flex items-center justify-center rounded-sm
+          bg-(--color-surface) text-(--color-text-dim) border border-(--color-border)
+          hover:bg-(--color-hover-toolbar) hover:text-(--color-text)
+          transition-all cursor-pointer
+          ${collapsed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        style={{ width: 24, height: 16 }}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {collapsed ? <ChevronUp /> : <ChevronDown />}
+      </button>
+    </div>
   );
 }
 
@@ -64,8 +84,16 @@ export default function App() {
   const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
+  const toggleBottomPanel = useStore((s) => s.toggleBottomPanel);
   const orderPanelSide = useStore((s) => s.orderPanelSide);
   const splitContainerRef = useRef<HTMLDivElement>(null);
+  const [transitioning, setTransitioning] = useState(false);
+
+  const handleToggle = useCallback(() => {
+    setTransitioning(true);
+    toggleBottomPanel();
+    setTimeout(() => setTransitioning(false), 200);
+  }, [toggleBottomPanel]);
 
   // Sync settings to/from backend file storage
   useSettingsSync();
@@ -156,19 +184,32 @@ export default function App() {
           <ChartToolbar />
           <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
             <div
-              style={{ flex: 1 - bottomPanelRatio }}
+              style={{
+                flex: 1 - bottomPanelRatio,
+                transition: transitioning ? 'flex 200ms ease' : 'none',
+              }}
               className="flex flex-col min-h-0 overflow-hidden"
             >
               <ChartArea />
             </div>
             <VerticalSeparator
               containerRef={splitContainerRef}
+              collapsed={bottomPanelRatio <= 0.05}
+              onToggle={handleToggle}
               onDrag={(mouseRatio) => {
-                setBottomPanelRatio(1 - mouseRatio);
+                const newRatio = 1 - mouseRatio;
+                setBottomPanelRatio(newRatio);
+                if (newRatio >= 0.05) {
+                  useStore.getState().setBottomPanelPreviousRatio(newRatio);
+                }
               }}
             />
             <div
-              style={{ flex: bottomPanelRatio, minHeight: 40 }}
+              style={{
+                flex: bottomPanelRatio,
+                minHeight: 40,
+                transition: transitioning ? 'flex 200ms ease, min-height 200ms ease' : 'none',
+              }}
               className="overflow-hidden"
             >
               <BottomPanel />

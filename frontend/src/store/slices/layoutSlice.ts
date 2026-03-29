@@ -42,9 +42,12 @@ export interface BottomPanelState {
   displayTrades: Trade[];
   visibleTradeIds: string[];
   presetCounts: Partial<Record<DatePreset, number>>;
+  bottomPanelPreviousRatio: number;
+  setBottomPanelPreviousRatio: (ratio: number) => void;
   setBottomPanelOpen: (open: boolean) => void;
   setBottomPanelRatio: (ratio: number) => void;
   setBottomPanelTab: (tab: 'orders' | 'trades' | 'conditions' | 'stats') => void;
+  toggleBottomPanel: () => void;
   setTradesDatePreset: (preset: DatePreset) => void;
   setSessionTrades: (trades: Trade[]) => void;
   setDisplayTrades: (trades: Trade[]) => void;
@@ -156,15 +159,28 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   // Bottom Panel
   bottomPanelOpen: false,
   bottomPanelRatio: 0,
+  bottomPanelPreviousRatio: 0.3,
   bottomPanelTab: 'orders' as 'orders' | 'trades' | 'conditions' | 'stats',
   tradesDatePreset: 'today' as DatePreset,
   sessionTrades: [] as Trade[],
   displayTrades: [] as Trade[],
   visibleTradeIds: [] as string[],
   presetCounts: {} as Partial<Record<DatePreset, number>>,
+  setBottomPanelPreviousRatio: (bottomPanelPreviousRatio) => set({ bottomPanelPreviousRatio }),
   setBottomPanelOpen: (bottomPanelOpen) => set({ bottomPanelOpen }),
   setBottomPanelRatio: (ratio) => set({ bottomPanelRatio: Math.max(0, Math.min(0.6, ratio)) }),
   setBottomPanelTab: (bottomPanelTab) => set({ bottomPanelTab }),
+  toggleBottomPanel: () =>
+    set((s) => {
+      if (s.bottomPanelRatio > 0.05) {
+        // Collapse: save current ratio, then collapse
+        return { bottomPanelPreviousRatio: s.bottomPanelRatio, bottomPanelRatio: 0, bottomPanelOpen: false };
+      } else {
+        // Expand: restore previous ratio
+        const ratio = s.bottomPanelPreviousRatio >= 0.05 ? s.bottomPanelPreviousRatio : 0.3;
+        return { bottomPanelRatio: ratio, bottomPanelOpen: true };
+      }
+    }),
   setTradesDatePreset: (tradesDatePreset) => set({ tradesDatePreset }),
   setSessionTrades: (sessionTrades) => set({ sessionTrades }),
   setDisplayTrades: (displayTrades) => set({ displayTrades }),
