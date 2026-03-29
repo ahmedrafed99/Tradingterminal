@@ -260,7 +260,7 @@ export function useChartBars(
     // When the tab regains visibility after being backgrounded, silently
     // backfill any candles that closed while RAF was throttled.
     function handleVisibilityChange() {
-      if (document.hidden || !refs.series.current || cancelled) return;
+      if (document.hidden || !refs.series.current || cancelled || !isFuturesMarketOpen()) return;
 
       // Flush any pending bar immediately
       if (pendingBar) {
