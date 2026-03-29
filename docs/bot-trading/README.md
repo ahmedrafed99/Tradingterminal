@@ -132,6 +132,12 @@ node scripts/bot.mjs watch --contractId <id> --accountId <id> [options]
 4. Place limit order with SL/TP brackets — wait for fill, add entry marker
 5. Trail SL (only with `--manage`)
 
+**Market hours:** Futures open Sunday 6 PM ET — Friday 5 PM ET. Bot exits when market is closed.
+
+**Previous day fallback:** When current session has < 30 bars (e.g. Sunday open), the bot merges the previous trading day's bars automatically. This ensures structure detection has enough context for the important previous SOS/SOW algorithm. Previous day bars are cached and included in every subsequent fetch.
+
+**Skip conditions:** The bot skips placing an order if the target was already hit AND the invalidation level was tested (price reached entry). If the target was hit but invalidation was never tested, the order is still placed — the entry wouldn't have filled so the opportunity is still valid.
+
 **Dynamic drawings during watch:**
 
 | Line | Before signal | After signal | After fill |
