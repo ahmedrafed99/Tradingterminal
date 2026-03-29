@@ -641,6 +641,30 @@ const commands = {
       bars = await getBars();
       low = findAnchorLow(bars, anchorStartMinute);
       high = findAnchorHigh(bars, anchorStartMinute);
+
+      // If no anchors found (e.g. market closed / weekend), fall back to previous trading days
+      if (!low && !high) {
+        for (let daysBack = 1; daysBack <= 5; daysBack++) {
+          const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+          etDate.setDate(etDate.getDate() - daysBack);
+          const dateStr = `${etDate.getFullYear()}-${String(etDate.getMonth() + 1).padStart(2, '0')}-${String(etDate.getDate()).padStart(2, '0')}`;
+          const etOffset = new Date().getTimezoneOffset() === new Date(`${dateStr}T12:00:00`).getTimezoneOffset() ? (new Date().getUTCHours() - parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))) : 4;
+          const from = new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate(), 4 + etOffset, 0, 0)).toISOString();
+          const to = new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate(), 23 + etOffset, 0, 0)).toISOString();
+          const prevBars = await fetchBars(cid, from, to);
+          if (prevBars.length > 1) prevBars.pop();
+          const prevLow = findAnchorLow(prevBars, anchorStartMinute);
+          const prevHigh = findAnchorHigh(prevBars, anchorStartMinute);
+          if (prevLow || prevHigh) {
+            log(`No bars today — using ${dateStr}`);
+            bars = prevBars;
+            low = prevLow;
+            high = prevHigh;
+            break;
+          }
+        }
+      }
+
       log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
       await drawAnchors(bars, low, high);
     } else {
