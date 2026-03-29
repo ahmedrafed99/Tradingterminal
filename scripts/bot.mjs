@@ -642,8 +642,8 @@ const commands = {
       low = findAnchorLow(bars, anchorStartMinute);
       high = findAnchorHigh(bars, anchorStartMinute);
 
-      // If no anchors found (e.g. market closed / weekend), fall back to previous trading days
-      if (!low && !high) {
+      // If thin data (e.g. market just opened / weekend), include previous trading day's bars
+      if (bars.length < 30 || !low || !high) {
         for (let daysBack = 1; daysBack <= 5; daysBack++) {
           const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
           etDate.setDate(etDate.getDate() - daysBack);
@@ -653,13 +653,14 @@ const commands = {
           const to = new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate(), 23 + etOffset, 0, 0)).toISOString();
           const prevBars = await fetchBars(cid, from, to);
           if (prevBars.length > 1) prevBars.pop();
-          const prevLow = findAnchorLow(prevBars, anchorStartMinute);
-          const prevHigh = findAnchorHigh(prevBars, anchorStartMinute);
-          if (prevLow || prevHigh) {
-            log(`No bars today — using ${dateStr}`);
-            bars = prevBars;
-            low = prevLow;
-            high = prevHigh;
+          if (prevBars.length > 0) {
+            // Merge previous day's bars with today's, sorted by time
+            const merged = [...prevBars, ...bars].sort((a, b) => new Date(a.t) - new Date(b.t));
+            // Deduplicate by timestamp
+            bars = merged.filter((b, i) => i === 0 || b.t !== merged[i - 1].t);
+            low = findAnchorLow(bars, anchorStartMinute);
+            high = findAnchorHigh(bars, anchorStartMinute);
+            log(`Included bars from ${dateStr} (${prevBars.length} bars) — total: ${bars.length}`);
             break;
           }
         }
@@ -721,7 +722,16 @@ const commands = {
 
     // ── Phase 3: Wait for actionable signal ──
     let signal = earlySignal || null;
-    const RTH_CLOSE = 17 * 60; // 5 PM ET (futures close)
+    // Futures: closed 5 PM ET Fri – 6 PM ET Sun. Open all other times.
+    function isMarketClosed() {
+      const etNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+      const day = etNow.getDay(); // 0=Sun, 5=Fri, 6=Sat
+      const mins = etNow.getHours() * 60 + etNow.getMinutes();
+      if (day === 6) return true; // Saturday — always closed
+      if (day === 5 && mins >= 17 * 60) return true; // Friday after 5 PM
+      if (day === 0 && mins < 18 * 60) return true; // Sunday before 6 PM
+      return false;
+    }
     let entryPrice, slPrice, tpPrice, importantTarget;
 
     if (!signal) {
@@ -735,7 +745,7 @@ const commands = {
     while (!actionable) {
       // Inner loop: wait for a signal
       while (!signal) {
-        if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed, no signal. Exiting.'); return; }
+        if (isMarketClosed()) { log('Market closed, no signal. Exiting.'); return; }
         try {
           bars = await getBars();
           low = findAnchorLow(bars, anchorStartMinute);
@@ -837,7 +847,7 @@ const commands = {
     log('Waiting for fill...');
     let filled = false;
     while (!filled) {
-      if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed before fill. Exiting.'); return; }
+      if (isMarketClosed()) { log('Market closed before fill. Exiting.'); return; }
       try {
         // Check if filled
         const posResult = await get(`/positions/open?accountId=${acct}`);
@@ -885,7 +895,7 @@ const commands = {
       // TODO: could loop back to Phase 3, for now just keep scanning
       log('Resuming watch after order cancellation...');
       while (true) {
-        if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed. Exiting.'); return; }
+        if (isMarketClosed()) { log('Market closed. Exiting.'); return; }
         try {
           bars = await getBars();
           low = findAnchorLow(bars, anchorStartMinute);
@@ -904,7 +914,7 @@ const commands = {
     let slOrderId = null;
 
     while (true) {
-      if (nowETMinutes() >= RTH_CLOSE) { log('RTH closed. Exiting management.'); break; }
+      if (isMarketClosed()) { log('Market closed. Exiting management.'); break; }
 
       try {
         // Check position
