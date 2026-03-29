@@ -520,10 +520,16 @@ const commands = {
 
     function nowISO() { return new Date().toISOString(); }
 
+    let prevDayBars = []; // Cached bars from previous trading day (set during fallback)
+
     async function getBars() {
       const allBars = await fetchBars(cid, todayFrom4amET(), nowISO());
       // Drop the last bar (partial/still forming) — only use closed candles
       if (allBars.length > 1) allBars.pop();
+      if (prevDayBars.length > 0) {
+        const merged = [...prevDayBars, ...allBars].sort((a, b) => new Date(a.t) - new Date(b.t));
+        return merged.filter((b, i) => i === 0 || b.t !== merged[i - 1].t);
+      }
       return allBars;
     }
 
@@ -654,6 +660,7 @@ const commands = {
           const prevBars = await fetchBars(cid, from, to);
           if (prevBars.length > 1) prevBars.pop();
           if (prevBars.length > 0) {
+            prevDayBars = prevBars; // Cache for getBars() to reuse
             // Merge previous day's bars with today's, sorted by time
             const merged = [...prevBars, ...bars].sort((a, b) => new Date(a.t) - new Date(b.t));
             // Deduplicate by timestamp
