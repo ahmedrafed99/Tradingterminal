@@ -1,8 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import type { TradeStats, DayPnl } from '../../utils/tradeStats';
 import { COLOR_BUY, COLOR_SELL, COLOR_POPOVER, COLOR_TEXT_MUTED } from '../../constants/colors';
 import { niceStep } from './statsHelpers';
-import { drawEquityCurve } from './EquityCurveCanvas';
+import { drawEquityCurve, precomputeTimeLabels } from './EquityCurveCanvas';
 import type { EquityCurveConfig } from './EquityCurveCanvas';
 
 type Mode = 'equity' | 'daily';
@@ -29,7 +29,7 @@ interface HoverInfo {
 
 type HitPoint = HoverInfo;
 
-export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = false }: { stats: TradeStats; dailyData: DayPnl[]; exitTimes?: string[]; singleDay?: boolean }) {
+export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = false, onDayClick }: { stats: TradeStats; dailyData: DayPnl[]; exitTimes?: string[]; singleDay?: boolean; onDayClick?: (date: string) => void }) {
   const [modeChoice, setModeChoice] = useState<Mode>('equity');
   const mode: Mode = singleDay ? 'equity' : modeChoice;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -37,6 +37,9 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
   const [hover, setHover] = useState<HoverInfo | null>(null);
+
+  // Pre-compute time labels once (not per animation frame)
+  const timeLabels = useMemo(() => precomputeTimeLabels(exitTimes), [exitTimes]);
 
   // Store computed positions for hit testing
   const pointsRef = useRef<HitPoint[]>([]);
@@ -81,13 +84,13 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
     ctx.clearRect(0, 0, width, CHART_HEIGHT);
     const points: typeof pointsRef.current = [];
     if (mode === 'equity') {
-      drawEquityCurve(ctx, width, stats.equityCurve, points, EQUITY_CONFIG, exitTimes, progress);
+      drawEquityCurve(ctx, width, stats.equityCurve, points, EQUITY_CONFIG, timeLabels, progress);
     } else {
       drawDailyBars(ctx, width, dailyData, points, progress, hoveredBarRef.current);
     }
     pointsRef.current = points;
     ctx.restore();
-  }, [width, mode, stats, dailyData, exitTimes]);
+  }, [width, mode, stats, dailyData, timeLabels]);
 
   // Animate only when data or mode actually changes — not on resize
   useEffect(() => {
@@ -248,6 +251,25 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
     }
   }, [clearOverlay, redrawBase]);
 
+  const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (mode !== 'daily' || !onDayClick) return;
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    if (!rectRef.current) rectRef.current = overlay.getBoundingClientRect();
+    const mx = e.clientX - rectRef.current.left;
+
+    let closest: typeof pointsRef.current[0] | null = null;
+    let minDist = Infinity;
+    for (const p of pointsRef.current) {
+      const dist = Math.abs(p.x - mx);
+      if (dist < minDist) { minDist = dist; closest = p; }
+    }
+
+    if (closest && minDist < 60) {
+      onDayClick(closest.label);
+    }
+  }, [mode, onDayClick]);
+
   return (
     <div
       style={{
@@ -320,9 +342,10 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
         />
         <canvas
           ref={overlayRef}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: CHART_HEIGHT, display: 'block', cursor: 'crosshair' }}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: CHART_HEIGHT, display: 'block', cursor: mode === 'daily' && onDayClick ? 'pointer' : 'crosshair' }}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onClick={handleClick}
         />
 
       </div>
