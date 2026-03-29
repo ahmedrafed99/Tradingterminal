@@ -17,12 +17,13 @@ export function getCmeSessionStart(): string {
 // Date preset helpers
 // ---------------------------------------------------------------------------
 
-export type DatePreset = 'today' | 'week' | 'month';
+export type DatePreset = 'today' | 'week' | 'month' | 'all';
 
 export const DATE_PRESET_LABELS: Record<DatePreset, string> = {
   today: 'Today',
   week: 'This Week',
   month: 'This Month',
+  all: 'All Time',
 };
 
 /** Convert a NY-local Date to UTC ISO string (no milliseconds). */
@@ -68,5 +69,6 @@ export function getDateRange(preset: DatePreset): { startTimestamp: string; endT
     case 'today': return { startTimestamp: getTodayStart() };
     case 'week': return { startTimestamp: getWeekStart() };
     case 'month': return { startTimestamp: getMonthStart() };
+    case 'all': return { startTimestamp: '2020-01-01T00:00:00.000Z' };
   }
 }

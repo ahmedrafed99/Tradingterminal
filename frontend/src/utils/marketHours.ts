@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 
+// Cached formatter for NY timezone conversion — avoids per-call Intl allocation
+const fmtNY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York' });
+
 /**
  * Returns true if CME futures are currently in their regular trading session.
  * Closed windows:
@@ -7,7 +10,7 @@ import { useState, useEffect } from 'react';
  *   - Weekend:           Friday 17:00 ET → Sunday 18:00 ET
  */
 export function isFuturesMarketOpen(): boolean {
-  const etStr = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+  const etStr = fmtNY.format(new Date());
   const et = new Date(etStr);
   const day = et.getDay(); // 0=Sun … 6=Sat
   const h = et.getHours();
@@ -33,7 +36,7 @@ export function tradingDurationMs(entryIso: string, exitIso: string): number {
 
   function computeOffset(utcMs: number): number {
     const d = new Date(utcMs);
-    const ny = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    const ny = new Date(fmtNY.format(d));
     return ny.getTime() - d.getTime();
   }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Z } from '../../constants/layout';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
@@ -44,10 +44,11 @@ export function TradesTab() {
   const bottomPanelTab = useStore((s) => s.bottomPanelTab);
 
   // Display trades in store so the chart can access them for trade zone markers
-  const displayTrades = useStore((s) => s.displayTrades);
+  const displayTradesRaw = useStore((s) => s.displayTrades);
+  const displayTrades = useDeferredValue(displayTradesRaw);
   const setDisplayTrades = useStore((s) => s.setDisplayTrades);
 
-  const showDate = tradesDatePreset === 'week' || tradesDatePreset === 'month';
+  const showDate = tradesDatePreset !== 'today';
 
   // Fetch filtered trades for display (with cache)
   useEffect(() => {
@@ -57,7 +58,7 @@ export function TradesTab() {
     const cacheKey = `${activeAccountId}:${tradesDatePreset}`;
     const cached = tradesCache.get(cacheKey);
     if (cached) {
-      setDisplayTrades(cached);
+      startTransition(() => setDisplayTrades(cached));
       return;
     }
 
@@ -67,7 +68,7 @@ export function TradesTab() {
       .then((trades) => {
         if (cancelled) return;
         tradesCache.set(cacheKey, trades);
-        setDisplayTrades(trades);
+        startTransition(() => setDisplayTrades(trades));
       })
       .catch((err) => {
         console.error('[TradesTab] Trades fetch failed:', err instanceof Error ? err.message : err);
@@ -76,7 +77,7 @@ export function TradesTab() {
   }, [connected, activeAccountId, tradesDatePreset]);
 
   // Preset trade counts (for dropdown badges)
-  const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month'];
+  const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month', 'all'];
 
   useEffect(() => {
     if (!connected || activeAccountId == null) return;
@@ -123,7 +124,7 @@ export function TradesTab() {
           .searchTrades(state.activeAccountId, startTimestamp, endTimestamp)
           .then((trades) => {
             tradesCache.set(`${state.activeAccountId}:${state.tradesDatePreset}`, trades);
-            setDisplayTrades(trades);
+            startTransition(() => setDisplayTrades(trades));
           })
           .catch((err) => {
             console.error('[TradesTab] Trade event re-fetch failed:', err instanceof Error ? err.message : err);
@@ -140,6 +141,14 @@ export function TradesTab() {
   const [sortCol, setSortCol] = useState<SortColumn>('time');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const RENDER_LIMIT = 50;
+  const [showAll, setShowAll] = useState(false);
+  // Reset to limited view when data changes (filter switch)
+  const prevTradesRef = useRef(displayTrades);
+  if (displayTrades !== prevTradesRef.current) {
+    prevTradesRef.current = displayTrades;
+    if (showAll) setShowAll(false);
+  }
 
   const toggleSort = useCallback((col: SortColumn) => {
     if (col === sortCol) {
@@ -264,6 +273,7 @@ export function TradesTab() {
     today: 'No trades today',
     week: 'No trades this week',
     month: 'No trades this month',
+    all: 'No trades found',
   };
 
   if (statsOpen) return null;
@@ -328,7 +338,7 @@ export function TradesTab() {
       </div>
 
       {/* Rows */}
-      {sortedGroups.map((group) => {
+      {(showAll ? sortedGroups : sortedGroups.slice(0, RENDER_LIMIT)).map((group) => {
         const isMulti = group.exits.length > 1;
         const isExpanded = expandedGroups.has(group.entryId);
         const exitIds = group.exits.map((t) => t.id);
@@ -347,6 +357,7 @@ export function TradesTab() {
             <div
               key={trade.id}
               className={`${stripe} ${selected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
+              style={{ contentVisibility: 'auto', containIntrinsicSize: '0 28px' }}
               onClick={() => toggleTradeVisibility(trade.id)}
             >
               <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
@@ -392,7 +403,7 @@ export function TradesTab() {
         const parentSelected = anyVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
 
         return (
-          <div key={`group-${group.entryId}`}>
+          <div key={`group-${group.entryId}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 28px' }}>
             {/* Parent row */}
             <div
               className={`${parentStripe} ${parentSelected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
@@ -484,6 +495,15 @@ export function TradesTab() {
           </div>
         );
       })}
+      {!showAll && sortedGroups.length > RENDER_LIMIT && (
+        <div
+          className="flex items-center justify-center text-xs text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer"
+          style={{ padding: '6px 0' }}
+          onClick={() => setShowAll(true)}
+        >
+          Show all {sortedGroups.length} trades
+        </div>
+      )}
     </div>
   );
 }

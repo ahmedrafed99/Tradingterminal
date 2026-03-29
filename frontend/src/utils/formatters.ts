@@ -18,26 +18,20 @@ export function formatPrice(price: number): string {
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Reusable Intl formatters — avoids allocating a new one per call
+const fmtDateTime = new Intl.DateTimeFormat('en-US', {
+  month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  hour12: false, timeZone: 'America/New_York',
+});
+const fmtTimeOnly = new Intl.DateTimeFormat('en-US', {
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hour12: false, timeZone: 'America/New_York',
+});
+
 /** Format an ISO timestamp to HH:MM:SS (or MM/DD HH:MM if showDate) in New York time */
 export function formatTime(iso: string, showDate = false): string {
   const d = new Date(iso);
-  if (showDate) {
-    return d.toLocaleString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'America/New_York',
-    });
-  }
-  return d.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: 'America/New_York',
-  });
+  return showDate ? fmtDateTime.format(d) : fmtTimeOnly.format(d);
 }
 
 /** Duration between two ISO timestamps in milliseconds */

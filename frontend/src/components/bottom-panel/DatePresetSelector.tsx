@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { DATE_PRESET_LABELS, type DatePreset } from '../../utils/cmeSession';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
-const PRESETS: DatePreset[] = ['today', 'week', 'month'];
+const PRESETS: DatePreset[] = ['today', 'week', 'month', 'all'];
 
 interface DatePresetSelectorProps {
   counts?: Partial<Record<DatePreset, number>>;
