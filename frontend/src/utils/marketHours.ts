@@ -1,7 +1,25 @@
 import { useState, useEffect } from 'react';
 
-// Cached formatter for NY timezone conversion — avoids per-call Intl allocation
+// Cached formatters for NY timezone conversion — avoids per-call Intl allocation
 const fmtNY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York' });
+const fmtNYFull = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York',
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+});
+
+/** Extract ET day-of-week and hour from the current time. */
+function getETComponents(): { day: number; h: number } {
+  const parts = fmtNYFull.formatToParts(new Date());
+  const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
+  const month = get('month');
+  const dayOfMonth = get('day');
+  const year = get('year');
+  const h = get('hour') % 24; // hour12:false can return 24 for midnight in some engines
+  // Build a UTC date from ET date components just to get day-of-week
+  const day = new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay();
+  return { day, h };
+}
 
 /**
  * Returns true if CME futures are currently in their regular trading session.
@@ -10,10 +28,7 @@ const fmtNY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York' })
  *   - Weekend:           Friday 17:00 ET → Sunday 18:00 ET
  */
 export function isFuturesMarketOpen(): boolean {
-  const etStr = fmtNY.format(new Date());
-  const et = new Date(etStr);
-  const day = et.getDay(); // 0=Sun … 6=Sat
-  const h = et.getHours();
+  const { day, h } = getETComponents();
   if (day === 6) return false;            // all Saturday
   if (day === 5 && h >= 17) return false; // Friday 17:00+ → weekend start
   if (day === 0 && h < 18) return false;  // Sunday before 18:00 → weekend end
