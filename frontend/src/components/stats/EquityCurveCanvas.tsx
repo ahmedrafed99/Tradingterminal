@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { COLOR_BUY, COLOR_SELL, COLOR_TABLE_STRIPE, COLOR_POPOVER, COLOR_TEXT_MUTED } from '../../constants/colors';
 import { niceStep, hexToRgba } from './statsHelpers';
 
@@ -11,42 +11,6 @@ export interface HitPoint {
   value: string;
   sub?: string;
   color: string;
-}
-
-export interface ExitTimeLabel {
-  /** Crosshair tooltip: "Mar 25, 10:30 AM" */
-  sub: string;
-  /** YYYY-MM-DD in NY timezone */
-  dateKey: string;
-  /** Day number string, e.g. "25" */
-  day: string;
-  /** Short month, e.g. "Mar" */
-  month: string;
-  /** Month number 1-12 */
-  monthNum: number;
-  /** Full year number */
-  year: number;
-}
-
-/** Pre-compute date labels from exitTimes — call once via useMemo, not per frame. */
-export function precomputeTimeLabels(exitTimes: string[]): ExitTimeLabel[] {
-  return exitTimes.map((t) => {
-    if (!t) return null!;
-    const d = new Date(t);
-    const dateKey = d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    const day = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric' });
-    const month = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short' });
-    const datePart = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
-    const timePart = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
-    return {
-      sub: `${datePart}, ${timePart}`,
-      dateKey,
-      day,
-      month,
-      monthNum: parseInt(dateKey.slice(5, 7)),
-      year: parseInt(dateKey.slice(0, 4)),
-    };
-  });
 }
 
 export interface EquityCurveConfig {
@@ -69,7 +33,7 @@ export function drawEquityCurve(
   curve: number[],
   hitPoints: HitPoint[],
   cfg: EquityCurveConfig,
-  timeLabels: ExitTimeLabel[] = [],
+  exitTimes: string[] = [],
   progress = 1,
 ) {
   const { height, pad, dotThreshold = 30, dotRadius = 3, gridTargetLines = 4 } = cfg;
@@ -206,53 +170,19 @@ export function drawEquityCurve(
     const cumPnl = curve[i];
     const sign = cumPnl > 0 ? '+' : cumPnl < 0 ? '-' : '';
     const pnlStr = `${sign}$${Math.abs(cumPnl).toFixed(2)}`;
+    let timeStr = '';
+    if (exitTimes[i]) {
+      const d = new Date(exitTimes[i]);
+      timeStr = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    }
     hitPoints.push({
       x: toX(i),
       y: toY(values[i]),
       label: `Trade #${i + 1}`,
       value: pnlStr,
-      sub: timeLabels[i]?.sub || '',
+      sub: timeStr,
       color: cumPnl >= 0 ? COLOR_BUY : COLOR_SELL,
     });
-  }
-
-  // X-axis date labels (TradingView style)
-  if (timeLabels.length > 0) {
-    ctx.fillStyle = TEXT_COLOR;
-    ctx.font = FONT;
-    ctx.textAlign = 'center';
-    const labelY = height - 10;
-    let lastLabelX = -Infinity;
-    let lastDateKey = '';
-    let lastMonth = -1;
-    let lastYear = -1;
-    const MIN_LABEL_GAP = 40;
-
-    for (let i = 0; i < curve.length; i++) {
-      const tl = timeLabels[i];
-      if (!tl) continue;
-
-      // Only draw label when the date changes from previous trade
-      if (tl.dateKey === lastDateKey) continue;
-
-      let label: string;
-      if (lastYear >= 0 && tl.year !== lastYear) {
-        label = `${tl.year}`;
-      } else if (lastMonth >= 0 && tl.monthNum !== lastMonth) {
-        label = tl.month;
-      } else {
-        label = tl.day;
-      }
-
-      const x = toX(i);
-      if (x - lastLabelX < MIN_LABEL_GAP) continue;
-
-      ctx.fillText(label, x, labelY);
-      lastLabelX = x;
-      lastDateKey = tl.dateKey;
-      lastMonth = tl.monthNum;
-      lastYear = tl.year;
-    }
   }
 }
 
@@ -276,7 +206,6 @@ export function EquityCurveCanvas({ curve, exitTimes = [], title, config, animat
   const pointsRef = useRef<HitPoint[]>([]);
   const rectRef = useRef<DOMRect | null>(null);
   const animRef = useRef(0);
-  const labels = useMemo(() => precomputeTimeLabels(exitTimes), [exitTimes]);
 
   const { height, pad } = config;
 
@@ -319,7 +248,7 @@ export function EquityCurveCanvas({ curve, exitTimes = [], title, config, animat
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
         const pts: HitPoint[] = [];
-        drawEquityCurve(ctx, width, curve, pts, config, labels, progress);
+        drawEquityCurve(ctx, width, curve, pts, config, exitTimes, progress);
         pointsRef.current = pts;
         ctx.restore();
         if (t < 1) animRef.current = requestAnimationFrame(frame);
@@ -332,7 +261,7 @@ export function EquityCurveCanvas({ curve, exitTimes = [], title, config, animat
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, height);
       const pts: HitPoint[] = [];
-      drawEquityCurve(ctx, width, curve, pts, config, labels);
+      drawEquityCurve(ctx, width, curve, pts, config, exitTimes);
       pointsRef.current = pts;
       ctx.restore();
     }

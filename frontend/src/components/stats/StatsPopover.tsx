@@ -187,7 +187,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
                 <StatsKpiCards stats={stats} />
               </AnimateIn>
               <AnimateIn>
-                <StatsPnlChart stats={stats} dailyData={calendarData} exitTimes={exitTimes} singleDay={tradesDatePreset === 'today'} onDayClick={setSelectedDay} />
+                <StatsPnlChart stats={stats} dailyData={calendarData} exitTimes={exitTimes} singleDay={tradesDatePreset === 'today'} />
               </AnimateIn>
               <AnimateIn>
                 <StatsCalendarGrid dailyData={calendarData} onDayClick={setSelectedDay} />

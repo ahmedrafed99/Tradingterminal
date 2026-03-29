@@ -51,13 +51,13 @@ Card titles: 14px, `font-weight: 600`, `color: var(--color-text)`.
 Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity / Daily). When the date filter is **Today**, the toggle is hidden and the chart is locked to equity curve mode (a single daily bar would be useless).
 
 **Equity Curve mode:**
-- X-axis: **TradingView-style date labels** — day numbers (e.g. "25", "26") appear along the bottom when trades span multiple days. When the month changes, the month abbreviation is shown instead (e.g. "Apr"). When the year changes, the year is shown (e.g. "2026"). Labels enforce a minimum 40px gap to avoid overlap. Date labels are pre-computed via `precomputeTimeLabels()` (called once per data change via `useMemo`) to avoid expensive `Intl` calls during animation frames.
+- X-axis: **no static labels** — trade exit time (NY timezone, e.g. "9:42 AM") appears on the X-axis only on hover.
 - Y-axis: cumulative net P&L (dollar sign on right, e.g. `40$`). Font: 13px.
 - Line color changes per-segment: **green above zero, red below zero**. Segments crossing zero are split at the intersection.
 - Area fill: green gradient above zero line, red gradient below — rendered via canvas clipping.
 - **Centered node spacing**: with few trades, points cluster near the center (48px apart) instead of stretching edge-to-edge. As trade count grows, the chart fills the full width naturally.
 - Data point dots when ≤ 30 trades.
-- Interactive **crosshair** on hover: drawn on a transparent overlay canvas. Dashed vertical + horizontal lines, highlighted dot. Crosshair X-axis label shows **date + time** (e.g. "Mar 25, 10:30 AM"). **Header tooltip** shows cumulative P&L at the hovered point (colored green/red) inline in the title bar — no floating tooltip.
+- Interactive **crosshair** on hover: drawn on a transparent overlay canvas. Dashed vertical + horizontal lines, highlighted dot. **Header tooltip** shows cumulative P&L at the hovered point (colored green/red) inline in the title bar — no floating tooltip.
 - Grid lines: `rgba(255,255,255,0.12)`, 1px width.
 - Animation plays only on data/mode changes, not on resize (prevents double-animation glitch when toggling date filters).
 
@@ -66,7 +66,6 @@ Canvas-rendered chart (240px tall) inside a card with a segmented toggle (Equity
 - Y-axis: daily net P&L ($).
 - Green bars for positive days, red for negative, with rounded corners.
 - **Hover**: hovered bar stays full opacity, all others dim to 35%. Full-height column highlight behind the hovered bar. Tooltip shows inline in the header row (centered, fixed-width segments so text doesn't shift between bars).
-- **Click**: clicking a bar navigates to the **day detail view** (same as clicking a calendar cell). Cursor shows as pointer.
 
 ### 3. PnL Calendar Grid
 
@@ -179,8 +178,8 @@ Entrance animations trigger on mount or when sections scroll into view:
 |------|---------|
 | `components/stats/StatsPopover.tsx` | Popover container — backdrop, scroll, animation, dismiss, day drill-down state |
 | `components/stats/StatsKpiCards.tsx` | 3×2 grid of KPI cards with SVG donut, animated counters |
-| `components/stats/EquityCurveCanvas.tsx` | Shared equity curve: canvas drawing function + React component with hover, crosshair, header tooltip, date-on-X-axis. Exports `precomputeTimeLabels()` for caching Intl date formatting outside animation frames |
-| `components/stats/StatsPnlChart.tsx` | Equity curve (via shared component) + daily bar chart with entrance animation + clickable daily bars |
+| `components/stats/EquityCurveCanvas.tsx` | Shared equity curve: canvas drawing function + React component with hover, crosshair, header tooltip, time-on-X-axis |
+| `components/stats/StatsPnlChart.tsx` | Equity curve (via shared component) + daily bar chart with entrance animation |
 | `components/stats/StatsCalendarGrid.tsx` | Weekly calendar heatmap with clickable day cells |
 | `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve (via shared component) + trade list table |
 | `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short (with mini donuts), Day of Week, Duration |
