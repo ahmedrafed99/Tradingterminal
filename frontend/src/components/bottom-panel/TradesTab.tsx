@@ -29,8 +29,14 @@ interface TradeGroup {
   isLong: boolean;
 }
 
-// In-memory cache for filtered presets, keyed by `accountId:preset`
-const tradesCache = new Map<string, Trade[]>();
+// In-memory cache for all trades, keyed by accountId
+export const allTradesCache = new Map<string, Trade[]>();
+
+function filterByPreset(allTrades: Trade[], preset: DatePreset): Trade[] {
+  if (preset === 'all') return allTrades;
+  const { startTimestamp } = getDateRange(preset);
+  return allTrades.filter((t) => t.creationTimestamp >= startTimestamp);
+}
 
 export function TradesTab() {
   const connected = useStore((s) => s.connected);
@@ -50,63 +56,57 @@ export function TradesTab() {
 
   const showDate = tradesDatePreset !== 'today';
 
-  // Fetch filtered trades for display (with cache)
+  const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month', 'all'];
+
+  // Derive display trades and preset counts from the all-trades cache
+  const applyPreset = useCallback((allTrades: Trade[]) => {
+    const countClosing = (trades: Trade[]) =>
+      trades.filter((t) => t.profitAndLoss != null && !t.voided).length;
+
+    const preset = useStore.getState().tradesDatePreset;
+    const filtered = filterByPreset(allTrades, preset);
+    startTransition(() => setDisplayTrades(filtered));
+
+    const counts: Partial<Record<DatePreset, number>> = {};
+    for (const p of ALL_PRESETS) {
+      counts[p] = countClosing(filterByPreset(allTrades, p));
+    }
+    setPresetCounts(counts);
+  }, []);
+
+  // Fetch all trades once, filter client-side for the active preset
   useEffect(() => {
     if (!connected || activeAccountId == null) return;
     let cancelled = false;
 
-    const cacheKey = `${activeAccountId}:${tradesDatePreset}`;
-    const cached = tradesCache.get(cacheKey);
+    const cached = allTradesCache.get(activeAccountId);
     if (cached) {
-      startTransition(() => setDisplayTrades(cached));
+      applyPreset(cached);
       return;
     }
 
-    const { startTimestamp, endTimestamp } = getDateRange(tradesDatePreset);
+    const { startTimestamp } = getDateRange('all');
     tradeService
-      .searchTrades(activeAccountId, startTimestamp, endTimestamp)
+      .searchTrades(activeAccountId, startTimestamp)
       .then((trades) => {
         if (cancelled) return;
-        tradesCache.set(cacheKey, trades);
-        startTransition(() => setDisplayTrades(trades));
+        allTradesCache.set(activeAccountId, trades);
+        applyPreset(trades);
       })
       .catch((err) => {
         console.error('[TradesTab] Trades fetch failed:', err instanceof Error ? err.message : err);
       });
     return () => { cancelled = true; };
-  }, [connected, activeAccountId, tradesDatePreset]);
+  }, [connected, activeAccountId]);
 
-  // Preset trade counts (for dropdown badges)
-  const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month', 'all'];
-
+  // Re-filter when preset changes (no API call)
   useEffect(() => {
-    if (!connected || activeAccountId == null) return;
-    let cancelled = false;
+    if (activeAccountId == null) return;
+    const cached = allTradesCache.get(activeAccountId);
+    if (cached) applyPreset(cached);
+  }, [tradesDatePreset]);
 
-    const countClosing = (trades: Trade[]) =>
-      trades.filter((t) => t.profitAndLoss != null && !t.voided).length;
-
-    Promise.all(
-      ALL_PRESETS.map(async (p) => {
-        const key = `${activeAccountId}:${p}`;
-        const cached = tradesCache.get(key);
-        if (cached) return [p, countClosing(cached)] as const;
-        const { startTimestamp, endTimestamp } = getDateRange(p);
-        const trades = await tradeService.searchTrades(activeAccountId, startTimestamp, endTimestamp);
-        tradesCache.set(key, trades);
-        return [p, countClosing(trades)] as const;
-      }),
-    ).then((results) => {
-      if (cancelled) return;
-      setPresetCounts(Object.fromEntries(results));
-    }).catch((err) => {
-      console.error('[TradesTab] Preset counts fetch failed:', err instanceof Error ? err.message : err);
-    });
-
-    return () => { cancelled = true; };
-  }, [connected, activeAccountId, displayTrades]);
-
-  // Re-fetch display trades on SignalR trade events (debounced 500ms)
+  // Re-fetch all trades on SignalR trade events (debounced 500ms)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!connected) return;
@@ -115,16 +115,13 @@ export function TradesTab() {
       debounceRef.current = setTimeout(() => {
         const state = useStore.getState();
         if (state.activeAccountId == null) return;
-        // Invalidate cache & refresh display trades
-        for (const key of tradesCache.keys()) {
-          if (key.startsWith(`${state.activeAccountId}:`)) tradesCache.delete(key);
-        }
-        const { startTimestamp, endTimestamp } = getDateRange(state.tradesDatePreset);
+        allTradesCache.delete(state.activeAccountId);
+        const { startTimestamp } = getDateRange('all');
         tradeService
-          .searchTrades(state.activeAccountId, startTimestamp, endTimestamp)
+          .searchTrades(state.activeAccountId, startTimestamp)
           .then((trades) => {
-            tradesCache.set(`${state.activeAccountId}:${state.tradesDatePreset}`, trades);
-            startTransition(() => setDisplayTrades(trades));
+            allTradesCache.set(state.activeAccountId!, trades);
+            applyPreset(trades);
           })
           .catch((err) => {
             console.error('[TradesTab] Trade event re-fetch failed:', err instanceof Error ? err.message : err);

@@ -10,12 +10,12 @@ import { OrderPanel } from './components/order-panel';
 import { authService } from './services/authService';
 import { accountService } from './services/accountService';
 import { marketDataService } from './services/marketDataService';
-import { tradeService } from './services/tradeService';
 import { realtimeService } from './services/realtimeService';
 import { useStore } from './store/useStore';
 import { useSettingsSync } from './hooks/useSettingsSync';
 import { useRemoteDrawings } from './hooks/useRemoteDrawings';
 import { getCmeSessionStart } from './utils/cmeSession';
+import { allTradesCache } from './components/bottom-panel/TradesTab';
 
 function VerticalSeparator({
   containerRef,
@@ -108,22 +108,17 @@ export default function App() {
       });
   }, [connected, settingsHydrated]);
 
-  // Fetch session trades on connect (for TopBar RPNL) — runs regardless of bottom panel tab
+  // Derive session trades from allTradesCache (populated by TradesTab)
   const activeAccountId = useStore((s) => s.activeAccountId);
+  const displayTradesRaw = useStore((s) => s.displayTrades);
+
   useEffect(() => {
     if (!connected || activeAccountId == null) return;
-    let cancelled = false;
-    const startTimestamp = getCmeSessionStart();
-    tradeService
-      .searchTrades(activeAccountId, startTimestamp)
-      .then((trades) => {
-        if (!cancelled) useStore.getState().setSessionTrades(trades);
-      })
-      .catch((err) => {
-        console.error('[App] Session trades fetch failed:', err instanceof Error ? err.message : err);
-      });
-    return () => { cancelled = true; };
-  }, [connected, activeAccountId]);
+    const cached = allTradesCache.get(activeAccountId);
+    if (!cached) return; // Wait for TradesTab to populate the cache
+    const sessionStart = getCmeSessionStart();
+    useStore.getState().setSessionTrades(cached.filter((t) => t.creationTimestamp >= sessionStart));
+  }, [connected, activeAccountId, displayTradesRaw]);
 
   // Re-fetch session trades on SignalR trade events (debounced 500ms)
   const tradeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -134,14 +129,14 @@ export default function App() {
       tradeDebounceRef.current = setTimeout(() => {
         const state = useStore.getState();
         if (state.activeAccountId == null) return;
-        const sessionStart = getCmeSessionStart();
-        tradeService
-          .searchTrades(state.activeAccountId, sessionStart)
-          .then((trades) => state.setSessionTrades(trades))
-          .catch((err) => {
-            console.error('[App] Trade event re-fetch failed:', err instanceof Error ? err.message : err);
-          });
-      }, 500);
+        // allTradesCache is refreshed by TradesTab's SignalR handler;
+        // just re-derive session trades from the updated cache
+        const cached = allTradesCache.get(state.activeAccountId!);
+        if (cached) {
+          const sessionStart = getCmeSessionStart();
+          state.setSessionTrades(cached.filter((t) => t.creationTimestamp >= sessionStart));
+        }
+      }, 600); // slightly after TradesTab's 500ms to ensure cache is fresh
     };
     realtimeService.onTrade(handler);
     return () => {
