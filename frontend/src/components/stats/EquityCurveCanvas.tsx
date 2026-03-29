@@ -28,21 +28,24 @@ export interface ExitTimeLabel {
   year: number;
 }
 
+// Reusable Intl formatters — creating these once is ~100x faster than per-call
+const fmtDateKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+const fmtDay = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', day: 'numeric' });
+const fmtMonth = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short' });
+const fmtDatePart = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
+const fmtTimePart = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+
 /** Pre-compute date labels from exitTimes — call once via useMemo, not per frame. */
 export function precomputeTimeLabels(exitTimes: string[]): ExitTimeLabel[] {
   return exitTimes.map((t) => {
     if (!t) return null!;
     const d = new Date(t);
-    const dateKey = d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-    const day = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric' });
-    const month = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short' });
-    const datePart = d.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' });
-    const timePart = d.toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    const dateKey = fmtDateKey.format(d);
     return {
-      sub: `${datePart}, ${timePart}`,
+      sub: `${fmtDatePart.format(d)}, ${fmtTimePart.format(d)}`,
       dateKey,
-      day,
-      month,
+      day: fmtDay.format(d),
+      month: fmtMonth.format(d),
       monthNum: parseInt(dateKey.slice(5, 7)),
       year: parseInt(dateKey.slice(0, 4)),
     };

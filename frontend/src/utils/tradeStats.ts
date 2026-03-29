@@ -229,6 +229,11 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
   };
 }
 
+// ── Reusable Intl formatters ─────────────────────────────────────────────────
+
+const fmtNYDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+const fmtNYHour = new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: false, timeZone: 'America/New_York' });
+
 // ── Calendar ─────────────────────────────────────────────────────────────────
 
 /** Group trades by calendar day (New York time). */
@@ -237,7 +242,7 @@ export function buildCalendarData(grouped: GroupedTrade[]): DayPnl[] {
 
   for (const t of grouped) {
     const d = new Date(t.exitTime);
-    const ny = d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); // YYYY-MM-DD
+    const ny = fmtNYDate.format(d); // YYYY-MM-DD
     const prev = byDay.get(ny) ?? { net: 0, count: 0 };
     byDay.set(ny, { net: prev.net + t.totalNet, count: prev.count + 1 });
   }
@@ -260,10 +265,7 @@ export function buildHourlyData(grouped: GroupedTrade[]): HourPnl[] {
 
   for (const t of grouped) {
     const d = new Date(t.entryTime);
-    const hour = parseInt(
-      d.toLocaleString('en-US', { hour: '2-digit', hour12: false, timeZone: 'America/New_York' }),
-      10,
-    );
+    const hour = parseInt(fmtNYHour.format(d), 10);
     const prev = buckets.get(hour) ?? { total: 0, count: 0 };
     buckets.set(hour, { total: prev.total + t.totalNet, count: prev.count + 1 });
   }

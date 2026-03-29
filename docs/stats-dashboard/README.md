@@ -18,7 +18,8 @@ A near-full-screen popover triggered by a **Stats** tab in the bottom panel. Dis
 
 - The popover header includes the **DatePresetSelector** (Today / This Week / This Month), synced with the Trades tab's `tradesDatePreset` in the store.
 - Changing the preset in either location updates both — they share the same store field and the same `displayTrades` array.
-- No duplicate API calls: if TradesTab already fetched trades for the selected preset, Stats reads from the cached `displayTrades`.
+- No duplicate API calls: TradesTab owns all trade fetching and preset count fetching. StatsPopover reads `displayTrades` and `presetCounts` from the store — zero API calls.
+- `presetCounts` lives in `layoutSlice` so both TradesTab's and StatsPopover's `DatePresetSelector` share one source of truth.
 
 ---
 
@@ -128,11 +129,11 @@ User clicks Stats tab
         │
         ▼
 Popover opens (slide-up animation)
+TradesTab skips row rendering (statsOpen gate)
         │
         ▼
-Read displayTrades from layoutSlice (already fetched by TradesTab)
-   ├── If empty: tradeService.searchTrades() → store
-   └── Otherwise: use cached data, zero API calls
+Read displayTrades + presetCounts from layoutSlice
+(already fetched/cached by TradesTab — zero API calls from StatsPopover)
         │
         ▼
 groupTrades(displayTrades)               ← utils/tradeStats.ts
@@ -148,6 +149,11 @@ computeStats(grouped)                    ← pure function → TradeStats
 
 All stats recompute via `useMemo` when `displayTrades` changes. SignalR trade events trigger re-fetch (debounced 500ms) in TradesTab, which updates `displayTrades`, which reactively updates Stats.
 
+### Performance
+
+- **Intl formatter reuse**: `precomputeTimeLabels()`, `buildCalendarData()`, and `buildHourlyData()` use module-level `Intl.DateTimeFormat` instances instead of creating new formatters per call. This avoids ~1000 formatter allocations per render with 200+ trades.
+- **TradesTab render gating**: When the stats popover is open (`bottomPanelTab === 'stats'`), TradesTab skips its expensive `buildEntryMap`, trade grouping, and 200+ row rendering — the popover covers the entire screen so those DOM nodes are invisible. Fetch effects still run so `displayTrades` stays current.
+
 ---
 
 ## Store Changes
@@ -158,7 +164,9 @@ Added `'stats'` to the `bottomPanelTab` union type in `layoutSlice`:
 bottomPanelTab: 'orders' | 'trades' | 'conditions' | 'stats'
 ```
 
-No new store fields. Popover open state is derived from `bottomPanelTab === 'stats'`. Day drill-down state is local to `StatsPopover` (`useState`).
+`presetCounts` (type `Partial<Record<DatePreset, number>>`) stores trade counts per date preset, shared between TradesTab and StatsPopover's `DatePresetSelector`. Populated by TradesTab's fetch effect.
+
+Popover open state is derived from `bottomPanelTab === 'stats'`. Day drill-down state is local to `StatsPopover` (`useState`).
 
 ---
 

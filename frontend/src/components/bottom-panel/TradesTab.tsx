@@ -39,6 +39,9 @@ export function TradesTab() {
   const toggleTradeVisibility = useStore((s) => s.toggleTradeVisibility);
   const toggleTradeVisibilityBulk = useStore((s) => s.toggleTradeVisibilityBulk);
   const tradesDatePreset = useStore((s) => s.tradesDatePreset);
+  const presetCounts = useStore((s) => s.presetCounts);
+  const setPresetCounts = useStore((s) => s.setPresetCounts);
+  const bottomPanelTab = useStore((s) => s.bottomPanelTab);
 
   // Display trades in store so the chart can access them for trade zone markers
   const displayTrades = useStore((s) => s.displayTrades);
@@ -74,7 +77,6 @@ export function TradesTab() {
 
   // Preset trade counts (for dropdown badges)
   const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month'];
-  const [presetCounts, setPresetCounts] = useState<Partial<Record<DatePreset, number>>>({});
 
   useEffect(() => {
     if (!connected || activeAccountId == null) return;
@@ -157,11 +159,15 @@ export function TradesTab() {
     });
   }, []);
 
+  // When stats popover is open it covers the entire screen — skip expensive
+  // row computation and rendering so only StatsPopover pays the cost.
+  const statsOpen = bottomPanelTab === 'stats';
+
   // Build entry map and filter to closing trades
-  const entryMap = useMemo(() => buildEntryMap(displayTrades), [displayTrades]);
+  const entryMap = useMemo(() => statsOpen ? new Map<string, Trade>() : buildEntryMap(displayTrades), [displayTrades, statsOpen]);
   const closingTrades = useMemo(
-    () => [...displayTrades].filter((t) => t.profitAndLoss != null && !t.voided).reverse(),
-    [displayTrades],
+    () => statsOpen ? [] : [...displayTrades].filter((t) => t.profitAndLoss != null && !t.voided).reverse(),
+    [displayTrades, statsOpen],
   );
 
   // Group closing trades by their matched entry
@@ -259,6 +265,8 @@ export function TradesTab() {
     week: 'No trades this week',
     month: 'No trades this month',
   };
+
+  if (statsOpen) return null;
 
   if (closingTrades.length === 0) {
     return (

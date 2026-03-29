@@ -41,6 +41,7 @@ export interface BottomPanelState {
   sessionTrades: Trade[];
   displayTrades: Trade[];
   visibleTradeIds: string[];
+  presetCounts: Partial<Record<DatePreset, number>>;
   setBottomPanelOpen: (open: boolean) => void;
   setBottomPanelRatio: (ratio: number) => void;
   setBottomPanelTab: (tab: 'orders' | 'trades' | 'conditions' | 'stats') => void;
@@ -50,6 +51,7 @@ export interface BottomPanelState {
   toggleTradeVisibility: (tradeId: string) => void;
   toggleTradeVisibilityBulk: (tradeIds: string[]) => void;
   clearVisibleTradeIds: () => void;
+  setPresetCounts: (counts: Partial<Record<DatePreset, number>>) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,6 +161,7 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   sessionTrades: [] as Trade[],
   displayTrades: [] as Trade[],
   visibleTradeIds: [] as string[],
+  presetCounts: {} as Partial<Record<DatePreset, number>>,
   setBottomPanelOpen: (bottomPanelOpen) => set({ bottomPanelOpen }),
   setBottomPanelRatio: (ratio) => set({ bottomPanelRatio: Math.max(0, Math.min(0.6, ratio)) }),
   setBottomPanelTab: (bottomPanelTab) => set({ bottomPanelTab }),
@@ -181,6 +184,7 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
       };
     }),
   clearVisibleTradeIds: () => set({ visibleTradeIds: [] }),
+  setPresetCounts: (presetCounts) => set({ presetCounts }),
 
   // Dual Chart
   dualChart: false,

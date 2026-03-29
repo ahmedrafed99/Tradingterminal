@@ -18,22 +18,14 @@ import {
   buildDurationComparison,
 } from '../../utils/tradeStats';
 import type { GroupedTrade } from '../../utils/tradeStats';
-import type { DatePreset } from '../../utils/cmeSession';
-import { getDateRange } from '../../utils/cmeSession';
-import { tradeService } from '../../services/tradeService';
 
 export function StatsPopover({ onClose }: { onClose: () => void }) {
   const [visible, setVisible] = useState(false);
   const backdropRef = useRef<HTMLDivElement>(null);
 
-  const connected = useStore((s) => s.connected);
-  const activeAccountId = useStore((s) => s.activeAccountId);
   const displayTrades = useStore((s) => s.displayTrades);
-  const setDisplayTrades = useStore((s) => s.setDisplayTrades);
   const tradesDatePreset = useStore((s) => s.tradesDatePreset);
-
-  const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month'];
-  const [presetCounts, setPresetCounts] = useState<Partial<Record<DatePreset, number>>>({});
+  const presetCounts = useStore((s) => s.presetCounts);
 
   // Animate in
   useEffect(() => {
@@ -51,37 +43,6 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
-
-  // Ensure trades are fetched
-  useEffect(() => {
-    if (!connected || activeAccountId == null) return;
-    if (displayTrades.length > 0) return;
-
-    const { startTimestamp, endTimestamp } = getDateRange(tradesDatePreset);
-    tradeService
-      .searchTrades(activeAccountId, startTimestamp, endTimestamp)
-      .then((trades) => setDisplayTrades(trades))
-      .catch(() => {});
-  }, [connected, activeAccountId, tradesDatePreset]);
-
-  // Preset counts
-  useEffect(() => {
-    if (!connected || activeAccountId == null) return;
-    let cancelled = false;
-
-    Promise.all(
-      ALL_PRESETS.map(async (p) => {
-        const { startTimestamp, endTimestamp } = getDateRange(p);
-        const trades = await tradeService.searchTrades(activeAccountId, startTimestamp, endTimestamp);
-        const count = trades.filter((t) => t.profitAndLoss != null && !t.voided).length;
-        return [p, count] as const;
-      }),
-    ).then((results) => {
-      if (!cancelled) setPresetCounts(Object.fromEntries(results));
-    }).catch(() => {});
-
-    return () => { cancelled = true; };
-  }, [connected, activeAccountId, tradesDatePreset]);
 
   // Stats computation
   const grouped = useMemo(() => groupTrades(displayTrades), [displayTrades]);
