@@ -87,13 +87,13 @@ function require(args, ...keys) {
 // ── Default style ──
 
 const COLORS = {
-  moveToLow: '#b05050',      // muted red — current move to low
-  prevMoveToLow: '#8b6060',  // softer red — previous move to low (SOS target)
-  moveToHigh: '#5b8a72',     // muted green — current move to high
-  prevMoveToHigh: '#6b9a7a', // softer green — previous move to high (SOW target)
+  moveToLow: '#d4605a',      // warm red — current move to low
+  prevMoveToLow: '#c49a5c',  // amber/gold — previous move to low (SOS target)
+  moveToHigh: '#4daa7a',     // bright green — current move to high
+  prevMoveToHigh: '#5a9ec4', // blue — previous move to high (SOW target)
   neutral: '#787b86',
   sl: '#c13030',
-  slPreview: '#7a4040',
+  slPreview: '#804848',
   info: '#6b7ea0',
 };
 
