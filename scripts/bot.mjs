@@ -466,7 +466,7 @@ const commands = {
     require(args, 'contractId', 'accountId');
     const {
       fetchBars, findAnchorLow, findAnchorHigh, detectSOS, detectSOW,
-      wickMidpoint, scanTradeManagement,
+      wickMidpoint, scanTradeManagement, etHourMin,
     } = await import('./sos-technical-analysis.mjs');
 
     const cid = args.contractId;
