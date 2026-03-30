@@ -648,8 +648,11 @@ const commands = {
       low = findAnchorLow(bars, anchorStartMinute);
       high = findAnchorHigh(bars, anchorStartMinute);
 
-      // If thin data (e.g. market just opened / weekend), include previous trading day's bars
+      // If thin data (e.g. market just opened / weekend), include previous trading days' bars
+      // Keep going back until we find a day with proper 7:30+ AM session data
       if (bars.length < 30 || !low || !high) {
+        let allPrevBars = [];
+        let foundSession = false;
         for (let daysBack = 1; daysBack <= 5; daysBack++) {
           const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
           etDate.setDate(etDate.getDate() - daysBack);
@@ -660,16 +663,24 @@ const commands = {
           const prevBars = await fetchBars(cid, from, to);
           if (prevBars.length > 1) prevBars.pop();
           if (prevBars.length > 0) {
-            prevDayBars = prevBars; // Cache for getBars() to reuse
-            // Merge previous day's bars with today's, sorted by time
-            const merged = [...prevBars, ...bars].sort((a, b) => new Date(a.t) - new Date(b.t));
-            // Deduplicate by timestamp
-            bars = merged.filter((b, i) => i === 0 || b.t !== merged[i - 1].t);
-            low = findAnchorLow(bars, anchorStartMinute);
-            high = findAnchorHigh(bars, anchorStartMinute);
-            log(`Included bars from ${dateStr} (${prevBars.length} bars) — total: ${bars.length}`);
-            break;
+            allPrevBars = [...prevBars, ...allPrevBars];
+            // Check if this day has bars in the anchor window (7:30+ AM ET)
+            const hasSession = findAnchorLow(prevBars, anchorStartMinute) || findAnchorHigh(prevBars, anchorStartMinute);
+            if (hasSession) {
+              log(`Included bars from ${dateStr} (${prevBars.length} bars)`);
+              foundSession = true;
+              break;
+            }
+            log(`Included ${dateStr} (${prevBars.length} bars, no session) — looking further back`);
           }
+        }
+        if (allPrevBars.length > 0) {
+          prevDayBars = allPrevBars; // Cache for getBars() to reuse
+          const merged = [...allPrevBars, ...bars].sort((a, b) => new Date(a.t) - new Date(b.t));
+          bars = merged.filter((b, i) => i === 0 || b.t !== merged[i - 1].t);
+          low = findAnchorLow(bars, anchorStartMinute);
+          high = findAnchorHigh(bars, anchorStartMinute);
+          log(`Total bars: ${bars.length}`);
         }
       }
 
