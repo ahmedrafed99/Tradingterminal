@@ -161,7 +161,7 @@ When enabled, the trade zone rectangle (drawn between entry and exit prices) ext
 | Width | `520px`, `max-height: 80vh` |
 | Overflow | `visible` (colour popovers escape panel bounds via `position: fixed`) |
 
-See `docs/design-tokens/` for the full visual design token reference.
+See `docs/shared/design-tokens/` for the full visual design token reference.
 
 ---
 

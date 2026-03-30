@@ -242,5 +242,5 @@ Everything else must use a token.
 | See all layout tokens | `frontend/src/constants/layout.ts` |
 | See transition duration tokens | `frontend/src/styles/tokens.css` |
 | Use font, font size, z-index, shadow, or radius in a component | `import { FONT_FAMILY, FONT_SIZE, Z, SHADOW, RADIUS } from 'constants/layout'` |
-| See color tokens (separate system) | `docs/design-tokens/colors.md` |
+| See color tokens (separate system) | `docs/shared/design-tokens/colors.md` |
 | See reusable Tailwind class strings | `frontend/src/constants/styles.ts` |

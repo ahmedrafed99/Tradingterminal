@@ -119,7 +119,7 @@ and the preview toggle that overlays ghost lines on the chart.
 
 ## State (Zustand)
 
-Order-panel trading state lives in `tradingSlice`. Panel position state (`orderPanelSide`) lives in `layoutSlice`. See `docs/frontend/` for the full slice breakdown.
+Order-panel trading state lives in `tradingSlice`. Panel position state (`orderPanelSide`) lives in `layoutSlice`. See `docs/shared/frontend/` for the full slice breakdown.
 
 ```ts
 interface OrderPanelState {

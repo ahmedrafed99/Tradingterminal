@@ -1,7 +1,11 @@
-# ProjectX Chart Trading App
+# Trading Terminal
 
-A localhost web app for trading on a candlestick chart using the
-[ProjectX Gateway API](https://gateway.docs.projectx.com/docs/intro).
+A localhost web app for trading on a candlestick chart. Supports multiple exchanges
+and instrument categories through an adapter pattern.
+
+**Supported exchanges:**
+- [ProjectX (TopstepX)](https://gateway.docs.projectx.com/docs/intro) — CME futures
+- [Hyperliquid](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api) — Crypto perpetuals, spot, tradfi
 
 ---
 
@@ -9,91 +13,113 @@ A localhost web app for trading on a candlestick chart using the
 
 ### Folder Map
 
-All feature documentation lives in `docs/`. Each subfolder has a `README.md`.
+All feature documentation lives in `docs/`, organized by scope.
 
 ```
 docs/
-├── api-layer/            — REST + SignalR services, backend exchange adapter
-├── api-settings/         — Settings modal, API credentials
-├── top-bar/              — Account selector, balance, UP&L, RP&L, latency
-├── candlestick-chart/    — Chart core: bars, toolbar, crosshair, primitive z-order
-│   ├── ohlc-tooltip/     — OHLC hover tooltip
-│   ├── bar-countdown/    — Current bar time remaining
-│   ├── go-to-now/        — Floating scroll-to-latest button
-│   ├── symbol-display/   — Instrument label overlay
-│   └── indicators/
-│       ├── volume-profile/    — Session volume profile (GatewayDepth)
-│       └── bid-ask-footprint/ — Per-candle bid/ask footprint (GatewayQuote)
-├── chart-settings-menu/  — Gear button, quick popover, full settings modal
-├── design-tokens/        — Color palette rules + UI tokens (font, z-index, shadows, radii, transitions)
-├── chart-trading/        — + button, order lines, preview overlay, drag, labels
-├── chart-screenshot/     — Screenshot capture + clipboard
-├── chart-layout/         — Dual chart + crosshair sync
-├── drawing-tools/        — HLine, oval, arrow path, free draw, renderers, templates
-│   └── undo/             — Ctrl+Z undo stack for drawings
-├── order-panel/          — Order entry sidebar, market/limit, buy/sell
-│   └── bracket-settings/ — Preset UI: SL, multi-TP, conditions
-├── bracket-engine/       — Runtime SL/TP placement after fill, condition evaluation
-├── bottom-panel/         — Orders + Trades tabs, trade zone visualization
-├── stats-dashboard/      — Stats popover: KPI cards, equity curve, PnL calendar, breakdowns
-├── chat-bot/             — AI chat panel with tool use
-├── conditional-orders/   — Candle-close triggered orders
-├── database/             — Local SQLite for 1-min candles
-├── instrument-selector/  — Popover instrument picker with filters
-├── journal/              — Trade journaling with screenshots
-├── news-display/         — Economic calendar + chart markers
-├── settings-persistence/ — File-based settings backup (survives cache clears)
-├── video-recording/      — Chart video recording for journaling
-├── voice-notifications/  — Audible voice clips on order/TP/SL fills
-├── frontend/             — Full index: all components, services, store slices, types
-├── bot-trading/          — Bot drawing tools: HLine, markers, SSE transport, API reference
-├── claude-trader/        — Autonomous NQ trading system (tools, journal, state)
-├── claude-strategies/    — Backtested algorithmic strategies (London Sniper, etc.)
-├── trading-strategy/     — Price action reversal research (Origin method)
-├── account-copier/       — Copy trading: master → follower trade mirroring
-└── refactor/             — Known architectural issues and cleanup priorities
+├── shared/                    — Exchange-agnostic features
+│   ├── api-layer/             — REST + WebSocket services, backend exchange adapter
+│   ├── top-bar/               — Account selector, balance, UP&L, RP&L, latency
+│   ├── candlestick-chart/     — Chart core: bars, toolbar, crosshair, primitive z-order
+│   │   ├── ohlc-tooltip/      — OHLC hover tooltip
+│   │   ├── bar-countdown/     — Current bar time remaining
+│   │   ├── go-to-now/         — Floating scroll-to-latest button
+│   │   ├── symbol-display/    — Instrument label overlay
+│   │   └── indicators/
+│   │       ├── volume-profile/    — Session volume profile (GatewayDepth)
+│   │       └── bid-ask-footprint/ — Per-candle bid/ask footprint (GatewayQuote)
+│   ├── chart-settings-menu/   — Gear button, quick popover, full settings modal
+│   ├── design-tokens/         — Color palette rules + UI tokens
+│   ├── chart-trading/         — + button, order lines, preview overlay, drag, labels
+│   ├── chart-screenshot/      — Screenshot capture + clipboard
+│   ├── chart-layout/          — Dual chart + crosshair sync
+│   ├── drawing-tools/         — HLine, oval, arrow path, free draw, renderers, templates
+│   │   └── undo/              — Ctrl+Z undo stack for drawings
+│   ├── order-panel/           — Order entry sidebar, market/limit, buy/sell
+│   │   └── bracket-settings/  — Preset UI: SL, multi-TP, conditions
+│   ├── bracket-engine/        — Runtime SL/TP placement after fill, condition evaluation
+│   ├── bottom-panel/          — Orders + Trades tabs, trade zone visualization
+│   ├── stats-dashboard/       — Stats popover: KPI cards, equity curve, PnL calendar
+│   ├── chat-bot/              — AI chat panel with tool use
+│   ├── conditional-orders/    — Candle-close triggered orders
+│   ├── database/              — Local SQLite for 1-min candles
+│   ├── instrument-selector/   — Popover instrument picker with category/exchange filters
+│   ├── journal/               — Trade journaling with screenshots
+│   ├── news-display/          — Economic calendar + chart markers
+│   ├── settings-persistence/  — File-based settings backup (survives cache clears)
+│   ├── video-recording/       — Chart video recording for journaling
+│   ├── voice-notifications/   — Audible voice clips on order/TP/SL fills
+│   ├── frontend/              — Full index: all components, services, store slices, types
+│   └── refactor/              — Known architectural issues and cleanup priorities
+│
+├── futures/                   — Futures-specific features (ProjectX/TopstepX)
+│   ├── api-settings/          — ProjectX connection settings, API credentials
+│   ├── bot-trading/           — Bot drawing tools: HLine, markers, SSE transport, API
+│   ├── claude-trader/         — Autonomous NQ trading system (tools, journal, state)
+│   ├── claude-strategies/     — Backtested algorithmic strategies (London Sniper, etc.)
+│   ├── trading-strategy/      — Price action reversal research (Origin method)
+│   └── account-copier/        — Copy trading: master → follower trade mirroring
+│
+├── crypto/                    — Crypto-specific features
+│   └── hyperliquid/           — Hyperliquid auth, API reference, order types, testnet
+│
+└── exchange-adapters/         — Adapter architecture + per-exchange docs
+    ├── README.md              — How the adapter pattern works, how to add exchanges
+    ├── projectx.md            — ProjectX adapter specifics
+    └── hyperliquid.md         — Hyperliquid adapter specifics
 ```
 
 ### Quick Lookup
 
 | I want to understand...                     | Go to |
 |---------------------------------------------|-------|
-| The + button on the price scale             | `docs/chart-trading/` → Plus Button |
-| How order lines appear on the chart         | `docs/chart-trading/` → Live Order & Position Lines |
-| Preview ghost lines (SL/TP/Entry)           | `docs/chart-trading/` → Preview Overlay |
-| Drag-to-modify order prices                 | `docs/chart-trading/` → Drag-to-Modify |
-| Overlay labels (P&L, size, cancel)          | `docs/chart-trading/` → Overlay Label System |
-| How SL/TP are placed after entry fill       | `docs/bracket-engine/` |
-| Bracket preset configuration UI             | `docs/order-panel/bracket-settings/` |
-| How realized P&L is calculated              | `docs/top-bar/` → Centre — Realized P&L |
-| How unrealized P&L is calculated            | `docs/top-bar/` → Centre — Balance + UP&L |
-| Bot drawing tools (HLine, markers, API)     | `docs/bot-trading/` |
-| Drawing renderers and hit testing           | `docs/drawing-tools/` |
-| Volume profile data source (GatewayDepth)   | `docs/candlestick-chart/indicators/volume-profile/` |
-| Bid/Ask footprint (per-candle bid/ask bars) | `docs/candlestick-chart/indicators/bid-ask-footprint/` |
-| Chart screenshot / clipboard                | `docs/chart-screenshot/` |
-| Dual chart layout + crosshair sync          | `docs/chart-layout/` |
-| Crosshair price label + primitive z-order   | `docs/candlestick-chart/` → Price Scale Primitives |
-| Orders and Trades tabs                      | `docs/bottom-panel/` |
-| Stats dashboard (KPI, equity curve, calendar)| `docs/stats-dashboard/` |
-| Trade zone visualization (FIFO matching)    | `docs/bottom-panel/` (chart primitive in `frontend/`) |
-| Chart settings gear + modal                 | `docs/chart-settings-menu/` |
-| Design tokens (colors, font, z-index, shadows, radii) | `docs/design-tokens/` |
-| Settings persistence / file backup          | `docs/settings-persistence/` |
-| All Zustand store slices (9 domain slices)  | `docs/frontend/` → Zustand Store |
-| All service API signatures                  | `docs/frontend/` → Service Layer |
-| Shared components (Modal, TabButton, icons) | `docs/frontend/` → Shared Components |
-| Design token constants (colors.ts, styles.ts)| `docs/frontend/` → Constants |
-| Shared hooks (useClickOutside, etc.)        | `docs/frontend/` → Shared Hooks |
-| Shared utilities (formatters, dedup, etc.)  | `docs/frontend/` → Shared Utilities |
-| Realtime adapter interface + hub events      | `docs/frontend/` → realtimeService.ts / adapters/ |
-| Ad-hoc brackets (+SL/+TP, no preset)       | `docs/chart-trading/` → Ad-Hoc Brackets |
-| Position drag-to-create SL/TP              | `docs/chart-trading/` → Position Drag-to-Create |
-| Conditional orders (candle-close triggers)  | `docs/conditional-orders/` |
-| Copy trading / account copier               | `docs/account-copier/` |
-| Condition deployment (Render / Docker)      | `docs/conditional-orders/` → Deployment |
-| Voice notifications on fills                | `docs/voice-notifications/` |
-| Chart video recording                       | `docs/video-recording/` |
+| **Exchange & Adapter Architecture** | |
+| How multi-exchange adapter pattern works    | `docs/exchange-adapters/` |
+| ProjectX adapter specifics                  | `docs/exchange-adapters/projectx.md` |
+| Hyperliquid adapter specifics               | `docs/exchange-adapters/hyperliquid.md` |
+| Hyperliquid API reference                   | `docs/crypto/hyperliquid/` |
+| ProjectX connection / API credentials       | `docs/futures/api-settings/` |
+| **Chart & Trading** | |
+| The + button on the price scale             | `docs/shared/chart-trading/` → Plus Button |
+| How order lines appear on the chart         | `docs/shared/chart-trading/` → Live Order & Position Lines |
+| Preview ghost lines (SL/TP/Entry)           | `docs/shared/chart-trading/` → Preview Overlay |
+| Drag-to-modify order prices                 | `docs/shared/chart-trading/` → Drag-to-Modify |
+| Overlay labels (P&L, size, cancel)          | `docs/shared/chart-trading/` → Overlay Label System |
+| Ad-hoc brackets (+SL/+TP, no preset)       | `docs/shared/chart-trading/` → Ad-Hoc Brackets |
+| Position drag-to-create SL/TP              | `docs/shared/chart-trading/` → Position Drag-to-Create |
+| How SL/TP are placed after entry fill       | `docs/shared/bracket-engine/` |
+| Bracket preset configuration UI             | `docs/shared/order-panel/bracket-settings/` |
+| Drawing renderers and hit testing           | `docs/shared/drawing-tools/` |
+| Chart screenshot / clipboard                | `docs/shared/chart-screenshot/` |
+| Dual chart layout + crosshair sync          | `docs/shared/chart-layout/` |
+| Crosshair price label + primitive z-order   | `docs/shared/candlestick-chart/` → Price Scale Primitives |
+| Chart settings gear + modal                 | `docs/shared/chart-settings-menu/` |
+| Volume profile data source (GatewayDepth)   | `docs/shared/candlestick-chart/indicators/volume-profile/` |
+| Bid/Ask footprint (per-candle bid/ask bars) | `docs/shared/candlestick-chart/indicators/bid-ask-footprint/` |
+| **Panels & UI** | |
+| How realized P&L is calculated              | `docs/shared/top-bar/` → Centre — Realized P&L |
+| How unrealized P&L is calculated            | `docs/shared/top-bar/` → Centre — Balance + UP&L |
+| Orders and Trades tabs                      | `docs/shared/bottom-panel/` |
+| Trade zone visualization (FIFO matching)    | `docs/shared/bottom-panel/` |
+| Stats dashboard (KPI, equity curve, calendar)| `docs/shared/stats-dashboard/` |
+| Instrument selector (categories, exchanges) | `docs/shared/instrument-selector/` |
+| Conditional orders (candle-close triggers)  | `docs/shared/conditional-orders/` |
+| Voice notifications on fills                | `docs/shared/voice-notifications/` |
+| Chart video recording                       | `docs/shared/video-recording/` |
+| **System & Architecture** | |
+| Design tokens (colors, font, z-index)       | `docs/shared/design-tokens/` |
+| Settings persistence / file backup          | `docs/shared/settings-persistence/` |
+| All Zustand store slices (9 domain slices)  | `docs/shared/frontend/` → Zustand Store |
+| All service API signatures                  | `docs/shared/frontend/` → Service Layer |
+| Realtime adapter interface + hub events      | `docs/shared/frontend/` → realtimeService.ts / adapters/ |
+| Shared components (Modal, TabButton, icons) | `docs/shared/frontend/` → Shared Components |
+| Shared hooks (useClickOutside, etc.)        | `docs/shared/frontend/` → Shared Hooks |
+| **Futures-Specific** | |
+| Bot drawing tools (HLine, markers, API)     | `docs/futures/bot-trading/` |
+| Copy trading / account copier               | `docs/futures/account-copier/` |
+| Claude autonomous trader                    | `docs/futures/claude-trader/` |
+| Algorithmic strategies (London Sniper, etc.)| `docs/futures/claude-strategies/` |
+| Trading strategy research (Origin method)   | `docs/futures/trading-strategy/` |
 
 ---
 

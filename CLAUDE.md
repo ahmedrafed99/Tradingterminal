@@ -9,7 +9,7 @@ All feature documentation lives in `docs/`. Before modifying or discussing any f
 1. Open `README.md` at the project root
 2. Use the **Quick Lookup** table to find the relevant `docs/` subfolder
 3. Read that folder's `README.md` for full context
-4. For frontend implementation details (store slices, service signatures, component internals), also read `docs/frontend/README.md`
+4. For frontend implementation details (store slices, service signatures, component internals), also read `docs/shared/frontend/README.md`
 
 ### After making code changes
 
@@ -21,7 +21,7 @@ Do not silently skip documentation updates — the docs are how future sessions 
 
 ## Visual Design System
 
-All colors are defined in **`frontend/src/styles/tokens.css`** as CSS custom properties. This is the single source of truth. See `docs/design-tokens/colors.md` for the full token reference and developer rules, and `docs/design-tokens/ui.md` for font family, z-index, shadows, radii, and transitions.
+All colors are defined in **`frontend/src/styles/tokens.css`** as CSS custom properties. This is the single source of truth. See `docs/shared/design-tokens/colors.md` for the full token reference and developer rules, and `docs/shared/design-tokens/ui.md` for font family, z-index, shadows, radii, and transitions.
 
 **Never write a hardcoded hex color in a component file.** Use tokens:
 - Tailwind: `bg-(--color-surface)`, `text-(--color-text-muted)`, `border-(--color-border)`

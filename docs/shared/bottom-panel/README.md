@@ -20,7 +20,7 @@ Collapsible, resizable panel below the chart displaying **Orders**, **Trades**, 
 
 ## Store (Zustand)
 
-State lives in the `layoutSlice` (`store/slices/layoutSlice.ts`). See `docs/frontend/` for the full slice breakdown.
+State lives in the `layoutSlice` (`store/slices/layoutSlice.ts`). See `docs/shared/frontend/` for the full slice breakdown.
 
 | Field | Type | Default | Persisted |
 |-------|------|---------|-----------|
