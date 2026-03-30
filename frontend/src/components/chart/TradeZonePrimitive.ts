@@ -209,6 +209,14 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     ctx.fillStyle = color + '25';
     ctx.fillRect(rectLeft, rectTop, rectW, rectH);
 
+    // If extending right, overlay a stronger rectangle for entry→exit span only
+    if (this._extendRight) {
+      const tradeRectRight = Math.max(x1, x2);
+      const tradeRectW = tradeRectRight - rectLeft;
+      ctx.fillStyle = color + '40';
+      ctx.fillRect(rectLeft, rectTop, tradeRectW, rectH);
+    }
+
     // Dashed horizontal lines at entry and exit price across the rectangle
     ctx.setLineDash([Math.round(4 * hpr), Math.round(3 * hpr)]);
     ctx.strokeStyle = color + '90';
