@@ -466,7 +466,7 @@ const commands = {
     require(args, 'contractId', 'accountId');
     const {
       fetchBars, findAnchorLow, findAnchorHigh, detectSOS, detectSOW,
-      wickMidpoint, scanTradeManagement, etHourMin,
+      wickMidpoint, scanTradeManagement,
     } = await import('./sos-technical-analysis.mjs');
 
     const cid = args.contractId;
@@ -479,7 +479,7 @@ const commands = {
     const startNow = !!args.now;
     const startAt = args.startAt || '7:30';
     const windowEndArg = args.windowEnd || '9:20';
-    const anchorStartMinute = args.from ? (() => { const [h, m] = args.from.split(':').map(Number); return h * 60 + m; })() : 450;
+    // anchorStartMinute removed — anchors now use full session (6 PM ET to 5 PM ET)
     const WINDOW_END = windowEndArg === '0' ? 0 : (() => {
       const [h, m] = windowEndArg.split(':').map(Number);
       return h * 60 + m;
@@ -506,30 +506,35 @@ const commands = {
       return h * 60 + m;
     }
 
-    function todayFrom4amET() {
-      // Build today's 4:00 AM ET as ISO string (handles EDT/EST)
+    function sessionStartISO() {
+      // Futures session: 6 PM ET previous day → 5 PM ET today
+      // Find the most recent 6 PM ET as the session start
       const now = new Date();
       const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
       const etHour = parseInt(etStr.split(', ')[1].split(':')[0]);
       const etOffset = now.getUTCHours() - etHour; // 4 for EDT, 5 for EST
       const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
       const y = etDate.getFullYear(), mo = etDate.getMonth(), d = etDate.getDate();
-      const utc4am = new Date(Date.UTC(y, mo, d, 4 + etOffset, 0, 0));
-      return utc4am.toISOString();
+      // If current ET time is before 6 PM, session started yesterday at 6 PM
+      // If current ET time is 6 PM or later, session started today at 6 PM
+      const etMins = etDate.getHours() * 60 + etDate.getMinutes();
+      if (etMins < 18 * 60) {
+        // Session started yesterday at 6 PM ET
+        const yesterday = new Date(Date.UTC(y, mo, d - 1, 18 + etOffset, 0, 0));
+        return yesterday.toISOString();
+      } else {
+        // Session started today at 6 PM ET
+        const today6pm = new Date(Date.UTC(y, mo, d, 18 + etOffset, 0, 0));
+        return today6pm.toISOString();
+      }
     }
 
     function nowISO() { return new Date().toISOString(); }
 
-    let prevDayBars = []; // Cached bars from previous trading day (set during fallback)
-
     async function getBars() {
-      const allBars = await fetchBars(cid, todayFrom4amET(), nowISO());
+      const allBars = await fetchBars(cid, sessionStartISO(), nowISO());
       // Drop the last bar (partial/still forming) — only use closed candles
       if (allBars.length > 1) allBars.pop();
-      if (prevDayBars.length > 0) {
-        const merged = [...prevDayBars, ...allBars].sort((a, b) => new Date(a.t) - new Date(b.t));
-        return merged.filter((b, i) => i === 0 || b.t !== merged[i - 1].t);
-      }
       return allBars;
     }
 
@@ -645,51 +650,10 @@ const commands = {
     if (startNow) {
       log(`Watch started NOW for ${cid} (${side}, size ${size}${manage ? ', manage' : ''}${dryRun ? ', dry-run' : ''})`);
       bars = await getBars();
-      low = findAnchorLow(bars, anchorStartMinute);
-      high = findAnchorHigh(bars, anchorStartMinute);
+      low = findAnchorLow(bars, 0);
+      high = findAnchorHigh(bars, 0);
 
-      // Check if we have bars from a proper RTH session (7:30 AM - 4 PM ET)
-      // Evening session bars (6 PM+) pass the 7:30 filter but aren't a real session
-      const hasRTHSession = bars.some(b => {
-        const m = etHourMin(b);
-        return m >= anchorStartMinute && m < 16 * 60; // 7:30 AM to 4 PM ET
-      });
-      if (!hasRTHSession || !low || !high) {
-        let allPrevBars = [];
-        let foundSession = false;
-        for (let daysBack = 1; daysBack <= 5; daysBack++) {
-          const etDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
-          etDate.setDate(etDate.getDate() - daysBack);
-          const dateStr = `${etDate.getFullYear()}-${String(etDate.getMonth() + 1).padStart(2, '0')}-${String(etDate.getDate()).padStart(2, '0')}`;
-          const etOffset = new Date().getTimezoneOffset() === new Date(`${dateStr}T12:00:00`).getTimezoneOffset() ? (new Date().getUTCHours() - parseInt(new Date().toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }))) : 4;
-          const from = new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate(), 4 + etOffset, 0, 0)).toISOString();
-          const to = new Date(Date.UTC(etDate.getFullYear(), etDate.getMonth(), etDate.getDate(), 23 + etOffset, 0, 0)).toISOString();
-          const prevBars = await fetchBars(cid, from, to);
-          if (prevBars.length > 1) prevBars.pop();
-          if (prevBars.length > 0) {
-            allPrevBars = [...prevBars, ...allPrevBars];
-            // Check if this day has bars in the RTH session (7:30 AM - 4 PM ET)
-            const hasSession = prevBars.some(b => {
-              const m = etHourMin(b);
-              return m >= anchorStartMinute && m < 16 * 60;
-            });
-            if (hasSession) {
-              log(`Included bars from ${dateStr} (${prevBars.length} bars)`);
-              foundSession = true;
-              break;
-            }
-            log(`Included ${dateStr} (${prevBars.length} bars, no session) — looking further back`);
-          }
-        }
-        if (allPrevBars.length > 0) {
-          prevDayBars = allPrevBars; // Cache for getBars() to reuse
-          const merged = [...allPrevBars, ...bars].sort((a, b) => new Date(a.t) - new Date(b.t));
-          bars = merged.filter((b, i) => i === 0 || b.t !== merged[i - 1].t);
-          low = findAnchorLow(bars, anchorStartMinute);
-          high = findAnchorHigh(bars, anchorStartMinute);
-          log(`Total bars: ${bars.length}`);
-        }
-      }
+      // No fallback needed — sessionStartISO() fetches from last 6 PM ET
 
       log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
       await drawAnchors(bars, low, high);
@@ -713,8 +677,8 @@ const commands = {
         while (nowETMinutes() < WINDOW_END) {
           try {
             bars = await getBars();
-            low = findAnchorLow(bars, anchorStartMinute);
-            high = findAnchorHigh(bars, anchorStartMinute);
+            low = findAnchorLow(bars, 0);
+            high = findAnchorHigh(bars, 0);
             if (low || high) {
               log(`Anchors — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
               await drawAnchors(bars, low, high);
@@ -734,8 +698,8 @@ const commands = {
       if (!earlySignal) {
         // Final anchor fetch
         bars = await getBars();
-        low = findAnchorLow(bars, anchorStartMinute);
-        high = findAnchorHigh(bars, anchorStartMinute);
+        low = findAnchorLow(bars, 0);
+        high = findAnchorHigh(bars, 0);
         log(`Anchors locked — Low: ${low ? fmt(low.bar.l) : '—'}, High: ${high ? fmt(high.bar.h) : '—'}`);
         await drawAnchors(bars, low, high);
       }
@@ -773,8 +737,8 @@ const commands = {
         if (isMarketClosed()) { log('Market closed, no signal. Exiting.'); return; }
         try {
           bars = await getBars();
-          low = findAnchorLow(bars, anchorStartMinute);
-          high = findAnchorHigh(bars, anchorStartMinute);
+          low = findAnchorLow(bars, 0);
+          high = findAnchorHigh(bars, 0);
           await drawAnchors(bars, low, high);
           signal = checkForSignal(bars, low, high, side);
         } catch (e) { log('Fetch error: ' + e.message); }
@@ -923,8 +887,8 @@ const commands = {
         if (isMarketClosed()) { log('Market closed. Exiting.'); return; }
         try {
           bars = await getBars();
-          low = findAnchorLow(bars, anchorStartMinute);
-          high = findAnchorHigh(bars, anchorStartMinute);
+          low = findAnchorLow(bars, 0);
+          high = findAnchorHigh(bars, 0);
           await drawAnchors(bars, low, high);
         } catch (e) { log('Fetch error: ' + e.message); }
         await sleepUntilNextCandle();
@@ -959,8 +923,8 @@ const commands = {
 
         // Re-fetch bars and run management
         bars = await getBars();
-        low = findAnchorLow(bars, anchorStartMinute);
-        high = findAnchorHigh(bars, anchorStartMinute);
+        low = findAnchorLow(bars, 0);
+        high = findAnchorHigh(bars, 0);
 
         let events = [];
         if (signal.type === 'long' && low) {
