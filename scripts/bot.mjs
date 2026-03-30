@@ -93,6 +93,7 @@ const COLORS = {
   prevMoveToHigh: '#6b9a7a', // softer green — previous move to high (SOW target)
   neutral: '#787b86',
   sl: '#c13030',
+  slPreview: '#7a4040',
   info: '#6b7ea0',
 };
 
@@ -231,7 +232,7 @@ const commands = {
           for (let k = 0; k < events.length; k++) {
             const e = events[k];
             if (e.sowBar.ts >= exitTs) break;
-            await hline(e.newSL, `SL Trail #${k + 1}`, COLORS.sl, e.lowestBar.ts);
+            await hline(e.newSL, `SL Trail #${k + 1}`, COLORS.slPreview, e.lowestBar.ts);
           }
         }
       }
@@ -282,7 +283,7 @@ const commands = {
           for (let k = 0; k < events.length; k++) {
             const e = events[k];
             if (e.sosBar.ts >= exitTs) break;
-            await hline(e.newSL, `SL Trail #${k + 1}`, COLORS.sl, e.highestBar.ts);
+            await hline(e.newSL, `SL Trail #${k + 1}`, COLORS.slPreview, e.highestBar.ts);
           }
         }
       }
@@ -577,7 +578,7 @@ const commands = {
         const sosRaw = detectSOS(bars, low.index);
         const sosLabel = sosRaw.signOfStrength && !sosRaw.invalidated ? 'Move to Low (SOS)' : 'Move to Low';
         await hline('moveToLow', sosRaw.moveToLow, sosLabel, COLORS.moveToLow, bars[low.index].ts);
-        await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', COLORS.sl, bars[low.index].ts);
+        await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', COLORS.slPreview, bars[low.index].ts);
         if (sosRaw.importantTarget?.targetLevel) {
           await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous Move to Low (SOS)', COLORS.prevMoveToLow, sosRaw.importantTarget.prevLowBar.ts);
         }
@@ -586,7 +587,7 @@ const commands = {
         const sowRaw = detectSOW(bars, high.index);
         const sowLabel = sowRaw.signOfWeakness && !sowRaw.invalidated ? 'Move to High (SOW)' : 'Move to High';
         await hline('moveToHigh', sowRaw.moveToHigh, sowLabel, COLORS.moveToHigh, bars[high.index].ts);
-        await hline('slPreviewShort', wickMidpoint(bars[high.index], 'short'), 'Stop Loss (preview)', COLORS.sl, bars[high.index].ts);
+        await hline('slPreviewShort', wickMidpoint(bars[high.index], 'short'), 'Stop Loss (preview)', COLORS.slPreview, bars[high.index].ts);
         if (sowRaw.importantTarget?.targetLevel) {
           await hline('prevSOW', sowRaw.importantTarget.targetLevel, 'Previous Move to High (SOW)', COLORS.prevMoveToHigh, sowRaw.importantTarget.prevHighBar.ts);
         }
@@ -816,12 +817,12 @@ const commands = {
     if (signal.type === 'long') {
       const sos = signal.sos;
       await hline('moveToLow', sos.moveToLow, 'Move to Low (SOS)', COLORS.moveToLow, sos.lowBar.ts);
-      await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.sl, sos.lowBar.ts);
+      await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.slPreview, sos.lowBar.ts);
       if (tpPrice && importantTarget) await hline('prevSOS', tpPrice, 'Previous Move to Low (SOS)', COLORS.prevMoveToLow, importantTarget.prevLowBar.ts);
     } else {
       const sow = signal.sow;
       await hline('moveToHigh', sow.moveToHigh, 'Move to High (SOW)', COLORS.moveToHigh, sow.highBar.ts);
-      await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.sl, sow.highBar.ts);
+      await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.slPreview, sow.highBar.ts);
       if (tpPrice && importantTarget) await hline('prevSOW', tpPrice, 'Previous Move to High (SOW)', COLORS.prevMoveToHigh, importantTarget.prevHighBar.ts);
     }
 
