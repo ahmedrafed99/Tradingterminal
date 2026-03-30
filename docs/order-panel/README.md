@@ -72,7 +72,8 @@ and the preview toggle that overlays ghost lines on the chart.
 ### `OrderTypeTabs`
 - Two tabs: **Market** | **Limit**
 - Selected tab: `bg-[#c8891a] text-black font-medium` (orange accent), unselected: `bg-[#111] text-[#787b86]`
-- Limit tab reveals a `LimitPriceInput` (number field, respects tick size) with `marginTop: 20px` gap
+- Limit tab reveals a limit price text input (`type="text"` with `inputMode="decimal"`, no native spinner) with `marginTop: 20px` gap
+- Limit price input: centered text, `text-sm`, `py-2.5` vertical padding, placeholder "Enter price"
 
 ### `ContractsSpinner`
 - Integer input with circular `rounded-full` +/− buttons (`w-7 h-7`), min = 1

@@ -42,12 +42,17 @@ export function OrderTypeTabs() {
         <div style={{ marginTop: 20 }}>
           <div className={`${SECTION_LABEL} mb-1 text-center`}>Limit Price</div>
           <input
-            type="number"
-            step={tickSize}
+            type="text"
+            inputMode="decimal"
             value={limitPrice ?? ''}
-            onChange={(e) => setLimitPrice(e.target.value ? Number(e.target.value) : null)}
-            placeholder=""
-            className="w-full bg-(--color-input) border border-(--color-border) rounded px-2 py-1.5 text-xs text-white
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '' || v === '-') { setLimitPrice(null); return; }
+              const n = Number(v);
+              if (!isNaN(n)) setLimitPrice(n);
+            }}
+            placeholder="Enter price"
+            className="w-full bg-(--color-input) border border-(--color-border) rounded py-2.5 text-sm text-white text-center
                        focus:outline-none focus:border-(--color-focus-ring) placeholder-(--color-text-dim)"
           />
         </div>
