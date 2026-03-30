@@ -87,10 +87,11 @@ function require(args, ...keys) {
 // ── Default style ──
 
 const COLORS = {
-  support: '#5b8a72',
-  resistance: '#a65d6a',
+  moveToLow: '#b05050',      // muted red — current move to low
+  prevMoveToLow: '#8b6060',  // softer red — previous move to low (SOS target)
+  moveToHigh: '#5b8a72',     // muted green — current move to high
+  prevMoveToHigh: '#6b9a7a', // softer green — previous move to high (SOW target)
   neutral: '#787b86',
-  tp: '#b8a04a',
   sl: '#c13030',
   info: '#6b7ea0',
 };
@@ -194,10 +195,10 @@ const commands = {
       const targetPrice = sos.importantTarget?.targetLevel;
 
       // Draw levels
-      await hline(sos.moveToLow, 'Move to Low', COLORS.support, sos.lowBar.ts);
+      await hline(sos.moveToLow, 'Move to Low', COLORS.moveToLow, sos.lowBar.ts);
       if (sos.invalidation) await hline(entryPrice, 'Invalidation of Strength', COLORS.sl, sos.invalidation.bar.ts);
       await hline(initialSL, 'Stop Loss', COLORS.sl, sos.lowBar.ts);
-      if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.tp, sos.importantTarget.prevLowBar.ts);
+      if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.prevMoveToLow, sos.importantTarget.prevLowBar.ts);
 
       // Find entry fill candle
       if (sos.signOfStrength && entryPrice) {
@@ -206,14 +207,14 @@ const commands = {
           if (s.bars[i].l <= entryPrice) { fillTs = s.bars[i].ts; break; }
         }
         if (fillTs) {
-          await marker(fillTs, entryPrice, `Long Entry 1 @ ${fmt(entryPrice)}`, 'below', COLORS.support);
+          await marker(fillTs, entryPrice, `Long Entry 1 @ ${fmt(entryPrice)}`, 'below', COLORS.moveToLow);
 
           // Find exit fill candle
           if (targetPrice) {
             const fillIdx = s.bars.findIndex(b => b.ts === fillTs);
             for (let i = fillIdx + 1; i < s.bars.length; i++) {
               if (s.bars[i].h >= targetPrice) {
-                await marker(s.bars[i].ts, targetPrice, `Long Exit 1 @ ${fmt(targetPrice)}`, 'above', COLORS.resistance);
+                await marker(s.bars[i].ts, targetPrice, `Long Exit 1 @ ${fmt(targetPrice)}`, 'above', COLORS.moveToHigh);
                 break;
               }
             }
@@ -245,10 +246,10 @@ const commands = {
       const targetPrice = sow.importantTarget?.targetLevel;
 
       // Draw levels
-      await hline(sow.moveToHigh, 'Move to High', COLORS.resistance, sow.highBar.ts);
+      await hline(sow.moveToHigh, 'Move to High', COLORS.moveToHigh, sow.highBar.ts);
       if (sow.invalidation) await hline(entryPrice, 'Invalidation of Weakness', COLORS.sl, sow.invalidation.bar.ts);
       await hline(initialSL, 'Stop Loss', COLORS.sl, sow.highBar.ts);
-      if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.tp, sow.importantTarget.prevHighBar.ts);
+      if (targetPrice) await hline(targetPrice, 'Important Target', COLORS.prevMoveToHigh, sow.importantTarget.prevHighBar.ts);
 
       // Find entry fill candle
       if (sow.signOfWeakness && entryPrice) {
@@ -257,14 +258,14 @@ const commands = {
           if (s.bars[i].h >= entryPrice) { fillTs = s.bars[i].ts; break; }
         }
         if (fillTs) {
-          await marker(fillTs, entryPrice, `Short Entry 1 @ ${fmt(entryPrice)}`, 'above', COLORS.resistance);
+          await marker(fillTs, entryPrice, `Short Entry 1 @ ${fmt(entryPrice)}`, 'above', COLORS.moveToHigh);
 
           // Find exit fill candle
           if (targetPrice) {
             const fillIdx = s.bars.findIndex(b => b.ts === fillTs);
             for (let i = fillIdx + 1; i < s.bars.length; i++) {
               if (s.bars[i].l <= targetPrice) {
-                await marker(s.bars[i].ts, targetPrice, `Short Exit 1 @ ${fmt(targetPrice)}`, 'below', COLORS.support);
+                await marker(s.bars[i].ts, targetPrice, `Short Exit 1 @ ${fmt(targetPrice)}`, 'below', COLORS.moveToLow);
                 break;
               }
             }
@@ -575,19 +576,19 @@ const commands = {
       if (low) {
         const sosRaw = detectSOS(bars, low.index);
         const sosLabel = sosRaw.signOfStrength && !sosRaw.invalidated ? 'Move to Low (SOS)' : 'Move to Low';
-        await hline('moveToLow', sosRaw.moveToLow, sosLabel, COLORS.support, bars[low.index].ts);
+        await hline('moveToLow', sosRaw.moveToLow, sosLabel, COLORS.moveToLow, bars[low.index].ts);
         await hline('slPreview', wickMidpoint(bars[low.index], 'long'), 'Stop Loss (preview)', COLORS.sl, bars[low.index].ts);
         if (sosRaw.importantTarget?.targetLevel) {
-          await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous Move to Low (SOS)', COLORS.tp, sosRaw.importantTarget.prevLowBar.ts);
+          await hline('prevSOS', sosRaw.importantTarget.targetLevel, 'Previous Move to Low (SOS)', COLORS.prevMoveToLow, sosRaw.importantTarget.prevLowBar.ts);
         }
       }
       if (high) {
         const sowRaw = detectSOW(bars, high.index);
         const sowLabel = sowRaw.signOfWeakness && !sowRaw.invalidated ? 'Move to High (SOW)' : 'Move to High';
-        await hline('moveToHigh', sowRaw.moveToHigh, sowLabel, COLORS.resistance, bars[high.index].ts);
+        await hline('moveToHigh', sowRaw.moveToHigh, sowLabel, COLORS.moveToHigh, bars[high.index].ts);
         await hline('slPreviewShort', wickMidpoint(bars[high.index], 'short'), 'Stop Loss (preview)', COLORS.sl, bars[high.index].ts);
         if (sowRaw.importantTarget?.targetLevel) {
-          await hline('prevSOW', sowRaw.importantTarget.targetLevel, 'Previous Move to High (SOW)', COLORS.tp, sowRaw.importantTarget.prevHighBar.ts);
+          await hline('prevSOW', sowRaw.importantTarget.targetLevel, 'Previous Move to High (SOW)', COLORS.prevMoveToHigh, sowRaw.importantTarget.prevHighBar.ts);
         }
       }
     }
@@ -814,14 +815,14 @@ const commands = {
     // Update drawings for order placement
     if (signal.type === 'long') {
       const sos = signal.sos;
-      await hline('moveToLow', sos.moveToLow, 'Move to Low (SOS)', COLORS.support, sos.lowBar.ts);
+      await hline('moveToLow', sos.moveToLow, 'Move to Low (SOS)', COLORS.moveToLow, sos.lowBar.ts);
       await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.sl, sos.lowBar.ts);
-      if (tpPrice && importantTarget) await hline('prevSOS', tpPrice, 'Previous Move to Low (SOS)', COLORS.tp, importantTarget.prevLowBar.ts);
+      if (tpPrice && importantTarget) await hline('prevSOS', tpPrice, 'Previous Move to Low (SOS)', COLORS.prevMoveToLow, importantTarget.prevLowBar.ts);
     } else {
       const sow = signal.sow;
-      await hline('moveToHigh', sow.moveToHigh, 'Move to High (SOW)', COLORS.resistance, sow.highBar.ts);
+      await hline('moveToHigh', sow.moveToHigh, 'Move to High (SOW)', COLORS.moveToHigh, sow.highBar.ts);
       await hline('slPreview', slPrice, 'Stop Loss (preview)', COLORS.sl, sow.highBar.ts);
-      if (tpPrice && importantTarget) await hline('prevSOW', tpPrice, 'Previous Move to High (SOW)', COLORS.tp, importantTarget.prevHighBar.ts);
+      if (tpPrice && importantTarget) await hline('prevSOW', tpPrice, 'Previous Move to High (SOW)', COLORS.prevMoveToHigh, importantTarget.prevHighBar.ts);
     }
 
     if (!dryRun) {
@@ -859,7 +860,7 @@ const commands = {
           const label = signal.type === 'long'
             ? `Long Entry ${size} @ ${fmt(entryPrice)}`
             : `Short Entry ${size} @ ${fmt(entryPrice)}`;
-          await drawMarker('entry', lastBar.ts, entryPrice, label, placement, signal.type === 'long' ? COLORS.support : COLORS.resistance);
+          await drawMarker('entry', lastBar.ts, entryPrice, label, placement, signal.type === 'long' ? COLORS.moveToLow : COLORS.moveToHigh);
           await removeDrawing('slPreview');
           break;
         }

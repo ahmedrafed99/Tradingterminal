@@ -184,10 +184,11 @@ node scripts/bot.mjs manage --contractId <id> --date <YYYY-MM-DD> --side long|sh
 
 | Purpose | Hex |
 |---------|-----|
-| Support / long entry | `#5b8a72` |
-| Resistance / short entry | `#a65d6a` |
+| Move to Low (current) | `#b05050` (muted red) |
+| Previous Move to Low (SOS target) | `#8b6060` (softer red) |
+| Move to High (current) | `#5b8a72` (muted green) |
+| Previous Move to High (SOW target) | `#6b9a7a` (softer green) |
 | Neutral | `#787b86` |
-| Target / TP | `#b8a04a` |
 | Stop-loss | `#c13030` |
 | Info | `#6b7ea0` |
 
