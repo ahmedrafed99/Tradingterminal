@@ -648,9 +648,13 @@ const commands = {
       low = findAnchorLow(bars, anchorStartMinute);
       high = findAnchorHigh(bars, anchorStartMinute);
 
-      // If thin data (e.g. market just opened / weekend), include previous trading days' bars
-      // Keep going back until we find a day with proper 7:30+ AM session data
-      if (bars.length < 30 || !low || !high) {
+      // Check if we have bars from a proper RTH session (7:30 AM - 4 PM ET)
+      // Evening session bars (6 PM+) pass the 7:30 filter but aren't a real session
+      const hasRTHSession = bars.some(b => {
+        const m = etHourMin(b);
+        return m >= anchorStartMinute && m < 16 * 60; // 7:30 AM to 4 PM ET
+      });
+      if (!hasRTHSession || !low || !high) {
         let allPrevBars = [];
         let foundSession = false;
         for (let daysBack = 1; daysBack <= 5; daysBack++) {
