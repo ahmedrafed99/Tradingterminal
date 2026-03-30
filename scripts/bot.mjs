@@ -585,6 +585,10 @@ const commands = {
         const sowRaw = detectSOW(bars, high.index);
         const sowLabel = sowRaw.signOfWeakness && !sowRaw.invalidated ? 'Move to High (SOW)' : 'Move to High';
         await hline('moveToHigh', sowRaw.moveToHigh, sowLabel, COLORS.resistance, bars[high.index].ts);
+        await hline('slPreviewShort', wickMidpoint(bars[high.index], 'short'), 'Stop Loss (preview)', COLORS.sl, bars[high.index].ts);
+        if (sowRaw.importantTarget?.targetLevel) {
+          await hline('prevSOW', sowRaw.importantTarget.targetLevel, 'Previous Move to High (SOW)', COLORS.tp, sowRaw.importantTarget.prevHighBar.ts);
+        }
       }
     }
 
@@ -731,6 +735,7 @@ const commands = {
 
     // Outer loop: find signal, check target, retry if already hit
     let actionable = false;
+    let lastSkippedSignal = null;
     while (!actionable) {
       // Inner loop: wait for a signal
       while (!signal) {
@@ -783,7 +788,11 @@ const commands = {
           if (targetAlreadyHit && invalidationTested) break;
         }
         if (targetAlreadyHit && invalidationTested) {
-          log('Target already hit and invalidation tested — skipping, continuing to watch...');
+          const skipKey = `${signal.type}-${entryPrice}-${tpPrice}`;
+          if (skipKey !== lastSkippedSignal) {
+            log('Target already hit and invalidation tested — skipping, continuing to watch...');
+            lastSkippedSignal = skipKey;
+          }
           signal = null;
           await sleepUntilNextCandle();
           continue;
