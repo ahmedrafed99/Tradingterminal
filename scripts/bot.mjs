@@ -668,8 +668,11 @@ const commands = {
           if (prevBars.length > 1) prevBars.pop();
           if (prevBars.length > 0) {
             allPrevBars = [...prevBars, ...allPrevBars];
-            // Check if this day has bars in the anchor window (7:30+ AM ET)
-            const hasSession = findAnchorLow(prevBars, anchorStartMinute) || findAnchorHigh(prevBars, anchorStartMinute);
+            // Check if this day has bars in the RTH session (7:30 AM - 4 PM ET)
+            const hasSession = prevBars.some(b => {
+              const m = etHourMin(b);
+              return m >= anchorStartMinute && m < 16 * 60;
+            });
             if (hasSession) {
               log(`Included bars from ${dateStr} (${prevBars.length} bars)`);
               foundSession = true;
