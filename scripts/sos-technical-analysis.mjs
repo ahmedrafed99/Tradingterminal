@@ -197,15 +197,15 @@ function findPreviousSOS(bars, lowIndex, moveToLowLevel) {
 }
 
 function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
-  // Step 1: find escape candle
-  let escapeIndex = null;
-  for (let i = lowIndex - 1; i >= 0; i--) {
-    if (bars[i].l > moveToLowLevel) {
-      escapeIndex = i;
+  // Step 1: find reference candle — first candle (from left) whose low touched or went below moveToLow
+  let referenceIndex = null;
+  for (let i = 0; i < lowIndex; i++) {
+    if (bars[i].l <= moveToLowLevel) {
+      referenceIndex = i;
       break;
     }
   }
-  if (escapeIndex === null) return null;
+  if (referenceIndex === null) return null;
 
   // Step 2a: scan backwards from escape, find a candle whose high was gained (SOS)
   // AND after that gain there was a SOW (confirmed by highest point's move-to-high being lost)
@@ -213,7 +213,7 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
   let prevSOSCandleIdx = -1;   // index of that candle
   let prevSOSIndex = null;     // index of the candle that closed above (the SOS confirmation)
 
-  for (let i = escapeIndex; i >= 0; i--) {
+  for (let i = referenceIndex; i >= 0; i--) {
     const candidateHigh = bars[i].h;
 
     // Check if this high was gained: a later candle closed above it, before lowIndex
@@ -251,13 +251,13 @@ function findImportantPreviousSOS(bars, lowIndex, moveToLowLevel) {
 
   if (!prevSOSCandle) return null;
 
-  // Step 2b: scan backwards from escape for candle whose low is closest to moveToLowLevel
-  // from above (low >= moveToLowLevel), AND older than the previous SOS candle
+  // Step 2b: scan backwards from reference candle for candle whose low is closest to moveToLowLevel
+  // from above (low > moveToLowLevel), AND older than the previous SOS candle
   let closestBar = null;
   let closestIdx = -1;
   let closestDiff = Infinity;
 
-  for (let i = escapeIndex; i >= 0; i--) {
+  for (let i = referenceIndex - 1; i >= 0; i--) {
     if (i >= prevSOSCandleIdx) continue; // must be older than the prev SOS candle
     if (bars[i].l >= moveToLowLevel) {
       const diff = bars[i].l - moveToLowLevel;
@@ -427,23 +427,23 @@ function findPreviousSOW(bars, highIndex, moveToHighLevel) {
 }
 
 function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
-  // Step 1: find escape candle
-  let escapeIndex = null;
-  for (let i = highIndex - 1; i >= 0; i--) {
-    if (bars[i].h < moveToHighLevel) {
-      escapeIndex = i;
+  // Step 1: find reference candle — first candle (from left) whose high touched or went above moveToHigh
+  let referenceIndex = null;
+  for (let i = 0; i < highIndex; i++) {
+    if (bars[i].h >= moveToHighLevel) {
+      referenceIndex = i;
       break;
     }
   }
-  if (escapeIndex === null) return null;
+  if (referenceIndex === null) return null;
 
-  // Step 2a: scan backwards from escape, find a candle whose low was gained (SOW)
+  // Step 2a: scan backwards from reference, find a candle whose low was gained (SOW)
   // AND after that gain there was a SOS (confirmed by lowest point's move-to-low being gained)
   let prevSOWCandle = null;
   let prevSOWCandleIdx = -1;
   let prevSOWIndex = null;
 
-  for (let i = escapeIndex; i >= 0; i--) {
+  for (let i = referenceIndex; i >= 0; i--) {
     const candidateLow = bars[i].l;
 
     // Check if this low was gained: a later candle closed below it, before highIndex
@@ -481,13 +481,13 @@ function findImportantPreviousSOW(bars, highIndex, moveToHighLevel) {
 
   if (!prevSOWCandle) return null;
 
-  // Step 2b: scan backwards from escape for candle whose high is closest to moveToHighLevel
-  // from below (high <= moveToHighLevel), AND older than the previous SOW candle
+  // Step 2b: scan backwards from reference candle for candle whose high is closest to moveToHighLevel
+  // from below (high < moveToHighLevel), AND older than the previous SOW candle
   let closestBar = null;
   let closestIdx = -1;
   let closestDiff = Infinity;
 
-  for (let i = escapeIndex; i >= 0; i--) {
+  for (let i = referenceIndex - 1; i >= 0; i--) {
     if (i >= prevSOWCandleIdx) continue;
     if (bars[i].h <= moveToHighLevel) {
       const diff = moveToHighLevel - bars[i].h;
