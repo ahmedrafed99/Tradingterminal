@@ -163,7 +163,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 | `dedup` | `utils/dedup.ts` | `dedup(fn)`, `dedupByKey(fn, keyFn)` — in-flight promise deduplication | authService, persistenceService, databaseService, newsService, tradeService |
 | `instrument` | `utils/instrument.ts` | `calcPnl()`, `pointsToPrice()`, `roundToTick()`, tick/point helpers | PositionDisplay, overlay hooks, chart trading, bracketEngine |
 | `cmeSession` | `utils/cmeSession.ts` | `getCmeSessionStart()`, `getDateRange()`, `DatePreset` type | App.tsx, TradesTab, DatePresetSelector |
-| `marketHours` | `utils/marketHours.ts` | `isFuturesMarketOpen()` — pure check; `getNextOpenLabel()` — dynamic reopen text; `useMarketStatus()` — reactive hook (1 s interval) returning `{ open, reopenLabel }` | ChartToolbar, BuySellButtons, useQuickOrder, buildPreviewLabels, useChartBars |
+| `marketHours` | `utils/marketHours.ts` | `MarketType` (`'futures' \| 'crypto'`); `getSchedule(type?)` — returns `{ isOpen, getNextOpenLabel }` per market type; `useMarketStatus(type?)` — reactive hook returning `{ open, reopenLabel }` (skips timer for crypto); `isFuturesMarketOpen()` / `getNextOpenLabel()` — CME-specific helpers | ChartToolbar, BuySellButtons, useQuickOrder, buildPreviewLabels, useChartBars |
 | `toast` | `utils/toast.ts` | `showToast()`, `errorMessage()` | All components that show notifications |
 | `retry` | `utils/retry.ts` | Axios retry interceptor for cold-start handling | conditionService |
 

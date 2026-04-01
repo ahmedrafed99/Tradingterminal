@@ -17,6 +17,7 @@ export interface Contract {
   tickValue: number;
   activeContract: boolean;
   // Phase 4: instrument generalization (computed during normalization)
+  marketType?: 'futures' | 'crypto'; // drives market hours, currency display, etc.
   ticksPerPoint?: number;       // Math.round(1 / tickSize) for futures, 1 for crypto
   quantityStep?: number;        // 1 for futures, 0.001 etc. for crypto
   pricePrecision?: number;      // decimal places for prices (derived from tickSize)
@@ -26,6 +27,7 @@ export interface Contract {
 function normalizeContract(raw: Contract): Contract {
   return {
     ...raw,
+    marketType: raw.marketType ?? 'futures',
     ticksPerPoint: raw.ticksPerPoint ?? Math.round(1 / raw.tickSize),
     quantityStep: raw.quantityStep ?? 1,
     pricePrecision: raw.pricePrecision ?? (raw.tickSize.toString().split('.')[1]?.length ?? 0),

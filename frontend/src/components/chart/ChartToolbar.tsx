@@ -7,7 +7,7 @@ import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
 import { COLOR_PALETTE, OpacitySlider, parseColorWithOpacity, toRgba } from './ColorPopover';
-import { isFuturesMarketOpen } from '../../utils/marketHours';
+import { getSchedule, type MarketType } from '../../utils/marketHours';
 import { COLOR_BG, COLOR_BORDER } from '../../constants/colors';
 import { paintOverlays } from './screenshot/paintOverlays';
 import { useRecording } from './recording/useRecording';
@@ -76,9 +76,10 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
   );
 }
 
-function useNYClock() {
+function useNYClock(marketType: MarketType = 'futures') {
+  const schedule = getSchedule(marketType);
   const [time, setTime] = useState('');
-  const [marketOpen, setMarketOpen] = useState(() => isFuturesMarketOpen());
+  const [marketOpen, setMarketOpen] = useState(() => schedule.isOpen());
   useEffect(() => {
     function tick() {
       const now = new Date();
@@ -88,13 +89,13 @@ function useNYClock() {
         hour12: false,
       });
       setTime(`${fmt.format(now)} New York`);
-      setMarketOpen(isFuturesMarketOpen());
+      setMarketOpen(schedule.isOpen());
     }
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
-  return { time, marketOpen };
+  }, [schedule]);
+  return { time, marketOpen, is24h: marketType === 'crypto' };
 }
 
 function IndicatorsDropdown() {
@@ -438,7 +439,8 @@ export function ChartToolbar() {
   const [customNumber, setCustomNumber] = useState('1');
   const [customUnit, setCustomUnit] = useState<number>(2); // default: Minutes
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { time: nyClock, marketOpen } = useNYClock();
+  const marketType = useStore((s) => s.contract?.marketType ?? 'futures') as MarketType;
+  const { time: nyClock, marketOpen, is24h } = useNYClock(marketType);
 
   // Screenshot state
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -810,16 +812,18 @@ export function ChartToolbar() {
 
       {/* NY clock + market status */}
       <div className="flex items-center gap-1.5" style={{ marginRight: '8px' }}>
-        <span
-          title={marketOpen ? 'Futures market open' : 'Futures market closed'}
-          style={{
-            display: 'inline-block',
-            width: 6, height: 6,
-            borderRadius: RADIUS.CIRCLE,
-            background: marketOpen ? 'var(--color-buy)' : 'var(--color-sell)',
-            flexShrink: 0,
-          }}
-        />
+        {!is24h && (
+          <span
+            title={marketOpen ? 'Market open' : 'Market closed'}
+            style={{
+              display: 'inline-block',
+              width: 6, height: 6,
+              borderRadius: RADIUS.CIRCLE,
+              background: marketOpen ? 'var(--color-buy)' : 'var(--color-sell)',
+              flexShrink: 0,
+            }}
+          />
+        )}
         <span className="text-xs text-(--color-text-muted)" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {nyClock}
         </span>

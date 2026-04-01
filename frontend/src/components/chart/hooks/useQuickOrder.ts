@@ -8,7 +8,7 @@ import { pointsToPrice, calcPnl } from '../../../utils/instrument';
 import { snapToTickSize, getPriceScaleWidth } from '../barUtils';
 import { fitTpsToOrderSize } from './resolvePreviewConfig';
 import { showToast, errorMessage } from '../../../utils/toast';
-import { isFuturesMarketOpen } from '../../../utils/marketHours';
+import { getSchedule } from '../../../utils/marketHours';
 import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_DIM, COLOR_BORDER } from '../../../constants/colors';
@@ -377,8 +377,8 @@ export function useQuickOrder(
 
     function placeQuickOrder() {
       if (snappedPrice == null) return;
-      if (!isFuturesMarketOpen()) {
-        showToast('warning', 'Market closed', 'Futures market is closed. Orders cannot be placed.');
+      if (!getSchedule(contract?.marketType).isOpen()) {
+        showToast('warning', 'Market closed', 'Market is closed. Orders cannot be placed.');
         removePreviewLines();
         return;
       }

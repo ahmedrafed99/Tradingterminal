@@ -5,14 +5,15 @@ import { OrderType, OrderSide } from '../../types/enums';
 import { showToast } from '../../utils/toast';
 import type { BracketConfig } from '../../types/bracket';
 import { placeOrderWithBrackets } from '../../services/placeOrderWithBrackets';
-import { isFuturesMarketOpen, useMarketStatus } from '../../utils/marketHours';
+import { getSchedule, useMarketStatus } from '../../utils/marketHours';
+import type { MarketType } from '../../utils/marketHours';
 
 export function BuySellButtons() {
   const {
     activeAccountId, orderContract, orderType, limitPrice, orderSize,
     bracketPresets, activePresetId, draftSlPoints, draftTpPoints,
     adHocSlPoints, adHocTpLevels,
-    clearDraftOverrides, clearAdHocBrackets,
+    clearDraftOverrides, clearAdHocBrackets, marketType,
   } = useStore(useShallow((s) => ({
     activeAccountId: s.activeAccountId,
     orderContract: s.orderContract,
@@ -27,12 +28,13 @@ export function BuySellButtons() {
     adHocTpLevels: s.adHocTpLevels,
     clearDraftOverrides: s.clearDraftOverrides,
     clearAdHocBrackets: s.clearAdHocBrackets,
+    marketType: (s.contract?.marketType ?? 'futures') as MarketType,
   })));
   const typeLabel = orderType === 'market' ? 'Market' : 'Limit';
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { open: marketOpen, reopenLabel } = useMarketStatus();
+  const { open: marketOpen, reopenLabel } = useMarketStatus(marketType);
   const canPlace =
     activeAccountId != null &&
     orderContract != null &&
@@ -41,8 +43,8 @@ export function BuySellButtons() {
 
   async function handlePlace(side: OrderSide) {
     if (!canPlace || !activeAccountId || !orderContract) return;
-    if (!isFuturesMarketOpen()) {
-      showToast('warning', 'Market closed', 'Futures market is closed. Orders cannot be placed.');
+    if (!getSchedule(marketType).isOpen()) {
+      showToast('warning', 'Market closed', 'Market is closed. Orders cannot be placed.');
       return;
     }
     const label = side === OrderSide.Buy ? 'buy' : 'sell';

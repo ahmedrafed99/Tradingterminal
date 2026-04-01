@@ -10,7 +10,7 @@ import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/brac
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, LABEL_BG, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
 import { COLOR_LINE_BUY, COLOR_LINE_SELL } from '../../../constants/colors';
-import { isFuturesMarketOpen } from '../../../utils/marketHours';
+import { getSchedule } from '../../../utils/marketHours';
 
 /**
  * Build labels for preview lines (entry, SL, TP).
@@ -54,8 +54,8 @@ export function buildPreviewLabels(
       displaySize = previewTotalSize;
       onCancel = () => useStore.getState().togglePreview();
       onExecute = async () => {
-        if (!isFuturesMarketOpen()) {
-          showToast('warning', 'Market closed', 'Futures market is closed. Orders cannot be placed.');
+        if (!getSchedule(contract?.marketType).isOpen()) {
+          showToast('warning', 'Market closed', 'Market is closed. Orders cannot be placed.');
           return;
         }
         const st = useStore.getState();

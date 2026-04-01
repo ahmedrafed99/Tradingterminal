@@ -164,10 +164,11 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   the right price scale so users can drag vertically immediately without first
   stretching the price axis.
 - **Market-hours guard**: `handleQuote()` in `useChartBars` calls
-  `isFuturesMarketOpen()` (from `utils/marketHours.ts`) and silently drops
-  incoming quotes when the futures market is closed. Closed windows:
-  daily maintenance 17:00–18:00 ET (Mon–Thu), and the weekend window
-  Friday 17:00 ET → Sunday 18:00 ET. The check converts the current time to
+  `getSchedule(contract?.marketType).isOpen()` (from `utils/marketHours.ts`)
+  and silently drops incoming quotes when the market is closed. The schedule
+  is determined by the contract's `marketType` — futures use CME hours
+  (maintenance 17:00–18:00 ET Mon–Thu, weekend Fri 17:00 → Sun 18:00 ET),
+  crypto markets are always open. The check converts the current time to
   `America/New_York` via `toLocaleString()` so it automatically handles
   EST ↔ EDT transitions — **do not use hardcoded UTC offsets** for this check.
   The same utility is used for client-side order validation across all placement

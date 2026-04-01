@@ -95,17 +95,57 @@ export function getNextOpenLabel(): string {
   return 'reopens Sun 18:00 ET';
 }
 
+/* ------------------------------------------------------------------ */
+/*  Market schedule abstraction — dispatches by instrument market type */
+/* ------------------------------------------------------------------ */
+
+export type MarketType = 'futures' | 'crypto';
+
+interface MarketSchedule {
+  isOpen(): boolean;
+  getNextOpenLabel(): string;
+}
+
+const cmeFuturesSchedule: MarketSchedule = {
+  isOpen: isFuturesMarketOpen,
+  getNextOpenLabel,
+};
+
+const alwaysOpenSchedule: MarketSchedule = {
+  isOpen: () => true,
+  getNextOpenLabel: () => '',
+};
+
+const schedules: Record<MarketType, MarketSchedule> = {
+  futures: cmeFuturesSchedule,
+  crypto: alwaysOpenSchedule,
+};
+
+/** Get the market schedule for a given market type. */
+export function getSchedule(type?: MarketType): MarketSchedule {
+  return schedules[type ?? 'futures'] ?? cmeFuturesSchedule;
+}
+
 /** Reactive hook — re-evaluates every second so components stay in sync. */
-export function useMarketStatus(): { open: boolean; reopenLabel: string } {
+export function useMarketStatus(marketType: MarketType = 'futures'): { open: boolean; reopenLabel: string } {
+  const schedule = getSchedule(marketType);
+
   const [status, setStatus] = useState(() => ({
-    open: isFuturesMarketOpen(),
-    reopenLabel: getNextOpenLabel(),
+    open: schedule.isOpen(),
+    reopenLabel: schedule.getNextOpenLabel(),
   }));
+
   useEffect(() => {
+    // Crypto is always open — no timer needed
+    if (marketType === 'crypto') {
+      setStatus({ open: true, reopenLabel: '' });
+      return;
+    }
     const id = setInterval(() => {
-      setStatus({ open: isFuturesMarketOpen(), reopenLabel: getNextOpenLabel() });
+      setStatus({ open: schedule.isOpen(), reopenLabel: schedule.getNextOpenLabel() });
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [marketType, schedule]);
+
   return status;
 }

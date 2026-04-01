@@ -15,7 +15,7 @@ import {
   generateWhitespace,
 } from '../barUtils';
 import type { ChartRefs } from './types';
-import { isFuturesMarketOpen } from '../../../utils/marketHours';
+import { getSchedule } from '../../../utils/marketHours';
 
 /**
  * Handles historical bar loading, real-time quote subscription, and volume profile.
@@ -199,8 +199,8 @@ export function useChartBars(
     function handleQuote(quoteContractId: string, data: GatewayQuote) {
       if (quoteContractId !== contractId || !refs.series.current) return;
 
-      // Skip quotes while futures market is closed (Fri 17:00 ET → Sun 18:00 ET)
-      if (!isFuturesMarketOpen()) return;
+      // Skip quotes while market is closed (e.g. CME maintenance/weekend)
+      if (!getSchedule(contract?.marketType).isOpen()) return;
 
       const lastBar = refs.lastBar.current;
       // Don't process quotes until historical data has loaded
@@ -260,7 +260,7 @@ export function useChartBars(
     // When the tab regains visibility after being backgrounded, silently
     // backfill any candles that closed while RAF was throttled.
     function handleVisibilityChange() {
-      if (document.hidden || !refs.series.current || cancelled || !isFuturesMarketOpen()) return;
+      if (document.hidden || !refs.series.current || cancelled || !getSchedule(contract?.marketType).isOpen()) return;
 
       // Flush any pending bar immediately
       if (pendingBar) {
