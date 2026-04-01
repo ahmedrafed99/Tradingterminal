@@ -109,10 +109,10 @@ and the preview toggle that overlays ghost lines on the chart.
   - **Header row**: centered colored direction badge pill (Long=`--color-buy`, Short=`--color-btn-sell`) + position size/entry in `−3 @ 25,052.75` format
   - **P&L hero**: centered large 18px bold number with directional color (green/red/muted) on a subtle tinted background (`rgba` of buy/sell at 8% opacity). Dollar sign inline.
 - **Close** button: solid red `bg-(--color-btn-sell)` with white text and ✕ icon. Market order to flatten position, always visible when position exists. Shows error toast on failure.
-- **SL to BE** button: amber outline `border-(--color-warning)/40` with amber text and shield icon. Always visible when a position exists, disabled when not in profit. Shows error toast on failure. Three paths:
+- **SL to BE** button: amber outline `border-(--color-warning)/40` with amber text and shield icon. Always visible when a position exists, disabled when not in profit. Shows error toast on failure. All paths snap the entry price to the nearest valid tick via `roundToTick()` before sending (average price can have floating-point drift or be genuinely misaligned after scaling in). Three paths:
   1. **Bracket session active**: delegates to `bracketEngine.moveSLToBreakeven()` (modifies tracked SL order)
-  2. **Existing SL order found** (stop type 4/5 on same contract): modifies it to entry price via `orderService.modifyOrder()`
-  3. **No SL exists** (naked position): places a new stop order at entry price via `orderService.placeOrder()` (sell stop for long, buy stop for short)
+  2. **Existing SL order found** (stop type 4/5 on same contract): modifies it to tick-aligned entry price via `orderService.modifyOrder()`
+  3. **No SL exists** (naked position): places a new stop order at tick-aligned entry price via `orderService.placeOrder()` (sell stop for long, buy stop for short)
 - Both buttons: `py-2.5 text-[11px] font-bold cursor-pointer`, `disabled:opacity-50 disabled:cursor-not-allowed`
 
 ---

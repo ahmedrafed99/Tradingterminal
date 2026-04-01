@@ -7,7 +7,7 @@ import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { markAsManualClose } from '../../services/manualCloseTracker';
 import { showToast, errorMessage } from '../../utils/toast';
-import { calcPnl } from '../../utils/instrument';
+import { calcPnl, roundToTick } from '../../utils/instrument';
 import { formatPrice, getPnlColorClass } from '../../utils/formatters';
 
 export function PositionDisplay() {
@@ -108,6 +108,7 @@ export function PositionDisplay() {
           positionSide={isLong ? 'long' : 'short'}
           size={pos.size}
           entryPrice={pos.averagePrice}
+          tickSize={orderContract.tickSize}
           disabled={!inProfit}
         />
         <ClosePositionButton
@@ -127,6 +128,7 @@ function MoveToBEButton({
   positionSide,
   size,
   entryPrice,
+  tickSize,
   disabled,
 }: {
   accountId: string | null;
@@ -134,6 +136,7 @@ function MoveToBEButton({
   positionSide: 'long' | 'short';
   size: number;
   entryPrice: number;
+  tickSize: number;
   disabled: boolean;
 }) {
   const [busy, setBusy] = useState(false);
@@ -156,11 +159,12 @@ function MoveToBEButton({
           (o.type === OrderType.Stop || o.type === OrderType.TrailingStop),
       );
 
+      const bePrice = roundToTick(entryPrice, tickSize);
       if (existingSL) {
         await orderService.modifyOrder({
           accountId,
           orderId: existingSL.id,
-          stopPrice: entryPrice,
+          stopPrice: bePrice,
         });
       } else {
         // Place a new stop order at breakeven — SL side is opposite of position
@@ -170,7 +174,7 @@ function MoveToBEButton({
           type: OrderType.Stop,
           side: positionSide === 'long' ? OrderSide.Sell : OrderSide.Buy,
           size,
-          stopPrice: entryPrice,
+          stopPrice: bePrice,
         });
       }
     } catch (err) {

@@ -87,7 +87,7 @@ priceOffset = pointsToPrice(points, contract)
             = points * contract.tickSize * contract.ticksPerPoint
 ```
 
-`ticksPerPoint` is derived from the `Contract` (e.g. 4 for MNQ, 100 for BTC). Helpers live in `utils/instrument.ts`: `pointsToPrice()`, `priceToPoints()`, `pointsToTicks()`, `calcPnl()`.
+`ticksPerPoint` is derived from the `Contract` (e.g. 4 for MNQ, 100 for BTC). Helpers live in `utils/instrument.ts`: `pointsToPrice()`, `priceToPoints()`, `pointsToTicks()`, `calcPnl()`, `roundToTick()`.
 
 - **SL price**: `entryPrice - offset` for long, `entryPrice + offset` for short
 - **TP price**: `entryPrice + offset` for long, `entryPrice - offset` for short
@@ -222,7 +222,7 @@ confirmEntryOrderId(orderId: string): void
 onOrderEvent(order: Order): void
 
 // Manual actions (called by PositionDisplay)
-moveSLToBreakeven(): Promise<boolean>
+moveSLToBreakeven(): Promise<boolean>   // rounds entry price to nearest tick before sending
 
 // Config updates (called by CandlestickChart for + button drag)
 // Takes an updater function that receives the current config and returns the new one

@@ -418,6 +418,7 @@ Drag from position label on chart to create real SL/TP orders directly:
 - Drag in loss direction -> stop order (type 4, full position size). Blocked if stop order already exists
 - Drag in profit direction -> limit order (type 1, 1 contract per drag). Blocked if no remaining contracts
 - Position drag uses capture-phase event listeners to ensure events aren't consumed by the chart canvas
+- **Mid-drag position close safety**: If the position closes while dragging (e.g. SL fills mid-drag), the drag is aborted immediately and the preview line/label removed — no order is placed. Three layers enforce this: (1) a Zustand store subscription cancels the drag instantly on position change, (2) `onMouseMove` checks `isPositionAlive()` as a safety net, (3) `onMouseUp` re-checks before calling `placeOrder()`. All three call the same idempotent `abortDrag()` cleanup function.
 
 **Position close -> auto-cancel all orders**: When a position closes (size=0), all open orders for that contract are cancelled automatically. Uses fresh API fetch (`searchOpenOrders`) rather than store state (which may be stale due to SignalR event ordering). Orders already being cancelled by the bracket engine (returned from `clearSession()`) are skipped to avoid double-cancel toasts. `contractId` comparison uses `String()` coercion (API may return number, SignalR sends string).
 

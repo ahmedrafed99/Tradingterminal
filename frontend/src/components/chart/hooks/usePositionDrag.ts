@@ -41,9 +41,44 @@ export function usePositionDrag(
       return snapToTickSize(price, tickSize);
     }
 
+    /** Idempotent cleanup — safe to call multiple times. */
+    function abortDrag() {
+      refs.posDrag.current = null;
+      if (refs.activeDragRow.current) {
+        refs.activeDragRow.current.style.cursor = 'pointer';
+        refs.activeDragRow.current = null;
+      }
+      if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
+      if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
+      if (refs.posDragLine.current) {
+        refs.posDragLine.current.destroy();
+        refs.posDragLine.current = null;
+      }
+      if (refs.posDragLabel.current) {
+        refs.posDragLabel.current.remove();
+        refs.posDragLabel.current = null;
+      }
+    }
+
+    /** Check whether the position backing this drag is still open. */
+    function isPositionAlive(): boolean {
+      const st = useStore.getState();
+      if (!st.activeAccountId || !contract) return false;
+      const pos = st.positions.find(
+        (p) => p.accountId === st.activeAccountId && String(p.contractId) === String(contract!.id),
+      );
+      return pos != null && pos.size !== 0;
+    }
+
     function onMouseMove(e: MouseEvent) {
       const drag = refs.posDrag.current;
       if (!drag) return;
+
+      // Abort immediately if the position closed (e.g. SL filled mid-drag)
+      if (!isPositionAlive()) {
+        abortDrag();
+        return;
+      }
 
       // Don't stopPropagation — let the event reach LWC so the crosshair stays visible
       e.preventDefault();
@@ -144,26 +179,12 @@ export function usePositionDrag(
       const drag = refs.posDrag.current;
       if (!drag) return;
 
-      refs.posDrag.current = null;
-      if (refs.activeDragRow.current) {
-        refs.activeDragRow.current.style.cursor = 'pointer';
-        refs.activeDragRow.current = null;
-      }
-      if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
-      // Re-enable LWC scroll/scale after drag
-      if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
-
-      // Remove temporary line + label
-      if (refs.posDragLine.current) {
-        refs.posDragLine.current.destroy();
-        refs.posDragLine.current = null;
-      }
-      if (refs.posDragLabel.current) {
-        refs.posDragLabel.current.remove();
-        refs.posDragLabel.current = null;
-      }
+      abortDrag();
 
       if (!drag.direction) return;
+
+      // Don't place order if position closed mid-drag (e.g. SL filled)
+      if (!isPositionAlive()) return;
 
       const st = useStore.getState();
       if (!st.activeAccountId || !contract) return;
@@ -221,17 +242,20 @@ export function usePositionDrag(
     window.addEventListener('mousemove', onMouseMove, true);
     window.addEventListener('mouseup', onMouseUp, true);
 
+    // Abort drag immediately if position closes (e.g. SL filled while mouse is still)
+    const unsubPositions = useStore.subscribe(
+      (state, prevState) => {
+        if (!refs.posDrag.current) return;
+        if (state.positions === prevState.positions) return;
+        if (!isPositionAlive()) abortDrag();
+      },
+    );
+
     return () => {
       window.removeEventListener('mousemove', onMouseMove, true);
       window.removeEventListener('mouseup', onMouseUp, true);
-      if (refs.posDragLine.current) {
-        refs.posDragLine.current.destroy();
-        refs.posDragLine.current = null;
-      }
-      if (refs.posDragLabel.current) {
-        refs.posDragLabel.current.remove();
-        refs.posDragLabel.current = null;
-      }
+      unsubPositions();
+      abortDrag();
     };
   }, [isOrderChart, contract, positions, openOrders, activeAccountId]);
 }

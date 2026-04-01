@@ -4,7 +4,7 @@ import type { Contract } from './marketDataService';
 import { useStore } from '../store/useStore';
 import type { BracketConfig, ConditionAction } from '../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
-import { pointsToPrice, priceToPoints } from '../utils/instrument';
+import { pointsToPrice, priceToPoints, roundToTick } from '../utils/instrument';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 import { audioService } from './audioService';
@@ -183,7 +183,7 @@ class BracketEngine {
       await orderService.modifyOrder({
         accountId: this.session.accountId,
         orderId: this.session.slOrderId,
-        stopPrice: this.session.entryPrice,
+        stopPrice: roundToTick(this.session.entryPrice, this.session.contract.tickSize),
       });
       return true;
     } catch (err) {
@@ -712,7 +712,7 @@ class BracketEngine {
           await orderService.modifyOrder({
             accountId,
             orderId: slOrderId!,
-            stopPrice: entryPrice,
+            stopPrice: roundToTick(entryPrice, contract.tickSize),
           });
           break;
         }

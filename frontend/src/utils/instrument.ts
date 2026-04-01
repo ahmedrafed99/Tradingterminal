@@ -32,6 +32,15 @@ export function pointsToTicks(points: number, contract: Contract): number {
 }
 
 /**
+ * Round a price to the nearest valid tick.
+ * Handles floating-point drift (e.g. 21150.250000000003 → 21150.25)
+ * and genuinely misaligned prices (e.g. average price 21150.375 → 21150.50 or 21150.25).
+ */
+export function roundToTick(price: number, tickSize: number): number {
+  return Math.round(price / tickSize) * tickSize;
+}
+
+/**
  * Calculate P&L for a price difference, instrument, and position size.
  * The formula (priceDiff / tickSize) * tickValue * size is universal:
  *   Futures: (10 / 0.25) * 0.50 * 2 = $40
