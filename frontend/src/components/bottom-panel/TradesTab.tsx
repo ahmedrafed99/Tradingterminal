@@ -300,7 +300,7 @@ export function TradesTab() {
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
       <div className="sticky top-0 bg-(--color-panel) border-b border-(--color-border)" style={{ zIndex: Z.HEADER }}>
-        <div className="flex items-center h-8">
+        <div className="flex items-center h-8 relative">
           <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '70%' }}>
             {([
               ['Time', 'time'],
@@ -329,10 +329,11 @@ export function TradesTab() {
               );
             })}
           </div>
-          <div className="ml-auto flex items-center gap-3" style={{ paddingRight: 16 }}>
+          <div className="ml-auto flex items-center" style={{ paddingRight: 16 }}>
             {visibleTradeIds.length > 0 && (
               <button
                 className="text-xs text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer select-none"
+                style={{ position: 'absolute', right: 120 }}
                 onClick={clearVisibleTradeIds}
               >
                 Hide drawings
