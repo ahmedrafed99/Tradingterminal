@@ -84,12 +84,28 @@ export function tradingDurationMs(entryIso: string, exitIso: string): number {
   return Math.max(0, wallMs - closedMs);
 }
 
+/** Human-readable label for when the market next reopens. */
+export function getNextOpenLabel(): string {
+  const { day, h } = getETComponents();
+  // Mon–Thu maintenance (17:00–18:00) or Sunday before 18:00 → reopens same day
+  if ((day >= 1 && day <= 4 && h === 17) || (day === 0 && h < 18)) {
+    return 'reopens today 18:00 ET';
+  }
+  // Weekend: Friday 17:00+ or Saturday
+  return 'reopens Sun 18:00 ET';
+}
+
 /** Reactive hook — re-evaluates every second so components stay in sync. */
-export function useMarketStatus(): boolean {
-  const [open, setOpen] = useState(() => isFuturesMarketOpen());
+export function useMarketStatus(): { open: boolean; reopenLabel: string } {
+  const [status, setStatus] = useState(() => ({
+    open: isFuturesMarketOpen(),
+    reopenLabel: getNextOpenLabel(),
+  }));
   useEffect(() => {
-    const id = setInterval(() => setOpen(isFuturesMarketOpen()), 1000);
+    const id = setInterval(() => {
+      setStatus({ open: isFuturesMarketOpen(), reopenLabel: getNextOpenLabel() });
+    }, 1000);
     return () => clearInterval(id);
   }, []);
-  return open;
+  return status;
 }

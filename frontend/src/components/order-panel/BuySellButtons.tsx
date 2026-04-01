@@ -32,7 +32,7 @@ export function BuySellButtons() {
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const marketOpen = useMarketStatus();
+  const { open: marketOpen, reopenLabel } = useMarketStatus();
   const canPlace =
     activeAccountId != null &&
     orderContract != null &&
@@ -133,7 +133,7 @@ export function BuySellButtons() {
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
-          Market closed — reopens Sun 18:00 ET
+          Market closed — {reopenLabel}
         </div>
       )}
       {error && (
