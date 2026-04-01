@@ -44,6 +44,7 @@ export function TradesTab() {
   const visibleTradeIds = useStore((s) => s.visibleTradeIds);
   const toggleTradeVisibility = useStore((s) => s.toggleTradeVisibility);
   const toggleTradeVisibilityBulk = useStore((s) => s.toggleTradeVisibilityBulk);
+  const clearVisibleTradeIds = useStore((s) => s.clearVisibleTradeIds);
   const tradesDatePreset = useStore((s) => s.tradesDatePreset);
   const presetCounts = useStore((s) => s.presetCounts);
   const setPresetCounts = useStore((s) => s.setPresetCounts);
@@ -328,7 +329,15 @@ export function TradesTab() {
               );
             })}
           </div>
-          <div className="ml-auto" style={{ paddingRight: 16 }}>
+          <div className="ml-auto flex items-center gap-3" style={{ paddingRight: 16 }}>
+            {visibleTradeIds.length > 0 && (
+              <button
+                className="text-xs text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer select-none"
+                onClick={clearVisibleTradeIds}
+              >
+                Hide drawings
+              </button>
+            )}
             <DatePresetSelector counts={presetCounts} />
           </div>
         </div>
@@ -348,7 +357,7 @@ export function TradesTab() {
           const net = trade.profitAndLoss! - trade.fees;
           const isVisible = visibleTradeIds.includes(trade.id);
           const stripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
-          const selected = isVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
+          const selected = isVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
 
           return (
             <div
@@ -397,7 +406,7 @@ export function TradesTab() {
 
         // Multi-exit group
         const parentStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
-        const parentSelected = anyVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
+        const parentSelected = anyVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
 
         return (
           <div key={`group-${group.entryId}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 28px' }}>
@@ -452,7 +461,7 @@ export function TradesTab() {
               const net = trade.profitAndLoss! - trade.fees;
               const isVisible = visibleTradeIds.includes(trade.id);
               const subStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
-              const subSelected = isVisible ? 'bg-(--color-accent)/15 border-l-2 border-l-(--color-accent)' : 'border-l-2 border-l-transparent';
+              const subSelected = isVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
 
               return (
                 <div
