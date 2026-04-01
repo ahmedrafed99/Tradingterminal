@@ -15,7 +15,9 @@ The tooltip shows Open, High, Low, Close values and the candle's change (`close 
 ## UI
 
 ```
-NQ · 1m   O24,886.75 H24,886.75 L24,881.00 C24,883.25 -3.50
+NQ · 1m   ●   O24,886.75 H24,886.75 L24,881.00 C24,883.25 -3.50
+          ↑
+   MarketStatusBadge (clickable dot with session tooltip)
 ```
 
 - **Labels** (`O`, `H`, `L`, `C`): color `#787b86` (muted gray, same as symbol display)
@@ -33,6 +35,7 @@ NQ · 1m   O24,886.75 H24,886.75 L24,881.00 C24,883.25 -3.50
 | File | Changes |
 |------|---------|
 | `frontend/src/components/chart/CandlestickChart.tsx` | Added `ohlcRef`, crosshair move subscription effect, tooltip div in JSX |
+| `frontend/src/components/chart/MarketStatusBadge.tsx` | Clickable market status dot between instrument label and OHLC values |
 
 ---
 

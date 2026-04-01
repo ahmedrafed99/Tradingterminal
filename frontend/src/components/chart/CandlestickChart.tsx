@@ -27,6 +27,7 @@ import { useOverlayLabels } from './hooks/useOverlayLabels';
 import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
+import { MarketStatusBadge } from './MarketStatusBadge';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
@@ -345,6 +346,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
           <div ref={instrumentLabelRef} className="text-(--color-text-muted) text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: RADIUS.SM, padding: '1px 3px' }}>
             {contract.name.replace(/[FGHJKMNQUVXZ]\d{2}$/, '')} · {timeframe.label}
           </div>
+          <MarketStatusBadge contract={contract} />
           <div
             ref={ohlcRef}
             className="text-xs font-medium leading-tight overflow-hidden whitespace-nowrap min-w-0"

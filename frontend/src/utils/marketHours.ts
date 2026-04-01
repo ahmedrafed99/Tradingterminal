@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react';
 
 // Cached formatters for NY timezone conversion — avoids per-call Intl allocation
 const fmtNY = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York' });
-const fmtNYFull = new Intl.DateTimeFormat('en-US', {
+const fmtNYWithMin = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York',
   year: 'numeric', month: '2-digit', day: '2-digit',
-  hour: '2-digit', minute: '2-digit', hour12: false,
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 });
 
-/** Extract ET day-of-week and hour from the current time. */
-function getETComponents(): { day: number; h: number } {
-  const parts = fmtNYFull.formatToParts(new Date());
+/** Extract ET day-of-week, hour, and minute from the current time. */
+function getETComponents(): { day: number; h: number; m: number } {
+  const parts = fmtNYWithMin.formatToParts(new Date());
   const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
   const month = get('month');
   const dayOfMonth = get('day');
   const year = get('year');
   const h = get('hour') % 24; // hour12:false can return 24 for midnight in some engines
+  const m = get('minute');
   // Build a UTC date from ET date components just to get day-of-week
   const day = new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay();
-  return { day, h };
+  return { day, h, m };
 }
 
 /**
@@ -101,19 +102,117 @@ export function getNextOpenLabel(): string {
 
 export type MarketType = 'futures' | 'crypto';
 
+export interface SessionInfo {
+  /** 0–1 progress through the current session (open or closed) */
+  progress: number;
+  /** Short day label for progress bar, e.g. "WED" */
+  dayLabel: string;
+  /** Start time label, e.g. "18:00" */
+  startLabel: string;
+  /** End time label, e.g. "17:00" */
+  endLabel: string;
+  /** Human description, e.g. "It'll close in 3 hours and 12 minutes." */
+  countdown: string;
+}
+
 interface MarketSchedule {
   isOpen(): boolean;
   getNextOpenLabel(): string;
+  getNextCloseLabel(): string;
+  getSessionInfo(): SessionInfo;
 }
+
+const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
+
+function formatCountdown(totalMin: number, verb: 'close' | 'reopen'): string {
+  const hrs = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  if (hrs === 0) return `It'll ${verb} in ${mins} minute${mins !== 1 ? 's' : ''}.`;
+  if (mins === 0) return `It'll ${verb} in ${hrs} hour${hrs !== 1 ? 's' : ''}.`;
+  return `It'll ${verb} in ${hrs} hour${hrs !== 1 ? 's' : ''} and ${mins} minute${mins !== 1 ? 's' : ''}.`;
+}
+
+/** Session progress info for CME futures. */
+function getCmeSessionInfo(): SessionInfo {
+  const { day, h, m } = getETComponents();
+  const isOpen = isFuturesMarketOpen();
+
+  if (isOpen) {
+    // Open session: 18:00 → 17:00 next day = 23 hours = 1380 min
+    const SESSION_LEN = 1380;
+    const minSinceOpen = h >= 18 ? (h - 18) * 60 + m : (h + 6) * 60 + m; // +6 because 24-18=6
+    return {
+      progress: Math.min(1, minSinceOpen / SESSION_LEN),
+      dayLabel: DAY_NAMES[day],
+      startLabel: '18:00',
+      endLabel: '17:00',
+      countdown: formatCountdown(SESSION_LEN - minSinceOpen, 'close'),
+    };
+  }
+
+  // Weekend: Fri 17:00 → Sun 18:00 = 49 hours = 2940 min
+  if (day === 5 || day === 6 || (day === 0 && h < 18)) {
+    const WEEKEND_LEN = 2940;
+    let minSinceClosed: number;
+    if (day === 5) minSinceClosed = (h - 17) * 60 + m;
+    else if (day === 6) minSinceClosed = (24 + 7) * 60 + h * 60 + m; // 7h (Fri 17→24) + Sat hours
+    else minSinceClosed = (24 + 7 + 24) * 60 + h * 60 + m; // Fri 7h + Sat 24h + Sun hours
+    // Simpler: count from Fri 17:00
+    // Fri: (h-17)*60+m, Sat: 7*60 + 24*60*0 + h*60+m ... let me just use day offsets
+    const dayOffset = day === 5 ? 0 : day === 6 ? 1 : 2;
+    minSinceClosed = dayOffset * 24 * 60 + (day === 5 ? (h - 17) * 60 + m : h * 60 + m);
+    if (day === 5) minSinceClosed = (h - 17) * 60 + m;
+    else if (day === 6) minSinceClosed = 7 * 60 + h * 60 + m; // 7h remaining Fri + all of Sat so far
+    else minSinceClosed = 7 * 60 + 24 * 60 + h * 60 + m; // 7h Fri + 24h Sat + Sun so far
+    return {
+      progress: Math.min(1, minSinceClosed / WEEKEND_LEN),
+      dayLabel: DAY_NAMES[day],
+      startLabel: 'Fri 17:00',
+      endLabel: 'Sun 18:00',
+      countdown: formatCountdown(WEEKEND_LEN - minSinceClosed, 'reopen'),
+    };
+  }
+
+  // Daily maintenance: 17:00 → 18:00 = 60 min
+  const MAINT_LEN = 60;
+  const minSinceClosed = m;
+  return {
+    progress: Math.min(1, minSinceClosed / MAINT_LEN),
+    dayLabel: DAY_NAMES[day],
+    startLabel: '17:00',
+    endLabel: '18:00',
+    countdown: formatCountdown(MAINT_LEN - minSinceClosed, 'reopen'),
+  };
+}
+
+/** Human-readable label for when the market next closes (CME). */
+function getCmeNextCloseLabel(): string {
+  const { day, h } = getETComponents();
+  // Friday: closes at 17:00 (weekend start)
+  if (day === 5 && h < 17) return 'closes today 17:00 ET';
+  // Sun–Thu: closes at 17:00 (daily maintenance)
+  if (day >= 0 && day <= 4 && h >= 18) return 'closes today 17:00 ET';
+  // Sunday 18:xx — just opened
+  if (day === 0 && h === 18) return 'closes tomorrow 17:00 ET';
+  return 'closes today 17:00 ET';
+}
+
+const EMPTY_SESSION: SessionInfo = {
+  progress: 0, dayLabel: '', startLabel: '', endLabel: '', countdown: '',
+};
 
 const cmeFuturesSchedule: MarketSchedule = {
   isOpen: isFuturesMarketOpen,
   getNextOpenLabel,
+  getNextCloseLabel: getCmeNextCloseLabel,
+  getSessionInfo: getCmeSessionInfo,
 };
 
 const alwaysOpenSchedule: MarketSchedule = {
   isOpen: () => true,
   getNextOpenLabel: () => '',
+  getNextCloseLabel: () => '',
+  getSessionInfo: () => EMPTY_SESSION,
 };
 
 const schedules: Record<MarketType, MarketSchedule> = {
@@ -127,22 +226,31 @@ export function getSchedule(type?: MarketType): MarketSchedule {
 }
 
 /** Reactive hook — re-evaluates every second so components stay in sync. */
-export function useMarketStatus(marketType: MarketType = 'futures'): { open: boolean; reopenLabel: string } {
+export function useMarketStatus(marketType: MarketType = 'futures'): {
+  open: boolean; reopenLabel: string; closeLabel: string; session: SessionInfo;
+} {
   const schedule = getSchedule(marketType);
 
   const [status, setStatus] = useState(() => ({
     open: schedule.isOpen(),
     reopenLabel: schedule.getNextOpenLabel(),
+    closeLabel: schedule.getNextCloseLabel(),
+    session: schedule.getSessionInfo(),
   }));
 
   useEffect(() => {
     // Crypto is always open — no timer needed
     if (marketType === 'crypto') {
-      setStatus({ open: true, reopenLabel: '' });
+      setStatus({ open: true, reopenLabel: '', closeLabel: '', session: EMPTY_SESSION });
       return;
     }
     const id = setInterval(() => {
-      setStatus({ open: schedule.isOpen(), reopenLabel: schedule.getNextOpenLabel() });
+      setStatus({
+        open: schedule.isOpen(),
+        reopenLabel: schedule.getNextOpenLabel(),
+        closeLabel: schedule.getNextCloseLabel(),
+        session: schedule.getSessionInfo(),
+      });
     }, 1000);
     return () => clearInterval(id);
   }, [marketType, schedule]);
