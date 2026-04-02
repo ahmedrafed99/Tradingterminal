@@ -18,8 +18,8 @@ const BOTTOM_OFFSET = 14;
 const MARKER_COLOR = '#9b59b6';
 const MARKER_FILL = 'rgba(155, 89, 182, 0.18)';
 
-import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
-import { SHADOW } from '../../../constants/layout';
+import { COLOR_SELL, COLOR_BUY, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
+import { SHADOW, RADIUS } from '../../../constants/layout';
 
 const IMPACT_COLORS: Record<string, string> = {
   high: COLOR_SELL,
@@ -360,13 +360,13 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
         position: absolute;
         pointer-events: auto;
         z-index: 40;
-        background: #000;
+        background: var(--color-surface);
         border: 1px solid ${COLOR_BORDER};
-        border-radius: 6px;
-        padding: 8px 10px;
+        border-radius: ${RADIUS.MD}px;
+        padding: 0;
         font-family: ${FONT_FAMILY};
-        max-width: 280px;
-        max-height: 260px;
+        width: 260px;
+        max-height: 320px;
         overflow-y: auto;
         box-shadow: ${SHADOW.LG};
       `;
@@ -382,15 +382,68 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     let html = '';
     for (let i = 0; i < marker.events.length; i++) {
       const ev = marker.events[i];
-      if (i > 0) html += `<div style="border-top:1px solid ${COLOR_BORDER}; margin:5px 0"></div>`;
+      if (i > 0) html += `<div style="border-top:1px solid ${COLOR_BORDER}"></div>`;
 
       const impactColor = IMPACT_COLORS[ev.impact] || COLOR_TEXT_MUTED;
       const timeStr = this._formatTime(ev.date);
 
-      html += `<div style="font-size:11px; color:var(--color-text, #d1d4dc); font-weight:600; line-height:1.3">${this._escapeHtml(ev.title)}</div>`;
-      html += `<div style="display:flex; align-items:center; gap:6px; margin-top:3px">`;
-      html += `<span style="font-size:10px; color:${impactColor}; font-weight:600; text-transform:uppercase">${ev.impact}</span>`;
-      html += `<span style="font-size:10px; color:var(--color-text-muted, #787b86)">${timeStr}</span>`;
+      html += `<div style="padding:10px 12px">`;
+
+      // Header: impact dot + label + time
+      html += `<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px">`;
+      html += `<div style="display:flex; align-items:center; gap:5px">`;
+      html += `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${impactColor}; flex-shrink:0"></span>`;
+      html += `<span style="font-size:10px; color:${impactColor}; font-weight:600; text-transform:uppercase; letter-spacing:0.3px">${ev.impact} impact</span>`;
+      html += `</div>`;
+      html += `<span style="font-size:10px; color:var(--color-text-muted)">${timeStr}</span>`;
+      html += `</div>`;
+
+      // Title
+      html += `<div style="font-size:11px; color:var(--color-text, #d1d4dc); font-weight:600; line-height:1.3; margin-bottom:8px">${this._escapeHtml(ev.title)}</div>`;
+
+      // Data grid (actual / consensus / previous)
+      const hasActual = ev.actual !== null;
+      const hasConsensus = ev.consensus !== null;
+      const hasPrevious = ev.previous !== null;
+      const hasData = hasActual || hasConsensus || hasPrevious;
+
+      if (hasData) {
+        const cols = [hasActual, hasConsensus, hasPrevious].filter(Boolean).length;
+        const actualColor = ev.isBetterThanExpected === true
+          ? COLOR_BUY
+          : ev.isBetterThanExpected === false
+          ? COLOR_SELL
+          : 'var(--color-text)';
+
+        html += `<div style="display:grid; grid-template-columns:repeat(${cols}, 1fr); gap:2px 12px; margin-bottom:6px">`;
+        // Column headers
+        if (hasActual) html += `<div style="font-size:10px; color:var(--color-text-muted); font-weight:500">Actual</div>`;
+        if (hasConsensus) html += `<div style="font-size:10px; color:var(--color-text-muted); font-weight:500">Cons.</div>`;
+        if (hasPrevious) html += `<div style="font-size:10px; color:var(--color-text-muted); font-weight:500">Prev.</div>`;
+        // Values
+        if (hasActual) html += `<div style="font-size:11px; color:${actualColor}; font-weight:600">${ev.actual}</div>`;
+        if (hasConsensus) html += `<div style="font-size:11px; color:var(--color-text); font-weight:400">${ev.consensus}</div>`;
+        if (hasPrevious) html += `<div style="font-size:11px; color:var(--color-text-muted); font-weight:400">${ev.previous}</div>`;
+        html += `</div>`;
+
+        // Beat/miss indicator
+        if (hasActual && hasConsensus && ev.isBetterThanExpected !== null) {
+          const beatColor = ev.isBetterThanExpected ? COLOR_BUY : COLOR_SELL;
+          const beatLabel = ev.isBetterThanExpected ? 'Better than expected' : 'Worse than expected';
+          html += `<div style="display:flex; align-items:center; gap:4px">`;
+          html += `<span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:${beatColor}"></span>`;
+          html += `<span style="font-size:10px; color:${beatColor}; font-weight:500">${beatLabel}</span>`;
+          html += `</div>`;
+        }
+      }
+
+      html += `</div>`; // close event block
+    }
+
+    // Footer for grouped events
+    if (marker.events.length > 1) {
+      html += `<div style="border-top:1px solid ${COLOR_BORDER}; padding:6px 12px; font-size:10px; color:var(--color-text-muted)">`;
+      html += `${marker.events.length} events at this time`;
       html += `</div>`;
     }
 
@@ -403,8 +456,9 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     let left = marker.x - tooltipWidth / 2;
     left = Math.max(4, Math.min(left, containerWidth - tooltipWidth - 4));
 
+    const top = markerY - MARKER_RADIUS - 8 - this._tooltipEl.offsetHeight;
     this._tooltipEl.style.left = `${left}px`;
-    this._tooltipEl.style.top = `${markerY - MARKER_RADIUS - 8 - this._tooltipEl.offsetHeight}px`;
+    this._tooltipEl.style.top = `${Math.max(4, top)}px`;
   }
 
   private _hideTooltip(): void {

@@ -84,12 +84,14 @@ FXStreet Calendar API
 - **Click**: toggles tooltip (click marker to show, click again or click elsewhere to dismiss)
 - **Nearby markers**: merged when within 2*MARKER_RADIUS px to avoid overlap
 - **Future events**: uses `timeToCoordinate` for events within data range (accurate, respects gap compression); falls back to linear extrapolation from last two candles only for future events beyond the last candle
-- **Tooltip**: bg-black, border #2a2e39, border-radius 6px, positioned above marker
-  - Title: 11px, #d1d4dc, font-weight 600
-  - Impact: colored uppercase label (high=#ef5350, low=#787b86)
-  - Time: `HH:MM am/pm ET` format (time only, no date)
-  - Multiple events per marker separated by dividers, scrollable (max-height 260px)
-  - Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
+- **Tooltip**: `var(--color-surface)` bg, border `--color-border`, `RADIUS.MD` (3px), positioned above marker, 260px fixed width
+  - **Header row**: 7px colored impact dot + uppercase "HIGH IMPACT" label + right-aligned time (`HH:MM am/pm ET`)
+  - **Title**: 11px, `--color-text`, font-weight 600
+  - **Data grid**: Actual / Cons. / Prev. columns (only shown when data exists). Actual value colored green (`COLOR_BUY`) if better than expected, red (`COLOR_SELL`) if worse
+  - **Beat/miss indicator**: small colored dot + "Better/Worse than expected" (only when actual AND consensus both exist)
+  - **Grouped events**: separated by `--color-border` dividers, footer shows "N events at this time"
+  - Max-height 320px, scrollable. Dismissed on scroll via `subscribeVisibleLogicalRangeChange`
+  - Top-edge clamped so tooltip doesn't overflow above chart
 - **Toolbar dropdown**: Newspaper icon + "News" + chevron in chart toolbar. Click opens a dropdown with three rows (High / Medium / Low impact). Each row shows an accent-colored checkmark that fades+scales in when active (same pattern as "Invert scale" in chart settings). Button text is orange (#f0a830) when any filter is active, muted (#787b86) when all off.
 
 ---
