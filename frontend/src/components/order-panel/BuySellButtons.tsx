@@ -34,7 +34,7 @@ export function BuySellButtons() {
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { open: marketOpen, reopenLabel } = useMarketStatus(marketType);
+  const { open: marketOpen } = useMarketStatus(marketType);
   const canPlace =
     activeAccountId != null &&
     orderContract != null &&
@@ -127,17 +127,6 @@ export function BuySellButtons() {
           {placing === 'sell' ? '...' : `Sell -${orderSize} ${typeLabel}`}
         </button>
       </div>
-      {!marketOpen && (
-        <div
-          className="flex items-center justify-center gap-1 rounded text-[10px] text-(--color-warning) transition-colors whitespace-nowrap"
-          style={{ padding: '5px 0', marginTop: 12, background: 'color-mix(in srgb, var(--color-warning) 8%, transparent)' }}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          Market closed — {reopenLabel}
-        </div>
-      )}
       {error && (
         <div className="text-[10px] text-(--color-error) mt-1">{error}</div>
       )}
