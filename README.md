@@ -106,6 +106,9 @@ docs/
 | Conditional orders (candle-close triggers)  | `docs/shared/conditional-orders/` |
 | Voice notifications on fills                | `docs/shared/voice-notifications/` |
 | Chart video recording                       | `docs/shared/video-recording/` |
+| News / economic calendar markers            | `docs/shared/news-display/` |
+| Trade journal (screenshots, notes)          | `docs/shared/journal/` |
+| AI chat panel                               | `docs/shared/chat-bot/` |
 | **System & Architecture** | |
 | Design tokens (colors, font, z-index)       | `docs/shared/design-tokens/` |
 | Settings persistence / file backup          | `docs/shared/settings-persistence/` |
@@ -221,63 +224,7 @@ docs/
 
 ## Design Tokens
 
-Canonical color and style values. **Do not add new values — pick from this table.**
-
-### Backgrounds
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| Page / chart canvas | `#131722` | `body`, chart background, loading overlays |
-| Panel / toolbar | `#000000` | TopBar, ChartToolbar, OrderPanel, BottomPanel |
-| Input / control | `#111` | All text inputs, selects, spinners, summary boxes |
-| Modal panel | `#1e222d` | SettingsModal, BracketSettingsModal panel |
-| Hover row | `#1e222d` | Dropdown items, list rows on hover |
-| Toolbar button hover | `#363a45` | DrawingEditToolbar, icon button hover |
-
-### Text
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| Primary | `#d1d4dc` | Body text, data values, OHLC |
-| Muted | `#787b86` | Labels, secondary info, icons at rest |
-| Dim | `#434651` | Empty states, placeholders, crosshair lines |
-| Bright | `#ffffff` | Modal titles, active button text |
-
-### Semantic
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| Primary action | `#2962ff` | Connect button, checkboxes, selection rings |
-| Active accent | `#f0a830` | Active timeframe, active preset, active account |
-| Profit / long | `#26a69a` | Positive P&L, BUY side, long positions |
-| Loss / short | `#ef5350` | Negative P&L, SELL side, short positions |
-
-### Borders & Dividers
-
-| Token | Value |
-|-------|-------|
-| All borders | `#2a2e39` |
-| Focus ring | `#1a3a6e` |
-| Handle stroke | `#1e3a5f` |
-
-### Interactive States
-
-| State | Rule |
-|-------|------|
-| Hover | Always animated — `transition-colors` on every interactive element |
-| Disabled | `disabled:opacity-50 disabled:cursor-not-allowed` |
-| Modal backdrop | `bg-black/60` |
-| Dropdown shadow | `0 4px 24px rgba(0,0,0,0.5)` |
-
-### Typography
-
-| Token | Value |
-|-------|-------|
-| Font stack | `-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif` |
-| Section label | `text-[10px] uppercase tracking-wider text-[#787b86]` |
-| Body text | `text-xs` (12px) |
-| Button text | `text-[11px]` |
-| Modal title | `text-sm font-semibold text-white` |
+See [`docs/shared/design-tokens/`](docs/shared/design-tokens/) — colors, font, z-index, shadows, radii, transitions.
 
 ---
 
@@ -288,7 +235,7 @@ The app uses a **dual-path** bracket strategy depending on the number of take-pr
 - **0-1 TPs**: Uses **gateway-native brackets** — SL and TP are attached atomically to the entry order (zero latency gap). Requires "Auto OCO Brackets" enabled on the account. Gateway handles OCO auto-cancel.
 - **2+ TPs**: **SL is still native** (attached to entry order), but TPs are placed by the **client-side bracket engine** after fill (detected via SignalR). The engine discovers the gateway-created SL order to manage it (resize on TP fills, move on conditions). Conditions (e.g. "move SL to breakeven when TP 1 hits") are evaluated client-side.
 
-See `docs/bracket-engine/README.md` for the full runtime lifecycle.
+See `docs/shared/bracket-engine/README.md` for the full runtime lifecycle.
 
 ---
 
