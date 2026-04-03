@@ -1,11 +1,12 @@
 # Trading Terminal
 
-A localhost web app for trading on a candlestick chart. Supports multiple exchanges
-and instrument categories through an adapter pattern.
+A localhost web app for trading on a candlestick chart. Built on an adapter pattern for multi-exchange support.
 
 **Supported exchanges:**
 - [ProjectX (TopstepX)](https://gateway.docs.projectx.com/docs/intro) — CME futures
-- [Hyperliquid](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api) — Crypto perpetuals, spot, tradfi
+
+**Planned:**
+- Hyperliquid — Crypto perpetuals, spot, tradfi (see `docs/exchange-adapters/hyperliquid.md`)
 
 ---
 
