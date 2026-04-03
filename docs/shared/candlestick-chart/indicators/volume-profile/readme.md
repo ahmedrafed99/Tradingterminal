@@ -90,6 +90,10 @@ isEnabled(): boolean                      // Check if VP is currently on
 - Volume tooltip positioned at the left edge of bars (4px padding)
 - Width calculated in renderer via `mediaSize.width` (no hacky chart width access)
 
+**Hover bar detection (`setHoverPrice`):**
+- Repaint is skipped when the crosshair stays on the same bar — compared by bar index (`Math.round(price / tickSize)`) not raw price distance
+- The price-distance check (`< halfTick`) was previously used but is incorrect: two prices on opposite sides of a bar boundary are in different bars yet can be arbitrarily close, causing the highlight to freeze on slow mouse movement
+
 ### Store State (`VolumeProfileState`)
 
 ```ts

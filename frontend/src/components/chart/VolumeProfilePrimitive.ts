@@ -363,10 +363,10 @@ export class VolumeProfilePrimitive implements ISeriesPrimitive<Time> {
     const prev = this._hoverPrice;
     this._hoverPrice = price;
     // Skip repaint if hover stays on the same bar (or stays off)
-    const halfTick = this._tickSize / 2;
-    const sameBar = (prev === null && price === null) ||
-      (prev !== null && price !== null && Math.abs(prev - price) < halfTick);
-    if (!sameBar) this._requestUpdate?.();
+    const t = this._tickSize;
+    const prevBar = prev !== null ? Math.round(prev / t) : null;
+    const newBar  = price !== null ? Math.round(price / t) : null;
+    if (prevBar !== newBar) this._requestUpdate?.();
   }
 
   /** Get the volume map (for VP trade mode click hit-test in the component) */
