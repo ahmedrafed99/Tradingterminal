@@ -368,8 +368,18 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
         width: 260px;
         max-height: 320px;
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(155,89,182,0.3) transparent;
         box-shadow: ${SHADOW.LG};
       `;
+      // Inject webkit scrollbar styles once
+      if (!document.getElementById('news-tooltip-style')) {
+        const s = document.createElement('style');
+        s.id = 'news-tooltip-style';
+        s.textContent = `.news-tooltip::-webkit-scrollbar{width:3px}.news-tooltip::-webkit-scrollbar-track{background:transparent}.news-tooltip::-webkit-scrollbar-thumb{background:rgba(155,89,182,0.3);border-radius:2px}.news-tooltip::-webkit-scrollbar-thumb:hover{background:rgba(155,89,182,0.5)}`;
+        document.head.appendChild(s);
+      }
+      this._tooltipEl.className = 'news-tooltip';
       this._tooltipEl.addEventListener('click', (e) => e.stopPropagation());
       this._tooltipEl.addEventListener('mousedown', (e) => e.stopPropagation());
       this._overlayEl.appendChild(this._tooltipEl);
@@ -409,11 +419,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
       if (hasData) {
         const cols = [hasActual, hasConsensus, hasPrevious].filter(Boolean).length;
-        const actualColor = ev.isBetterThanExpected === true
-          ? COLOR_BUY
-          : ev.isBetterThanExpected === false
-          ? COLOR_SELL
-          : 'var(--color-text)';
+        const actualColor = 'var(--color-text)';
 
         html += `<div style="display:grid; grid-template-columns:repeat(${cols}, 1fr); gap:2px 12px; margin-bottom:6px">`;
         // Column headers
@@ -428,11 +434,10 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
         // Beat/miss indicator
         if (hasActual && hasConsensus && ev.isBetterThanExpected !== null) {
-          const beatColor = ev.isBetterThanExpected ? COLOR_BUY : COLOR_SELL;
           const beatLabel = ev.isBetterThanExpected ? 'Better than expected' : 'Worse than expected';
           html += `<div style="display:flex; align-items:center; gap:4px">`;
-          html += `<span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:${beatColor}"></span>`;
-          html += `<span style="font-size:10px; color:${beatColor}; font-weight:500">${beatLabel}</span>`;
+          html += `<span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--color-text-muted)"></span>`;
+          html += `<span style="font-size:10px; color:var(--color-text-muted); font-weight:500">${beatLabel}</span>`;
           html += `</div>`;
         }
       }
