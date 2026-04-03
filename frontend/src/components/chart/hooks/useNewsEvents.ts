@@ -1,19 +1,24 @@
 import { useEffect } from 'react';
 import { useStore } from '../../../store/useStore';
 import { fetchEconomicEvents } from '../../../services/newsService';
+import { fetchHolidays } from '../../../services/holidayService';
+import { setHolidays } from '../../../utils/marketHours';
 import type { ChartRefs } from './types';
 
 export function useNewsEvents(refs: ChartRefs): void {
-  // Fetch events on mount
+  // Fetch news events + holidays on mount
   useEffect(() => {
     let cancelled = false;
     fetchEconomicEvents()
       .then((events) => {
         if (!cancelled) useStore.getState().setNewsEvents(events);
       })
-      .catch(() => {
-        // Non-critical — silently ignore
-      });
+      .catch(() => {});
+    fetchHolidays()
+      .then((holidays) => {
+        if (!cancelled) setHolidays(holidays);
+      })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 

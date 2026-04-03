@@ -35,7 +35,7 @@ NQ · 1m   ●   O24,886.75 H24,886.75 L24,881.00 C24,883.25 -3.50
 | File | Changes |
 |------|---------|
 | `frontend/src/components/chart/CandlestickChart.tsx` | Added `ohlcRef`, crosshair move subscription effect, tooltip div in JSX |
-| `frontend/src/components/chart/MarketStatusBadge.tsx` | Clickable market status dot between instrument label and OHLC values |
+| `frontend/src/components/chart/MarketStatusBadge.tsx` | Clickable market status dot between instrument label and OHLC values. Holiday-aware: shows holiday name + early-close time (e.g. "Good Friday — closes 08:00 CT") when market is open on a holiday, or "Closed early for {name}" after cutoff |
 
 ---
 

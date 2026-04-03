@@ -8,6 +8,49 @@ const fmtNYWithMin = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 });
 
+// ---------------------------------------------------------------------------
+// Holiday store — populated imperatively after API fetch
+// ---------------------------------------------------------------------------
+
+interface HolidayInfo {
+  name: string;
+  closesAt: string;   // CT time e.g. "11:45", or "closed" for full-day
+  fullClose: boolean;
+}
+
+let _holidayDates: Set<string> = new Set();
+let _holidayInfo: Map<string, HolidayInfo> = new Map();
+
+export function setHolidays(holidays: { date: string; name: string; closesAt: string; fullClose: boolean }[]): void {
+  _holidayDates = new Set(holidays.map(h => h.date));
+  _holidayInfo = new Map(holidays.map(h => [h.date, { name: h.name, closesAt: h.closesAt, fullClose: h.fullClose }]));
+}
+
+export function getTodayET(): string {
+  const parts = fmtNYWithMin.formatToParts(new Date());
+  const get = (t: string) => parts.find(p => p.type === t)!.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+export function isHolidayToday(): { holiday: false } | { holiday: true; name: string; closesAt: string; fullClose: boolean } {
+  const today = getTodayET();
+  const info = _holidayInfo.get(today);
+  if (info) return { holiday: true, ...info };
+  return { holiday: false };
+}
+
+export function getHolidayName(dateStr: string): string | undefined {
+  return _holidayInfo.get(dateStr)?.name;
+}
+
+/** Convert CT "HH:MM" to ET hour+minute (CT + 1 = ET). */
+function ctToET(ct: string): { h: number; m: number } {
+  const [hh, mm] = ct.split(':').map(Number);
+  return { h: hh + 1, m: mm };
+}
+
+// ---------------------------------------------------------------------------
+
 /** Extract ET day-of-week, hour, and minute from the current time. */
 function getETComponents(): { day: number; h: number; m: number } {
   const parts = fmtNYWithMin.formatToParts(new Date());
@@ -29,6 +72,15 @@ function getETComponents(): { day: number; h: number; m: number } {
  *   - Weekend:           Friday 17:00 ET → Sunday 18:00 ET
  */
 export function isFuturesMarketOpen(): boolean {
+  const holidayCheck = isHolidayToday();
+  if (holidayCheck.holiday) {
+    if (holidayCheck.fullClose) return false;
+    // Early close: open until closesAt CT
+    const { h, m } = getETComponents();
+    const closeET = ctToET(holidayCheck.closesAt);
+    if (h > closeET.h || (h === closeET.h && m >= closeET.m)) return false;
+  }
+
   const { day, h } = getETComponents();
   if (day === 6) return false;            // all Saturday
   if (day === 5 && h >= 17) return false; // Friday 17:00+ → weekend start
@@ -60,6 +112,18 @@ export function tradingDurationMs(entryIso: string, exitIso: string): number {
     const ny = new Date(utcMs + offset);
     const day = ny.getUTCDay();
     const hour = ny.getUTCHours();
+
+    // Holiday check
+    const yyyy = ny.getUTCFullYear();
+    const mm = String(ny.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(ny.getUTCDate()).padStart(2, '0');
+    const holInfo = _holidayInfo.get(`${yyyy}-${mm}-${dd}`);
+    if (holInfo) {
+      if (holInfo.fullClose) return true;
+      const closeET = ctToET(holInfo.closesAt);
+      if (hour > closeET.h || (hour === closeET.h && ny.getUTCMinutes() >= closeET.m)) return true;
+    }
+
     if (day === 6) return true;               // Saturday
     if (day === 5 && hour >= 17) return true;  // Friday 17:00+
     if (day === 0 && hour < 18) return true;   // Sunday before 18:00
@@ -88,6 +152,16 @@ export function tradingDurationMs(entryIso: string, exitIso: string): number {
 /** Human-readable label for when the market next reopens. */
 export function getNextOpenLabel(): string {
   const { day, h } = getETComponents();
+
+  const holidayCheck = isHolidayToday();
+  if (holidayCheck.holiday) {
+    const label = holidayCheck.fullClose
+      ? `${holidayCheck.name} — closed all day`
+      : `${holidayCheck.name} — early close ${holidayCheck.closesAt} CT`;
+    if (day === 5) return `${label}, reopens Sun 18:00 ET`;
+    return `${label}, reopens today 18:00 ET`;
+  }
+
   // Mon–Thu maintenance (17:00–18:00) or Sunday before 18:00 → reopens same day
   if ((day >= 1 && day <= 4 && h === 17) || (day === 0 && h < 18)) {
     return 'reopens today 18:00 ET';
@@ -138,15 +212,47 @@ function getCmeSessionInfo(): SessionInfo {
   const isOpen = isFuturesMarketOpen();
 
   if (isOpen) {
-    // Open session: 18:00 → 17:00 next day = 23 hours = 1380 min
+    const holidayCheck = isHolidayToday();
+    // Early-close holiday: session is shorter
+    if (holidayCheck.holiday && !holidayCheck.fullClose) {
+      const closeET = ctToET(holidayCheck.closesAt);
+      const closeMin = closeET.h * 60 + closeET.m;
+      const SESSION_LEN = (24 * 60 - 18 * 60) + closeMin; // overnight + morning
+      const minSinceOpen = h >= 18 ? (h - 18) * 60 + m : (h + 6) * 60 + m;
+      return {
+        progress: Math.min(1, minSinceOpen / SESSION_LEN),
+        dayLabel: DAY_NAMES[day],
+        startLabel: '18:00',
+        endLabel: `${holidayCheck.closesAt} CT`,
+        countdown: formatCountdown(SESSION_LEN - minSinceOpen, 'close'),
+      };
+    }
+    // Normal open session: 18:00 → 17:00 next day = 23 hours = 1380 min
     const SESSION_LEN = 1380;
-    const minSinceOpen = h >= 18 ? (h - 18) * 60 + m : (h + 6) * 60 + m; // +6 because 24-18=6
+    const minSinceOpen = h >= 18 ? (h - 18) * 60 + m : (h + 6) * 60 + m;
     return {
       progress: Math.min(1, minSinceOpen / SESSION_LEN),
       dayLabel: DAY_NAMES[day],
       startLabel: '18:00',
       endLabel: '17:00',
       countdown: formatCountdown(SESSION_LEN - minSinceOpen, 'close'),
+    };
+  }
+
+  // Holiday (closed — full-day or past early close)
+  const holidayCheck = isHolidayToday();
+  if (holidayCheck.holiday) {
+    const closeLabel = holidayCheck.fullClose ? 'Closed all day' : `Closed ${holidayCheck.closesAt} CT`;
+    const reopenLabel = day === 5 ? 'Sun 18:00' : '18:00';
+    const minUntilReopen = day === 5
+      ? (24 - h) * 60 - m + 24 * 60 + 18 * 60
+      : (18 - h) * 60 - m;
+    return {
+      progress: Math.min(1, (h * 60 + m) / (24 * 60)),
+      dayLabel: DAY_NAMES[day],
+      startLabel: closeLabel,
+      endLabel: reopenLabel,
+      countdown: formatCountdown(Math.max(0, minUntilReopen), 'reopen'),
     };
   }
 

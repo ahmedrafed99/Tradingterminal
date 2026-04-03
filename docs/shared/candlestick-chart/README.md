@@ -168,11 +168,16 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   and silently drops incoming quotes when the market is closed. The schedule
   is determined by the contract's `marketType` — futures use CME hours
   (maintenance 17:00–18:00 ET Mon–Thu, weekend Fri 17:00 → Sun 18:00 ET),
-  crypto markets are always open. The check converts the current time to
-  `America/New_York` via `toLocaleString()` so it automatically handles
-  EST ↔ EDT transitions — **do not use hardcoded UTC offsets** for this check.
-  The same utility is used for client-side order validation across all placement
-  paths (BuySellButtons, quick order, preview execute button).
+  crypto markets are always open. **Holiday awareness**: holidays are fetched
+  from FXStreet via a dedicated `GET /holidays` endpoint; early-close times
+  (e.g. Good Friday 08:00 CT, most holidays 11:45 CT) are mapped from a
+  hardcoded lookup by holiday name. `isFuturesMarketOpen()` returns false
+  after the early-close cutoff or all day for full closures (New Year's,
+  Christmas). The check converts the current time to `America/New_York` via
+  `toLocaleString()` so it automatically handles EST ↔ EDT transitions —
+  **do not use hardcoded UTC offsets** for this check. The same utility is
+  used for client-side order validation across all placement paths
+  (BuySellButtons, quick order, preview execute button).
 - Maximum bars per request: 20,000 (API limit); paginate if needed for longer
   history
 - **Whitespace padding + right offset**: After loading historical bars, 500

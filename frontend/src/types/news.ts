@@ -1,3 +1,10 @@
+export interface HolidayDate {
+  date: string;       // "YYYY-MM-DD"
+  name: string;
+  closesAt: string;   // CT time e.g. "11:45", or "closed" for full-day closure
+  fullClose: boolean;
+}
+
 export interface NewsEvent {
   id: string;
   title: string;

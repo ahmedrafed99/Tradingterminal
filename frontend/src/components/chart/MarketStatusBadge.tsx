@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import type { Contract } from '../../services/marketDataService';
-import { useMarketStatus, type MarketType } from '../../utils/marketHours';
+import { useMarketStatus, isHolidayToday, type MarketType } from '../../utils/marketHours';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { RADIUS, Z } from '../../constants/layout';
 
@@ -28,6 +28,7 @@ export function MarketStatusBadge({ contract }: { contract: Contract }) {
   if (marketType === 'crypto') return null;
 
   const { open, reopenLabel, closeLabel, session } = useMarketStatus(marketType);
+  const holidayInfo = isHolidayToday();
   const [showTip, setShowTip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const onClose = useCallback(() => setShowTip(false), []);
@@ -106,14 +107,24 @@ export function MarketStatusBadge({ contract }: { contract: Contract }) {
               className="font-semibold"
               style={{ color: open ? 'var(--color-buy)' : 'var(--color-sell)' }}
             >
-              {open ? 'Market open' : 'Market closed'}
+              {open
+                ? holidayInfo.holiday && !holidayInfo.fullClose
+                  ? `${holidayInfo.name} — closes ${holidayInfo.closesAt} CT`
+                  : 'Market open'
+                : holidayInfo.holiday ? holidayInfo.name : 'Market closed'}
             </span>
           </div>
 
           {/* Description */}
           <p className="text-(--color-text-muted) leading-snug" style={{ margin: '0 0 8px' }}>
             {open
-              ? <>Market is open. {session.countdown}</>
+              ? holidayInfo.holiday && !holidayInfo.fullClose
+                ? <>Early close today at {holidayInfo.closesAt} CT. {session.countdown}</>
+                : <>Market is open. {session.countdown}</>
+              : holidayInfo.holiday
+              ? holidayInfo.fullClose
+                ? <>Closed for {holidayInfo.name}. {session.countdown}</>
+                : <>Closed early for {holidayInfo.name}. {session.countdown}</>
               : <>Market is closed. {session.countdown}</>}
           </p>
 
