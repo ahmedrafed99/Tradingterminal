@@ -74,6 +74,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           price: price as number,
           color: def?.color ?? DEFAULT_HLINE_COLOR,
           strokeWidth: def?.strokeWidth ?? 1,
+          lineStyle: def?.lineStyle ?? 'solid',
           text: null,
           contractId: String(contract.id),
           startTime: clickTime ? (clickTime as number) : 0,

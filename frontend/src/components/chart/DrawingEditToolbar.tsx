@@ -3,7 +3,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
-import type { Drawing, TextHAlign, TextVAlign, HLineTemplate } from '../../types/drawing';
+import type { Drawing, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
 
@@ -459,15 +459,23 @@ function Divider() {
 }
 
 // ---------------------------------------------------------------------------
-// Stroke width popover (visual line previews)
+// Stroke width + style popover
 // ---------------------------------------------------------------------------
+const LINE_STYLE_DEFS: { style: LineStyle; label: string; dasharray?: string; linecap?: string }[] = [
+  { style: 'solid',  label: 'Solid' },
+  { style: 'dashed', label: 'Dashed', dasharray: '6 4' },
+  { style: 'dotted', label: 'Dotted', dasharray: '1.5 3', linecap: 'round' },
+];
+
 function StrokePopover({
-  current,
+  currentWidth,
+  currentStyle,
   onChange,
   onClose,
 }: {
-  current: number;
-  onChange: (w: number) => void;
+  currentWidth: number;
+  currentStyle: LineStyle;
+  onChange: (patch: { strokeWidth?: number; lineStyle?: LineStyle }) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -477,30 +485,50 @@ function StrokePopover({
     <div
       ref={ref}
       className="absolute top-full left-1/2 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, transform: 'translateX(-50%)', padding: '6px 4px', width: 120 }}
+      style={{ zIndex: Z.DROPDOWN, transform: 'translateX(-50%)', padding: '4px 5px', width: 140 }}
       onClick={(e) => e.stopPropagation()}
     >
-      {STROKE_WIDTH_OPTIONS.map((w) => (
-        <button
-          key={w}
-          onClick={() => { onChange(w); onClose(); }}
-          className="flex items-center w-full rounded hover:bg-(--color-hover-toolbar)"
-          style={{
-            padding: '6px 10px',
-            gap: 10,
-            cursor: 'pointer',
-            background: w === current ? 'var(--color-hover-toolbar)' : 'transparent',
-            border: 'none',
-          }}
-        >
-          {/* Line preview */}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-            <div style={{ width: '100%', height: w, background: 'var(--color-text)', borderRadius: w / 2 }} />
-          </div>
-          {/* Label */}
-          <span style={{ color: 'var(--color-text-muted)', fontSize: 11, flexShrink: 0 }}>{w}px</span>
-        </button>
-      ))}
+      {STROKE_WIDTH_OPTIONS.map((w) => {
+        const active = w === currentWidth;
+        return (
+          <button
+            key={w}
+            onClick={() => { onChange({ strokeWidth: w }); onClose(); }}
+            className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
+            style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+          >
+            <svg width="50" height="10" viewBox="0 0 50 10" style={{ flex: 1 }}>
+              <line x1="0" y1="5" x2="50" y2="5" stroke="currentColor" strokeWidth={w} />
+            </svg>
+            <span style={{ fontSize: 11, flexShrink: 0 }}>{w}px</span>
+          </button>
+        );
+      })}
+
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '3px 0' }} />
+
+      {LINE_STYLE_DEFS.map(({ style, label, dasharray, linecap }) => {
+        const active = style === currentStyle;
+        return (
+          <button
+            key={style}
+            onClick={() => { onChange({ lineStyle: style }); onClose(); }}
+            className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
+            style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+          >
+            <svg width="50" height="10" viewBox="0 0 50 10" style={{ flex: 1 }}>
+              <line
+                x1="2" y1="5" x2="48" y2="5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeDasharray={dasharray}
+                strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap'] ?? 'butt'}
+              />
+            </svg>
+            <span style={{ fontSize: 11, flexShrink: 0 }}>{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -543,6 +571,7 @@ function TemplatePopover({
       name: trimmed,
       color: drawing.color,
       strokeWidth: drawing.strokeWidth,
+      lineStyle: (drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid',
       text: drawing.text ? { ...drawing.text } : null,
     });
     setSaving(false);
@@ -554,7 +583,7 @@ function TemplatePopover({
   );
 
   const handleApplyDefaults = () => {
-    onApply({ id: '', name: '', color: DEFAULT_HLINE_COLOR, strokeWidth: 1, text: null });
+    onApply({ id: '', name: '', color: DEFAULT_HLINE_COLOR, strokeWidth: 1, lineStyle: 'solid', text: null });
     onClose();
   };
 
@@ -931,22 +960,38 @@ export function DrawingEditToolbar({
 
       <Divider />
 
-      {/* Stroke width */}
+      {/* Stroke width / style */}
       <div className="relative">
         <button
           onClick={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
           className={`${btnBase} !w-auto ${showStroke ? btnActive : btnHover}`}
           style={{ padding: '0 8px', gap: 6 }}
-          title="Line width"
+          title="Line style"
         >
-          {/* Line preview */}
-          <div style={{ width: 22, height: drawing.strokeWidth, background: 'currentColor', borderRadius: drawing.strokeWidth / 2 }} />
+          {/* Line preview showing current style */}
+          {(() => {
+            const sw = drawing.strokeWidth;
+            const h = sw + 6;
+            const ls = (drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid';
+            const dasharray = ls === 'dashed' ? `${sw * 4} ${sw * 3}` : ls === 'dotted' ? `${sw * 1.2} ${sw * 2.5}` : undefined;
+            const linecap = ls === 'dotted' ? 'round' : 'butt';
+            return (
+              <svg width="22" height={h} viewBox={`0 0 22 ${h}`} style={{ flexShrink: 0 }}>
+                <line x1="0" y1={h / 2} x2="22" y2={h / 2}
+                  stroke="currentColor" strokeWidth={sw}
+                  strokeDasharray={dasharray}
+                  strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
+                />
+              </svg>
+            );
+          })()}
           <span style={{ fontSize: 13, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
         </button>
         {showStroke && (
           <StrokePopover
-            current={drawing.strokeWidth}
-            onChange={(w) => updateDrawing(drawing.id, { strokeWidth: w })}
+            currentWidth={drawing.strokeWidth}
+            currentStyle={(drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid'}
+            onChange={(patch) => updateDrawing(drawing.id, patch)}
             onClose={() => setShowStroke(false)}
           />
         )}
@@ -999,7 +1044,7 @@ export function DrawingEditToolbar({
             {showTemplate && (
               <TemplatePopover
                 drawing={drawing}
-                onApply={(t) => updateDrawing(drawing.id, { color: t.color, strokeWidth: t.strokeWidth, text: t.text })}
+                onApply={(t) => updateDrawing(drawing.id, { color: t.color, strokeWidth: t.strokeWidth, lineStyle: t.lineStyle ?? 'solid', text: t.text })}
                 onClose={() => setShowTemplate(false)}
               />
             )}

@@ -5,6 +5,7 @@ import type { ArrowPathDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestArrowPath } from './hitTesting';
+import { applyLineDash } from './rendererUtils';
 
 /** Convert arrowpath data points → CSS pixel points using anchor + barSpacing. */
 function toPixelPoints(
@@ -58,11 +59,13 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
       ctx.lineWidth = this._drawing.strokeWidth;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'butt';
+      applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
       ctx.moveTo(devPts[0].x, devPts[0].y);
       for (let i = 1; i < devPts.length; i++) {
         ctx.lineTo(devPts[i].x, devPts[i].y);
       }
       ctx.stroke();
+      ctx.setLineDash([]);
 
       // Draw arrowhead on last segment
       const last = devPts[devPts.length - 1];

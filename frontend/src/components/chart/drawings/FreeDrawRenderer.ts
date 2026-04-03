@@ -4,6 +4,7 @@ import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-cha
 import type { FreeDrawDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { hitTestArrowPath } from './hitTesting';
+import { applyLineDash } from './rendererUtils';
 
 /** Convert freedraw data points → CSS pixel points using anchor + barSpacing. */
 function toPixelPoints(
@@ -53,11 +54,13 @@ class FreeDrawRendererImpl implements IPrimitivePaneRenderer {
       ctx.lineWidth = this._drawing.strokeWidth;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
+      applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
       ctx.moveTo(cssPts[0].x * hpr, cssPts[0].y * vpr);
       for (let i = 1; i < cssPts.length; i++) {
         ctx.lineTo(cssPts[i].x * hpr, cssPts[i].y * vpr);
       }
       ctx.stroke();
+      ctx.setLineDash([]);
 
       // Selection handles at start and end points
       if (this._selected) {

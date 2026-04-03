@@ -69,6 +69,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
         points: [...state.arrowPathCreation.points],
         color: apDef?.color ?? DEFAULT_ARROWPATH_COLOR,
         strokeWidth: apDef?.strokeWidth ?? 2,
+        lineStyle: apDef?.lineStyle ?? 'solid',
         text: null,
         contractId: String(contract.id),
       });
@@ -147,6 +148,7 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
       points: [...state.arrowPathCreation.points],
       color: dblApDef?.color ?? DEFAULT_ARROWPATH_COLOR,
       strokeWidth: dblApDef?.strokeWidth ?? 2,
+      lineStyle: dblApDef?.lineStyle ?? 'solid',
       text: null,
       contractId: String(contract.id),
     });

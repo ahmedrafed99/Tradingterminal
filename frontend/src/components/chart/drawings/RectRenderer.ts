@@ -5,6 +5,7 @@ import type { RectDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestRectEdges } from './hitTesting';
+import { applyLineDash } from './rendererUtils';
 
 /** Convert an AnchoredPoint to CSS pixel X (sub-bar precision). */
 function ptX(point: { time: number; anchorTime?: number; barOffset?: number }, chart: IChartApiBase<Time>): number | null {
@@ -69,7 +70,9 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
       const bottom = Math.round(rawTop + rawH) + 0.5;
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth;
+      applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
       ctx.strokeRect(left, top, right - left, bottom - top);
+      ctx.setLineDash([]);
 
       // Selection: 4 corner handles
       if (this._selected) {

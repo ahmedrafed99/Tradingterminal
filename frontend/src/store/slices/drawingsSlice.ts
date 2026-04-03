@@ -1,4 +1,4 @@
-import type { Drawing, DrawingTool, HLineTemplate } from '../../types/drawing';
+import type { Drawing, DrawingTool, HLineTemplate, LineStyle } from '../../types/drawing';
 
 // ---------------------------------------------------------------------------
 // Drawings
@@ -13,6 +13,7 @@ type UndoEntry =
 interface DrawingStyleDefaults {
   color: string;
   strokeWidth: number;
+  lineStyle?: LineStyle;
   fillColor?: string;
 }
 
@@ -94,12 +95,15 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           { type: 'update', drawingId: id, previous },
         ].slice(-50);
 
-        if (existing && ('color' in patch || 'strokeWidth' in patch || 'fillColor' in patch)) {
+        if (existing && ('color' in patch || 'strokeWidth' in patch || 'lineStyle' in patch || 'fillColor' in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
           const updated: DrawingStyleDefaults = {
             color: (patch as { color?: string }).color ?? cur.color,
             strokeWidth: (patch as { strokeWidth?: number }).strokeWidth ?? cur.strokeWidth,
           };
+          if ('lineStyle' in patch || cur.lineStyle) {
+            updated.lineStyle = (patch as { lineStyle?: LineStyle }).lineStyle ?? cur.lineStyle;
+          }
           if ('fillColor' in patch || cur.fillColor) {
             updated.fillColor = (patch as { fillColor?: string }).fillColor ?? cur.fillColor;
           }

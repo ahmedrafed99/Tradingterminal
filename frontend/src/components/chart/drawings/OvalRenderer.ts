@@ -5,6 +5,7 @@ import type { OvalDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestOval } from './hitTesting';
+import { applyLineDash } from './rendererUtils';
 
 /** Convert an AnchoredPoint to CSS pixel X (sub-bar precision). */
 function ptX(point: { time: number; anchorTime?: number; barOffset?: number }, chart: IChartApiBase<Time>): number | null {
@@ -67,7 +68,9 @@ class OvalRendererImpl implements IPrimitivePaneRenderer {
 
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth; // 1 = 1 device pixel
+      applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
       ctx.stroke();
+      ctx.setLineDash([]);
 
       // Selection: 4 handles at ellipse cardinal points (top, bottom, left, right)
       if (this._selected) {

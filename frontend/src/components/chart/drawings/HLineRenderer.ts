@@ -5,6 +5,7 @@ import type { HLineDrawing } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { hitTestHLine } from './hitTesting';
+import { applyLineDash } from './rendererUtils';
 
 class HLineRendererImpl implements IPrimitivePaneRenderer {
   private _drawing: HLineDrawing;
@@ -97,6 +98,7 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
       // Draw the horizontal line (with gap for middle-aligned text)
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth;
+      applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, hpr);
       if (gapLeft > 0 && gapRight > 0 && gapLeft > startX) {
         // Two segments: before and after the text
         ctx.beginPath();
@@ -113,6 +115,7 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
         ctx.lineTo(bitmapSize.width, y);
         ctx.stroke();
       }
+      ctx.setLineDash([]);
 
       // Selection handles
       if (this._selected) {

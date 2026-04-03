@@ -63,9 +63,13 @@ interface DrawingBase {
   id: string;
   color: string;          // rgba (supports opacity)
   strokeWidth: number;    // 1-4
+  lineStyle: LineStyle;   // 'solid' | 'dashed' | 'dotted'
   text: DrawingText | null;
   contractId: string;     // scope per instrument
 }
+
+type LineStyle = 'solid' | 'dashed' | 'dotted';
+// LINE_STYLE_OPTIONS = ['solid', 'dashed', 'dotted']
 
 interface HLineDrawing extends DrawingBase {
   type: 'hline';
@@ -114,11 +118,12 @@ interface HLineTemplate {
   name: string;
   color: string;
   strokeWidth: number;
+  lineStyle?: LineStyle;   // optional — defaults to 'solid' on apply
   text: DrawingText | null;
 }
 ```
 
-Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_ARROWPATH_COLOR = '#f7c948'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
+Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_ARROWPATH_COLOR = '#f7c948'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `LINE_STYLE_OPTIONS = ['solid', 'dashed', 'dotted']`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
 
 ### UI Components
 
@@ -140,6 +145,7 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, 
 | `frontend/src/components/chart/drawings/RulerRenderer.ts` | ~230 | Ruler measurement renderer (used for persisted rulers) |
 | `frontend/src/components/chart/drawings/rulerMetrics.ts` | ~80 | Ruler metrics computation (price change, %, bars, time, volume) |
 | `frontend/src/components/chart/drawings/hitTesting.ts` | ~79 | Geometry hit-test utilities (hline, arrowpath/freedraw, rect, oval) |
+| `frontend/src/components/chart/drawings/rendererUtils.ts` | ~30 | Shared `applyLineDash(ctx, lineStyle, strokeWidth, pixelRatio)` helper used by all renderers |
 
 ### Modified Files
 
@@ -188,7 +194,7 @@ Persisted to localStorage: `drawings`, `drawingToolbarOpen`, `drawingDefaults`, 
 
 ### drawingDefaults
 
-Per-type sticky style defaults (`Record<string, { color: string; strokeWidth: number }>`). When a user edits a drawing's color or strokeWidth via the edit toolbar, the new values are saved as defaults for that drawing type. The next drawing of the same type will use the last-used color and strokeWidth instead of the hardcoded constants. Persisted to both localStorage and the backend settings file.
+Per-type sticky style defaults (`Record<string, { color: string; strokeWidth: number; lineStyle?: LineStyle; fillColor?: string }>`). When a user edits a drawing's color, strokeWidth, lineStyle, or fillColor via the edit toolbar, the new values are saved as defaults for that drawing type. The next drawing of the same type will use the last-used values instead of the hardcoded constants. Persisted to both localStorage and the backend settings file.
 
 ---
 
@@ -236,7 +242,7 @@ All icons use TradingView-style filled SVGs with `shapeRendering="geometricPreci
    - Row 2: Multiline textarea (`bg: var(--color-panel)`, `text: #d1d4dc`, `border: #2a2e39`, system-ui font, resize disabled)
    - Row 3: "TEXT POSITION" section label + visual 3×3 dot grid widget (80% width, centered) with a horizontal line across the middle row. Active position shown as larger colored dot with border; inactive as small dim dots. Click any of the 9 positions to set vAlign (top/middle/bottom) × hAlign (left/center/right)
    - Row 4: Cancel (`bg: #1e222d`, hover `#363a45`) / Ok (`bg: #1a3a6e`, hover `#1e4a8a`) buttons
-3. **StrokePopover** (120px wide, centered): visual line thickness previews for 1-4px
+3. **StrokePopover** (140px wide, centered): combined width + style picker. Top section: 4 width rows (1–4px) with SVG line previews. Horizontal divider. Bottom section: 3 style rows (Solid, Dashed, Dotted) with SVG dash previews. Clicking a width row changes only `strokeWidth`; clicking a style row changes only `lineStyle`. Active selection highlighted with `--color-table-stripe` background + `--color-warning` (orange) text + orange SVG stroke. Hover uses `--color-hover-row` with `transition-colors`.
 4. **TemplatePopover** (220px wide, hline only): saved style templates with export/import
 
 **Positioning:** Computed from drawing coordinates via `series.priceToCoordinate()` and `chart.timeScale().timeToCoordinate()`. Repositions on viewport changes via `subscribeVisibleLogicalRangeChange`.
@@ -266,7 +272,7 @@ Key methods:
 
 Draws a full-width horizontal line at the drawing's price level.
 
-- Stroke: `drawing.color`, `drawing.strokeWidth`
+- Stroke: `drawing.color`, `drawing.strokeWidth`, `drawing.lineStyle` (via `applyLineDash()` in `rendererUtils.ts`)
 - Selected: 3 small handle squares (left edge, center, right edge)
 - Text label: positioned by `hAlign` (left=8px, center=mid, right=width-8) and `vAlign` (top/middle/bottom relative to line). When `vAlign` is `middle`, the line is split into two segments with a gap around the text (4px padding each side) so the line does not cut through the letters.
 - Font: `system-ui, -apple-system, sans-serif` with configurable size/bold/italic
@@ -277,7 +283,7 @@ Draws a full-width horizontal line at the drawing's price level.
 Draws a rectangle defined by two diagonal corners (p1, p2). Uses `useBitmapCoordinateSpace` for device-pixel rendering.
 
 - Fill: `drawing.fillColor` (rgba with opacity support), raw coordinates for full coverage
-- Stroke: `drawing.color`, `drawing.strokeWidth` (1 = 1 device pixel). Stroke coordinates are snapped to pixel grid (`Math.round() + 0.5`) for crisp lines — prevents anti-aliasing from blurring 1px strokes across 2 device pixels
+- Stroke: `drawing.color`, `drawing.strokeWidth`, `drawing.lineStyle`. Stroke coordinates are snapped to pixel grid (`Math.round() + 0.5`) for crisp lines — prevents anti-aliasing from blurring 1px strokes across 2 device pixels
 - Selected: 4 circular corner handles (nw, ne, sw, se) — same white fill + color stroke style as path nodes
 - Text label: positioned relative to rectangle edges
 - Hit test: proximity to any of the 4 edges via `hitTestRectEdges()` (6px tolerance)

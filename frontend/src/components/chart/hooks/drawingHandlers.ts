@@ -595,6 +595,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         points: [...state.freeDrawCreation.points],
         color: fdDef?.color ?? DEFAULT_FREEDRAW_COLOR,
         strokeWidth: fdDef?.strokeWidth ?? 2,
+        lineStyle: fdDef?.lineStyle ?? 'solid',
         text: null,
         contractId: String(contract.id),
       });
@@ -664,6 +665,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
           p2: { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset },
           color: rectDef?.color ?? DEFAULT_RECT_COLOR,
           strokeWidth: rectDef?.strokeWidth ?? 1,
+          lineStyle: rectDef?.lineStyle ?? 'solid',
           fillColor: rectDef?.fillColor ?? DEFAULT_RECT_FILL,
           text: null,
           contractId: String(contract.id),
@@ -734,6 +736,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         p2: { time: endData.time, price: endData.price, anchorTime: endData.anchorTime, barOffset: endData.barOffset },
         color: ovalDef?.color ?? DEFAULT_OVAL_COLOR,
         strokeWidth: ovalDef?.strokeWidth ?? 1,
+        lineStyle: ovalDef?.lineStyle ?? 'solid',
         fillColor: ovalDef?.fillColor ?? DEFAULT_OVAL_FILL,
         text: null,
         contractId: String(contract.id),

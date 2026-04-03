@@ -22,12 +22,19 @@ export interface DrawingText {
 export const FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32] as const;
 
 // ---------------------------------------------------------------------------
+// Line style
+// ---------------------------------------------------------------------------
+export type LineStyle = 'solid' | 'dashed' | 'dotted';
+export const LINE_STYLE_OPTIONS: LineStyle[] = ['solid', 'dashed', 'dotted'];
+
+// ---------------------------------------------------------------------------
 // Base drawing properties (shared)
 // ---------------------------------------------------------------------------
 interface DrawingBase {
   id: string;
   color: string;          // hex
   strokeWidth: number;    // 1-4
+  lineStyle: LineStyle;   // solid | dashed | dotted
   text: DrawingText | null;
   contractId: string;     // scope drawings per instrument
 }
@@ -133,6 +140,7 @@ export interface HLineTemplate {
   name: string;
   color: string;
   strokeWidth: number;
+  lineStyle?: LineStyle;
   text: DrawingText | null;
 }
 
