@@ -401,7 +401,14 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
             // Fall back to order type when customTag is absent (e.g. bracket-placed SL after page refresh)
             const isSl = order.customTag?.endsWith('-SL') ??
               (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
-            const isTp = order.customTag?.endsWith('-TP') ?? false;
+            // A Limit fill with no customTag is a TP if a position is open for this contract
+            // (reducing/closing), otherwise it's an entry. SL/Stop orders are already handled above.
+            const isTp = order.customTag?.endsWith('-TP') ?? (
+              order.type === OrderType.Limit &&
+              useStore.getState().positions.some(
+                (p) => String(p.contractId) === String(order.contractId) && p.size > 0,
+              )
+            );
             if (isSl) {
               audioService.play('stop_filled');
             } else if (isTp) {

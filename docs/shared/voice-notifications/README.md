@@ -77,13 +77,15 @@ Tracks manual close actions by contractId. Called **before** `placeOrder()` to a
 
 ### Ad-Hoc Orders (`OrderPanel.tsx`)
 
-When no bracket session is active and the order wasn't handled by the bracket engine or manual close tracker, classifies by `customTag` with a type-based fallback for SL only (Stop/TrailingStop types are almost always stop-losses). Limit orders are **not** assumed to be TPs — without a tag they play the generic entry sound, since limit orders are commonly used as entries.
+When no bracket session is active and the order wasn't handled by the bracket engine or manual close tracker, classifies by `customTag` with type/position-based fallbacks (covers manually-dragged SL/TP lines placed without a preset).
 
 | Custom Tag | Fallback (no tag) | Sound |
 |------------|-------------------|-------|
 | Ends with `-SL` | `Stop` / `TrailingStop` order type | `stop_filled` |
-| Ends with `-TP` | — | `target_filled` |
+| Ends with `-TP` | `Limit` order type **and** an open position exists for the contract (reducing/closing) | `target_filled` |
 | Neither | — | `order_filled` |
+
+The position check for Limit fills distinguishes a manually-placed TP (position already open) from a plain limit entry (no position open). This covers the common workflow of placing a naked position then adding SL/TP by dragging from the entry line on the chart.
 
 ---
 
