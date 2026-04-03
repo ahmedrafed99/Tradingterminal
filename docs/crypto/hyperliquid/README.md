@@ -1,8 +1,10 @@
 # Hyperliquid Integration
 
+> **Status: Integration planned, not yet implemented.** See [`docs/exchange-adapters/hyperliquid.md`](../../exchange-adapters/hyperliquid.md) for the re-implementation guide and known issues from the previous attempt.
+
 ## Overview
 
-Hyperliquid is a high-performance L1 blockchain DEX supporting perpetual futures, spot trading, and real-world asset (RWA) exposure. This terminal integrates with Hyperliquid via its REST and WebSocket APIs — no third-party SDK.
+Hyperliquid is a high-performance L1 blockchain DEX supporting perpetual futures, spot trading, and real-world asset (RWA) exposure. This terminal will integrate with Hyperliquid via its REST and WebSocket APIs — no third-party SDK.
 
 **Network**: Testnet only (initially)
 - Testnet REST: `https://api.hyperliquid-testnet.xyz`

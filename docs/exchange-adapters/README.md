@@ -47,12 +47,18 @@ const factories = {
 
 `createAdapter(exchange)` instantiates the right adapter.
 
-### Realtime Modes
+### Realtime Mode
 
-The `ExchangeRealtime` interface supports two connection modes:
+`ExchangeRealtime` currently supports the **SignalR proxy** pattern only:
 
-1. **SignalR proxy** (ProjectX) — `negotiateMiddleware` + `handleUpgrade` for HTTP-based SignalR negotiate + WebSocket upgrade
-2. **Native WebSocket** (Hyperliquid) — `wsPath` + `handleWsConnection` for direct WebSocket at a custom path
+```ts
+interface ExchangeRealtime {
+  negotiateMiddleware: (req: Request, res: Response, next: NextFunction) => void;
+  handleUpgrade: (req: IncomingMessage, socket: Duplex, head: Buffer) => void;
+}
+```
+
+Hyperliquid uses a native WebSocket (not SignalR). When adding Hyperliquid, this interface will need a second variant — either a union type or an optional `wsPath` + `handleWsConnection` path alongside the existing SignalR fields.
 
 ---
 
@@ -95,15 +101,16 @@ All adapters normalize data into exchange-agnostic shapes:
 
 ### Registry + Service
 
-- `frontend/src/adapters/registry.ts` — `get/setRealtimeAdapter()`
+- `frontend/src/adapters/registry.ts` — `get/setRealtimeAdapter()`, `clearRealtimeAdapter()`
 - `frontend/src/services/realtimeService.ts` — delegating facade; all consumers import this, never the adapter directly
-- `switchAdapter(exchange)` — disconnects old adapter, creates + registers new one
+
+`switchAdapter(exchange)` does not exist yet — it is part of the Hyperliquid re-integration plan. Currently only `projectx` is wired.
 
 ---
 
-## Exchange Metadata (`backend/src/adapters/exchangeMeta.ts`)
+## Exchange Metadata (planned)
 
-Each exchange declares metadata used by the UI:
+`exchangeMeta.ts` does not exist yet — it is part of the Hyperliquid re-integration plan. When added, each exchange will declare metadata used by the UI:
 
 ```ts
 interface ExchangeMeta {
@@ -114,7 +121,7 @@ interface ExchangeMeta {
   defaultSymbol: string;
   quantityType: 'integer' | 'decimal';
   currencySymbol: string;
-  credentialFields: { key, label, type }[];
+  credentialFields: { key: string; label: string; type: string }[];
   instrumentCategories: Record<string, {
     defaultFilter: string | null;
     filters: string[];
@@ -122,12 +129,12 @@ interface ExchangeMeta {
 }
 ```
 
-This drives:
+This will drive:
 - Which instrument selector categories are enabled
 - Sub-filter tabs within each category
 - Credential form fields in Settings
 - Market hours behavior (24/7 vs scheduled)
-- Currency symbol display
+- Currency symbol and quantity type in the order panel
 
 ---
 
@@ -146,7 +153,7 @@ This drives:
 
 ## Current Exchanges
 
-| Exchange | Category | Realtime Mode | Auth Method |
-|----------|----------|--------------|-------------|
-| [ProjectX](projectx.md) | Futures | SignalR proxy | API key + username → JWT |
-| [Hyperliquid](hyperliquid.md) | Crypto | Native WebSocket | Private key → EIP-712 signing |
+| Exchange | Status | Category | Realtime Mode | Auth Method |
+|----------|--------|----------|--------------|-------------|
+| [ProjectX](projectx.md) | ✅ Live | Futures | SignalR proxy | API key + username → JWT |
+| [Hyperliquid](hyperliquid.md) | 🔲 Planned | Crypto | Native WebSocket | Private key → EIP-712 signing |
