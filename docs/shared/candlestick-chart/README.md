@@ -177,7 +177,10 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   `toLocaleString()` so it automatically handles EST ↔ EDT transitions —
   **do not use hardcoded UTC offsets** for this check. The same utility is
   used for client-side order validation across all placement paths
-  (BuySellButtons, quick order, preview execute button).
+  (BuySellButtons, quick order, preview execute button). **Important**: the
+  `/holidays` route must be present in `frontend/vite.config.ts`'s proxy
+  table — if missing, the fetch silently fails and holiday info never
+  populates, causing the badge to show normal hours even on early-close days.
 - Maximum bars per request: 20,000 (API limit); paginate if needed for longer
   history
 - **Whitespace padding + right offset**: After loading historical bars, 500
