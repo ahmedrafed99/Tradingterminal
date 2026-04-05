@@ -127,6 +127,24 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
+  // Hyperliquid native WebSocket — route to HL adapter regardless of default
+  if (url.startsWith('/ws/hl')) {
+    if (!isConnected('hyperliquid')) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    const { realtime } = getAdapter('hyperliquid');
+    if (realtime?.handleUpgrade) {
+      realtime.handleUpgrade(req, socket, head);
+    } else {
+      socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      socket.destroy();
+    }
+    return;
+  }
+
+  // ProjectX SignalR hubs — route to PX adapter (or default adapter)
   if (!isConnected()) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
     socket.destroy();

@@ -1,8 +1,10 @@
 import type { ExchangeAdapter } from './types';
 import { createProjectXAdapter } from './projectx';
+import { createHyperliquidAdapter } from './hyperliquid';
 
 const factories: Record<string, () => ExchangeAdapter> = {
   projectx: createProjectXAdapter,
+  hyperliquid: createHyperliquidAdapter,
 };
 
 export function createAdapter(exchange: string): ExchangeAdapter {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody, validateQuery } from '../validate';
-import { withConnection, getAdapter } from '../middleware/withConnection';
+import { withConnection, resolveAdapter } from '../middleware/withConnection';
 import { OrderType, OrderSide } from '../types/enums';
 
 const router = Router();
@@ -43,26 +43,26 @@ const OpenOrdersQuery = z.object({
 
 // POST /orders/place
 router.post('/place', validateBody(PlaceOrderSchema), withConnection(async (req, res) => {
-  const data = await getAdapter().orders.place(req.body);
+  const data = await resolveAdapter(req).orders.place(req.body);
   res.json(data);
 }));
 
 // POST /orders/cancel
 router.post('/cancel', validateBody(CancelOrderSchema), withConnection(async (req, res) => {
-  const data = await getAdapter().orders.cancel(req.body);
+  const data = await resolveAdapter(req).orders.cancel(req.body);
   res.json(data);
 }));
 
 // PATCH /orders/modify
 router.patch('/modify', validateBody(ModifyOrderSchema), withConnection(async (req, res) => {
-  const data = await getAdapter().orders.modify(req.body);
+  const data = await resolveAdapter(req).orders.modify(req.body);
   res.json(data);
 }));
 
 // GET /orders/open?accountId=12345
 router.get('/open', validateQuery(OpenOrdersQuery), withConnection(async (req, res) => {
   const accountId = req.query['accountId'] as string;
-  const data = await getAdapter().orders.searchOpen(accountId);
+  const data = await resolveAdapter(req).orders.searchOpen(accountId);
   res.json(data);
 }));
 

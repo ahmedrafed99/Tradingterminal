@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody, validateQuery } from '../validate';
-import { withConnection, getAdapter } from '../middleware/withConnection';
+import { withConnection, resolveAdapter } from '../middleware/withConnection';
 
 const router = Router();
 
@@ -49,7 +49,7 @@ function getPreviousContractId(contractId: string): string | null {
 // POST /market/bars — fetches from current contract, backfills from previous
 // contracts if the current one doesn't cover the full requested time range
 router.post('/bars', validateBody(RetrieveBarsSchema), withConnection(async (req, res) => {
-  const adapter = getAdapter();
+  const adapter = resolveAdapter(req);
   const { contractId, startTime, limit } = req.body;
   const requestedStart = new Date(startTime).getTime();
 
@@ -112,7 +112,7 @@ const ContractSearchQuery = z.object({
 
 router.get('/contracts/search', validateQuery(ContractSearchQuery), withConnection(async (req, res) => {
   const live = req.query['live'] === 'true';
-  const data = await getAdapter().marketData.searchContracts(
+  const data = await resolveAdapter(req).marketData.searchContracts(
     (req.query['q'] as string) ?? '',
     live,
   );
@@ -122,14 +122,14 @@ router.get('/contracts/search', validateQuery(ContractSearchQuery), withConnecti
 // GET /market/contracts/available?live=false
 router.get('/contracts/available', withConnection(async (req, res) => {
   const live = req.query['live'] === 'true';
-  const data = await getAdapter().marketData.availableContracts(live);
+  const data = await resolveAdapter(req).marketData.availableContracts(live);
   res.json(data);
 }));
 
 // GET /market/contracts/:id?live=false
 router.get('/contracts/:id', withConnection(async (req, res) => {
   const live = req.query['live'] === 'true';
-  const data = await getAdapter().marketData.searchContractById(req.params.id, live);
+  const data = await resolveAdapter(req).marketData.searchContractById(req.params.id, live);
   res.json(data);
 }));
 

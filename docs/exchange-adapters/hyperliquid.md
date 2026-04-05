@@ -2,146 +2,243 @@
 
 ## Overview
 
-Hyperliquid is a high-performance L1 DEX for perpetual futures, spot, and RWA trading. Uses direct REST + WebSocket (no SignalR).
+Hyperliquid is a high-performance L1 DEX for perpetual futures, spot, and real-world asset trading.
+The adapter integrates via direct REST + WebSocket — no SignalR, no third-party SDK.
 
-- **Testnet REST**: `https://api.hyperliquid-testnet.xyz`
-- **Testnet WebSocket**: `wss://api.hyperliquid-testnet.xyz/ws`
-- **Auth**: Private key → EIP-712 typed data signing via `viem`
+- **Testnet REST/WS**: `https://api.hyperliquid-testnet.xyz`
+- **Mainnet REST/WS**: `https://api.hyperliquid.xyz`
+- **Auth**: EIP-712 per-request signing via a private key (viem)
+- **Realtime**: native WebSocket multiplexed at `/ws/hl` (no SignalR negotiate)
 
-For full API reference, see [docs/crypto/hyperliquid/README.md](../crypto/hyperliquid/README.md).
-
-## Status
-
-**Not yet implemented.** The adapter infrastructure is ready (factory, registry, types) but `backend/src/adapters/hyperliquid/` and `frontend/src/adapters/hyperliquid/` do not exist. A full implementation was built and then reverted — see "Previous Implementation" below for the commit history, lessons learned, and audit of issues to fix.
-
-## Planned Adapter Files
-
-```
-backend/src/adapters/hyperliquid/
-├── index.ts       — createHyperliquidAdapter() factory
-├── client.ts      — Axios + viem signing wrapper, nonce management
-├── auth.ts        — Private key storage, wallet derivation
-├── accounts.ts    — clearinghouseState → normalized account
-├── marketData.ts  — meta, candleSnapshot → Contract, bars
-├── orders.ts      — order/cancel/modify with EIP-712 signing
-├── positions.ts   — clearinghouseState → positions
-├── trades.ts      — userFills → normalized trades
-└── realtime.ts    — Native WebSocket proxy at /ws/hyperliquid
-```
+---
 
 ## Key Differences from ProjectX
 
 | Aspect | ProjectX | Hyperliquid |
 |--------|----------|-------------|
-| Auth | API key → JWT | Private key → per-request signing |
-| Realtime | SignalR (dual hubs) | Native WebSocket |
-| IDs | Numeric (converted to string) | String (coin symbols) |
-| Contract format | `CON.F.US.ENQ.H26` | `BTC`, `ETH`, `NVDA` |
+| Auth | API key → JWT (stored between calls) | Private key → EIP-712 signature per request |
+| Realtime | SignalR dual hubs (`/hubs/market`, `/hubs/user`) | Native WebSocket at `/ws/hl` |
+| IDs | Numeric, converted to string | Coin symbols (`BTC`, `ETH`) + oid (`BTC:12345`) |
+| Instrument IDs | `CON.F.US.ENQ.H26` | `BTC`, `ETH`, `NVDA` |
 | Market hours | CME schedule | 24/7 |
-| Quantities | Integer (contracts) | Decimal (e.g., 0.001 BTC) |
-| Market orders | Native market type | IOC limit at best price |
-| Brackets | Native SL/TP on entry | Separate trigger orders |
-| Contract expiry | Quarterly rollover | Perpetual (never expires) |
+| Quantities | Integer contracts | Decimal (szDecimals from meta) |
+| Market orders | Native market type | IOC limit at mid ± 5% slippage |
+| Brackets | Tick offsets relative to fill | Absolute prices, multi-TP supported |
+| Tick size | From exchange metadata | From `szDecimals` — NOT from `markPx` string format |
+| Price precision | Exchange-defined | Max 5 significant figures |
+| Open orders | Single endpoint | `frontendOpenOrders` (includes trigger orders) |
 
-## Instrument Categories
+---
 
-Hyperliquid serves three top-level instrument selector categories:
+## State Isolation
 
-- **Perpetuals** → sub-filters: All, Crypto, Tradfi, HIP-3, Trending, Pre-launch
-- **Spot** → sub-filter: Spot
-- **Stocks** → sub-filter: Tradfi
+Every sub-module is a **factory function** — all mutable state lives in a closure created by
+`createHyperliquidAdapter()`. Nothing is stored at module scope.
 
-## Re-Implementation Reference
+```
+createHyperliquidAdapter()
+  └── state = { privateKey, walletAddress, connected, isTestnet, apiUrl }
+        ├── createClient(state)       ← HTTP + signing
+        ├── createAuth(state)
+        ├── createAccounts(client)
+        ├── createMarketData(client)
+        ├── createOrders(client, state)
+        ├── createPositions(client, state)
+        ├── createTrades(client, state)
+        └── createRealtime(state)
+```
 
-A full Hyperliquid integration was built and then reverted due to architectural issues. The commits are still reachable and serve as a starting point — but the "Audit" section below lists the problems that must be fixed before re-implementing. Do not just re-apply these commits.
+Two calls to `createHyperliquidAdapter()` produce two fully isolated adapters that cannot
+share or pollute each other.
 
-| SHA | Description |
-|-----|-------------|
-| `be5f615` | Add Hyperliquid backend adapter (tested against testnet) |
-| `8c998ea` | Fix Hyperliquid adapter audit issues and update docs |
-| `692b77d` | Route all backend endpoints through exchange-aware adapter lookup |
-| `255dfba` | Add exchange metadata types and activeExchange to frontend store |
-| `62360b7` | Fix: Hyperliquid getStatus() uses apiUrl instead of baseUrl |
-| `b602722` | Add Hyperliquid as data feed provider in Settings modal |
-| `0d7c2da` | Update data feed settings docs for multi-provider support |
-| `4a8a967` | Pass exchange param through market data service and normalize responses |
-| `6e789cc` | Remember last contract per exchange, persist across refreshes |
-| `4c504e2` | Add Hyperliquid backend WebSocket proxy for realtime data |
-| `ee65607` | Add live price streaming for Hyperliquid via WebSocket |
-| `c683890` | Wire order placement, positions, and market hours for Hyperliquid |
-| `389b106` | Update exchange adapter docs: explain frontend architecture |
-| `f57f23d` | Polish UI for multi-exchange: market hours, currency, quantities, ping |
-| `b2126b1` | Update docs for multi-exchange UI changes |
-| `0a5a1b0` | Adapt order panel for crypto: Size label, hide brackets, USDC currency |
-| `fa778c9` | Add crypto size selector with USD/coin toggle and % slider |
-| `c3f3229` | Clamp fractional order size to integer when switching to futures |
-| `716c981` | Add Hyperliquid bracket support and fix tick size rounding |
+---
 
-### Key lessons from this implementation
+## File Structure
 
-- **Tick size rounding**: Hyperliquid enforces max 5 significant figures on prices. Use `roundToSigFigs(price, 5)`, not decimal-place rounding. The `markPx` string's trailing zeros do NOT reliably indicate tick precision.
-- **Native brackets**: Hyperliquid supports `grouping: 'normalTpSl'` to send entry + TP + SL atomically (3 order wires). This is preferred over client-side bracket engine for simple 1SL+1TP cases.
-- **Order modify**: `batchModify` only works for limit orders. Trigger order modifications (SL move/resize) require cancel-and-replace. The modify endpoint must auto-lookup `contractId`/`side`/`size` from open orders when not provided.
-- **WebSocket order events**: Subscribe to `orderUpdates` with `{ type: 'orderUpdates', user: walletAddress }`. Events arrive as `{ order: { coin, oid, side, sz, ... }, status: 'filled'|'open'|'canceled' }`. Order IDs use `SYMBOL:OID` format.
+```
+backend/src/adapters/hyperliquid/
+├── index.ts        createHyperliquidAdapter() — the only public export
+├── client.ts       HTTP client (info + exchange), EIP-712 signing, floatToWire
+├── auth.ts         Private key → viem account derivation
+├── accounts.ts     clearinghouseState → normalized account list
+├── marketData.ts   meta/candleSnapshot → Contract, Bar
+├── orders.ts       place/cancel/modify/searchOpen with full normalization
+├── positions.ts    clearinghouseState → normalized positions
+├── trades.ts       userFills → normalized trades
+└── realtime.ts     Native WebSocket multiplexer at /ws/hl
+```
 
-### Audit: issues to fix in re-implementation
+---
 
-#### Architecture
+## Auth Flow
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 1 | **Exchange-specific logic leaks into shared code** — hardcoded `activeExchange === 'projectx'` / `!== 'projectx'` checks scattered across `placeOrderWithBrackets.ts`, `orderService.ts`, `BuySellButtons.tsx` | Frontend shared services | Adding a 3rd exchange requires editing every shared file |
-| 2 | **Duplicate bracket params in Zod schema** — `stopLossBracket`/`takeProfitBracket` (ProjectX ticks format) AND `bracketSlPrice`/`bracketTpPrice` (Hyperliquid absolute prices) coexist | `orderRoutes.ts` | Contradictory API contract; confusing which to use |
-| 3 | **Response normalization is inconsistent** — `/orders/place` route has Hyperliquid-specific `if (data?.status === 'ok')` normalization, `/orders/modify` returns raw data, cancel returns partial | `orderRoutes.ts:38-58` | Frontend gets different shapes per exchange per endpoint |
-| 4 | **`modifyOrder()` doesn't send exchange param** — `placeOrder` and `cancelOrder` add `exchange` to body, but `modifyOrder` does not | `orderService.ts:80` | Modify always hits default exchange, even after switching |
-| 5 | **Global mutable state in client.ts** — `baseUrl`, `isTestnet`, `account`, `connected` are module-level lets | `client.ts:18-21` | No multi-session support; race conditions if two callers |
+```
+POST /auth/connect { exchange: 'hyperliquid', credentials: { privateKey: '0x...' } }
+  → createHyperliquidAdapter()
+  → adapter.auth.connect({ credentials: { privateKey } })
+      → privateKeyToAccount(privateKey)  ← viem, no network call
+      → state.walletAddress = account.address
+      → state.connected = true
+  → setAdapter('hyperliquid', adapter)
+```
 
-#### Fragile patterns
+No token refresh needed. Every exchange action is signed with a fresh nonce at call time.
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 6 | **Tick size derived from mark price string format** — `derivePricePrecision()` counts decimal places of `ctx.markPx` | `marketData.ts:36-42` | If API changes string formatting, all price rounding breaks silently |
-| 7 | **`floatToWire()` can produce scientific notation** — `parseFloat(x.toFixed(8)).toString()` on very small numbers outputs `"1e-9"` | `client.ts:154` | Hyperliquid API rejects scientific notation |
-| 8 | **JSON key ordering for subscription dedup** — `JSON.stringify(subscription)` used as map key; key order not guaranteed | `realtime.ts:57` | Duplicate subscriptions if object is constructed differently |
-| 9 | **`allMids` subscribed once per coin** — reconnect loop sends `sendSubscribe('allMids')` inside `for (coin of subscribedQuotes)` | `realtimeAdapter.ts:60-62` | N redundant subscription messages |
+---
 
-#### Type safety
+## Signing
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 10 | **`as any` casts** on contract lookups, candle data, message handling | `orders.ts:39`, `marketData.ts:96`, `realtimeAdapter.ts:103` | Silent breakage if shapes change |
-| 11 | **`limitPrice` checked with `!limitPrice`** instead of `!= null` — `0` is falsy but valid | `orders.ts:104` | Cannot place limit at price 0 (edge case) |
-| 12 | **Unknown order statuses default to `Working`** — `mapOrderStatus()` falls through silently | `realtimeAdapter.ts:186-192` | New Hyperliquid statuses treated as active orders |
+Every write action (`POST /exchange`) is signed using EIP-712:
 
-#### Error handling
+1. `actionHash = keccak256(msgpack(action) + nonce_8bytes_bigendian + 0x00)`
+2. Sign phantom agent: `{ source: 'a' (mainnet) | 'b' (testnet), connectionId: actionHash }`
+3. Domain: `{ name: 'Exchange', version: '1', chainId: 1337, verifyingContract: 0x000...0 }`
+4. Split signature: `{ r, s, v }` from viem's 65-byte hex output
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 13 | **All errors mapped to HTTP 502** in `withConnection` — client errors (bad params) return same status as server errors | `withConnection.ts:24-27` | Frontend can't distinguish user error from exchange outage |
-| 14 | **Error chain lost** — `wrapAxiosError` creates new Error, original stack trace gone | `client.ts:47-56` | Hard to debug; no `.cause` chain |
-| 15 | **Nonce incremented before signing** — if `signTypedData()` fails, nonce is wasted | `client.ts:135-148` | Nonce space leak; potential rejection after many failures |
-| 16 | **Malformed WS messages silently dropped** — no logging in catch blocks | `realtimeAdapter.ts:76`, `realtime.ts:95` | Protocol issues invisible |
+Nonce = `Date.now()` — must be unique, within ±2 days of server time.
 
-#### State management
+---
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 17 | **Quote OHLC never resets** — `high`/`low`/`volume` accumulate from first connection, never reset at session/day boundary | `realtimeAdapter.ts:97-129` | Misleading daily stats after reconnect |
-| 18 | **`pendingBracketInfo` uses `lastPrice` as guess** for market order entry price — could be stale | `placeOrderWithBrackets.ts:60` | Bracket preview lines show wrong SL/TP prices |
-| 19 | **Preview state not rolled back on order failure** — `previewHideEntry: true` persists after failed order | `placeOrderWithBrackets.ts:88-95` | Phantom bracket lines remain on chart |
-| 20 | **`refreshOrdersAfterDelay` uses arbitrary 500ms** — may be too early (order not settled) or too late (stale UI) | `orderService.ts:30` | Race condition with server processing |
+## Realtime: WebSocket Multiplexer
 
-#### Modify endpoint
+The backend runs a single upstream WebSocket to `wss://api.hyperliquid[-testnet].xyz/ws` and
+multiplexes it to all connected browser clients at `/ws/hl`.
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 21 | **Missing fields default to 0** — `size ?? 0`, `limitPrice ?? 0` when not provided | `orders.ts:252-257` (reverted) | Drag-modify sends size=0, cancelling the order |
-| 22 | **Stop order modify hardcodes `reduceOnly: true`** — original flag not preserved | `orders.ts:198` (reverted) | User's regular stop becomes reduce-only without consent |
-| 23 | **Multiple redundant `openOrders` lookups** — fetches open orders up to 3 times in one modify call | `orders.ts:147-248` (reverted) | Unnecessary API calls; latency |
+```
+Browser A ─┐
+Browser B ─┼──► /ws/hl ──► HL upstream WS ──► forward to all browsers
+Browser C ─┘               (stays alive across page refreshes)
+```
 
-#### WebSocket proxy
+**Key behaviors**:
+- Upstream is opened on first browser connect; stays alive across page refreshes
+- Upstream is only closed when the last browser disconnects
+- On re-subscribe (new client or reconnect), all stored subscriptions are re-sent
+- Subscription dedup uses canonical JSON (sorted keys) as map key
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| 24 | **`connectUpstream()` duplicates close logic** from `closeUpstream()` | `realtime.ts:11-22` | Code duplication; inconsistent cleanup |
-| 25 | **First client triggers fresh upstream** — `closeUpstream()` then `connectUpstream()` when `clients.size === 1` | `realtime.ts:82-88` | Kills existing upstream for all clients on page refresh |
+---
+
+## Order IDs
+
+HL uses numeric order IDs (`oid`) per coin. The adapter normalizes these to `COIN:OID` strings
+(e.g., `BTC:12345`) for consistency with the rest of the system. The cancel/modify endpoints
+parse this back to `{ coin, oid }` internally.
+
+---
+
+## Open Orders
+
+`searchOpen` uses `frontendOpenOrders` (not `openOrders`). The difference:
+
+- `openOrders` — resting limit orders only, no trigger orders
+- `frontendOpenOrders` — all open orders including trigger (TP/SL) orders
+
+The normalized order shape includes `isTrigger: boolean` and `orderType: string` (e.g.,
+`"Limit"`, `"Stop Market"`, `"Take Profit Market"`) from HL's response.
+
+---
+
+## Bracket Orders
+
+### Single TP + SL — atomic
+
+When exactly one TP and one SL are specified, the adapter sends all three orders in a single
+atomic `POST /exchange` using `grouping: "normalTpsl"`:
+
+```
+entry order   → [0]
+TP trigger    → [1]  tpsl: "tp", isMarket: true, reduceOnly: true
+SL trigger    → [2]  tpsl: "sl", isMarket: true, reduceOnly: true
+```
+
+All three orders are created or none are. HL returns `waitingForFill` for the TP/SL
+while the entry order is resting.
+
+> **Note**: the grouping string is `"normalTpsl"` (lowercase s) — not `"normalTpSl"`.
+> The Rust serde deserializer is case-sensitive; the wrong case causes HTTP 422.
+
+### Multiple TPs
+
+When two or more TP legs are specified, `normalTpsl` is not used (it only supports one TP).
+Instead the adapter places the entry first, then all bracket legs in one batched `na` call:
+
+```typescript
+// place() schema
+{
+  contractId: 'BTC',
+  type: OrderType.Limit,
+  side: OrderSide.Buy,
+  size: 0.002,
+  limitPrice: 60000,
+  stopLossBracket: { price: 58000 },           // one SL
+  takeProfitBrackets: [
+    { price: 65000, size: 0.001 },             // TP1 — explicit size
+    { price: 70000, size: 0.001 },             // TP2 — explicit size
+  ],
+}
+
+// If size is omitted from TP legs, the entry size is split equally:
+takeProfitBrackets: [{ price: 65000 }, { price: 70000 }]
+// → each TP gets size / 2
+```
+
+The SL always covers the full entry size. As TP legs fill and reduce the position, HL
+automatically adjusts the effective SL size.
+
+### Modifying a TP or SL
+
+Use the standard `modify` endpoint with the TP/SL's `orderId`. The adapter reads the
+existing order's `orderType` from `frontendOpenOrders` to determine whether it is a TP or SL,
+then performs cancel-and-replace preserving the correct `tpsl` flag.
+
+```typescript
+await adapter.orders.modify({
+  accountId: '',
+  orderId: 'BTC:51234567',   // TP order ID from searchOpen
+  stopPrice: 68000,           // new trigger price
+});
+```
+
+### Cancelling individual legs
+
+Each TP and SL is a real resting order with its own ID. Cancel any leg independently:
+
+```typescript
+await adapter.orders.cancel({ accountId: '', orderId: 'BTC:51234567' });
+// remaining TPs and SL are unaffected
+```
+
+---
+
+## Verification
+
+Run the integration test against testnet:
+
+```bash
+HL_PRIVATE_KEY=0xYOUR_KEY npx tsx backend/test-hl.ts
+```
+
+88 assertions across 20 sections:
+
+| Section | Coverage |
+|---------|----------|
+| 1 | floatToWire + roundToSigFigs edge cases |
+| 2 | Auth error handling (bad key, order without connect) |
+| 3 | Auth lifecycle: connect, disconnect, reconnect |
+| 4 | Accounts: balance, simulated flag |
+| 5 | Market data: search, bars, availableContracts |
+| 6 | Place limit order + searchOpen |
+| 7 | Modify limit order (batchModify) |
+| 8 | Cancel order + cancel non-existent error |
+| 9 | Below-minimum order rejection |
+| 10 | Invalid contract error |
+| 11 | Market order (IOC at mid ± 5%) |
+| 12 | Open positions after fill |
+| 13 | 1 TP + 1 SL via atomic normalTpsl |
+| 14 | 2 TPs + 1 SL — equal size split |
+| 15 | 2 TPs with explicit sizes |
+| 16 | Modify TP trigger price |
+| 17 | Cancel individual TP — other orders survive |
+| 18 | Cancel SL — TPs survive |
+| 19 | Trade history (userFills) |
+| 20 | Adapter isolation (two independent instances) |

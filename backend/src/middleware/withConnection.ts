@@ -2,12 +2,23 @@ import type { Request, Response, RequestHandler } from 'express';
 import { isConnected, getAdapter } from '../adapters/registry';
 
 /**
+ * Resolve the exchange adapter for a request.
+ * Checks `exchange` in query string first, then request body, then falls back to default.
+ */
+export function resolveAdapter(req: Request) {
+  const exchangeId =
+    (req.query['exchange'] as string | undefined) ??
+    (req.body?.exchange as string | undefined);
+  return getAdapter(exchangeId);
+}
+
+/**
  * Middleware wrapper that checks exchange connection and provides
  * consistent error handling for route handlers.
  *
  * Usage:
  *   router.get('/', withConnection(async (req, res) => {
- *     const data = await getAdapter().accounts.list();
+ *     const data = resolveAdapter(req).accounts.list();
  *     res.json(data);
  *   }));
  */
@@ -24,7 +35,7 @@ export function withConnection(
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       console.error('[withConnection]', msg);
-      res.status(502).json({ success: false, errorMessage: 'Exchange request failed' });
+      res.status(502).json({ success: false, errorMessage: msg });
     }
   };
 }

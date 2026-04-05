@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateQuery } from '../validate';
-import { withConnection, getAdapter } from '../middleware/withConnection';
+import { withConnection, resolveAdapter } from '../middleware/withConnection';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.get('/search', validateQuery(TradeSearchQuery), withConnection(async (req
   const startTimestamp = req.query['startTimestamp'] as string;
   const endTimestamp = req.query['endTimestamp'] as string | undefined;
 
-  const data = await getAdapter().trades.search({
+  const data = await resolveAdapter(req).trades.search({
     accountId,
     startTimestamp,
     endTimestamp: endTimestamp || undefined,
