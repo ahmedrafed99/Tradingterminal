@@ -401,12 +401,17 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
             // Fall back to order type when customTag is absent (e.g. bracket-placed SL after page refresh)
             const isSl = order.customTag?.endsWith('-SL') ??
               (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
-            // A Limit fill with no customTag is a TP if a position is open for this contract
-            // (reducing/closing), otherwise it's an entry. SL/Stop orders are already handled above.
+            // A Limit fill with no customTag is a TP only if a position exists AND the order is on
+            // the opposite side (i.e. it closes/reduces the position). A same-side limit fill means
+            // the user is adding to the position — that's an entry, not a TP.
             const isTp = order.customTag?.endsWith('-TP') ?? (
               order.type === OrderType.Limit &&
               useStore.getState().positions.some(
-                (p) => String(p.contractId) === String(order.contractId) && p.size > 0,
+                (p) =>
+                  String(p.contractId) === String(order.contractId) &&
+                  p.size > 0 &&
+                  ((p.type === PositionType.Long  && order.side === OrderSide.Sell) ||
+                   (p.type === PositionType.Short && order.side === OrderSide.Buy)),
               )
             );
             if (isSl) {

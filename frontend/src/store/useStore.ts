@@ -86,6 +86,8 @@ export const useStore = create<Store>()(
         secondVpHoverExpand: s.secondVpHoverExpand,
         bidAskEnabled: s.bidAskEnabled,
         secondBidAskEnabled: s.secondBidAskEnabled,
+        sessionMode: s.sessionMode,
+        secondSessionMode: s.secondSessionMode,
         bottomPanelOpen: s.bottomPanelOpen,
         bottomPanelRatio: s.bottomPanelRatio,
         bottomPanelPreviousRatio: s.bottomPanelPreviousRatio,

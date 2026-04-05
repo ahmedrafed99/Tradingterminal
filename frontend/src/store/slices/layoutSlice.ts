@@ -104,6 +104,16 @@ export interface BidAskFootprintState {
 }
 
 // ---------------------------------------------------------------------------
+// Session-Only Mode (collapse market-closed gaps)
+// ---------------------------------------------------------------------------
+export interface SessionModeState {
+  sessionMode: boolean;
+  secondSessionMode: boolean;
+  setSessionMode: (enabled: boolean) => void;
+  setSecondSessionMode: (enabled: boolean) => void;
+}
+
+// ---------------------------------------------------------------------------
 // News
 // ---------------------------------------------------------------------------
 export interface NewsImpactFilter {
@@ -127,7 +137,7 @@ export interface OrderPanelPositionState {
   setOrderPanelSide: (side: 'left' | 'right') => void;
 }
 
-export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & BidAskFootprintState & NewsState & OrderPanelPositionState;
+export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & BidAskFootprintState & SessionModeState & NewsState & OrderPanelPositionState;
 
 type Set = {
   (partial: Partial<LayoutSlice>): void;
@@ -235,6 +245,12 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   secondBidAskEnabled: false,
   setBidAskEnabled: (bidAskEnabled) => set({ bidAskEnabled }),
   setSecondBidAskEnabled: (secondBidAskEnabled) => set({ secondBidAskEnabled }),
+
+  // Session-Only Mode
+  sessionMode: false,
+  secondSessionMode: false,
+  setSessionMode: (sessionMode) => set({ sessionMode }),
+  setSecondSessionMode: (secondSessionMode) => set({ secondSessionMode }),
 
   // Order Panel Position
   orderPanelSide: 'left' as 'left' | 'right',

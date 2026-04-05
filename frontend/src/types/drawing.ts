@@ -37,6 +37,7 @@ interface DrawingBase {
   lineStyle: LineStyle;   // solid | dashed | dotted
   text: DrawingText | null;
   contractId: string;     // scope drawings per instrument
+  sessionMode?: boolean;  // true = created in session-only mode (compressed timestamps); undefined = normal mode
 }
 
 // ---------------------------------------------------------------------------

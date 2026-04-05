@@ -97,6 +97,7 @@ docs/
 | Chart settings gear + modal                 | `docs/shared/chart-settings-menu/` |
 | Volume profile data source (GatewayDepth)   | `docs/shared/candlestick-chart/indicators/volume-profile/` |
 | Bid/Ask footprint (per-candle bid/ask bars) | `docs/shared/candlestick-chart/indicators/bid-ask-footprint/` |
+| Session-only mode (collapse gap closure)    | `docs/shared/candlestick-chart/` → Session-only mode |
 | **Panels & UI** | |
 | How realized P&L is calculated              | `docs/shared/top-bar/` → Centre — Realized P&L |
 | How unrealized P&L is calculated            | `docs/shared/top-bar/` → Centre — Balance + UP&L |

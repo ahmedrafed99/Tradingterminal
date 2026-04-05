@@ -72,6 +72,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
         lineStyle: apDef?.lineStyle ?? 'solid',
         text: null,
         contractId: String(contract.id),
+        sessionMode: ctx.refs.sessionModeActive.current,
       });
     }
     state.arrowPathCreation = null;
@@ -151,6 +152,7 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
       lineStyle: dblApDef?.lineStyle ?? 'solid',
       text: null,
       contractId: String(contract.id),
+      sessionMode: ctx.refs.sessionModeActive.current,
     });
   }
   state.arrowPathCreation = null;

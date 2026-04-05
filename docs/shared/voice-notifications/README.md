@@ -82,10 +82,10 @@ When no bracket session is active and the order wasn't handled by the bracket en
 | Custom Tag | Fallback (no tag) | Sound |
 |------------|-------------------|-------|
 | Ends with `-SL` | `Stop` / `TrailingStop` order type | `stop_filled` |
-| Ends with `-TP` | `Limit` order type **and** an open position exists for the contract (reducing/closing) | `target_filled` |
+| Ends with `-TP` | `Limit` order type **and** an open position exists on the **opposite side** (i.e. the order reduces/closes it) | `target_filled` |
 | Neither | — | `order_filled` |
 
-The position check for Limit fills distinguishes a manually-placed TP (position already open) from a plain limit entry (no position open). This covers the common workflow of placing a naked position then adding SL/TP by dragging from the entry line on the chart.
+The position check for Limit fills requires both: an open position exists **and** the order's side is opposite to the position's direction (Sell vs Long, Buy vs Short). This correctly distinguishes a manually-placed TP (which closes the position) from a same-side limit order adding to the position — the latter plays `order_filled`.
 
 ---
 

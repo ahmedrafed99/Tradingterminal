@@ -26,14 +26,16 @@ function nyParts(utcSeconds: number) {
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function nyTimeFormatter(utcSeconds: number): string {
+/** Pure formatter — accepts already-resolved real UTC seconds. */
+export function nyTimeFormatterRaw(utcSeconds: number): string {
   const p = nyParts(utcSeconds);
   const mon = MONTH_ABBR[parseInt(p.month, 10) - 1];
   const yr = p.year.slice(-2);
   return `${parseInt(p.day, 10)} ${mon} '${yr}  ${p.hour}:${p.minute}`;
 }
 
-function nyTickMarkFormatter(utcSeconds: number, tickMarkType: number): string {
+/** Pure formatter — accepts already-resolved real UTC seconds. */
+export function nyTickMarkFormatterRaw(utcSeconds: number, tickMarkType: number): string {
   const p = nyParts(utcSeconds);
   // tickMarkType: 0=Year, 1=Month, 2=DayOfMonth, 3=Time, 4=TimeWithSeconds
   switch (tickMarkType) {
@@ -66,14 +68,10 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   rightPriceScale: {
     borderColor: COLOR_BORDER,
   },
-  localization: {
-    timeFormatter: nyTimeFormatter,
-  },
   timeScale: {
     borderColor: COLOR_BORDER,
     timeVisible: true,
     secondsVisible: false,
-    tickMarkFormatter: nyTickMarkFormatter,
     rightOffset: 15,
     shiftVisibleRangeOnNewBar: true,
   },

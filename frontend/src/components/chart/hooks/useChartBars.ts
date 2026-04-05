@@ -14,6 +14,11 @@ import {
   floorToCandlePeriod,
   generateWhitespace,
 } from '../barUtils';
+import {
+  buildSessionBarMap,
+  getOrAssignCompressedTime,
+  generateSessionWhitespace,
+} from '../sessionBarMapper';
 import type { ChartRefs } from './types';
 import { getSchedule } from '../../../utils/marketHours';
 
@@ -31,6 +36,7 @@ export function useChartBars(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const sessionMode = useStore((s) => chartId === 'left' ? s.sessionMode : s.secondSessionMode);
   const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
   const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
   const vpHoverExpand = useStore((s) => chartId === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
@@ -79,25 +85,35 @@ export function useChartBars(
         const sorted = sortBarsAscending(bars);
         refs.bars.current = sorted;
         const candles = sorted.map(barToCandle);
-        series.setData(candles);
-        refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
+
+        const periodSec = getCandlePeriodSeconds(timeframe);
+        const TARGET_FUTURE_SECS = 90 * 86400;
+        const wsCount = Math.max(50, Math.ceil(TARGET_FUTURE_SECS / periodSec));
+
+        let displayCandles = candles;
+        if (sessionMode) {
+          const map = buildSessionBarMap(candles, periodSec);
+          refs.sessionMap.current = map;
+          displayCandles = map.compressedBars;
+          if (refs.whitespaceSeries.current) {
+            refs.whitespaceSeries.current.setData(generateSessionWhitespace(map, wsCount));
+          }
+        } else {
+          refs.sessionMap.current = null;
+          const lastTime = candles.length > 0 ? (candles[candles.length - 1].time as number) : 0;
+          if (lastTime > 0 && refs.whitespaceSeries.current) {
+            refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, wsCount));
+          }
+        }
+
+        series.setData(displayCandles);
+        refs.lastBar.current = displayCandles.length > 0 ? displayCandles[displayCandles.length - 1] : null;
         refs.bidAskPrimitive.current?.clear();
         refs.bidAskPrimitive.current?.setTickSize(contract!.tickSize);
 
-        // Push future whitespace to the separate invisible series so the
-        // crosshair time label shows beyond the last candle
-        const periodSec = getCandlePeriodSeconds(timeframe);
-        const lastTime = candles.length > 0 ? (candles[candles.length - 1].time as number) : 0;
-        if (lastTime > 0 && refs.whitespaceSeries.current) {
-          // Scale whitespace count so every timeframe extends ~90 days into the future
-          const TARGET_FUTURE_SECS = 90 * 86400;
-          const wsCount = Math.max(50, Math.ceil(TARGET_FUTURE_SECS / periodSec));
-          refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, wsCount));
-        }
-
         // Populate data map for crosshair sync
         refs.dataMap.current.clear();
-        for (const c of candles) {
+        for (const c of displayCandles) {
           refs.dataMap.current.set(c.time as number, c.close);
         }
 
@@ -151,7 +167,7 @@ export function useChartBars(
       cancelled = true;
       if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
     };
-  }, [connected, contract, timeframe, reconnectCount]);
+  }, [connected, contract, timeframe, reconnectCount, sessionMode]);
 
   // -- Real-time quote subscription --
   useEffect(() => {
@@ -207,7 +223,19 @@ export function useChartBars(
       if (!lastBar) return;
 
       const quoteSec = new Date(data.lastUpdated).getTime() / 1000;
-      const candleTime = floorToCandlePeriod(quoteSec, periodSec);
+      const realCandleTime = floorToCandlePeriod(quoteSec, periodSec);
+
+      let candleTime = realCandleTime;
+      if (refs.sessionModeActive.current && refs.sessionMap.current) {
+        const { compressedTime, isNew } = getOrAssignCompressedTime(realCandleTime as number, refs.sessionMap.current);
+        candleTime = compressedTime as typeof realCandleTime;
+        if (isNew && refs.whitespaceSeries.current) {
+          // Extend whitespace one more slot for the newly opened bar
+          refs.whitespaceSeries.current.update({
+            time: (compressedTime + refs.sessionMap.current.periodSec) as typeof realCandleTime,
+          });
+        }
+      }
 
       // Skip quotes older than the current bar (lightweight-charts rejects these)
       if (candleTime < lastBar.time) return;
@@ -288,9 +316,14 @@ export function useChartBars(
       }).then((bars) => {
         if (cancelled || !refs.series.current) return;
         const sorted = sortBarsAscending(bars);
-        const candles = sorted.map(barToCandle);
+        let candles = sorted.map(barToCandle);
+        if (refs.sessionModeActive.current && refs.sessionMap.current) {
+          candles = candles.map((c) => {
+            const { compressedTime } = getOrAssignCompressedTime(c.time as number, refs.sessionMap.current!);
+            return { ...c, time: compressedTime as typeof c.time };
+          });
+        }
         for (const c of candles) {
-          // series.update() appends or updates — no reset needed
           refs.series.current!.update(c);
           refs.dataMap.current.set(c.time as number, c.close);
         }
