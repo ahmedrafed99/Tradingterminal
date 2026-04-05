@@ -5,9 +5,13 @@ export function computeRulerMetrics(
   bars: Bar[],
   p1: { time: number; price: number },
   p2: { time: number; price: number },
+  tickSize: number,
 ): RulerMetrics {
-  const priceChange = p2.price - p1.price;
-  const pctChange = p1.price !== 0 ? (priceChange / p1.price) * 100 : 0;
+  const snap = (p: number) => tickSize > 0 ? Math.round(p / tickSize) * tickSize : p;
+  const price1 = snap(p1.price);
+  const price2 = snap(p2.price);
+  const priceChange = price2 - price1;
+  const pctChange = price1 !== 0 ? (priceChange / price1) * 100 : 0;
 
   const tMin = Math.min(p1.time, p2.time);
   const tMax = Math.max(p1.time, p2.time);

@@ -403,7 +403,7 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - **Directional arrows**: two single-direction crossing arrows rendered inside the rectangle at 0.5 alpha (lighter than the 0.25 fill). Vertical arrow points up for positive (price increase) or down for negative (price decrease). Horizontal arrow always points right (time direction). Arrows span the full rectangle edges. Only drawn when the rectangle is large enough (>15px per axis).
 - Negative rulers (price went down): stronger red rectangle (`#d32f2f` at 0.25 alpha), darker red label (`#8b2232` at 0.85 alpha)
 - Positive rulers: blue rectangle and label (`#2962ff`)
-- Metrics computed via `computeRulerMetrics(bars, p1, p2)` from `rulerMetrics.ts`
+- Metrics computed via `computeRulerMetrics(bars, p1, p2, tickSize)` from `rulerMetrics.ts`. Both endpoint prices are snapped to `tickSize` before computing the difference (`Math.round(price / tickSize) * tickSize`), so displayed values always align to valid ticks (e.g. NQ shows `+19.75` not `+19.71`).
 
 ### Click-to-select
 

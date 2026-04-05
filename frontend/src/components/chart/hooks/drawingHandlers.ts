@@ -445,7 +445,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     let metrics = null;
     if (data) {
       const p1 = { time: state.rulerCreation.startTime, price: state.rulerCreation.startPrice };
-      metrics = computeRulerMetrics(refs.bars.current, p1, data);
+      metrics = computeRulerMetrics(refs.bars.current, p1, data, contract?.tickSize ?? 0);
     }
     const dec = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
     primitive.setRulerDragPreview(state.rulerCreation.startX, state.rulerCreation.startY, x, y, metrics, dec);
@@ -533,7 +533,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     if (state.drawingDrag.type === 'ruler' && state.drawingDragOccurred) {
       const d = useStore.getState().drawings.find((dd) => dd.id === state.drawingDrag!.drawingId);
       if (d && d.type === 'ruler') {
-        const metrics = computeRulerMetrics(refs.bars.current, d.p1, d.p2);
+        const metrics = computeRulerMetrics(refs.bars.current, d.p1, d.p2, contract?.tickSize ?? 0);
         useStore.getState().updateDrawing(d.id, { metrics });
       }
     }
@@ -565,7 +565,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     });
     const resized = useStore.getState().drawings.find((d) => d.id === state.ovalResize!.drawingId);
     if (resized && resized.type === 'ruler') {
-      const metrics = computeRulerMetrics(refs.bars.current, resized.p1, resized.p2);
+      const metrics = computeRulerMetrics(refs.bars.current, resized.p1, resized.p2, contract?.tickSize ?? 0);
       useStore.getState().updateDrawing(resized.id, { metrics });
     }
     state.ovalResize = null;
