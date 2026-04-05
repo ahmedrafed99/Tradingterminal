@@ -417,34 +417,6 @@ function NewsDropdown() {
   );
 }
 
-function SessionModeToggle() {
-  const sessionMode = useStore((s) =>
-    s.selectedChart === 'left' ? s.sessionMode : s.secondSessionMode,
-  );
-  const setSessionMode = useStore((s) =>
-    s.selectedChart === 'left' ? s.setSessionMode : s.setSecondSessionMode,
-  );
-
-  return (
-    <button
-      onClick={() => setSessionMode(!sessionMode)}
-      title={sessionMode ? 'Session mode on (gaps hidden)' : 'Session mode off (showing all time)'}
-      className={`self-stretch flex items-center gap-1.5 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
-        sessionMode ? 'text-(--color-warning)' : 'text-(--color-text-muted) hover:text-(--color-text)'
-      }`}
-      style={{ paddingLeft: 12, paddingRight: 12 }}
-    >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
-        <rect x="3" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="3" y="14" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" />
-      </svg>
-      Session
-    </button>
-  );
-}
-
 export function ChartToolbar() {
   const pinnedTimeframes = useStore((s) => s.pinnedTimeframes);
   const pinTimeframe = useStore((s) => s.pinTimeframe);
@@ -722,9 +694,6 @@ export function ChartToolbar() {
 
       {/* News calendar toggle */}
       <NewsDropdown />
-
-      {/* Session-only mode toggle */}
-      <SessionModeToggle />
 
       {/* Spacer */}
       <div className="flex-1" />

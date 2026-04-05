@@ -246,9 +246,9 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   setBidAskEnabled: (bidAskEnabled) => set({ bidAskEnabled }),
   setSecondBidAskEnabled: (secondBidAskEnabled) => set({ secondBidAskEnabled }),
 
-  // Session-Only Mode
-  sessionMode: false,
-  secondSessionMode: false,
+  // Session-Only Mode (always on by default — hides weekend/overnight gaps)
+  sessionMode: true,
+  secondSessionMode: true,
   setSessionMode: (sessionMode) => set({ sessionMode }),
   setSecondSessionMode: (secondSessionMode) => set({ secondSessionMode }),
 
