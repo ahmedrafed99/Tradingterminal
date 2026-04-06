@@ -63,6 +63,7 @@ export interface DrawingState {
 
   rectCreation: {
     startX: number; startY: number;
+    startRawY: number;             // raw mouse Y at first click — used for drag-distance check only
     startTime: number; startPrice: number;
     startAnchorTime?: number; startBarOffset?: number;
   } | null;

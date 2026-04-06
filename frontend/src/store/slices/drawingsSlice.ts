@@ -25,6 +25,8 @@ export interface DrawingsState {
   drawingUndoStack: UndoEntry[];
   drawingDefaults: Record<string, DrawingStyleDefaults>;
   magnetEnabled: boolean;
+  magnetHeld: boolean;
+  setMagnetHeld: (held: boolean) => void;
   setActiveTool: (tool: DrawingTool) => void;
   setDrawingToolbarOpen: (open: boolean) => void;
   setSelectedDrawingIds: (ids: string[]) => void;
@@ -72,6 +74,8 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
   drawingUndoStack: [] as UndoEntry[],
   drawingDefaults: {} as Record<string, DrawingStyleDefaults>,
   magnetEnabled: false,
+  magnetHeld: false,
+  setMagnetHeld: (magnetHeld) => set({ magnetHeld }),
   setActiveTool: (activeTool) => set({ activeTool, selectedDrawingIds: [] }),
   setDrawingToolbarOpen: (drawingToolbarOpen) => set({ drawingToolbarOpen }),
   setSelectedDrawingIds: (selectedDrawingIds) => set({ selectedDrawingIds }),

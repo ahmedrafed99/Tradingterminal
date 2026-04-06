@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Z } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import type { DrawingTool } from '../../types/drawing';
@@ -157,23 +157,9 @@ export function DrawingToolbar() {
   const drawings = useStore((s) => s.drawings);
   const clearAllDrawings = useStore((s) => s.clearAllDrawings);
   const magnetEnabled = useStore((s) => s.magnetEnabled);
+  const magnetHeld = useStore((s) => s.magnetHeld);
   const toggleMagnet = useStore((s) => s.toggleMagnet);
   const [closing, setClosing] = useState(false);
-  const [ctrlHeld, setCtrlHeld] = useState(false);
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === 'Alt') { e.preventDefault(); setCtrlHeld(true); } };
-    const up = (e: KeyboardEvent) => { if (e.key === 'Alt') setCtrlHeld(false); };
-    const blur = () => setCtrlHeld(false);
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-    window.addEventListener('blur', blur);
-    return () => {
-      window.removeEventListener('keydown', down);
-      window.removeEventListener('keyup', up);
-      window.removeEventListener('blur', blur);
-    };
-  }, []);
 
   const handleToggle = () => {
     if (open && !closing) {
@@ -232,7 +218,7 @@ export function DrawingToolbar() {
             <button
               onClick={toggleMagnet}
               className={`flex items-center justify-center transition-colors ${
-                magnetEnabled || ctrlHeld
+                magnetEnabled || magnetHeld
                   ? 'bg-(--color-border) text-white'
                   : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
               }`}

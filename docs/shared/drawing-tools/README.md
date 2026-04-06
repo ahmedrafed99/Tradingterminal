@@ -168,6 +168,7 @@ interface DrawingsState {
   drawingDefaults: Record<string, DrawingStyleDefaults>; // persisted — per-tool color/stroke/fill defaults
   drawingUndoStack: UndoEntry[];     // ephemeral — max 50 entries
   magnetEnabled: boolean;            // persisted — OHLC magnet snap toggle
+  magnetHeld: boolean;               // ephemeral — true while Alt is held down
 
   setActiveTool: (tool: DrawingTool) => void;     // also clears selection
   setDrawingToolbarOpen: (open: boolean) => void;
@@ -180,6 +181,7 @@ interface DrawingsState {
   pushDrawingUndo: (entry: UndoEntry) => void;
   undoDrawing: () => void;                         // Ctrl+Z — pops last entry and reverses it
   toggleMagnet: () => void;                        // toggles magnetEnabled
+  setMagnetHeld: (held: boolean) => void;          // set by useChartDrawings on Alt keydown/keyup/blur
 }
 
 // UndoEntry types: 'add' | 'update' | 'remove' | 'clear' | 'bulkRemove'
@@ -428,9 +430,9 @@ Snaps drawing placement and drag positions to the nearest candle Open/High/Low/C
 - **Placement accuracy**: hline click placement reads from `subscribeCrosshairMove` (which captures the already-snapped price) rather than from the raw mouse coordinate in `subscribeClick`.
 
 **Implementation files:**
-- `frontend/src/components/chart/drawings/magnetSnap.ts` — `snapPriceToOHLC`, `isMagnetActive`, `maybeSnap` utilities
-- `frontend/src/components/chart/hooks/useChartDrawings.ts` — crosshair mode switching, Alt-hold tracking, hline click placement
-- `frontend/src/components/chart/hooks/drawingHandlers.ts` — `maybeSnap` applied at all mousedown/mousemove/mouseup placement points
+- `frontend/src/components/chart/drawings/magnetSnap.ts` — `snapPriceToOHLC` (core OHLC snap), `isMagnetActive` (store + altKey check), `maybeSnap` (convenience wrapper — the only function called externally)
+- `frontend/src/components/chart/hooks/useChartDrawings.ts` — crosshair mode switching, Alt-hold tracking (`setMagnetHeld`), hline click placement
+- `frontend/src/components/chart/hooks/drawingHandlers.ts` — `maybeSnap` called at all mousedown/mousemove/mouseup placement and drag points
 
 ### Click-to-select
 

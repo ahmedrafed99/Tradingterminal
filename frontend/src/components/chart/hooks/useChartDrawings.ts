@@ -155,14 +155,21 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const onCtrlDown = (e: KeyboardEvent) => {
       if (e.key === 'Alt') {
         e.preventDefault(); // prevent browser menu bar from stealing focus on Windows
+        useStore.getState().setMagnetHeld(true);
         applyMagnetCrosshairMode(true);
       }
     };
     const onCtrlUp = (e: KeyboardEvent) => {
-      if (e.key === 'Alt') applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+      if (e.key === 'Alt') {
+        useStore.getState().setMagnetHeld(false);
+        applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+      }
     };
     // Reset if window loses focus (e.g. Alt triggers OS/browser menu despite preventDefault)
-    const onWindowBlur = () => applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+    const onWindowBlur = () => {
+      useStore.getState().setMagnetHeld(false);
+      applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+    };
     window.addEventListener('keydown', onCtrlDown);
     window.addEventListener('keyup', onCtrlUp);
     window.addEventListener('blur', onWindowBlur);

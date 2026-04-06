@@ -2,7 +2,7 @@ import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
 import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
-import { isMagnetActive, snapPriceToOHLC, maybeSnap } from '../drawings/magnetSnap';
+import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
 
@@ -242,6 +242,7 @@ export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
     const startPrice = maybeSnap(e, data.price, x, chart, refs.bars.current);
     state.rectCreation = {
       startX: x, startY: startPrice !== data.price ? (series.priceToCoordinate(startPrice) ?? y) : y,
+      startRawY: y,
       startTime: data.time, startPrice,
       startAnchorTime: data.anchorTime, startBarOffset: data.barOffset,
     };
@@ -460,9 +461,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     let metrics = null;
     let previewY = y;
     if (data) {
-      const p2Price = isMagnetActive(e)
-        ? snapPriceToOHLC(data.price, x, chart, refs.bars.current)
-        : data.price;
+      const p2Price = maybeSnap(e, data.price, x, chart, refs.bars.current);
       if (p2Price !== data.price) {
         const sy = series.priceToCoordinate(p2Price);
         if (sy !== null) previewY = sy;
@@ -504,10 +503,10 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   if (!state.ovalDrag) return;
   const { x, y } = getMousePos(e, container);
   let ovalPreviewY = y;
-  if (isMagnetActive(e)) {
-    const op = series.coordinateToPrice(y);
-    if (op !== null) {
-      const snapped = snapPriceToOHLC(op as number, x, chart, refs.bars.current);
+  const op = series.coordinateToPrice(y);
+  if (op !== null) {
+    const snapped = maybeSnap(e, op as number, x, chart, refs.bars.current);
+    if (snapped !== op) {
       const sy = series.priceToCoordinate(snapped);
       if (sy !== null) ovalPreviewY = sy;
     }
@@ -682,15 +681,13 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
   if (state.rectCreation && useStore.getState().activeTool === 'rect' && e.button === 0) {
     const { x, y } = getMousePos(e, container);
     const dx = Math.abs(x - state.rectCreation.startX);
-    const dy = Math.abs(y - state.rectCreation.startY);
+    const dy = Math.abs(y - state.rectCreation.startRawY);
     // If mouse moved enough → finalize (drag-release flow)
     if (dx > 5 || dy > 5) {
       let createdId: string | null = null;
       const data = pixelToAnchoredPoint(chart, series, x, y);
       if (data && contract !== null) {
-        const p2Price = isMagnetActive(e)
-          ? snapPriceToOHLC(data.price, x, chart, refs.bars.current)
-          : data.price;
+        const p2Price = maybeSnap(e, data.price, x, chart, refs.bars.current);
         const rectDef = useStore.getState().drawingDefaults['rect'];
         createdId = crypto.randomUUID();
         useStore.getState().addDrawing({
@@ -736,9 +733,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       const data = getDataPos(chart, series, x, y);
       if (data && contract !== null) {
         if (!state.rulerCreation) {
-          const rulerStartPrice = isMagnetActive(e)
-            ? snapPriceToOHLC(data.price, x, chart, refs.bars.current)
-            : data.price;
+          const rulerStartPrice = maybeSnap(e, data.price, x, chart, refs.bars.current);
           const rulerStartY = rulerStartPrice !== data.price ? (series.priceToCoordinate(rulerStartPrice) ?? y) : y;
           state.rulerCreation = { startX: x, startY: rulerStartY, startTime: data.time, startPrice: rulerStartPrice };
           chart.applyOptions({ handleScroll: false, handleScale: false });
@@ -767,9 +762,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     const dx = Math.abs(x - state.ovalDrag.startX);
     const dy = Math.abs(y - state.ovalDrag.startY);
     if (dx > 5 || dy > 5) {
-      const ovalEndPrice = isMagnetActive(e)
-        ? snapPriceToOHLC(endData.price, x, chart, refs.bars.current)
-        : endData.price;
+      const ovalEndPrice = maybeSnap(e, endData.price, x, chart, refs.bars.current);
       const ovalDef = useStore.getState().drawingDefaults['oval'];
       createdId = crypto.randomUUID();
       useStore.getState().addDrawing({
