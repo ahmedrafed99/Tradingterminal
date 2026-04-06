@@ -82,29 +82,66 @@ function ChevronRight({ className }: { className?: string }) {
   );
 }
 
-const TOOLS: { id: DrawingTool; icon: React.FC; label: string; shortcut?: string; shortcutDesc?: string }[] = [
-  { id: 'hline', icon: HLineIcon, label: 'Horizontal Line' },
-  { id: 'rect', icon: RectIcon, label: 'Rectangle' },
-  { id: 'oval', icon: OvalIcon, label: 'Oval' },
+type TooltipHint = { key: string; desc: string };
+
+const TOOLS: { id: DrawingTool; icon: React.FC; label: string; hints?: TooltipHint[] }[] = [
+  { id: 'hline',     icon: HLineIcon,   label: 'Horizontal Line' },
+  { id: 'rect',      icon: RectIcon,    label: 'Rectangle' },
+  { id: 'oval',      icon: OvalIcon,    label: 'Oval' },
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
-  { id: 'ruler', icon: RulerIcon, label: 'Ruler', shortcut: 'Shift', shortcutDesc: 'Hold for quick ruler' },
-  { id: 'freedraw', icon: BrushIcon, label: 'Free Draw' },
+  { id: 'ruler',     icon: RulerIcon,   label: 'Ruler',    hints: [{ key: 'Shift', desc: 'hold' }] },
+  { id: 'freedraw',  icon: BrushIcon,   label: 'Free Draw' },
 ];
 
-function ToolTooltip({ label, shortcut, shortcutDesc, children }: { label: string; shortcut?: string; shortcutDesc?: string; children: React.ReactNode }) {
+const KEY_BADGE_STYLE: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '2px 6px',
+  background: 'rgba(41,98,255,0.10)',
+  border: '1px solid var(--color-focus-ring)',
+  borderRadius: 3,
+  color: 'var(--color-accent-text)',
+  fontSize: 11,
+  fontWeight: 700,
+  lineHeight: 1.4,
+  letterSpacing: '0.03em',
+};
+
+function ToolTooltip({ label, hints, children }: { label: string; hints?: TooltipHint[]; children: React.ReactNode }) {
   return (
-    <div className="group relative flex">
+    <div className="dt-group relative flex">
       {children}
       <div
-        className="absolute left-full ml-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 rounded bg-(--color-panel) border border-(--color-border) text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
-        style={{ zIndex: 9999 }}
+        className="dt-tooltip pointer-events-none absolute left-full top-1/2"
+        style={{
+          marginLeft: 9,
+          transform: 'translateY(-50%)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 7,
+          padding: '5px 9px',
+          background: 'var(--color-popover)',
+          border: '1px solid var(--color-border)',
+          borderLeft: '2px solid var(--color-accent)',
+          borderRadius: 4,
+          boxShadow: '0 6px 20px rgba(0,0,0,0.7), 0 1px 4px rgba(0,0,0,0.5)',
+          whiteSpace: 'nowrap',
+        }}
       >
-        <span className="text-white font-medium">{label}</span>
-        {shortcut && (
+        <span style={{ color: 'var(--color-text)', fontSize: 11, fontWeight: 500, letterSpacing: '0.02em' }}>
+          {label}
+        </span>
+        {hints && hints.length > 0 && (
           <>
-            <span className="text-(--color-text-muted) mx-0.5">|</span>
-            <span className="px-1.5 py-0.5 rounded bg-(--color-border) text-white font-mono text-[10px] leading-tight">{shortcut}</span>
-            {shortcutDesc && <span className="text-(--color-text-muted)">{shortcutDesc}</span>}
+            <span style={{ width: 1, height: 11, background: 'var(--color-border)', flexShrink: 0 }} />
+            {hints.map(({ key, desc }, i) => (
+              <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                {i > 0 && <span style={{ color: 'var(--color-text-dim)', fontSize: 11, margin: '0 1px' }}>·</span>}
+                <span style={KEY_BADGE_STYLE}>{key}</span>
+                <span style={{ color: 'var(--color-text-muted)', fontSize: 11, letterSpacing: '0.01em' }}>{desc}</span>
+              </span>
+            ))}
           </>
         )}
       </div>
@@ -157,6 +194,11 @@ export function DrawingToolbar() {
   const showExpanded = open || closing;
 
   return (
+    <>
+    <style>{`
+      .dt-tooltip { opacity: 0; transition: opacity 0s linear 0s; }
+      .dt-group:hover .dt-tooltip { opacity: 1; transition: opacity 0.18s ease 0.45s; }
+    `}</style>
     <div
       className="absolute left-0 flex flex-col items-start"
       style={{ zIndex: Z.TOOLBAR, bottom: '10%' }}
@@ -164,14 +206,14 @@ export function DrawingToolbar() {
       {/* Tool buttons — expand upward above the toggle button */}
       {showExpanded && (
         <div
-          className={`flex flex-col bg-(--color-panel) border border-(--color-border) rounded-r-md overflow-hidden ${
+          className={`flex flex-col bg-(--color-panel) border border-(--color-border) rounded-r-md ${
             closing ? 'animate-toolbar-left-out' : 'animate-toolbar-left'
           }`}
           style={{ padding: '4px 0', marginBottom: 4 }}
           onAnimationEnd={handleAnimationEnd}
         >
-          {TOOLS.map(({ id, icon: Icon, label, shortcut, shortcutDesc }) => (
-            <ToolTooltip key={id} label={label} shortcut={shortcut} shortcutDesc={shortcutDesc}>
+          {TOOLS.map(({ id, icon: Icon, label, hints }) => (
+            <ToolTooltip key={id} label={label} hints={hints}>
               <button
                 onClick={() => setTool(id)}
                 className={`flex items-center justify-center ${
@@ -186,7 +228,7 @@ export function DrawingToolbar() {
             </ToolTooltip>
           ))}
           <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
-          <ToolTooltip label="Magnet Snap" shortcut="M" shortcutDesc="toggle · Alt hold">
+          <ToolTooltip label="Magnet Snap" hints={[{ key: 'Alt', desc: 'toggle' }, { key: 'M', desc: 'hold' }]}>
             <button
               onClick={toggleMagnet}
               className={`flex items-center justify-center transition-colors ${
@@ -227,5 +269,6 @@ export function DrawingToolbar() {
         <ChevronRight className={`transition-transform duration-150 ${showExpanded ? 'rotate-90' : ''}`} />
       </button>
     </div>
+    </>
   );
 }

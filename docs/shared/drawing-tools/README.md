@@ -210,18 +210,20 @@ Collapsible vertical toolbar on the left edge of the chart area (`z-30`, `bottom
 
 **Right-click on chart**: Cancels the active drawing tool (switches back to select). Also suppresses browser context menu on the chart.
 
+**Hover tooltips**: Each button shows a tooltip to the right on hover. Tooltips appear after a 450ms delay (fade in 180ms) and disappear instantly on mouse-out. Tooltip design: `--color-popover` background, 2px `--color-accent` left border, drop shadow. Key badges use a blue-tinted background (`rgba(41,98,255,0.10)`) with `--color-focus-ring` border and `--color-accent-text` color. Implemented via CSS class `.dt-group` / `.dt-tooltip` with a `<style>` tag (no JS hover state).
+
 All icons are TradingView-style filled SVGs (28×28 viewBox scaled to 22×22) with `shapeRendering="geometricPrecision"` for crisp sub-pixel rendering. Button containers are 36×34.
 
-| Tool | Icon | Behavior |
-|------|------|----------|
-| Horizontal Line | Ray with endpoint handle | Click on chart to place at price level |
-| Rectangle | Rect outline with 4 corner handles | Click to place first corner, move mouse, click to place diagonal corner |
-| Oval | Dashed ellipse with 4 cardinal handles | Click-and-drag to define bounding rectangle |
-| Arrow Path | Zigzag trend line with node dots and arrowhead | Click to place nodes, double-click to finalize (right-click also works) |
-| Ruler | Rotated ruler with tick marks | Click to start, move, click to finish — ephemeral measurement overlay |
-| Free Draw | Brush with paint blob | Click-and-drag to draw freehand brush strokes. Tool stays active after each stroke for consecutive drawing. |
-| Magnet Snap | Magnet icon | Toggles OHLC snap mode. Highlighted when active (persistent toggle) or while Ctrl is held. Separated by a divider above. |
-| Delete All | Trash can with lid | Removes all drawings from all charts. Always visible; greyed out (disabled) when no drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
+| Tool | Icon | Tooltip |
+|------|------|---------|
+| Horizontal Line | Ray with endpoint handle | "Horizontal Line" |
+| Rectangle | Rect outline with 4 corner handles | "Rectangle" |
+| Oval | Dashed ellipse with 4 cardinal handles | "Oval" |
+| Arrow Path | Zigzag trend line with node dots and arrowhead | "Arrow Path" |
+| Ruler | Rotated ruler with tick marks | "Ruler · `Shift` hold" |
+| Free Draw | Brush with paint blob | "Free Draw" |
+| Magnet Snap | Magnet icon | "Magnet Snap · `Alt` toggle · `M` hold" |
+| Delete All | Trash can with lid | "Clear All Drawings" |
 
 ### DrawingEditToolbar
 
