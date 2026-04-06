@@ -352,9 +352,11 @@ Smooth positioning for all `PriceLevelLine` instances during interaction:
 - `updatePositions()` calls `line.syncPosition()` on every live line (preview, order, posDragLine), then runs P&L updater closures
 - **Single RAF coalescing**: All sync triggers (lastPrice subscription, `visibleLogicalRangeChange`, drag mousemove, ResizeObserver, wheel) funnel through a single `scheduleSync()` that uses one `requestAnimationFrame` flag. This guarantees at most one `updatePositions()` call per frame, even when a price tick, a scroll event, and a drag mousemove all fire within the same 16ms window
 - `scheduleOverlaySync` ref is shared between the label-config effect (price subscription) and the sync-loop effect (scroll/drag/resize) so both use the same coalescing flag
+- **Drag handlers use `scheduleOverlaySync`, not direct `updateOverlay`**: `useOrderDrag` and `usePreviewDrag` call `refs.scheduleOverlaySync.current()` inside their `mousemove` handlers — not `refs.updateOverlay.current()` directly. Direct calls would bypass the RAF coalescer and run `updatePositions()` synchronously on every mouse event (250+/sec). The `onMouseUp` revert paths keep direct calls since they're not in the hot path.
 - Also listens to `visibleLogicalRangeChange` (horizontal scroll), `ResizeObserver`, and `wheel` events — all deferred to RAF
 - Zero overhead when idle — mousemove listener only attached during pointer drag
 - **Layout metric caching**: `PriceLevelLine.syncPosition()` uses a per-frame cache for `overlay.clientWidth` and `priceScale.width()` reads (via `getLayoutMetrics()`), so N lines in the same frame trigger only one layout reflow instead of N
+- **Container rect caching**: All three drag hooks (`useOrderDrag`, `usePreviewDrag`, `usePositionDrag`) cache `container.getBoundingClientRect()` in a closure variable for the duration of the drag. The rect is set on the first active mousemove and cleared on mouseup/abort. This avoids a forced layout reflow on every mousemove event.
 
 ---
 

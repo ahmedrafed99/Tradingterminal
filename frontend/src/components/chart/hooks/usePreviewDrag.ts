@@ -25,6 +25,8 @@ export function usePreviewDrag(
     const container = refs.container.current;
     if (!container || (!previewEnabled && !previewHideEntry) || !contract) return;
 
+    let cachedRect: DOMRect | null = null;
+
     function snap(price: number): number {
       const ts = contract!.tickSize;
       return Math.round(price / ts) * ts;
@@ -37,8 +39,8 @@ export function usePreviewDrag(
       // Don't stopPropagation — let LWC see the event so crosshair stays visible
       e.preventDefault();
 
-      const rect = container!.getBoundingClientRect();
-      const mouseY = e.clientY - rect.top;
+      if (!cachedRect) cachedRect = container!.getBoundingClientRect();
+      const mouseY = e.clientY - cachedRect.top;
       const series = refs.series.current;
       if (!series) return;
       const rawPrice = series.coordinateToPrice(mouseY);
@@ -49,7 +51,7 @@ export function usePreviewDrag(
       const pvLine = refs.previewLines.current[drag.lineIdx];
       if (pvLine) { pvLine.setPrice(snapped); pvLine.syncPosition(); }
       refs.previewPrices.current[drag.lineIdx] = snapped;
-      refs.updateOverlay.current();
+      refs.scheduleOverlaySync.current();
 
       const st = useStore.getState();
 
@@ -101,6 +103,7 @@ export function usePreviewDrag(
           }));
         }
 
+        cachedRect = null;
         refs.previewDragState.current = null;
         if (refs.activeDragRow.current) {
           refs.activeDragRow.current.style.cursor = 'pointer';

@@ -31,6 +31,8 @@ export function useOrderDrag(
     const container = refs.container.current;
     if (!container || !contract) return;
 
+    let cachedRect: DOMRect | null = null;
+
     function snapPrice(price: number): number {
       const ts = contract!.tickSize;
       return Math.round(price / ts) * ts;
@@ -56,8 +58,8 @@ export function useOrderDrag(
       // Don't stopPropagation — let LWC see the event so crosshair stays visible
       e.preventDefault();
 
-      const rect = container!.getBoundingClientRect();
-      const mouseY = e.clientY - rect.top;
+      if (!cachedRect) cachedRect = container!.getBoundingClientRect();
+      const mouseY = e.clientY - cachedRect.top;
       const series = refs.series.current;
       if (!series) return;
       const rawPrice = series.coordinateToPrice(mouseY);
@@ -132,13 +134,14 @@ export function useOrderDrag(
         }
       }
 
-      refs.updateOverlay.current();
+      refs.scheduleOverlaySync.current();
     }
 
     function onMouseUp() {
       const drag = refs.orderDragState.current;
       if (!drag) return;
 
+      cachedRect = null;
       const { meta, originalPrice, draggedPrice: newPrice } = drag;
       refs.orderDragState.current = null;
       if (refs.activeDragRow.current) {

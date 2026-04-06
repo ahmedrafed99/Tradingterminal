@@ -41,8 +41,11 @@ export function usePositionDrag(
       return snapToTickSize(price, tickSize);
     }
 
+    let cachedRect: DOMRect | null = null;
+
     /** Idempotent cleanup — safe to call multiple times. */
     function abortDrag() {
+      cachedRect = null;
       refs.posDrag.current = null;
       if (refs.activeDragRow.current) {
         refs.activeDragRow.current.style.cursor = 'pointer';
@@ -83,8 +86,8 @@ export function usePositionDrag(
       // Don't stopPropagation — let the event reach LWC so the crosshair stays visible
       e.preventDefault();
 
-      const rect = container!.getBoundingClientRect();
-      const mouseY = e.clientY - rect.top;
+      if (!cachedRect) cachedRect = container!.getBoundingClientRect();
+      const mouseY = e.clientY - cachedRect.top;
       const series = refs.series.current;
       if (!series) return;
       const rawPrice = series.coordinateToPrice(mouseY);

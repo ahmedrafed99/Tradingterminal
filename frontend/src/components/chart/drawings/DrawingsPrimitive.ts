@@ -683,6 +683,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   // Price axis labels for drawings
   private _decimals = 2;
+  private _priceAxisTextCache = new Map<string, string>();
   private _priceAxisViewPool: DrawingPriceAxisView[] = [];
   private _emptyAxisViews: readonly ISeriesPrimitiveAxisView[] = [];
   private _selectedAxisPaneView = new SelectedDrawingAxisPaneView();
@@ -851,10 +852,15 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       if (d.type !== 'hline') continue;
       const y = this._series.priceToCoordinate(d.price);
       if (y === null) continue;
-      const text = d.price.toLocaleString('en-US', {
-        minimumFractionDigits: this._decimals,
-        maximumFractionDigits: this._decimals,
-      });
+      const cacheKey = `${d.id}:${d.price}:${this._decimals}`;
+      let text = this._priceAxisTextCache.get(cacheKey);
+      if (text === undefined) {
+        text = d.price.toLocaleString('en-US', {
+          minimumFractionDigits: this._decimals,
+          maximumFractionDigits: this._decimals,
+        });
+        this._priceAxisTextCache.set(cacheKey, text);
+      }
       const selected = this._selectedIds.includes(d.id);
       items.push({ poolIdx: i, y, text, color: d.color, selected });
     }

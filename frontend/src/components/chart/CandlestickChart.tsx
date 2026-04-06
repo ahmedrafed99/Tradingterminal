@@ -390,7 +390,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
             top: 8,
             right: (chartRef.current ? getPriceScaleWidth(chartRef.current) : 56) + 4,
             fontSize: 10,
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-family)',
             color: chartSettings.fpsCounterColor,
             background: '#00000080',
             borderRadius: RADIUS.SM,
