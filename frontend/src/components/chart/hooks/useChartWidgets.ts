@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
-import { getCandlePeriodSeconds } from '../barUtils';
+import { getCandlePeriodSeconds, getPriceScaleWidth } from '../barUtils';
+import { snapPriceToOHLC } from '../drawings/magnetSnap';
 import { matchTrades } from '../TradeZonePrimitive';
 import type { ChartRefs } from './types';
 import { COLOR_TEXT_MUTED, COLOR_TEXT_MEDIUM } from '../../../constants/colors';
@@ -225,6 +226,49 @@ export function useChartWidgets(
       // Chart may already be disposed (init effect cleanup runs before this one)
       try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(recompute); } catch { /* disposed */ }
     };
+  }, []);
+
+  // -- Container-level mousemove: keep crosshair at mouse position even over HTML overlays --
+  useEffect(() => {
+    const chart = refs.chart.current;
+    const series = refs.series.current;
+    const container = refs.container.current;
+    if (!chart || !series || !container) return;
+
+    const wrapper = container.parentElement;
+    if (!wrapper) return;
+
+    const onMouseMove = (e: MouseEvent) => {
+      // Mouse is on the chart canvas — let LightweightCharts handle natively (incl. MagnetOHLC)
+      if (container.contains(e.target as Node)) return;
+
+      const rect = container.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // Only within chart pane (skip price scale and out-of-bounds)
+      const psWidth = getPriceScaleWidth(chart);
+      if (x < 0 || y < 0 || x > rect.width - psWidth || y > rect.height) return;
+
+      const time = chart.timeScale().coordinateToTime(x);
+      const rawPrice = series.coordinateToPrice(y);
+      if (time == null || rawPrice == null) return;
+
+      // Replicate magnet snap when active
+      const st = useStore.getState();
+      const price = (st.magnetEnabled || st.magnetHeld)
+        ? snapPriceToOHLC(rawPrice as number, x, chart, refs.bars.current)
+        : rawPrice as number;
+
+      chart.setCrosshairPosition(
+        price,
+        time as Parameters<typeof chart.setCrosshairPosition>[1],
+        series,
+      );
+    };
+
+    wrapper.addEventListener('mousemove', onMouseMove);
+    return () => wrapper.removeEventListener('mousemove', onMouseMove);
   }, []);
 
   return { showScrollBtn, scrollBtnPos };

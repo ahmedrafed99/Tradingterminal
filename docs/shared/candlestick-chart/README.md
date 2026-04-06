@@ -95,6 +95,17 @@ HTML elements always render above canvas content. Within the HTML layer, z-index
   from the canvas to the button, LWC fires a crosshair-leave event
   (`!param.point`). A 16ms delay + `qoHoveredRef` guard prevents the
   crosshair label from clearing.
+- **Crosshair tracking over HTML overlays**: A container-level `mousemove`
+  listener in `useChartWidgets` attaches to the outer chart wrapper (parent of
+  the LWC container). It receives bubbled events from all HTML children,
+  including the quick-order button. When `e.target` is inside the LWC canvas
+  container, it returns immediately (native tracking + MagnetOHLC unaffected).
+  When the mouse is over any HTML overlay, it converts raw mouse coordinates
+  to price (`series.coordinateToPrice`) and time
+  (`chart.timeScale().coordinateToTime`) and calls `setCrosshairPosition`,
+  keeping the crosshair at the actual mouse position. If magnet mode is active
+  (`magnetEnabled || magnetHeld`), `snapPriceToOHLC` is applied before the
+  call so snap behavior is preserved over overlays too.
 
 ### Canvas Primitive Attachment Order (z-order, bottom to top)
 1. CountdownPrimitive (current price + bar countdown)
