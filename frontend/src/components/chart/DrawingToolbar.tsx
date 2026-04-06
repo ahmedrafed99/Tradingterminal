@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Z } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import type { DrawingTool } from '../../types/drawing';
@@ -58,6 +58,14 @@ function RulerIcon() {
   );
 }
 
+function MagnetIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 28 28" fill="currentColor" fillRule="nonzero">
+      <path d="M14 5a7 7 0 0 0-7 7v3h4v-3a3 3 0 1 1 6 0v3h4v-3a7 7 0 0 0-7-7zm7 11h-4v3h4v-3zm-10 0H7v3h4v-3zm-5-4a8 8 0 1 1 16 0v8h-6v-8a2 2 0 1 0-4 0v8H6v-8zm3.293 11.294l-1.222-2.037.858-.514 1.777 2.963-2 1 1.223 2.037-.858.514-1.778-2.963 2-1zm9.778-2.551l.858.514-1.223 2.037 2 1-1.777 2.963-.858-.514 1.223-2.037-2-1 1.777-2.963z" />
+    </svg>
+  );
+}
+
 function TrashIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
@@ -90,7 +98,18 @@ export function DrawingToolbar() {
   const setTool = useStore((s) => s.setActiveTool);
   const drawings = useStore((s) => s.drawings);
   const clearAllDrawings = useStore((s) => s.clearAllDrawings);
+  const magnetEnabled = useStore((s) => s.magnetEnabled);
+  const toggleMagnet = useStore((s) => s.toggleMagnet);
   const [closing, setClosing] = useState(false);
+  const [ctrlHeld, setCtrlHeld] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.key === 'Control' || e.key === 'Meta') setCtrlHeld(true); };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Control' || e.key === 'Meta') setCtrlHeld(false); };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
 
   const handleToggle = () => {
     if (open && !closing) {
@@ -139,6 +158,19 @@ export function DrawingToolbar() {
               <Icon />
             </button>
           ))}
+          <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
+          <button
+            onClick={toggleMagnet}
+            className={`flex items-center justify-center transition-colors ${
+              magnetEnabled || ctrlHeld
+                ? 'bg-(--color-border) text-white'
+                : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
+            }`}
+            style={{ width: 36, height: 34 }}
+            title="Magnet snap (M) — snaps to candle OHLC"
+          >
+            <MagnetIcon />
+          </button>
           <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
           <button
             onClick={clearAllDrawings}

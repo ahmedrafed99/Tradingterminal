@@ -24,6 +24,7 @@ export interface DrawingsState {
   drawings: Drawing[];
   drawingUndoStack: UndoEntry[];
   drawingDefaults: Record<string, DrawingStyleDefaults>;
+  magnetEnabled: boolean;
   setActiveTool: (tool: DrawingTool) => void;
   setDrawingToolbarOpen: (open: boolean) => void;
   setSelectedDrawingIds: (ids: string[]) => void;
@@ -34,6 +35,7 @@ export interface DrawingsState {
   pushDrawingUndo: (entry: UndoEntry) => void;
   undoDrawing: () => void;
   clearAllDrawings: () => void;
+  toggleMagnet: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +71,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
   drawings: [] as Drawing[],
   drawingUndoStack: [] as UndoEntry[],
   drawingDefaults: {} as Record<string, DrawingStyleDefaults>,
+  magnetEnabled: false,
   setActiveTool: (activeTool) => set({ activeTool, selectedDrawingIds: [] }),
   setDrawingToolbarOpen: (drawingToolbarOpen) => set({ drawingToolbarOpen }),
   setSelectedDrawingIds: (selectedDrawingIds) => set({ selectedDrawingIds }),
@@ -188,6 +191,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
         drawingUndoStack: [...s.drawingUndoStack, { type: 'clear', drawings: s.drawings }].slice(-50),
       };
     }),
+  toggleMagnet: () => set((s) => ({ magnetEnabled: !s.magnetEnabled })),
 
   // HLine Templates
   hlineTemplates: [] as HLineTemplate[],

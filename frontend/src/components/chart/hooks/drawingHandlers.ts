@@ -2,6 +2,7 @@ import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
 import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
+import { isMagnetActive, snapPriceToOHLC, maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
 
@@ -224,7 +225,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
 
 /** Mousedown: start rect creation on first click, or capture for second click. */
 export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
-  const { state, chart, series, container } = ctx;
+  const { state, chart, series, container, refs } = ctx;
   if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'rect') return;
@@ -238,9 +239,10 @@ export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
   // First click: start creation
   if (!state.rectCreation) {
+    const startPrice = maybeSnap(e, data.price, x, chart, refs.bars.current);
     state.rectCreation = {
-      startX: x, startY: y,
-      startTime: data.time, startPrice: data.price,
+      startX: x, startY: startPrice !== data.price ? (series.priceToCoordinate(startPrice) ?? y) : y,
+      startTime: data.time, startPrice,
       startAnchorTime: data.anchorTime, startBarOffset: data.barOffset,
     };
   }
@@ -248,14 +250,16 @@ export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
 /** Mousedown: start oval drag-to-create. */
 export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
-  const { state, chart, series, container } = ctx;
+  const { state, chart, series, container, refs } = ctx;
   if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'oval') return;
   const { x, y } = getMousePos(e, container);
   const data = pixelToAnchoredPoint(chart, series, x, y);
   if (!data) return;
-  state.ovalDrag = { startX: x, startY: y, startTime: data.time, startPrice: data.price, startAnchorTime: data.anchorTime, startBarOffset: data.barOffset, tool: 'oval' };
+  const ovalStartPrice = maybeSnap(e, data.price, x, chart, refs.bars.current);
+  const ovalStartY = ovalStartPrice !== data.price ? (series.priceToCoordinate(ovalStartPrice) ?? y) : y;
+  state.ovalDrag = { startX: x, startY: ovalStartY, startTime: data.time, startPrice: ovalStartPrice, startAnchorTime: data.anchorTime, startBarOffset: data.barOffset, tool: 'oval' };
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.stopPropagation();
   e.preventDefault();
@@ -318,10 +322,12 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     state.drawingDragOccurred = true;
 
     if (state.drawingDrag.type === 'hline') {
-      const price = series.coordinateToPrice(y);
+      const rawPrice = series.coordinateToPrice(y);
       const currentTime = chart.timeScale().coordinateToTime(x);
       const patch: Record<string, unknown> = {};
-      if (price !== null) patch.price = price as number;
+      if (rawPrice !== null) {
+        patch.price = maybeSnap(e, rawPrice as number, x, chart, refs.bars.current);
+      }
       if (currentTime !== null && state.drawingDrag.startTime) {
         const dt = (currentTime as number) - state.drawingDrag.startTime;
         patch.startTime = state.drawingDrag.origStartTime + dt;
@@ -332,8 +338,8 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
       const data = getDataPos(chart, series, x, y);
       if (data) {
+        const dp = maybeSnap(e, data.price, x, chart, refs.bars.current) - state.drawingDrag.startPrice;
         const dt = data.time - state.drawingDrag.startTime;
-        const dp = data.price - state.drawingDrag.startPrice;
         const o1 = state.drawingDrag.origP1;
         const o2 = state.drawingDrag.origP2;
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
@@ -353,7 +359,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
       const data = getDataPos(chart, series, x, y);
       if (data) {
         const dt = data.time - state.drawingDrag.startTime;
-        const dp = data.price - state.drawingDrag.startPrice;
+        const dp = maybeSnap(e, data.price, x, chart, refs.bars.current) - state.drawingDrag.startPrice;
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
           anchorTime: (state.drawingDrag.origAnchorTime ?? 0) + dt,
           points: state.drawingDrag.origBarOffsets.map((p) => ({ barOffset: p.barOffset, price: p.price + dp })),
@@ -369,14 +375,15 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   if (state.arrowPathNodeDrag) {
     container.style.cursor = 'grabbing';
     const { x, y } = getMousePos(e, container);
-    const price = series.coordinateToPrice(y);
-    if (price !== null) {
+    const rawPrice = series.coordinateToPrice(y);
+    if (rawPrice !== null) {
       const anchorX = chart.timeScale().timeToCoordinate(state.arrowPathNodeDrag.anchorTime as unknown as Time);
       if (anchorX !== null) {
         const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
         const barOffset = (x - anchorX) / barSpacing;
+        const nodePrice = maybeSnap(e, rawPrice as number, x, chart, refs.bars.current);
         const newPoints = state.arrowPathNodeDrag.origPoints.map((p) => ({ ...p }));
-        newPoints[state.arrowPathNodeDrag.nodeIndex] = { barOffset, price: price as number };
+        newPoints[state.arrowPathNodeDrag.nodeIndex] = { barOffset, price: nodePrice };
         useStore.getState().updateDrawing(state.arrowPathNodeDrag.drawingId, { points: newPoints }, true);
       }
     }
@@ -396,16 +403,18 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     const h = state.ovalResize.handle;
     let newP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
 
+    const resizePrice = (rawPrice: number) => maybeSnap(e, rawPrice, x, chart, refs.bars.current);
+
     if (h === 'n' || h === 's') {
       // Cardinal vertical: only price follows mouse, X stays from original moving corner
       const mc = state.ovalResize.movingCorner;
-      newP2 = { time: mc.time, price: data.price, anchorTime: mc.anchorTime, barOffset: mc.barOffset };
+      newP2 = { time: mc.time, price: resizePrice(data.price), anchorTime: mc.anchorTime, barOffset: mc.barOffset };
     } else if (h === 'w' || h === 'e') {
       // Cardinal horizontal: only X follows mouse, price stays from original moving corner
       newP2 = { time: data.time, price: state.ovalResize.movingCorner.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
     } else {
       // Corner handles: both axes follow mouse
-      newP2 = { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
+      newP2 = { time: data.time, price: resizePrice(data.price), anchorTime: data.anchorTime, barOffset: data.barOffset };
     }
 
     useStore.getState().updateDrawing(state.ovalResize.drawingId, { p1: newP1, p2: newP2 }, true);
@@ -417,9 +426,15 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   // Rect creation preview (click-click)
   if (state.rectCreation) {
     const { x, y } = getMousePos(e, container);
+    let previewY = y;
+    const rp = series.coordinateToPrice(y);
+    if (rp !== null) {
+      const snapped = maybeSnap(e, rp as number, x, chart, refs.bars.current);
+      if (snapped !== (rp as number)) { const sy = series.priceToCoordinate(snapped); if (sy !== null) previewY = sy; }
+    }
     const rectDef = useStore.getState().drawingDefaults['rect'];
     primitive.setRectPreview(
-      state.rectCreation.startX, state.rectCreation.startY, x, y,
+      state.rectCreation.startX, state.rectCreation.startY, x, previewY,
       rectDef?.color ?? DEFAULT_RECT_COLOR,
       rectDef?.fillColor ?? DEFAULT_RECT_FILL,
       rectDef?.strokeWidth ?? 1,
@@ -443,12 +458,20 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     const { x, y } = getMousePos(e, container);
     const data = getDataPos(chart, series, x, y);
     let metrics = null;
+    let previewY = y;
     if (data) {
+      const p2Price = isMagnetActive(e)
+        ? snapPriceToOHLC(data.price, x, chart, refs.bars.current)
+        : data.price;
+      if (p2Price !== data.price) {
+        const sy = series.priceToCoordinate(p2Price);
+        if (sy !== null) previewY = sy;
+      }
       const p1 = { time: state.rulerCreation.startTime, price: state.rulerCreation.startPrice };
-      metrics = computeRulerMetrics(refs.bars.current, p1, data, contract?.tickSize ?? 0);
+      metrics = computeRulerMetrics(refs.bars.current, p1, { time: data.time, price: p2Price }, contract?.tickSize ?? 0);
     }
     const dec = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
-    primitive.setRulerDragPreview(state.rulerCreation.startX, state.rulerCreation.startY, x, y, metrics, dec);
+    primitive.setRulerDragPreview(state.rulerCreation.startX, state.rulerCreation.startY, x, previewY, metrics, dec);
     return;
   }
 
@@ -480,8 +503,17 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
   // Oval creation drag preview
   if (!state.ovalDrag) return;
   const { x, y } = getMousePos(e, container);
+  let ovalPreviewY = y;
+  if (isMagnetActive(e)) {
+    const op = series.coordinateToPrice(y);
+    if (op !== null) {
+      const snapped = snapPriceToOHLC(op as number, x, chart, refs.bars.current);
+      const sy = series.priceToCoordinate(snapped);
+      if (sy !== null) ovalPreviewY = sy;
+    }
+  }
   const ovalDef = useStore.getState().drawingDefaults['oval'];
-  primitive.setDragPreview(state.ovalDrag.startX, state.ovalDrag.startY, x, y, ovalDef?.fillColor ?? DEFAULT_OVAL_FILL);
+  primitive.setDragPreview(state.ovalDrag.startX, state.ovalDrag.startY, x, ovalPreviewY, ovalDef?.fillColor ?? DEFAULT_OVAL_FILL);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -611,14 +643,16 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     let y = e.clientY - rect.top;
-    // Ctrl = snap to horizontal (lock Y to last placed node)
-    if (e.ctrlKey && state.arrowPathCreation) {
+    // Ctrl = snap to horizontal (lock Y to last placed node) — only when not using magnet
+    if (e.ctrlKey && !useStore.getState().magnetEnabled && state.arrowPathCreation) {
       y = state.arrowPathCreation.cssPoints[state.arrowPathCreation.cssPoints.length - 1].y;
     }
     if (x >= 0 && y >= 0 && x <= rect.width && y <= rect.height
         && container.contains(e.target as Node)) {
-      const price = series.coordinateToPrice(y);
-      if (price !== null && contract !== null) {
+      const rawPrice = series.coordinateToPrice(y);
+      if (rawPrice !== null && contract !== null) {
+        const nodePrice = maybeSnap(e, rawPrice as number, x, chart, refs.bars.current);
+        const nodeY = nodePrice !== (rawPrice as number) ? (series.priceToCoordinate(nodePrice) ?? y) : y;
         if (!state.arrowPathCreation) {
           // First click: compute anchor
           const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
@@ -629,14 +663,14 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
           const barOffset = (x - anchorPixelX) / barSpacing;
           state.arrowPathCreation = {
             anchorTime, anchorPixelX, barSpacing,
-            points: [{ barOffset, price: price as number }],
-            cssPoints: [{ x, y }],
+            points: [{ barOffset, price: nodePrice }],
+            cssPoints: [{ x, y: nodeY }],
           };
           chart.applyOptions({ handleScroll: false, handleScale: false });
         } else {
           const barOffset = (x - state.arrowPathCreation.anchorPixelX) / state.arrowPathCreation.barSpacing;
-          state.arrowPathCreation.points.push({ barOffset, price: price as number });
-          state.arrowPathCreation.cssPoints.push({ x, y });
+          state.arrowPathCreation.points.push({ barOffset, price: nodePrice });
+          state.arrowPathCreation.cssPoints.push({ x, y: nodeY });
         }
         primitive.setArrowPathPreview(state.arrowPathCreation.cssPoints);
       }
@@ -654,6 +688,9 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       let createdId: string | null = null;
       const data = pixelToAnchoredPoint(chart, series, x, y);
       if (data && contract !== null) {
+        const p2Price = isMagnetActive(e)
+          ? snapPriceToOHLC(data.price, x, chart, refs.bars.current)
+          : data.price;
         const rectDef = useStore.getState().drawingDefaults['rect'];
         createdId = crypto.randomUUID();
         useStore.getState().addDrawing({
@@ -663,7 +700,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
             time: state.rectCreation.startTime, price: state.rectCreation.startPrice,
             anchorTime: state.rectCreation.startAnchorTime, barOffset: state.rectCreation.startBarOffset,
           },
-          p2: { time: data.time, price: data.price, anchorTime: data.anchorTime, barOffset: data.barOffset },
+          p2: { time: data.time, price: p2Price, anchorTime: data.anchorTime, barOffset: data.barOffset },
           color: rectDef?.color ?? DEFAULT_RECT_COLOR,
           strokeWidth: rectDef?.strokeWidth ?? 1,
           lineStyle: rectDef?.lineStyle ?? 'solid',
@@ -699,7 +736,11 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       const data = getDataPos(chart, series, x, y);
       if (data && contract !== null) {
         if (!state.rulerCreation) {
-          state.rulerCreation = { startX: x, startY: y, startTime: data.time, startPrice: data.price };
+          const rulerStartPrice = isMagnetActive(e)
+            ? snapPriceToOHLC(data.price, x, chart, refs.bars.current)
+            : data.price;
+          const rulerStartY = rulerStartPrice !== data.price ? (series.priceToCoordinate(rulerStartPrice) ?? y) : y;
+          state.rulerCreation = { startX: x, startY: rulerStartY, startTime: data.time, startPrice: rulerStartPrice };
           chart.applyOptions({ handleScroll: false, handleScale: false });
         } else {
           state.rulerCreation = null;
@@ -726,6 +767,9 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     const dx = Math.abs(x - state.ovalDrag.startX);
     const dy = Math.abs(y - state.ovalDrag.startY);
     if (dx > 5 || dy > 5) {
+      const ovalEndPrice = isMagnetActive(e)
+        ? snapPriceToOHLC(endData.price, x, chart, refs.bars.current)
+        : endData.price;
       const ovalDef = useStore.getState().drawingDefaults['oval'];
       createdId = crypto.randomUUID();
       useStore.getState().addDrawing({
@@ -735,7 +779,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
           time: state.ovalDrag.startTime, price: state.ovalDrag.startPrice,
           anchorTime: state.ovalDrag.startAnchorTime, barOffset: state.ovalDrag.startBarOffset,
         },
-        p2: { time: endData.time, price: endData.price, anchorTime: endData.anchorTime, barOffset: endData.barOffset },
+        p2: { time: endData.time, price: ovalEndPrice, anchorTime: endData.anchorTime, barOffset: endData.barOffset },
         color: ovalDef?.color ?? DEFAULT_OVAL_COLOR,
         strokeWidth: ovalDef?.strokeWidth ?? 1,
         lineStyle: ovalDef?.lineStyle ?? 'solid',

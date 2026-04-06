@@ -1,6 +1,6 @@
 # Drawing Tools Feature
 
-Chart annotation system with horizontal line, rectangle, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, hline templates (save/load/export/import), and localStorage persistence.
+Chart annotation system with horizontal line, rectangle, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, magnet snap (OHLC), hline templates (save/load/export/import), and localStorage persistence.
 
 ---
 
@@ -167,6 +167,7 @@ interface DrawingsState {
   drawings: Drawing[];               // persisted
   drawingDefaults: Record<string, DrawingStyleDefaults>; // persisted — per-tool color/stroke/fill defaults
   drawingUndoStack: UndoEntry[];     // ephemeral — max 50 entries
+  magnetEnabled: boolean;            // persisted — OHLC magnet snap toggle
 
   setActiveTool: (tool: DrawingTool) => void;     // also clears selection
   setDrawingToolbarOpen: (open: boolean) => void;
@@ -178,6 +179,7 @@ interface DrawingsState {
   clearAllDrawings: () => void;                    // removes all drawings, undoable via Ctrl+Z
   pushDrawingUndo: (entry: UndoEntry) => void;
   undoDrawing: () => void;                         // Ctrl+Z — pops last entry and reverses it
+  toggleMagnet: () => void;                        // toggles magnetEnabled
 }
 
 // UndoEntry types: 'add' | 'update' | 'remove' | 'clear' | 'bulkRemove'
@@ -218,6 +220,7 @@ All icons are TradingView-style filled SVGs (28×28 viewBox scaled to 22×22) wi
 | Arrow Path | Zigzag trend line with node dots and arrowhead | Click to place nodes, double-click to finalize (right-click also works) |
 | Ruler | Rotated ruler with tick marks | Click to start, move, click to finish — ephemeral measurement overlay |
 | Free Draw | Brush with paint blob | Click-and-drag to draw freehand brush strokes. Tool stays active after each stroke for consecutive drawing. |
+| Magnet Snap | Magnet icon | Toggles OHLC snap mode. Highlighted when active (persistent toggle) or while Ctrl is held. Separated by a divider above. |
 | Delete All | Trash can with lid | Removes all drawings from all charts. Always visible; greyed out (disabled) when no drawings exist. Separated by a divider. Undoable via Ctrl+Z. |
 
 ### DrawingEditToolbar
@@ -266,7 +269,7 @@ Key methods:
 - `hitTest(x, y)` — returns `PrimitiveHoveredItem` with `externalId` for click-to-select
 - `setSelectionRect(x1, y1, x2, y2)` / `clearSelectionRect()` — dashed blue rectangle during Ctrl+drag multi-select
 - `getDrawingsInRect(x1, y1, x2, y2)` — returns IDs of drawings whose bounding box overlaps the rectangle (AABB overlap)
-- `priceAxisViews()` — returns price axis labels for all HLines with **de-overlap stacking**: labels are sorted by Y coordinate and pushed apart (18px gap) so close HLines stack vertically instead of overlapping
+- `priceAxisViews()` — returns price axis labels for all HLines with **de-overlap stacking**: labels are sorted by Y coordinate and pushed apart (18px gap) so close HLines stack vertically instead of overlapping. **Price text is cached**: formatted label strings are stored in `_priceAxisTextCache` (keyed by `drawingId:price:decimals`) so `toLocaleString()` is only called when a drawing's price or the contract's decimal count changes — not on every render frame during chart pan.
 
 ### HLineRenderer
 
@@ -405,6 +408,28 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Positive rulers: blue rectangle and label (`#2962ff`)
 - Metrics computed via `computeRulerMetrics(bars, p1, p2, tickSize)` from `rulerMetrics.ts`. Both endpoint prices are snapped to `tickSize` before computing the difference (`Math.round(price / tickSize) * tickSize`), so displayed values always align to valid ticks (e.g. NQ shows `+19.75` not `+19.71`).
 
+### Magnet snap (OHLC)
+
+Snaps drawing placement and drag positions to the nearest candle Open/High/Low/Close level of the bar at the cursor's X position.
+
+**Activation:**
+- **Persistent toggle**: Magnet button in the toolbar (between tool divider and trash can). Stays on across drawings. Toolbar button highlights when active.
+- **`M` key** (rebindable in Settings → Shortcuts): same as clicking the toolbar button.
+- **Ctrl-hold**: Temporary activation while Ctrl is held. Toolbar button highlights during hold. Additive — works even when the persistent toggle is off.
+
+**Behavior:**
+- Always snaps to the closest of O/H/L/C of the bar at cursor X (no threshold — always snaps when active).
+- Checks the bar at cursor X plus its ±1 immediate neighbors for edge accuracy.
+- Applies to: hline placement (click), rect/oval start and end corners (mousedown + mouseup), ruler start and end points, arrow path node placement, and all drag-to-move / resize operations.
+- Free draw is intentionally excluded (dense per-pixel points make snapping feel wrong).
+- Crosshair switches to `CrosshairMode.MagnetOHLC` (lightweight-charts native) when magnet is active — the crosshair visually snaps to the nearest OHLC level so users can preview where the drawing will land before clicking.
+- **Placement accuracy**: hline click placement reads from `subscribeCrosshairMove` (which captures the already-snapped price) rather than from the raw mouse coordinate in `subscribeClick`.
+
+**Implementation files:**
+- `frontend/src/components/chart/drawings/magnetSnap.ts` — `snapPriceToOHLC`, `isMagnetActive`, `maybeSnap` utilities
+- `frontend/src/components/chart/hooks/useChartDrawings.ts` — crosshair mode switching, Ctrl-hold tracking, hline click placement
+- `frontend/src/components/chart/hooks/drawingHandlers.ts` — `maybeSnap` applied at all mousedown/mousemove/mouseup placement points
+
 ### Click-to-select
 
 - `chart.subscribeClick()` handler
@@ -455,9 +480,10 @@ Registry: `frontend/src/constants/shortcuts.ts` — central `SHORTCUT_DEFS` arra
 | `Escape` | Cancel Ctrl+drag selection → cancel in-progress drag → cancel resize → cancel tool → clear selection → deselect | Yes |
 | `Delete` / `Backspace` | Remove selected drawing(s) — single or bulk delete (guarded: not in input/textarea) | Yes |
 | `Ctrl+Z` / `Cmd+Z` | Undo last drawing mutation including bulk deletes | Yes |
-| `Ctrl+Drag` | Multi-select drawings via area selection | No |
-| `Ctrl+Hold` | Horizontal snap for free draw / arrow path | No |
+| `M` | Toggle magnet OHLC snap (persistent toggle — toolbar button highlights) | Yes |
+| `Ctrl+Hold` | Temporary magnet snap (additive — also snaps even if toggle is off) + horizontal snap for free draw / arrow path | No |
 | `Shift` (hold) | Quick ruler — activates ruler tool while held, restores select on release | No |
+| `Ctrl+Drag` | Multi-select drawings via area selection | No |
 
 ### Cursor management
 

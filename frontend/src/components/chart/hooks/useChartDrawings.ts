@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import { CrosshairMode } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { DEFAULT_HLINE_COLOR } from '../../../types/drawing';
+import { snapPriceToOHLC } from '../drawings/magnetSnap';
 import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR, createDrawingState } from './drawingInteraction';
 import type { DrawingContext } from './drawingInteraction';
@@ -67,6 +69,26 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       }
     });
 
+    // Declared early — shared by crosshairMoveHandler, applyMagnetCrosshairMode, and handleClick.
+    let _activeCrosshairMode: CrosshairMode | null = null;
+
+    // Track crosshair snapped position — used by hline placement when magnet is active.
+    // In MagnetOHLC mode the crosshair visually snaps to OHLC; subscribeClick still fires at
+    // raw mouse coords, so we capture the snapped price here instead.
+    let lastCrosshairSnap: { price: number } | null = null;
+    const crosshairMoveHandler = (param: { point?: { x: number; y: number } }) => {
+      if (!param.point) { lastCrosshairSnap = null; return; }
+      const rawP = series.coordinateToPrice(param.point.y);
+      if (rawP === null) return;
+      // When MagnetOHLC is active, snap the price so lastCrosshairSnap matches the visual crosshair.
+      // param.point.y is always the raw mouse Y — the visual snap is chart-internal only.
+      const snapped = _activeCrosshairMode === CrosshairMode.MagnetOHLC
+        ? snapPriceToOHLC(rawP as number, param.point.x, chart, refs.bars.current)
+        : rawP as number;
+      lastCrosshairSnap = { price: snapped };
+    };
+    chart.subscribeCrosshairMove(crosshairMoveHandler);
+
     // Click handler for hline placement + selection
     const handleClick = (param: { point?: { x: number; y: number }; hoveredObjectId?: unknown }) => {
       if (!param.point) return;
@@ -74,15 +96,21 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       const { activeTool, addDrawing, setActiveTool, setSelectedDrawingIds, drawingDefaults } = useStore.getState();
 
       if (activeTool === 'hline') {
-        const price = series.coordinateToPrice(param.point.y);
+        const rawPrice = series.coordinateToPrice(param.point.y);
         const clickTime = chart.timeScale().coordinateToTime(param.point.x);
-        if (price === null || contract === null) return;
+        if (rawPrice === null || contract === null) return;
+        // Use crosshair-snapped price when magnet is active (_activeCrosshairMode is MagnetOHLC).
+        // This covers both persistent toggle and Ctrl-hold, since both apply MagnetOHLC mode.
+        const magnetOn = _activeCrosshairMode === CrosshairMode.MagnetOHLC;
+        const price = magnetOn
+          ? (lastCrosshairSnap?.price ?? snapPriceToOHLC(rawPrice as number, param.point.x, chart, refs.bars.current))
+          : rawPrice as number;
         const def = drawingDefaults['hline'];
         const id = crypto.randomUUID();
         addDrawing({
           id,
           type: 'hline',
-          price: price as number,
+          price,
           color: def?.color ?? DEFAULT_HLINE_COLOR,
           strokeWidth: def?.strokeWidth ?? 1,
           lineStyle: def?.lineStyle ?? 'solid',
@@ -112,6 +140,26 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const handleShiftKey = (e: KeyboardEvent) => onShiftRulerKey(e, ctx);
     window.addEventListener('keydown', handleShiftKey);
     window.addEventListener('keyup', handleShiftKey);
+
+    // ── Magnet crosshair mode ──
+    const applyMagnetCrosshairMode = (magnetOn: boolean) => {
+      const mode = magnetOn ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal;
+      if (mode === _activeCrosshairMode) return;
+      _activeCrosshairMode = mode;
+      chart.applyOptions({ crosshair: { mode } });
+    };
+    applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+    const unsubMagnet = useStore.subscribe((s, prev) => {
+      if (s.magnetEnabled !== prev.magnetEnabled) applyMagnetCrosshairMode(s.magnetEnabled);
+    });
+    const onCtrlDown = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Meta') applyMagnetCrosshairMode(true);
+    };
+    const onCtrlUp = (e: KeyboardEvent) => {
+      if (e.key === 'Control' || e.key === 'Meta') applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+    };
+    window.addEventListener('keydown', onCtrlDown);
+    window.addEventListener('keyup', onCtrlUp);
 
     // ── Overlay label hit testing (must be BEFORE drawing handlers) ──
     const onOverlayHitTest = (e: MouseEvent) => {
@@ -216,6 +264,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     return () => {
       unsub();
       unsubCursor();
+      chart.unsubscribeCrosshairMove(crosshairMoveHandler);
       state.arrowPathCreation = null;
       state.arrowPathNodeDrag = null;
       state.rectCreation = null;
@@ -226,6 +275,10 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       chart.unsubscribeClick(handleClick);
       window.removeEventListener('keydown', handleShiftKey);
       window.removeEventListener('keyup', handleShiftKey);
+      unsubMagnet();
+      window.removeEventListener('keydown', onCtrlDown);
+      window.removeEventListener('keyup', onCtrlUp);
+      chart.applyOptions({ crosshair: { mode: CrosshairMode.Normal } });
       container.removeEventListener('mousedown', handleCtrlSelect);
       container.removeEventListener('mousedown', handleResize);
       container.removeEventListener('mousedown', handleDragDown);

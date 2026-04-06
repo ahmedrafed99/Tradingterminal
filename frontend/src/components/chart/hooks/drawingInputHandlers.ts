@@ -280,6 +280,12 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
     e.preventDefault();
     useStore.getState().undoDrawing();
   }
+
+  if (matchesShortcut(e, shortcuts['drawing.toggleMagnet'])) {
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
+    useStore.getState().toggleMagnet();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
