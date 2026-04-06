@@ -619,8 +619,9 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     chart.applyOptions({ handleScroll: true, handleScale: true });
     if (state.freeDrawCreation.points.length >= 2 && contract) {
       const fdDef = useStore.getState().drawingDefaults['freedraw'];
+      const createdId = crypto.randomUUID();
       useStore.getState().addDrawing({
-        id: crypto.randomUUID(),
+        id: createdId,
         type: 'freedraw',
         anchorTime: state.freeDrawCreation.anchorTime,
         points: [...state.freeDrawCreation.points],
@@ -631,9 +632,10 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         contractId: String(contract.id),
         sessionMode: refs.sessionModeActive.current,
       });
+      useStore.getState().setActiveTool('select');
+      useStore.getState().setSelectedDrawingIds([createdId]);
     }
     state.freeDrawCreation = null;
-    // Keep freedraw tool active so user can draw multiple strokes
     return;
   }
 
