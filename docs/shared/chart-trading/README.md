@@ -477,7 +477,9 @@ The gateway may tag bracket legs as `AutoBracket{guid}-SL` / `-TP` in `customTag
 
 ## Pending Bracket Info
 
-After placing via the + button (or Buy/Sell button) with brackets armed, `pendingBracketInfo` tracks the expected bracket prices until the entry fills or is cancelled. This state is persisted to **sessionStorage** so it survives page refreshes.
+After placing a **limit order** via the + button or Buy/Sell button with brackets armed, `pendingBracketInfo` tracks the expected bracket prices until the entry fills or is cancelled. This state is persisted to **sessionStorage** so it survives page refreshes.
+
+**Market orders do not set `pendingBracketInfo`** — they fill immediately, so the real Suspended SL/TP orders arrive from the server directly with no need for phantom lines.
 
 ### Store state
 

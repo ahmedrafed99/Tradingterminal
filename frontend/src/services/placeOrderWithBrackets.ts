@@ -87,7 +87,7 @@ export async function placeOrderWithBrackets(
   }
 
   // Compute and store pendingBracketInfo so Suspended bracket legs get prices
-  if (bracketsActive && bracketConfig && (limitPrice != null || orderType === OrderType.Market)) {
+  if (bracketsActive && bracketConfig && limitPrice != null) {
     const entryPrice = limitPrice ?? useStore.getState().lastPrice ?? 0;
     const toP = (points: number) => pointsToPrice(points, contract);
     const fittedTps = fitTpsToOrderSize(bracketConfig.takeProfits, size);
