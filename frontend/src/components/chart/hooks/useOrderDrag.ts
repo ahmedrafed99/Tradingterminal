@@ -164,9 +164,8 @@ export function useOrderDrag(
           const protectsLong = order.side === OrderSide.Sell;
           const invalid = protectsLong ? newPrice >= currentPrice : newPrice <= currentPrice;
           if (invalid) {
-            showToast('warning', 'Invalid stop loss price',
-              protectsLong ? 'Stop must be below current price for long positions'
-                           : 'Stop must be above current price for short positions');
+            // Stop dragged past market — close the position instead
+            showToast('info', 'Stop above market — closing position');
             const line = refs.orderLines.current[dragIdx];
             if (line) {
               line.setPrice(originalPrice);
@@ -174,6 +173,20 @@ export function useOrderDrag(
               line.syncPosition();
               refs.orderLinePrices.current[dragIdx] = originalPrice;
               refs.updateOverlay.current();
+            }
+            const posToClose = useStore.getState().positions.find(
+              (p) => p.accountId === accountId && String(p.contractId) === String(contract!.id) && p.size > 0,
+            );
+            if (posToClose) {
+              orderService.placeOrder({
+                accountId,
+                contractId: contract!.id,
+                type: OrderType.Market,
+                side: protectsLong ? OrderSide.Sell : OrderSide.Buy,
+                size: posToClose.size,
+              }).catch((err) => {
+                showToast('error', 'Close position failed', errorMessage(err));
+              });
             }
             return;
           }

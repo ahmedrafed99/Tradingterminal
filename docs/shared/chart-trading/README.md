@@ -380,6 +380,7 @@ Click label to edit price:
 - On mouse up calls `orderService.modifyOrder()` with new `stopPrice` or `limitPrice`
 - **Limit entry drag shifts bracket lines**: when dragging a pending limit entry order, all associated SL/TP lines (Suspended orders or phantom bracket lines from `pendingBracketInfo`) shift by the same delta. On mouseup, optimistically commits shifted prices to `pendingBracketInfo` store state and calls `modifyOrder`. On API error, reverts all positions.
   - *Preview with hidden entry* (Buy/Sell button flow): shifts `previewPrices` and `previewLines` refs using `resolvePreviewConfig()` offsets. On mouseup, updates `limitPrice` in store. On API error, reverts.
+- **Stop dragged past market price → auto-close**: if a stop order is dragged to the wrong side of the current market price (above market for a long SL, below market for a short SL), rather than rejecting the drag or erroring, the position is **immediately closed with a market order**. The stop line snaps back to its original price, and a "Stop above market — closing position" info toast is shown. This is handled in `useOrderDrag.ts` `onMouseUp` before `modifyOrder` is called.
 
 ### Order drag (Suspended bracket legs)
 - On mouseup, `bracketEngine.updateArmedConfig()` is called with tick-precision points (same rounding as preview drag) so SL/TP are not snapped to whole-point increments
@@ -590,7 +591,7 @@ interface OrderPanelState {
 | `frontend/src/components/chart/hooks/useOrderLines.ts` | Orchestrator hook — renders ALL orders (Working + Suspended with dashed style) + phantom bracket lines from `pendingBracketInfo` |
 | `frontend/src/components/chart/hooks/usePreviewLines.ts` | Preview line lifecycle: creates/destroys `PriceLevelLine` instances on config change + Zustand price subscription for flicker-free updates |
 | `frontend/src/components/chart/hooks/usePreviewDrag.ts` | Preview line drag: handles entry/SL/TP drag for order panel preview lines |
-| `frontend/src/components/chart/hooks/useOrderDrag.ts` | Live order drag (Working + Suspended): `orderService.modifyOrder()` with bracket line shift, SL validation, optimistic updates + rollback |
+| `frontend/src/components/chart/hooks/useOrderDrag.ts` | Live order drag (Working + Suspended): `orderService.modifyOrder()` with bracket line shift, SL validation (auto-close if stop dragged past market), optimistic updates + rollback |
 | `frontend/src/components/chart/hooks/usePositionDrag.ts` | Position drag-to-create: drag from position label to place SL/TP orders via `orderService.placeOrder()` |
 | `frontend/src/components/chart/hooks/useOverlayLabels.ts` | Configures labels on PriceLevelLine instances via `setLabel()` / `updateSection()`, registers hit targets, runs sync loop |
 | `frontend/src/components/chart/hooks/useQuickOrder.ts` | Quick-order + button: hover-preview-only; creates PriceLevelLine instances with baked-in labels for hover preview, no post-placement line tracking |

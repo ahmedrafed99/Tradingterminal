@@ -40,6 +40,8 @@ export interface TradeStats {
   avgRR: number;
   bestTrade: GroupedTrade | null;
   worstTrade: GroupedTrade | null;
+  bestTradeByPoints: GroupedTrade | null;
+  worstTradeByPoints: GroupedTrade | null;
   maxWinStreak: number;
   maxLossStreak: number;
   maxDrawdown: number;
@@ -144,6 +146,14 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
   return result;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Net price points gained in the trade's direction. Null if entry price unknown. */
+function pointsGained(t: GroupedTrade): number | null {
+  if (t.entryPrice == null) return null;
+  return t.isLong ? t.exitPrice - t.entryPrice : t.entryPrice - t.exitPrice;
+}
+
 // ── Stats ────────────────────────────────────────────────────────────────────
 
 export function computeStats(grouped: GroupedTrade[]): TradeStats {
@@ -153,6 +163,7 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
       winRate: 0, netPnl: 0, grossWins: 0, grossLosses: 0,
       profitFactor: 0, avgWinner: 0, avgLoser: 0, avgRR: 0,
       bestTrade: null, worstTrade: null,
+      bestTradeByPoints: null, worstTradeByPoints: null,
       maxWinStreak: 0, maxLossStreak: 0, maxDrawdown: 0,
       equityCurve: [],
     };
@@ -199,12 +210,21 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
     }
   }
 
-  // Best / worst
+  // Best / worst by dollar
   let best = grouped[0];
   let worst = grouped[0];
   for (const t of grouped) {
     if (t.totalNet > best.totalNet) best = t;
     if (t.totalNet < worst.totalNet) worst = t;
+  }
+
+  // Best / worst by points (requires known entry price)
+  const withEntry = grouped.filter(t => t.entryPrice != null);
+  let bestPts: GroupedTrade | null = withEntry[0] ?? null;
+  let worstPts: GroupedTrade | null = withEntry[0] ?? null;
+  for (const t of withEntry) {
+    if (pointsGained(t)! > pointsGained(bestPts!)!) bestPts = t;
+    if (pointsGained(t)! < pointsGained(worstPts!)!) worstPts = t;
   }
 
   return {
@@ -222,6 +242,8 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
     avgRR: avgLoser > 0 ? avgWinner / avgLoser : 0,
     bestTrade: best,
     worstTrade: worst,
+    bestTradeByPoints: bestPts,
+    worstTradeByPoints: worstPts,
     maxWinStreak: maxWin,
     maxLossStreak: maxLoss,
     maxDrawdown: maxDD,

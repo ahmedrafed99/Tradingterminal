@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TradeStats } from '../../utils/tradeStats';
+import type { GroupedTrade, TradeStats } from '../../utils/tradeStats';
 import { formatTime } from '../../utils/formatters';
+import { pnlColor } from './statsHelpers';
 
 // ── Animated number hook ─────────────────────────────────────────────────────
 
@@ -168,25 +169,56 @@ const CARD_STYLE: React.CSSProperties = {
   padding: '20px 24px',
 };
 
-function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
+function StatCard({ label, action, children }: { label: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={CARD_STYLE}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', marginBottom: 10, letterSpacing: '0.02em' }}>
-        {label}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.02em' }}>
+          {label}
+        </div>
+        {action}
       </div>
       {children}
     </div>
   );
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Best/Worst toggle ────────────────────────────────────────────────────────
 
-import { pnlColor } from './statsHelpers';
+type BestWorstMode = '$' | 'points';
+
+function BestWorstToggle({ mode, onChange }: { mode: BestWorstMode; onChange: (m: BestWorstMode) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 12 }}>
+      {(['$', 'points'] as const).map(opt => (
+        <button
+          key={opt}
+          onClick={() => onChange(opt)}
+          className="transition-colors"
+          style={{
+            fontSize: 12, fontWeight: 600,
+            fontFamily: 'var(--font-family)',
+            border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+            color: mode === opt ? 'var(--color-warning)' : 'var(--color-text-muted)',
+          }}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // ── Main Export ──────────────────────────────────────────────────────────────
 
+function tradePoints(t: GroupedTrade | null): number | null {
+  if (!t || t.entryPrice == null) return null;
+  return t.isLong ? t.exitPrice - t.entryPrice : t.entryPrice - t.exitPrice;
+}
+
 export function StatsKpiCards({ stats }: { stats: TradeStats }) {
   const pf = stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2);
+  const [bestWorstMode, setBestWorstMode] = useState<BestWorstMode>('$');
 
   return (
     <div
@@ -239,31 +271,46 @@ export function StatsKpiCards({ stats }: { stats: TradeStats }) {
         </div>
       </StatCard>
 
-      <StatCard label="Best / Worst Trade">
+      <StatCard
+        label="Best / Worst Trade"
+        action={<BestWorstToggle mode={bestWorstMode} onChange={setBestWorstMode} />}
+      >
         <div className="flex items-center" style={{ height: 90 }}>
           <div className="flex" style={{ gap: 20 }}>
+            {/* Best trade */}
             <div>
-              {stats.bestTrade ? (
-                <AnimatedDollar value={stats.bestTrade.totalNet} fontSize={20} color="var(--color-buy)" />
-              ) : (
-                <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
-              )}
-              {stats.bestTrade && (
+              {bestWorstMode === '$' ? (
+                stats.bestTrade
+                  ? <AnimatedDollar value={stats.bestTrade.totalNet} fontSize={20} color="var(--color-buy)" />
+                  : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
+              ) : (() => {
+                const p = tradePoints(stats.bestTradeByPoints);
+                return p != null
+                  ? <AnimatedNumber value={p} fontSize={20} color="var(--color-buy)" prefix={p >= 0 ? '+' : ''} suffix=" pts" />
+                  : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>;
+              })()}
+              {(bestWorstMode === '$' ? stats.bestTrade : stats.bestTradeByPoints) && (
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                  {formatTime(stats.bestTrade.exitTime, true)}
+                  {formatTime((bestWorstMode === '$' ? stats.bestTrade! : stats.bestTradeByPoints!).exitTime, true)}
                 </div>
               )}
             </div>
             <div style={{ width: 1, background: 'var(--color-border)', alignSelf: 'stretch' }} />
+            {/* Worst trade */}
             <div>
-              {stats.worstTrade ? (
-                <AnimatedDollar value={stats.worstTrade.totalNet} fontSize={20} color="var(--color-sell)" />
-              ) : (
-                <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
-              )}
-              {stats.worstTrade && (
+              {bestWorstMode === '$' ? (
+                stats.worstTrade
+                  ? <AnimatedDollar value={stats.worstTrade.totalNet} fontSize={20} color="var(--color-sell)" />
+                  : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
+              ) : (() => {
+                const p = tradePoints(stats.worstTradeByPoints);
+                return p != null
+                  ? <AnimatedNumber value={p} fontSize={20} color="var(--color-sell)" prefix={p > 0 ? '+' : ''} suffix=" pts" />
+                  : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>;
+              })()}
+              {(bestWorstMode === '$' ? stats.worstTrade : stats.worstTradeByPoints) && (
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                  {formatTime(stats.worstTrade.exitTime, true)}
+                  {formatTime((bestWorstMode === '$' ? stats.worstTrade! : stats.worstTradeByPoints!).exitTime, true)}
                 </div>
               )}
             </div>

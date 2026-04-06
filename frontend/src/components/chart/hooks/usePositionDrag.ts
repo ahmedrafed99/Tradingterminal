@@ -203,6 +203,27 @@ export function usePositionDrag(
           showToast('warning', 'SL already exists for this position');
           return;
         }
+
+        // If the stop would be at or above current market price (long) or at or below (short),
+        // the exchange will reject it. Auto-close the position with a market order instead.
+        const currentPrice = st.lastPrice;
+        const isStopInvalid = currentPrice !== null && (
+          drag.isLong ? drag.snappedPrice >= currentPrice : drag.snappedPrice <= currentPrice
+        );
+        if (isStopInvalid) {
+          showToast('info', 'Stop above market — closing position');
+          orderService.placeOrder({
+            accountId: st.activeAccountId,
+            contractId: contract!.id,
+            type: OrderType.Market,
+            side: oppositeSide,
+            size: drag.posSize,
+          }).catch((err) => {
+            showToast('error', 'Close position failed', errorMessage(err));
+          });
+          return;
+        }
+
         orderService.placeOrder({
           accountId: st.activeAccountId,
           contractId: contract!.id,
@@ -211,7 +232,21 @@ export function usePositionDrag(
           size: drag.posSize,
           stopPrice: drag.snappedPrice,
         }).catch((err) => {
-          showToast('error', 'Stop Loss placement failed', errorMessage(err));
+          const msg = errorMessage(err).toLowerCase();
+          if (msg.includes('stop') && (msg.includes('above') || msg.includes('below'))) {
+            showToast('info', 'Stop at market — closing position');
+            orderService.placeOrder({
+              accountId: st.activeAccountId,
+              contractId: contract!.id,
+              type: OrderType.Market,
+              side: oppositeSide,
+              size: drag.posSize,
+            }).catch((closeErr) => {
+              showToast('error', 'Close position failed', errorMessage(closeErr));
+            });
+          } else {
+            showToast('error', 'Stop Loss placement failed', errorMessage(err));
+          }
         });
       } else {
         // TP: validate remaining contracts
