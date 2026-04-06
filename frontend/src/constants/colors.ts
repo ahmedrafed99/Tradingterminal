@@ -47,6 +47,10 @@ export const COLOR_HEAT_RED = v('--color-heat-red');
 export const COLOR_WARNING = v('--color-warning');
 export const COLOR_ERROR = v('--color-error');
 
+// ── News Events ──
+export const COLOR_NEWS_EVENT = v('--color-news-event');
+export const COLOR_NEWS_EVENT_HOVER = v('--color-news-event-hover');
+
 // ── Buy / Sell Button Shades ──
 export const COLOR_BTN_BUY = v('--color-btn-buy');
 export const COLOR_BTN_BUY_HOVER = v('--color-btn-buy-hover');

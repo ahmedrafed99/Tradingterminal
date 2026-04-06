@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import { Modal } from '../shared/Modal';
 import { CustomSelect } from '../shared/CustomSelect';
 import type {
@@ -64,7 +65,14 @@ function ChevronDown() {
 
 export function BracketSettingsModal() {
   const { editingPresetId, setEditingPresetId, bracketPresets, savePreset, deletePreset, setActivePresetId } =
-    useStore();
+    useStore(useShallow((s) => ({
+      editingPresetId: s.editingPresetId,
+      setEditingPresetId: s.setEditingPresetId,
+      bracketPresets: s.bracketPresets,
+      savePreset: s.savePreset,
+      deletePreset: s.deletePreset,
+      setActivePresetId: s.setActivePresetId,
+    })));
 
   const isOpen = editingPresetId !== null;
   const isCreate = editingPresetId === 'new';

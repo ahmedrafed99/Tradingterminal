@@ -1,5 +1,6 @@
 import type { Bar } from '../../../services/marketDataService';
 import type { RulerMetrics } from '../../../types/drawing';
+import { snapToTickSize } from '../barUtils';
 
 export function computeRulerMetrics(
   bars: Bar[],
@@ -7,7 +8,7 @@ export function computeRulerMetrics(
   p2: { time: number; price: number },
   tickSize: number,
 ): RulerMetrics {
-  const snap = (p: number) => tickSize > 0 ? Math.round(p / tickSize) * tickSize : p;
+  const snap = (p: number) => tickSize > 0 ? snapToTickSize(p, tickSize) : p;
   const price1 = snap(p1.price);
   const price2 = snap(p2.price);
   const priceChange = price2 - price1;

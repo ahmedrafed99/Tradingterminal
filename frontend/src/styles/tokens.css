@@ -38,6 +38,8 @@
   --color-accent-text: #5b8def;
   --color-warning: #f0a830;
   --color-error: #f23645;
+  --color-news-event: #9b59b6;
+  --color-news-event-hover: #b07cc6;
 
   /* ── Copy Trading Roles ── */
   --color-role-master: #3c9cef;

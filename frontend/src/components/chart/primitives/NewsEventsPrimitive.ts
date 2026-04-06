@@ -15,10 +15,10 @@ import { FONT_FAMILY } from '../../../constants/layout';
 
 const MARKER_RADIUS = 10;
 const BOTTOM_OFFSET = 14;
-const MARKER_COLOR = '#9b59b6';
-const MARKER_FILL = 'rgba(155, 89, 182, 0.18)';
 
-import { COLOR_SELL, COLOR_BUY, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER } from '../../../constants/colors';
+import { COLOR_SELL, COLOR_BUY, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_NEWS_EVENT, COLOR_NEWS_EVENT_HOVER } from '../../../constants/colors';
+
+const MARKER_FILL = COLOR_NEWS_EVENT + '2e'; // 18% opacity
 import { SHADOW, RADIUS } from '../../../constants/layout';
 
 const IMPACT_COLORS: Record<string, string> = {
@@ -57,9 +57,9 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
         // Circle
         ctx.beginPath();
         ctx.arc(m.x, y, MARKER_RADIUS, 0, Math.PI * 2);
-        ctx.fillStyle = isHovered ? 'rgba(155, 89, 182, 0.30)' : MARKER_FILL;
+        ctx.fillStyle = isHovered ? COLOR_NEWS_EVENT + '4d' : MARKER_FILL; // 30% / 18% opacity
         ctx.fill();
-        ctx.strokeStyle = isHovered ? '#b07cc6' : MARKER_COLOR;
+        ctx.strokeStyle = isHovered ? COLOR_NEWS_EVENT_HOVER : COLOR_NEWS_EVENT;
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
@@ -74,11 +74,11 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
         ctx.lineTo(3, -1);
         ctx.lineTo(0, -1);
         ctx.closePath();
-        ctx.fillStyle = isHovered ? '#b07cc6' : MARKER_COLOR;
+        ctx.fillStyle = isHovered ? COLOR_NEWS_EVENT_HOVER : COLOR_NEWS_EVENT;
         ctx.fill();
 
         if (isHovered) {
-          ctx.shadowColor = MARKER_COLOR;
+          ctx.shadowColor = COLOR_NEWS_EVENT;
           ctx.shadowBlur = 8;
           ctx.fill();
           ctx.shadowBlur = 0;
