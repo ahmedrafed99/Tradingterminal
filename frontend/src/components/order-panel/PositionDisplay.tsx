@@ -18,6 +18,8 @@ export function PositionDisplay() {
     activeAccountId: s.activeAccountId,
   })));
   const pnlRef = useRef<number>(0);
+  const priceDiffRef = useRef<number>(0);
+  const [pnlMode, setPnlMode] = useState<'$' | 'points'>('$');
 
   const pos = orderContract ? positions.find((p) => p.accountId === activeAccountId && String(p.contractId) === String(orderContract.id)) : undefined;
   const hasPos = pos != null && pos.size !== 0;
@@ -35,12 +37,14 @@ export function PositionDisplay() {
   const sign = isLong ? '+' : '-';
 
   if (lastPrice != null) {
-    const priceDiff = isLong
+    const diff = isLong
       ? lastPrice - pos.averagePrice
       : pos.averagePrice - lastPrice;
-    pnlRef.current = calcPnl(priceDiff, orderContract, pos.size);
+    priceDiffRef.current = diff;
+    pnlRef.current = calcPnl(diff, orderContract, pos.size);
   }
   const pnl = pnlRef.current;
+  const priceDiff = priceDiffRef.current;
 
   const inProfit = pnl > 0;
 
@@ -86,16 +90,20 @@ export function PositionDisplay() {
           </div>
         </div>
 
-        {/* P&L section — hero element */}
+        {/* P&L section — hero element, click to toggle $ / points */}
         <div
           className="transition-colors"
-          style={{ background: pnlBg, padding: '8px 12px', textAlign: 'center' }}
+          style={{ background: pnlBg, padding: '8px 12px', textAlign: 'center', cursor: 'pointer' }}
+          onClick={() => setPnlMode(m => m === '$' ? 'points' : '$')}
+          title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
         >
           <div
             className="font-bold tabular-nums"
             style={{ color: pnlColor, fontSize: 18, lineHeight: 1.1, letterSpacing: '-0.02em' }}
           >
-            {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} $
+            {pnlMode === '$'
+              ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} $`
+              : `${priceDiff >= 0 ? '+' : ''}${priceDiff.toFixed(2)} pts`}
           </div>
         </div>
       </div>
