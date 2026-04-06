@@ -415,7 +415,7 @@ Snaps drawing placement and drag positions to the nearest candle Open/High/Low/C
 **Activation:**
 - **Persistent toggle**: Magnet button in the toolbar (between tool divider and trash can). Stays on across drawings. Toolbar button highlights when active.
 - **`M` key** (rebindable in Settings → Shortcuts): same as clicking the toolbar button.
-- **Ctrl-hold**: Temporary activation while Ctrl is held. Toolbar button highlights during hold. Additive — works even when the persistent toggle is off.
+- **Alt-hold**: Temporary activation while Alt is held. Toolbar button highlights during hold. Additive — works even when the persistent toggle is off. `preventDefault` on Alt keydown prevents the Windows browser menu bar from stealing focus (without it, every other Alt press would be swallowed by the browser until a mouse click restored focus). A `window blur` listener resets state if focus escapes anyway.
 
 **Behavior:**
 - Always snaps to the closest of O/H/L/C of the bar at cursor X (no threshold — always snaps when active).
@@ -427,7 +427,7 @@ Snaps drawing placement and drag positions to the nearest candle Open/High/Low/C
 
 **Implementation files:**
 - `frontend/src/components/chart/drawings/magnetSnap.ts` — `snapPriceToOHLC`, `isMagnetActive`, `maybeSnap` utilities
-- `frontend/src/components/chart/hooks/useChartDrawings.ts` — crosshair mode switching, Ctrl-hold tracking, hline click placement
+- `frontend/src/components/chart/hooks/useChartDrawings.ts` — crosshair mode switching, Alt-hold tracking, hline click placement
 - `frontend/src/components/chart/hooks/drawingHandlers.ts` — `maybeSnap` applied at all mousedown/mousemove/mouseup placement points
 
 ### Click-to-select
@@ -481,7 +481,8 @@ Registry: `frontend/src/constants/shortcuts.ts` — central `SHORTCUT_DEFS` arra
 | `Delete` / `Backspace` | Remove selected drawing(s) — single or bulk delete (guarded: not in input/textarea) | Yes |
 | `Ctrl+Z` / `Cmd+Z` | Undo last drawing mutation including bulk deletes | Yes |
 | `M` | Toggle magnet OHLC snap (persistent toggle — toolbar button highlights) | Yes |
-| `Ctrl+Hold` | Temporary magnet snap (additive — also snaps even if toggle is off) + horizontal snap for free draw / arrow path | No |
+| `Alt+Hold` | Temporary magnet snap (additive — also snaps even if toggle is off). `preventDefault` stops browser menu bar from stealing focus on Windows. | No |
+| `Ctrl+Hold` | Horizontal snap for free draw / arrow path | No |
 | `Shift` (hold) | Quick ruler — activates ruler tool while held, restores select on release | No |
 | `Ctrl+Drag` | Multi-select drawings via area selection | No |
 

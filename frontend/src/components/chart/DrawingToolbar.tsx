@@ -82,14 +82,35 @@ function ChevronRight({ className }: { className?: string }) {
   );
 }
 
-const TOOLS: { id: DrawingTool; icon: React.FC; label: string }[] = [
-{ id: 'hline', icon: HLineIcon, label: 'Horizontal Line' },
+const TOOLS: { id: DrawingTool; icon: React.FC; label: string; shortcut?: string; shortcutDesc?: string }[] = [
+  { id: 'hline', icon: HLineIcon, label: 'Horizontal Line' },
   { id: 'rect', icon: RectIcon, label: 'Rectangle' },
   { id: 'oval', icon: OvalIcon, label: 'Oval' },
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
-  { id: 'ruler', icon: RulerIcon, label: 'Ruler' },
+  { id: 'ruler', icon: RulerIcon, label: 'Ruler', shortcut: 'Shift', shortcutDesc: 'Hold for quick ruler' },
   { id: 'freedraw', icon: BrushIcon, label: 'Free Draw' },
 ];
+
+function ToolTooltip({ label, shortcut, shortcutDesc, children }: { label: string; shortcut?: string; shortcutDesc?: string; children: React.ReactNode }) {
+  return (
+    <div className="group relative flex">
+      {children}
+      <div
+        className="absolute left-full ml-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-2 py-1 rounded bg-(--color-panel) border border-(--color-border) text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-150"
+        style={{ zIndex: 9999 }}
+      >
+        <span className="text-white font-medium">{label}</span>
+        {shortcut && (
+          <>
+            <span className="text-(--color-text-muted) mx-0.5">|</span>
+            <span className="px-1.5 py-0.5 rounded bg-(--color-border) text-white font-mono text-[10px] leading-tight">{shortcut}</span>
+            {shortcutDesc && <span className="text-(--color-text-muted)">{shortcutDesc}</span>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function DrawingToolbar() {
   const open = useStore((s) => s.drawingToolbarOpen);
@@ -104,11 +125,17 @@ export function DrawingToolbar() {
   const [ctrlHeld, setCtrlHeld] = useState(false);
 
   useEffect(() => {
-    const down = (e: KeyboardEvent) => { if (e.key === 'Control' || e.key === 'Meta') setCtrlHeld(true); };
-    const up = (e: KeyboardEvent) => { if (e.key === 'Control' || e.key === 'Meta') setCtrlHeld(false); };
+    const down = (e: KeyboardEvent) => { if (e.key === 'Alt') { e.preventDefault(); setCtrlHeld(true); } };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Alt') setCtrlHeld(false); };
+    const blur = () => setCtrlHeld(false);
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
-    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+    window.addEventListener('blur', blur);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', blur);
+    };
   }, []);
 
   const handleToggle = () => {
@@ -143,48 +170,50 @@ export function DrawingToolbar() {
           style={{ padding: '4px 0', marginBottom: 4 }}
           onAnimationEnd={handleAnimationEnd}
         >
-          {TOOLS.map(({ id, icon: Icon, label }) => (
+          {TOOLS.map(({ id, icon: Icon, label, shortcut, shortcutDesc }) => (
+            <ToolTooltip key={id} label={label} shortcut={shortcut} shortcutDesc={shortcutDesc}>
+              <button
+                onClick={() => setTool(id)}
+                className={`flex items-center justify-center ${
+                  activeTool === id
+                    ? 'bg-(--color-border) text-white'
+                    : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
+                }`}
+                style={{ width: 36, height: 34 }}
+              >
+                <Icon />
+              </button>
+            </ToolTooltip>
+          ))}
+          <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
+          <ToolTooltip label="Magnet Snap" shortcut="M" shortcutDesc="toggle · Alt hold">
             <button
-              key={id}
-              onClick={() => setTool(id)}
-              className={`flex items-center justify-center ${
-                activeTool === id
+              onClick={toggleMagnet}
+              className={`flex items-center justify-center transition-colors ${
+                magnetEnabled || ctrlHeld
                   ? 'bg-(--color-border) text-white'
                   : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
               }`}
               style={{ width: 36, height: 34 }}
-              title={label}
             >
-              <Icon />
+              <MagnetIcon />
             </button>
-          ))}
+          </ToolTooltip>
           <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
-          <button
-            onClick={toggleMagnet}
-            className={`flex items-center justify-center transition-colors ${
-              magnetEnabled || ctrlHeld
-                ? 'bg-(--color-border) text-white'
-                : 'text-(--color-text-muted) hover:text-white hover:bg-(--color-border)/50'
-            }`}
-            style={{ width: 36, height: 34 }}
-            title="Magnet snap (M) — snaps to candle OHLC"
-          >
-            <MagnetIcon />
-          </button>
-          <div className="border-t border-(--color-border)" style={{ margin: '2px 6px' }} />
-          <button
-            onClick={clearAllDrawings}
-            disabled={drawings.length === 0}
-            className={`flex items-center justify-center transition-colors ${
-              drawings.length > 0
-                ? 'text-(--color-text-muted) hover:text-red-400 hover:bg-(--color-border)/50'
-                : 'text-(--color-text-muted) disabled:opacity-50 cursor-default'
-            }`}
-            style={{ width: 36, height: 34 }}
-            title="Delete all drawings"
-          >
-            <TrashIcon />
-          </button>
+          <ToolTooltip label="Clear All Drawings">
+            <button
+              onClick={clearAllDrawings}
+              disabled={drawings.length === 0}
+              className={`flex items-center justify-center transition-colors ${
+                drawings.length > 0
+                  ? 'text-(--color-text-muted) hover:text-red-400 hover:bg-(--color-border)/50'
+                  : 'text-(--color-text-muted) disabled:opacity-50 cursor-default'
+              }`}
+              style={{ width: 36, height: 34 }}
+            >
+              <TrashIcon />
+            </button>
+          </ToolTooltip>
         </div>
       )}
 

@@ -153,13 +153,19 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       if (s.magnetEnabled !== prev.magnetEnabled) applyMagnetCrosshairMode(s.magnetEnabled);
     });
     const onCtrlDown = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.key === 'Meta') applyMagnetCrosshairMode(true);
+      if (e.key === 'Alt') {
+        e.preventDefault(); // prevent browser menu bar from stealing focus on Windows
+        applyMagnetCrosshairMode(true);
+      }
     };
     const onCtrlUp = (e: KeyboardEvent) => {
-      if (e.key === 'Control' || e.key === 'Meta') applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
+      if (e.key === 'Alt') applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
     };
+    // Reset if window loses focus (e.g. Alt triggers OS/browser menu despite preventDefault)
+    const onWindowBlur = () => applyMagnetCrosshairMode(useStore.getState().magnetEnabled);
     window.addEventListener('keydown', onCtrlDown);
     window.addEventListener('keyup', onCtrlUp);
+    window.addEventListener('blur', onWindowBlur);
 
     // ── Overlay label hit testing (must be BEFORE drawing handlers) ──
     const onOverlayHitTest = (e: MouseEvent) => {
@@ -278,6 +284,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       unsubMagnet();
       window.removeEventListener('keydown', onCtrlDown);
       window.removeEventListener('keyup', onCtrlUp);
+      window.removeEventListener('blur', onWindowBlur);
       chart.applyOptions({ crosshair: { mode: CrosshairMode.Normal } });
       container.removeEventListener('mousedown', handleCtrlSelect);
       container.removeEventListener('mousedown', handleResize);

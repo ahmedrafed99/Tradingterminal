@@ -28,7 +28,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'drawing.ctrlSnap', label: 'Horizontal snap',     category: 'Drawing', defaults: [{ key: 'Ctrl+Hold' }], rebindable: false },
   { id: 'drawing.shiftRuler', label: 'Quick ruler (hold)', category: 'Drawing', defaults: [{ key: 'Shift+Hold' }], rebindable: false },
   { id: 'drawing.toggleMagnet', label: 'Toggle magnet snap', category: 'Drawing', defaults: [{ key: 'm' }], rebindable: true },
-  { id: 'drawing.magnetHold', label: 'Magnet snap (hold)', category: 'Drawing', defaults: [{ key: 'Ctrl+Hold' }], rebindable: false },
+  { id: 'drawing.magnetHold', label: 'Magnet snap (hold)', category: 'Drawing', defaults: [{ key: 'Alt+Hold' }], rebindable: false },
 ];
 
 /** Default combos keyed by shortcut ID */

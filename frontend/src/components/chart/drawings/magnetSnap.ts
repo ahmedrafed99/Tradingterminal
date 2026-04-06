@@ -4,7 +4,7 @@ import { useStore } from '../../../store/useStore';
 
 /** Returns true if magnet mode is active (persistent toggle OR Ctrl held). */
 export function isMagnetActive(e: MouseEvent | null): boolean {
-  return useStore.getState().magnetEnabled || (e?.ctrlKey ?? false);
+  return useStore.getState().magnetEnabled || (e?.altKey ?? false);
 }
 
 /** Binary search bars (sorted by time asc) for the bar matching targetTime (unix seconds). */
