@@ -5,7 +5,7 @@ import { useStore } from '../../../store/useStore';
 import { DEFAULT_HLINE_COLOR } from '../../../types/drawing';
 import { snapPriceToOHLC } from '../drawings/magnetSnap';
 import type { ChartRefs } from './types';
-import { CROSSHAIR_CURSOR, createDrawingState } from './drawingInteraction';
+import { CROSSHAIR_CURSOR, createDrawingState, getMousePos } from './drawingInteraction';
 import type { DrawingContext } from './drawingInteraction';
 import {
   onShiftRulerKey,
@@ -91,9 +91,14 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
 
     // Click handler for hline placement + selection
     const handleClick = (param: { point?: { x: number; y: number }; hoveredObjectId?: unknown }) => {
-      if (!param.point) return;
       if (state.drawingDragOccurred) { state.drawingDragOccurred = false; return; }
       const { activeTool, addDrawing, setActiveTool, setSelectedDrawingIds, drawingDefaults } = useStore.getState();
+      if (!param.point) {
+        // Click was on the price scale or time scale (outside the main pane).
+        // Still deselect any selected drawing so clicking the scales feels like "clicking away".
+        if (activeTool === 'select') setSelectedDrawingIds([]);
+        return;
+      }
 
       if (activeTool === 'hline') {
         const rawPrice = series.coordinateToPrice(param.point.y);
@@ -214,6 +219,20 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     container.addEventListener('mousedown', handleOvalDown);
     container.addEventListener('mousedown', handleFreeDrawDown);
 
+    // ── Deselect on empty-space click (fallback for when subscribeClick doesn't fire) ──
+    // Runs AFTER other handlers so stopImmediatePropagation from onOverlayHitTest still blocks it.
+    const handleDeselectOnEmptyClick = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (e.ctrlKey || e.shiftKey) return;
+      const st = useStore.getState();
+      if (st.activeTool !== 'select') return;
+      if (st.selectedDrawingIds.length === 0) return;
+      const { x, y } = getMousePos(e, container);
+      const hit = primitive.hitTest(x, y);
+      if (!hit) st.setSelectedDrawingIds([]);
+    };
+    container.addEventListener('mousedown', handleDeselectOnEmptyClick);
+
     // ── Double-click + context menu ──
     const handleDbl = (e: MouseEvent) => onDblClick(e, ctx);
     const handleCtx = (e: MouseEvent) => onContextMenu(e, ctx);
@@ -300,6 +319,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       container.removeEventListener('mousedown', handleRectDown);
       container.removeEventListener('mousedown', handleOvalDown);
       container.removeEventListener('mousedown', handleFreeDrawDown);
+      container.removeEventListener('mousedown', handleDeselectOnEmptyClick);
       container.removeEventListener('dblclick', handleDbl);
       container.removeEventListener('contextmenu', handleCtx);
       container.removeEventListener('mousemove', handleHover);

@@ -828,7 +828,12 @@ export function DrawingEditToolbar({
           boxShadow: SHADOW.LG,
         }}
         onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          if (!(e.target as HTMLElement).closest('button, input, select, textarea')) {
+            setSelectedDrawingIds([]);
+          }
+        }}
       >
         <span className="text-xs text-(--color-text-muted)" style={{ padding: '0 8px' }}>
           {multiDrawings.length} selected
@@ -865,7 +870,12 @@ export function DrawingEditToolbar({
         boxShadow: SHADOW.LG,
       }}
       onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        if (!(e.target as HTMLElement).closest('button, input, select, textarea')) {
+          setSelectedDrawingIds([]);
+        }
+      }}
     >
       {/* Color picker */}
       <div className="relative">

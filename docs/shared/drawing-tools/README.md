@@ -436,9 +436,14 @@ Snaps drawing placement and drag positions to the nearest candle Open/High/Low/C
 
 ### Click-to-select
 
-- `chart.subscribeClick()` handler
+**Selection** uses `chart.subscribeClick()`:
 - If `hoveredObjectId` from `hitTest()` → `setSelectedDrawingIds([id])`
 - If no hovered object → `setSelectedDrawingIds([])` (deselect)
+- If `param.point` is null (click on price/time scale axis) → also deselects
+
+**Deselection fallback** — `subscribeClick` is an internal LWC event that can be blocked by HTML overlays (toolbar, order labels). A dedicated DOM `mousedown` listener (`handleDeselectOnEmptyClick`) on the chart container runs after all other handlers. If `activeTool === 'select'` and `primitive.hitTest()` returns no hit, it calls `setSelectedDrawingIds([])` immediately on mousedown, independently of `subscribeClick`.
+
+- `DrawingEditToolbar` background clicks (not on buttons) also explicitly deselect to handle clicks absorbed by the toolbar overlay.
 
 ### Multi-select (Ctrl+drag area selection)
 

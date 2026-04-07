@@ -570,6 +570,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     }
     refs.crosshairLabel.current?.suppress(false);
     state.drawingDrag = null;
+    state.drawingDragOccurred = false;
     container.style.cursor = CROSSHAIR_CURSOR;
     chart.applyOptions({ handleScroll: true, handleScale: true, crosshair: { horzLine: { labelVisible: true } } });
     return;
