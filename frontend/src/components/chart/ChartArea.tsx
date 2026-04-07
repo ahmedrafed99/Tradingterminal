@@ -17,10 +17,12 @@ export function ChartArea() {
   const splitRatio = useStore((s) => s.splitRatio);
   const setSplitRatio = useStore((s) => s.setSplitRatio);
   const setSecondContract = useStore((s) => s.setSecondContract);
+  const [separatorDragging, setSeparatorDragging] = useState(false);
 
   const leftRef = useRef<CandlestickChartHandle>(null);
   const rightRef = useRef<CandlestickChartHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
 
   // Defer right chart mount by one frame so flex layout settles first.
   // Without this, the right chart's createChart() fires before the left panel
@@ -28,11 +30,10 @@ export function ChartArea() {
   const [rightChartReady, setRightChartReady] = useState(false);
 
   useEffect(() => {
-    if (dualChart) {
+    if (dualChart && !rightChartReady) {
       const id = requestAnimationFrame(() => setRightChartReady(true));
-      return () => { cancelAnimationFrame(id); setRightChartReady(false); };
+      return () => cancelAnimationFrame(id);
     }
-    setRightChartReady(false);
   }, [dualChart]);
 
   // -- MNQ auto-load when dual mode is enabled --
@@ -203,7 +204,7 @@ export function ChartArea() {
       <DrawingToolbar />
       {/* Left chart panel */}
       <div
-        style={{ flex: dualChart ? splitRatio : 1 }}
+        style={{ flex: dualChart ? splitRatio : 1, pointerEvents: separatorDragging ? 'none' : undefined }}
         className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
       >
         {dualChart && <SelectionOverlay visible={isSelected('left')} />}
@@ -227,30 +228,30 @@ export function ChartArea() {
           containerRef={containerRef}
           splitRatio={splitRatio}
           setSplitRatio={setSplitRatio}
+          onDragStart={() => setSeparatorDragging(true)}
+          onDragEnd={() => setSeparatorDragging(false)}
         />
       )}
 
-      {/* Right chart panel */}
-      {dualChart && (
-        <div
-          style={{ flex: 1 - splitRatio }}
-          className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
-        >
-          <SelectionOverlay visible={isSelected('right')} />
-          {rightChartReady && secondContract ? (
-            <CandlestickChart
-              ref={rightRef}
-              chartId="right"
-              contract={secondContract}
-              timeframe={secondTimeframe}
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-(--color-text-dim) text-sm">{secondContract ? '' : 'Loading MNQ...'}</p>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Right chart panel — always mounted to avoid remount cost on toggle */}
+      <div
+        style={{ flex: 1 - splitRatio, display: dualChart ? undefined : 'none', pointerEvents: separatorDragging ? 'none' : undefined }}
+        className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
+      >
+        <SelectionOverlay visible={isSelected('right')} />
+        {rightChartReady && secondContract ? (
+          <CandlestickChart
+            ref={rightRef}
+            chartId="right"
+            contract={secondContract}
+            timeframe={secondTimeframe}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-(--color-text-dim) text-sm">{secondContract ? '' : 'Loading MNQ...'}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -262,36 +263,49 @@ function DraggableSeparator({
   containerRef,
   splitRatio,
   setSplitRatio,
+  onDragStart,
+  onDragEnd,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
   splitRatio: number;
   setSplitRatio: (ratio: number) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const rectRef = useRef<DOMRect | null>(null);
 
   useEffect(() => {
     if (!dragging) return;
 
+    let rafId = 0;
+
     function onMouseMove(e: MouseEvent) {
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const ratio = (e.clientX - rect.left) / rect.width;
-      setSplitRatio(ratio);
+      const rect = rectRef.current;
+      if (!rect) return;
+      cancelAnimationFrame(rafId);
+      const clientX = e.clientX;
+      rafId = requestAnimationFrame(() => {
+        const ratio = Math.min(0.9, Math.max(0.1, (clientX - rect.left) / rect.width));
+        setSplitRatio(ratio);
+      });
     }
 
     function onMouseUp() {
+      cancelAnimationFrame(rafId);
       setDragging(false);
+      onDragEnd();
     }
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
 
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragging, containerRef, setSplitRatio]);
+  }, [dragging, setSplitRatio, onDragEnd]);
 
   return (
     <div
@@ -300,7 +314,9 @@ function DraggableSeparator({
       }`}
       onMouseDown={(e) => {
         e.preventDefault();
+        rectRef.current = containerRef.current?.getBoundingClientRect() ?? null;
         setDragging(true);
+        onDragStart();
       }}
     />
   );

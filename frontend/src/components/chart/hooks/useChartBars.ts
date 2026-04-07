@@ -88,7 +88,7 @@ export function useChartBars(
 
         const periodSec = getCandlePeriodSeconds(timeframe);
         const TARGET_FUTURE_SECS = 90 * 86400;
-        const wsCount = Math.max(50, Math.ceil(TARGET_FUTURE_SECS / periodSec));
+        const wsCount = Math.min(2000, Math.max(50, Math.ceil(TARGET_FUTURE_SECS / periodSec)));
 
         let displayCandles = candles;
         if (sessionMode) {

@@ -31,13 +31,13 @@ function VerticalSeparator({
   onToggle: () => void;
 }) {
   const [dragging, setDragging] = useState(false);
+  const rectRef = useRef<DOMRect | null>(null);
 
   useEffect(() => {
     if (!dragging) return;
     function onMouseMove(e: MouseEvent) {
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      const rect = rectRef.current;
+      if (!rect) return;
       const ratio = (e.clientY - rect.top) / rect.height;
       onDrag(ratio);
     }
@@ -48,14 +48,14 @@ function VerticalSeparator({
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [dragging, containerRef, onDrag]);
+  }, [dragging, onDrag]);
 
   return (
     <div
       className={`group relative h-1 cursor-row-resize flex-shrink-0 transition-colors ${
         dragging ? 'bg-(--color-accent)' : 'bg-(--color-separator) hover:bg-(--color-text-dim)'
       }`}
-      onMouseDown={(e) => { e.preventDefault(); setDragging(true); }}
+      onMouseDown={(e) => { e.preventDefault(); rectRef.current = containerRef.current?.getBoundingClientRect() ?? null; setDragging(true); }}
     >
       <button
         className={`absolute left-1/2 -translate-x-1/2 -top-2 z-10
@@ -180,7 +180,7 @@ export default function App() {
       {/* Main content area */}
       <main className="flex-1 flex flex-row min-h-0">
         {orderPanelSide === 'left' && <OrderPanel side="left" />}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
           <ChartToolbar />
           <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
             <div

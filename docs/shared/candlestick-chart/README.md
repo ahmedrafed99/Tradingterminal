@@ -194,15 +194,17 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   populates, causing the badge to show normal hours even on early-close days.
 - Maximum bars per request: 20,000 (API limit); paginate if needed for longer
   history
-- **Whitespace padding + right offset**: After loading historical bars, 500
-  future whitespace data points (`{ time }` only, no OHLC) are added to a
-  separate invisible `LineSeries`. This extends the time scale so the
-  crosshair time label remains visible when hovering past the latest candle.
-  The whitespace lives on its own series (not the candlestick series) so that
-  real-time `series.update()` calls are unaffected. Additionally,
-  `timeScale.rightOffset: 15` reserves a small buffer of scrollable empty
-  space beyond the last whitespace point, and `shiftVisibleRangeOnNewBar`
-  keeps the view auto-scrolling as new candles arrive.
+- **Whitespace padding + right offset**: After loading historical bars, future
+  whitespace data points (`{ time }` only, no OHLC) are added to a separate
+  invisible `LineSeries`. This extends the time scale so the crosshair time
+  label remains visible when hovering past the latest candle. Count is
+  `min(2000, max(50, ceil(90days / periodSec)))` — capped at 2000 to avoid
+  generating millions of objects for short timeframes (5s TF would otherwise
+  produce ~1.55M points). The whitespace lives on its own series so real-time
+  `series.update()` calls are unaffected. Additionally, `timeScale.rightOffset: 15`
+  reserves a small buffer of scrollable empty space beyond the last whitespace
+  point, and `shiftVisibleRangeOnNewBar` keeps the view auto-scrolling as new
+  candles arrive.
 - **Dual-chart crosshair sync** uses a `master` variable (`'left' | 'right' | null`)
   in `ChartArea.tsx`. The chart the mouse is on becomes master; crosshair-move
   events from the other chart are ignored entirely, preventing async bounce-back

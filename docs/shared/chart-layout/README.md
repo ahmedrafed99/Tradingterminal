@@ -103,7 +103,8 @@ Key changes from prior single-chart design:
 Layout container (`ChartArea.tsx`) managing single/dual chart view:
 
 - Uses `flex` layout with `style={{ flex: splitRatio }}` / `style={{ flex: 1 - splitRatio }}`
-- **Right chart deferred mount**: delays right chart mount by one `requestAnimationFrame` so flex layout settles before `createChart()` fires (prevents overflow glitch on toggle)
+- **Right chart always mounted**: the right chart panel renders at all times but uses `display: 'none'` when `!dualChart`. This avoids destroying and recreating the chart (including `series.setData()`) on every toggle — toggling dual mode is now instant. `rightChartReady` only flips `true` once (first dual-mode enable) and is never reset.
+- **Center column constrained**: `App.tsx` adds `min-w-0 overflow-hidden` to the center column so LightweightCharts canvas elements can never push the order panel off screen during separator drag.
 - **MNQ auto-load**: when `dualChart` becomes true and `secondContract` is null, searches for active MNQ contract
 - **Placeholder**: shows "Select an instrument" / "Loading MNQ..." text when contract is null
 
@@ -136,8 +137,12 @@ Internal `DraggableSeparator` component:
 - Colors: `bg-(--color-panel)` default, `hover:bg-(--color-text-dim)`, `bg-(--color-accent)` while dragging
 - `cursor: col-resize`
 - Tracks `dragging` state via `mousedown` → `window.mousemove` → `window.mouseup`
-- Computes ratio = `(clientX - container.left) / container.width`, calls `setSplitRatio()` (clamped in store)
-- Lightweight Charts `autoSize: true` handles chart resize automatically
+- **Rect cached on mousedown** (not re-queried per mousemove) — avoids synchronous layout reflow on every move event (per CLAUDE.md performance rules)
+- **RAF-throttled**: `setSplitRatio` is called inside `requestAnimationFrame` so at most one resize fires per rendered frame
+- **Pointer-events blocked**: both chart panels get `pointer-events: none` while `separatorDragging` is true — prevents charts from receiving stray mouse events mid-resize
+- **`lockVisibleTimeRangeOnResize: true`** on `CHART_OPTIONS.timeScale` — LightweightCharts natively locks the visible time range during canvas resize, preventing the visible range from shifting/drifting as the chart width changes
+- Ratio clamped to [0.2, 0.8] by the store's `setSplitRatio`
+- `App.tsx`'s vertical separator (`VerticalSeparator`) uses the same rect-cache pattern
 
 ---
 

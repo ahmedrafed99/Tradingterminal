@@ -74,6 +74,7 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
     secondsVisible: false,
     rightOffset: 15,
     shiftVisibleRangeOnNewBar: true,
+    lockVisibleTimeRangeOnResize: true,
   },
 };
 
