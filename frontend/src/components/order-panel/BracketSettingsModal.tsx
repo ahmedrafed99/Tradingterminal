@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { Modal } from '../shared/Modal';
 import { CustomSelect } from '../shared/CustomSelect';
+import { getTicksPerPoint } from '../../utils/instrument';
 import type {
   BracketConfig,
   StopLossConfig,
@@ -14,12 +15,90 @@ import type {
 import { DEFAULT_BRACKET_CONFIG, MAX_TP_LEVELS } from '../../types/bracket';
 
 // ---------------------------------------------------------------------------
+// Unit mode
+// ---------------------------------------------------------------------------
+
+type UnitMode = 'pts' | 'ticks' | 'pct';
+
+function toDisplay(points: number, mode: UnitMode, tpp: number, ref: number): number {
+  if (mode === 'ticks') return Math.round(points * tpp);
+  if (mode === 'pct') return ref > 0 ? +((points / ref) * 100).toFixed(3) : 0;
+  return points;
+}
+
+function fromDisplay(val: number, mode: UnitMode, tpp: number, ref: number): number {
+  if (mode === 'ticks') return val / tpp;
+  if (mode === 'pct') return (val / 100) * ref;
+  return val;
+}
+
+function unitLabel(mode: UnitMode): string {
+  if (mode === 'ticks') return 'ticks';
+  if (mode === 'pct') return '%';
+  return 'pts';
+}
+
+function unitStep(mode: UnitMode): number {
+  if (mode === 'ticks') return 1;
+  if (mode === 'pct') return 0.001;
+  return 1;
+}
+
+// ---------------------------------------------------------------------------
+// Unit toggle component
+// ---------------------------------------------------------------------------
+
+function UnitToggle({ value, onChange, canUsePct }: {
+  value: UnitMode;
+  onChange: (m: UnitMode) => void;
+  canUsePct: boolean;
+}) {
+  const tabs: { id: UnitMode; label: string }[] = [
+    { id: 'pts', label: 'pts' },
+    { id: 'ticks', label: 'ticks' },
+    { id: 'pct', label: '%' },
+  ];
+
+  return (
+    <div
+      className="flex items-center border border-(--color-border) rounded-lg"
+      style={{ background: 'var(--color-input)', padding: '3px', gap: '2px' }}
+    >
+      {tabs.map(({ id, label }) => {
+        const isActive = value === id;
+        const isDisabled = id === 'pct' && !canUsePct;
+        return (
+          <button
+            key={id}
+            onClick={() => !isDisabled && onChange(id)}
+            title={isDisabled ? 'No price data available' : undefined}
+            className={[
+              'text-[11px] font-medium rounded-md transition-all',
+              isActive
+                ? 'text-white'
+                : isDisabled
+                  ? 'text-(--color-text-dim) cursor-not-allowed'
+                  : 'text-(--color-text-muted) hover:text-(--color-text) cursor-pointer',
+            ].join(' ')}
+            style={{
+              padding: '4px 10px',
+              background: isActive ? 'var(--color-border)' : 'transparent',
+              transition: 'background 0.15s, color 0.15s',
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Shared styles
 // ---------------------------------------------------------------------------
 
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none';
-const SELECT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) appearance-none focus:outline-none focus:border-(--color-accent)/50 transition-all cursor-pointer';
-const OPTION_CLS = 'bg-(--color-surface) text-(--color-text-bright)';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -48,23 +127,11 @@ function getErrors(name: string, c: BracketConfig, triedSave: boolean): string[]
 }
 
 // ---------------------------------------------------------------------------
-// Chevron for selects
-// ---------------------------------------------------------------------------
-
-function ChevronDown() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute text-(--color-text-muted) pointer-events-none" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)' }}>
-      <polyline points="6 9 12 15 18 9" />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main Modal
 // ---------------------------------------------------------------------------
 
 export function BracketSettingsModal() {
-  const { editingPresetId, setEditingPresetId, bracketPresets, savePreset, deletePreset, setActivePresetId } =
+  const { editingPresetId, setEditingPresetId, bracketPresets, savePreset, deletePreset, setActivePresetId, orderContract, lastPrice } =
     useStore(useShallow((s) => ({
       editingPresetId: s.editingPresetId,
       setEditingPresetId: s.setEditingPresetId,
@@ -72,7 +139,13 @@ export function BracketSettingsModal() {
       savePreset: s.savePreset,
       deletePreset: s.deletePreset,
       setActivePresetId: s.setActivePresetId,
+      orderContract: s.orderContract,
+      lastPrice: s.lastPrice,
     })));
+
+  const tpp = orderContract ? getTicksPerPoint(orderContract) : 4;
+  const refPrice = lastPrice ?? 0;
+  const canUsePct = refPrice > 0;
 
   const isOpen = editingPresetId !== null;
   const isCreate = editingPresetId === 'new';
@@ -83,10 +156,12 @@ export function BracketSettingsModal() {
   const [name, setName] = useState('');
   const [draft, setDraft] = useState<BracketConfig>(structuredClone(DEFAULT_BRACKET_CONFIG));
   const [triedSave, setTriedSave] = useState(false);
+  const [unitMode, setUnitMode] = useState<UnitMode>('pts');
 
   useEffect(() => {
     if (!isOpen) return;
     setTriedSave(false);
+    setUnitMode('pts');
     if (isCreate) {
       setName('');
       setDraft(structuredClone(DEFAULT_BRACKET_CONFIG));
@@ -123,16 +198,19 @@ export function BracketSettingsModal() {
           <h2 className="text-sm font-semibold text-white">
             {isCreate ? 'New Bracket Preset' : 'Edit Bracket Preset'}
           </h2>
-          <button
-            onClick={() => setEditingPresetId(null)}
-            className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
-            style={{ width: '32px', height: '32px' }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div className="flex items-center" style={{ gap: '12px' }}>
+            <UnitToggle value={unitMode} onChange={setUnitMode} canUsePct={canUsePct} />
+            <button
+              onClick={() => setEditingPresetId(null)}
+              className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
+              style={{ width: '32px', height: '32px' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -158,6 +236,9 @@ export function BracketSettingsModal() {
               <StopLossSection
                 sl={draft.stopLoss}
                 onChange={(sl) => setDraft((d) => ({ ...d, stopLoss: sl }))}
+                unitMode={unitMode}
+                tpp={tpp}
+                refPrice={refPrice}
               />
             </section>
 
@@ -180,6 +261,9 @@ export function BracketSettingsModal() {
               <TakeProfitList
                 tps={draft.takeProfits}
                 onChange={(tps) => setDraft((d) => ({ ...d, takeProfits: tps }))}
+                unitMode={unitMode}
+                tpp={tpp}
+                refPrice={refPrice}
               />
             </section>
 
@@ -210,6 +294,9 @@ export function BracketSettingsModal() {
                 conditions={draft.conditions}
                 tpCount={draft.takeProfits.length}
                 onChange={(conditions) => setDraft((d) => ({ ...d, conditions }))}
+                unitMode={unitMode}
+                tpp={tpp}
+                refPrice={refPrice}
               />
             </section>
           </div>
@@ -276,20 +363,33 @@ export function BracketSettingsModal() {
 function StopLossSection({
   sl,
   onChange,
+  unitMode,
+  tpp,
+  refPrice,
 }: {
   sl: StopLossConfig;
   onChange: (sl: StopLossConfig) => void;
+  unitMode: UnitMode;
+  tpp: number;
+  refPrice: number;
 }) {
+  const displayVal = toDisplay(sl.points, unitMode, tpp, refPrice);
+  const step = unitStep(unitMode);
+  const label = `Distance (${unitLabel(unitMode)})`;
+
   return (
     <div className="grid grid-cols-2" style={{ gap: '12px' }}>
       <label>
-        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>Distance (Points)</span>
+        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>{label}</span>
         <input
           type="number"
           min={0}
-          step={1}
-          value={sl.points}
-          onChange={(e) => onChange({ ...sl, points: Math.max(0, +e.target.value || 0) })}
+          step={step}
+          value={displayVal}
+          onChange={(e) => {
+            const pts = fromDisplay(Math.max(0, +e.target.value || 0), unitMode, tpp, refPrice);
+            onChange({ ...sl, points: pts });
+          }}
           className={INPUT_CLS}
           style={{ padding: '9px 12px' }}
         />
@@ -317,9 +417,15 @@ function StopLossSection({
 function TakeProfitList({
   tps,
   onChange,
+  unitMode,
+  tpp,
+  refPrice,
 }: {
   tps: TakeProfitLevel[];
   onChange: (tps: TakeProfitLevel[]) => void;
+  unitMode: UnitMode;
+  tpp: number;
+  refPrice: number;
 }) {
   function updateTP(index: number, updated: TakeProfitLevel) {
     const next = [...tps];
@@ -348,6 +454,9 @@ function TakeProfitList({
           index={i}
           onChange={(updated) => updateTP(i, updated)}
           onRemove={() => removeTP(i)}
+          unitMode={unitMode}
+          tpp={tpp}
+          refPrice={refPrice}
         />
       ))}
     </div>
@@ -359,59 +468,69 @@ function TakeProfitRow({
   index,
   onChange,
   onRemove,
+  unitMode,
+  tpp,
+  refPrice,
 }: {
   tp: TakeProfitLevel;
   index: number;
   onChange: (updated: TakeProfitLevel) => void;
   onRemove: () => void;
+  unitMode: UnitMode;
+  tpp: number;
+  refPrice: number;
 }) {
+  const displayVal = toDisplay(tp.points, unitMode, tpp, refPrice);
+  const step = unitStep(unitMode);
+  const label = unitLabel(unitMode);
+
   return (
-    <div className="group/item flex items-center border border-(--color-border)/30 rounded-lg transition-all hover:border-(--color-border)/60" style={{ padding: '10px 12px', gap: '12px', background: 'var(--color-input)' }}>
-      {/* Index */}
-      <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0" style={{ width: '18px' }}>
-        {index + 1}
-      </span>
+    <div className="grid grid-cols-2" style={{ gap: '12px' }}>
+      {/* Distance field */}
+      <label>
+        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>
+          Target {index + 1} ({label})
+        </span>
+        <input
+          type="number"
+          min={unitMode === 'ticks' ? 1 : 0.001}
+          step={step}
+          value={displayVal}
+          onChange={(e) => {
+            const minPts = unitMode === 'ticks' ? 1 / tpp : unitMode === 'pct' ? 0 : 1;
+            const pts = fromDisplay(Math.max(unitMode === 'ticks' ? 1 : 0.001, +e.target.value || (unitMode === 'ticks' ? 1 : 0.001)), unitMode, tpp, refPrice);
+            onChange({ ...tp, points: Math.max(minPts, pts) });
+          }}
+          className={INPUT_CLS}
+          style={{ padding: '9px 12px' }}
+        />
+      </label>
 
-      {/* Fields */}
-      <div className="flex-1 grid grid-cols-2" style={{ gap: '12px' }}>
-        <div className="flex items-center" style={{ gap: '8px' }}>
-          <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0">Points</span>
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={tp.points}
-            onChange={(e) => onChange({ ...tp, points: Math.max(1, +e.target.value || 1) })}
-            className="w-full bg-transparent border-b border-(--color-border) focus:border-(--color-border) outline-none text-xs text-white transition-colors [&::-webkit-inner-spin-button]:appearance-none"
-            style={{ padding: '4px 0' }}
-          />
+      {/* Quantity field */}
+      <label>
+        <div className="flex items-center justify-between" style={{ marginBottom: '6px' }}>
+          <span className="text-[11px] text-(--color-text-muted)">Quantity</span>
+          <button
+            onClick={onRemove}
+            className="text-(--color-text-dim) hover:text-(--color-error) transition-colors"
+            title="Remove"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-        <div className="flex items-center" style={{ gap: '8px' }}>
-          <span className="text-[11px] text-(--color-text-muted) font-medium shrink-0">Quantity</span>
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={tp.size}
-            onChange={(e) => onChange({ ...tp, size: Math.max(1, +e.target.value || 1) })}
-            className="w-full bg-transparent border-b border-(--color-border) focus:border-(--color-border) outline-none text-xs text-white transition-colors [&::-webkit-inner-spin-button]:appearance-none"
-            style={{ padding: '4px 0' }}
-          />
-        </div>
-      </div>
-
-      {/* Remove */}
-      <button
-        onClick={onRemove}
-        className="opacity-0 group-hover/item:opacity-100 text-(--color-text-dim) hover:text-(--color-error) transition-all shrink-0"
-        style={{ padding: '4px' }}
-        title="Remove"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={tp.size}
+          onChange={(e) => onChange({ ...tp, size: Math.max(1, +e.target.value || 1) })}
+          className={INPUT_CLS}
+          style={{ padding: '9px 12px' }}
+        />
+      </label>
     </div>
   );
 }
@@ -424,10 +543,16 @@ function ConditionList({
   conditions,
   tpCount,
   onChange,
+  unitMode,
+  tpp,
+  refPrice,
 }: {
   conditions: BracketCondition[];
   tpCount: number;
   onChange: (conditions: BracketCondition[]) => void;
+  unitMode: UnitMode;
+  tpp: number;
+  refPrice: number;
 }) {
   function updateCondition(index: number, updated: BracketCondition) {
     const next = [...conditions];
@@ -456,6 +581,9 @@ function ConditionList({
           tpCount={tpCount}
           onChange={(updated) => updateCondition(i, updated)}
           onRemove={() => removeCondition(i)}
+          unitMode={unitMode}
+          tpp={tpp}
+          refPrice={refPrice}
         />
       ))}
     </div>
@@ -467,14 +595,22 @@ function ConditionRow({
   tpCount,
   onChange,
   onRemove,
+  unitMode,
+  tpp,
+  refPrice,
 }: {
   condition: BracketCondition;
   tpCount: number;
   onChange: (updated: BracketCondition) => void;
   onRemove: () => void;
+  unitMode: UnitMode;
+  tpp: number;
+  refPrice: number;
 }) {
   const triggerKind = condition.trigger.kind;
   const actionKind = condition.action.kind;
+  const label = unitLabel(unitMode);
+  const step = unitStep(unitMode);
 
   // Build action options (skip "Move SL to Target N" self-reference for tpFilled triggers)
   const actionOptions: { value: string; label: string }[] = [
@@ -503,6 +639,16 @@ function ConditionRow({
     return { kind: 'moveSLToBreakeven' };
   }
 
+  // Profit reached trigger display value
+  const profitDisplayVal = triggerKind === 'profitReached'
+    ? toDisplay((condition.trigger as { kind: 'profitReached'; points: number }).points, unitMode, tpp, refPrice)
+    : 0;
+
+  // Custom offset action display value
+  const offsetDisplayVal = actionKind === 'customOffset'
+    ? toDisplay((condition.action as { kind: 'customOffset'; points: number }).points, unitMode, tpp, refPrice)
+    : 0;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* When — trigger kind selector + sub-input */}
@@ -527,7 +673,7 @@ function ConditionRow({
             style={{ flex: 1 }}
           />
 
-          {/* Sub-input: TP index or profit points */}
+          {/* Sub-input: TP index or profit value */}
           {triggerKind === 'tpFilled' && (
             <CustomSelect
               value={String(condition.trigger.tpIndex)}
@@ -540,14 +686,17 @@ function ConditionRow({
             <div className="flex items-center flex-1" style={{ gap: '6px' }}>
               <input
                 type="number"
-                min={1}
-                step={1}
-                value={(condition.trigger as { kind: 'profitReached'; points: number }).points}
-                onChange={(e) => onChange({ ...condition, trigger: { kind: 'profitReached', points: Math.max(1, +e.target.value || 1) } })}
+                min={step}
+                step={step}
+                value={profitDisplayVal}
+                onChange={(e) => {
+                  const pts = fromDisplay(Math.max(step, +e.target.value || step), unitMode, tpp, refPrice);
+                  onChange({ ...condition, trigger: { kind: 'profitReached', points: Math.max(1, pts) } });
+                }}
                 className="w-16 bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
                 style={{ padding: '7px 8px' }}
               />
-              <span className="text-[11px] text-(--color-text-muted) shrink-0">pts profit</span>
+              <span className="text-[11px] text-(--color-text-muted) shrink-0">{label} profit</span>
             </div>
           )}
         </div>
@@ -581,14 +730,17 @@ function ConditionRow({
         <div className="flex items-center" style={{ marginLeft: '46px', gap: '8px' }}>
           <input
             type="number"
-            min={1}
-            step={1}
-            value={(condition.action as { kind: 'customOffset'; points: number }).points}
-            onChange={(e) => onChange({ ...condition, action: { kind: 'customOffset', points: Math.max(1, +e.target.value || 1) } })}
+            min={step}
+            step={step}
+            value={offsetDisplayVal}
+            onChange={(e) => {
+              const pts = fromDisplay(Math.max(step, +e.target.value || step), unitMode, tpp, refPrice);
+              onChange({ ...condition, action: { kind: 'customOffset', points: Math.max(1, pts) } });
+            }}
             className="w-20 bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
             style={{ padding: '6px 8px' }}
           />
-          <span className="text-[11px] text-(--color-text-muted)">points past entry</span>
+          <span className="text-[11px] text-(--color-text-muted)">{label} past entry</span>
         </div>
       )}
     </div>

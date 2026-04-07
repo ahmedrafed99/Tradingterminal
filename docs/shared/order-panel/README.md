@@ -80,6 +80,19 @@ and the preview toggle that overlays ghost lines on the chart.
 - Button text: `text-base font-medium text-(--color-text)`, uses proper minus sign `−`
 - Value stored as `orderSize` in Zustand
 
+### `BracketSettingsModal`
+- Full-screen modal for creating/editing bracket presets (`w-[480px]`, `rounded-2xl`)
+- **Unit toggle** (segmented pill in header, right-aligned): `pts` | `ticks` | `%` — default `pts`
+  - `pts`: raw points, stored as-is
+  - `ticks`: multiplied/divided by `ticksPerPoint` from `getTicksPerPoint(orderContract)` (falls back to 4)
+  - `%`: converts via `lastPrice` from store as reference price; tab is **disabled** when no price is available
+  - Unit mode is **display-only** — all values in `BracketConfig` are always stored in points
+  - Mode resets to `pts` every time the modal opens
+- **Stop Loss section**: `Distance ({unit})` input + Order Type dropdown (Stop Market / Trailing Stop) — side-by-side grid
+- **Take Profits section**: each target rendered as a `grid-cols-2` — `Target N ({unit})` input on left, `Quantity` on right (× delete button in the Quantity label row) — same visual style as SL (label above, bordered box input below, no outer card wrapper)
+- **Automation section**: condition rules (When/Then pairs) — profit-threshold and custom-offset inputs also respect the active unit mode
+- Validation fires on save attempt: preset name required; SL ≥ 1 pt when TPs present; TP pts ≥ 1 and size ≥ 1
+
 ### `BracketSummary`
 - Preset dropdown (no chevron arrow) + read-only config summary (SL, TPs, conditions)
 - Dropdown styled like timeframe selector: `bg-black border-(--color-border) rounded-lg`, items `rounded-md`, selected item `text-(--color-warning) bg-(--color-hover-row)`, hover `bg-(--color-hover-row)`
