@@ -633,7 +633,6 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         contractId: String(contract.id),
         sessionMode: refs.sessionModeActive.current,
       });
-      useStore.getState().setActiveTool('select');
       useStore.getState().setSelectedDrawingIds([createdId]);
     }
     state.freeDrawCreation = null;

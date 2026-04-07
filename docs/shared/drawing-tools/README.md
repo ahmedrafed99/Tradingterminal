@@ -390,10 +390,9 @@ Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow pa
 - Tool: `freedraw`
 - `mousedown` records anchor bar time, bar spacing, and first point; disables chart scroll; shows live CSS preview
 - `mousemove` adds points (3px minimum distance between points to avoid over-sampling); updates preview in real-time
-- `mouseup` finalizes the stroke as a `FreeDrawDrawing` with `anchorTime` + `barOffset/price` points
-- Auto-switches to select tool after each stroke and auto-selects the new drawing (edit toolbar appears immediately)
+- `mouseup` finalizes the stroke as a `FreeDrawDrawing` with `anchorTime` + `barOffset/price` points; auto-selects it (edit toolbar appears) while keeping the `freedraw` tool active so the next stroke starts immediately
 - **Ctrl = horizontal snap**: holding Ctrl while drawing locks Y to the last point's Y, forcing a perfectly horizontal continuation from the current position
-- Escape or right-click cancels in-progress stroke
+- Escape or right-click cancels an in-progress stroke; right-click when no stroke is in progress exits freedraw mode (switches to select tool)
 - **Smooth rendering**: uses `anchorTime` + fractional `barOffset` (pixel distance / bar spacing) instead of `coordinateToTime()` which snaps to discrete bar positions. On render: `pixelX = timeToCoordinate(anchorTime) + barOffset * currentBarSpacing`
 - **Stroke rendering**: `strokeWidth` is used directly in bitmap coordinate space (1 = 1 device pixel, the thinnest possible line) — not scaled by pixel ratio
 - Selected state shows start and end node handles (`COLOR_LABEL_TEXT` fill, `COLOR_HANDLE_STROKE` border — same style as arrow path)
