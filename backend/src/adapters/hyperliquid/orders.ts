@@ -59,11 +59,11 @@ function assertOrderStatuses(result: unknown, context: string): void {
 }
 
 /** Normalize a raw HL open order to our canonical shape */
-function normalizeOrder(o: HlOpenOrder): Record<string, unknown> {
+function normalizeOrder(o: HlOpenOrder, accountId: string): Record<string, unknown> {
   return {
     id: `${o.coin}:${o.oid}`,
     contractId: o.coin,
-    accountId: '',
+    accountId,
     side: o.side === 'B' ? OrderSide.Buy : OrderSide.Sell,
     size: parseFloat(o.sz),
     limitPrice: parseFloat(o.limitPx),
@@ -82,8 +82,13 @@ function normalizeOrder(o: HlOpenOrder): Record<string, unknown> {
  */
 function distributeSizes(tps: { price: number; size?: number }[], totalSize: number): number[] {
   const specifiedSum = tps.reduce((s, tp) => s + (tp.size ?? 0), 0);
+  if (specifiedSum > totalSize + 1e-9) {
+    throw new Error(`[HL] Explicit TP sizes (${specifiedSum}) exceed entry size (${totalSize})`);
+  }
   const unspecifiedCount = tps.filter((tp) => tp.size == null).length;
-  const equalShare = unspecifiedCount > 0 ? (totalSize - specifiedSum) / unspecifiedCount : 0;
+  const remainder = totalSize - specifiedSum;
+  const equalShare = unspecifiedCount > 0 ? remainder / unspecifiedCount : 0;
+  if (equalShare < 0) throw new Error(`[HL] TP size distribution produced negative share`);
   return tps.map((tp) => tp.size ?? equalShare);
 }
 
@@ -109,7 +114,7 @@ async function buildOrderWire(
   ]);
 
   const isBuy = sideToHl(params.side);
-  const sz = floatToWire(parseFloat(params.size.toFixed(szDecimals)));
+  const sz = params.size.toFixed(szDecimals);
 
   let orderType: Record<string, unknown>;
   let px: string;
@@ -129,11 +134,12 @@ async function buildOrderWire(
     // For trigger-market orders, p = triggerPx. Only limit-trigger uses a separate limitPrice.
     px = isMarket ? triggerPx : floatToWire(roundToSigFigs(params.limitPrice!, 5));
     orderType = { trigger: { isMarket, triggerPx, tpsl: 'sl' } };
-  } else {
-    // Limit
+  } else if (params.type === OrderType.Limit) {
     if (params.limitPrice == null) throw new Error('[HL] Limit orders require a limitPrice');
     px = floatToWire(roundToSigFigs(params.limitPrice, 5));
     orderType = { limit: { tif: 'Gtc' } };
+  } else {
+    throw new Error(`[HL] Unsupported order type: ${params.type}`);
   }
 
   return {
@@ -308,7 +314,7 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
       const isBuy = existing.side === 'B';
 
       // Resolve final values
-      const finalSize = size != null ? parseFloat(size.toFixed(szDecimals)) : parseFloat(existing.sz);
+      const finalSize = size != null ? size.toFixed(szDecimals) : existing.sz;
       const finalPx = limitPrice != null
         ? roundToSigFigs(limitPrice, 5)
         : parseFloat(existing.limitPx);
@@ -320,8 +326,11 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
           : (existing.triggerPx != null ? parseFloat(existing.triggerPx) : finalPx);
 
         const isMarket = existing.orderType?.includes('Market') ?? true;
-        // Preserve TP vs SL from the existing order's type string
-        const tpsl = existing.orderType?.toLowerCase().includes('take profit') ? 'tp' : 'sl';
+        // Derive tpsl from the orderType string returned by HL:
+        //   "Take Profit Market" / "Take Profit Limit" → tp
+        //   "Stop Market" / "Stop Limit" / anything else → sl
+        const orderTypeLower = existing.orderType?.toLowerCase() ?? '';
+        const tpsl: 'tp' | 'sl' = orderTypeLower.startsWith('take profit') ? 'tp' : 'sl';
 
         // Cancel existing
         await client.exchange({
@@ -336,7 +345,7 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
             a: assetIndex,
             b: isBuy,
             p: floatToWire(triggerPx),
-            s: floatToWire(finalSize),
+            s: finalSize,
             r: true, // bracket triggers are always reduce-only
             t: { trigger: { isMarket, triggerPx: floatToWire(triggerPx), tpsl } },
           }],
@@ -353,7 +362,7 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
             a: assetIndex,
             b: isBuy,
             p: floatToWire(finalPx),
-            s: floatToWire(finalSize),
+            s: finalSize,
             r: false,
             t: { limit: { tif: 'Gtc' } },
           },
@@ -367,7 +376,7 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
         type: 'frontendOpenOrders',
         user: wallet,
       });
-      return orders.map(normalizeOrder);
+      return orders.map((o) => normalizeOrder(o, wallet));
     },
   };
 }

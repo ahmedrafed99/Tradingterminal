@@ -28,6 +28,7 @@ export function createRealtime(state: HlState): ExchangeRealtime {
   const subscriptions = new Map<string, Record<string, unknown>>();
   let upstream: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let reconnectDelay = 2000; // starts at 2s, doubles up to 60s
 
   function wsUrl(): string {
     return state.apiUrl.replace(/^https?/, 'wss') + '/ws';
@@ -61,6 +62,7 @@ export function createRealtime(state: HlState): ExchangeRealtime {
 
     upstream.on('open', () => {
       console.log('[HL WS] upstream open — replaying', subscriptions.size, 'subscriptions');
+      reconnectDelay = 2000; // reset backoff on successful connection
       replaySubscriptions();
     });
 
@@ -71,9 +73,11 @@ export function createRealtime(state: HlState): ExchangeRealtime {
     upstream.on('close', (code, reason) => {
       console.log(`[HL WS] upstream closed (${code} ${reason.toString()})`);
       upstream = null;
-      // Reconnect if we still have clients
+      // Reconnect if we still have clients (exponential backoff, cap at 60s)
       if (clients.size > 0) {
-        reconnectTimer = setTimeout(connectUpstream, 2000);
+        console.log(`[HL WS] reconnecting in ${reconnectDelay}ms`);
+        reconnectTimer = setTimeout(connectUpstream, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 60000);
       }
     });
 
@@ -83,6 +87,7 @@ export function createRealtime(state: HlState): ExchangeRealtime {
   }
 
   function disconnectUpstream(): void {
+    reconnectDelay = 2000;
     if (reconnectTimer != null) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
@@ -130,6 +135,9 @@ export function createRealtime(state: HlState): ExchangeRealtime {
             }
           } catch (err) {
             console.error('[HL WS] client message parse error:', (err as Error).message);
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ error: 'invalid message', detail: (err as Error).message }));
+            }
           }
         });
 

@@ -512,7 +512,7 @@ function TakeProfitRow({
           <span className="text-[11px] text-(--color-text-muted)">Quantity</span>
           <button
             onClick={onRemove}
-            className="text-(--color-text-dim) hover:text-(--color-error) transition-colors"
+            className="text-(--color-text-dim) hover:text-(--color-error) transition-colors cursor-pointer"
             title="Remove"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

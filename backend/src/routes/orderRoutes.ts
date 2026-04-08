@@ -20,7 +20,7 @@ const PlaceOrderSchema = z.object({
   limitPrice: z.number().optional(),
   stopPrice: z.number().optional(),
   stopLossBracket: BracketSchema.optional(),
-  takeProfitBracket: BracketSchema.optional(),
+  takeProfitBrackets: z.array(BracketSchema).optional(),
 });
 
 const CancelOrderSchema = z.object({

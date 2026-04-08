@@ -53,16 +53,19 @@ function toHlInterval(unit: string, unitNumber: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Lazy meta cache — invalidated on disconnect
+// Meta cache — invalidated on disconnect or after TTL (5 minutes)
 // ---------------------------------------------------------------------------
+const META_CACHE_TTL_MS = 5 * 60 * 1000;
 let metaCache: (HlMeta & { allMids: Record<string, string> }) | null = null;
+let metaCacheExpiresAt = 0;
 
 export function clearMetaCache(): void {
   metaCache = null;
+  metaCacheExpiresAt = 0;
 }
 
 async function getMetaWithMids(client: HlClient): Promise<HlMeta & { allMids: Record<string, string> }> {
-  if (metaCache) return metaCache;
+  if (metaCache && Date.now() < metaCacheExpiresAt) return metaCache;
 
   const [meta, allMids] = await Promise.all([
     client.info<HlMeta>({ type: 'meta' }),
@@ -70,6 +73,7 @@ async function getMetaWithMids(client: HlClient): Promise<HlMeta & { allMids: Re
   ]);
 
   metaCache = { ...meta, allMids };
+  metaCacheExpiresAt = Date.now() + META_CACHE_TTL_MS;
   return metaCache;
 }
 
@@ -87,7 +91,11 @@ export async function getAssetSzDecimals(client: HlClient, coin: string): Promis
   const { universe } = await getMetaWithMids(client);
   const asset = universe.find((a) => a.name === coin);
   if (!asset) throw new Error(`[HL] Unknown perp asset: ${coin}`);
-  return asset.szDecimals;
+  const dec = asset.szDecimals;
+  if (!Number.isInteger(dec) || dec < 1 || dec > 18) {
+    throw new Error(`[HL] Unexpected szDecimals for ${coin}: ${dec}`);
+  }
+  return dec;
 }
 
 // ---------------------------------------------------------------------------
@@ -135,6 +143,13 @@ export function createMarketData(client: HlClient): ExchangeMarketData {
 
       const perps = universe.map((a, i) => normalizePerp(a, i, allMids));
 
+      // Spot indices start at SPOT_INDEX_OFFSET to avoid colliding with perp indices.
+      // Guard: if the perp universe ever reaches this offset, throw rather than silently collide.
+      const SPOT_INDEX_OFFSET = 10000;
+      if (universe.length >= SPOT_INDEX_OFFSET) {
+        throw new Error(`[HL] Perp universe size (${universe.length}) reached spot index offset (${SPOT_INDEX_OFFSET})`);
+      }
+
       const spots = spotMeta.universe.map((a, i) => {
         const mid = parseFloat(allMids[a.name] ?? '0');
         return {
@@ -142,7 +157,7 @@ export function createMarketData(client: HlClient): ExchangeMarketData {
           name: a.name,
           description: a.name,
           contractId: a.name,
-          assetIndex: 10000 + i,
+          assetIndex: SPOT_INDEX_OFFSET + i,
           maxLeverage: 1,
           quantityPrecision: a.szDecimals,
           midPrice: mid,

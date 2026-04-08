@@ -6,6 +6,22 @@ import { encode } from '@msgpack/msgpack';
 // ---------------------------------------------------------------------------
 // Shared state — passed in from createHyperliquidAdapter(), lives in closure
 // ---------------------------------------------------------------------------
+// Monotonic nonce — millisecond timestamp + per-ms counter to prevent collisions
+// when two orders are placed within the same millisecond.
+let _lastNonceMs = 0;
+let _nonceSuffix = 0;
+function nextNonce(): number {
+  const now = Date.now();
+  if (now === _lastNonceMs) {
+    _nonceSuffix += 1;
+  } else {
+    _lastNonceMs = now;
+    _nonceSuffix = 0;
+  }
+  // Encode as ms * 1000 + suffix (stays within safe integer range for decades)
+  return now * 1000 + _nonceSuffix;
+}
+
 export interface HlState {
   privateKey: `0x${string}` | null;
   walletAddress: `0x${string}` | null;
@@ -32,6 +48,7 @@ export function floatToWire(n: number): string {
 // roundToSigFigs — HL enforces max 5 significant figures on prices
 // ---------------------------------------------------------------------------
 export function roundToSigFigs(n: number, sigFigs: number): number {
+  if (!isFinite(n)) throw new Error(`[HL] Price must be finite, got ${n}`);
   if (n === 0) return 0;
   const magnitude = Math.floor(Math.log10(Math.abs(n)));
   const factor = Math.pow(10, sigFigs - 1 - magnitude);
@@ -52,6 +69,9 @@ function hashAction(
 
   let extra: Buffer;
   if (vaultAddress) {
+    if (!/^(0x)?[0-9a-fA-F]{40}$/.test(vaultAddress)) {
+      throw new Error(`[HL] Invalid vault address: "${vaultAddress}"`);
+    }
     const addrHex = vaultAddress.startsWith('0x') ? vaultAddress.slice(2) : vaultAddress;
     extra = Buffer.concat([Buffer.from([1]), Buffer.from(addrHex, 'hex')]);
   } else {
@@ -87,7 +107,7 @@ function wrapError(context: string, err: unknown): Error {
     } else {
       msg = err.message;
     }
-    return new Error(`[HL] ${context}: ${msg}`);
+    return new Error(`[HL] ${context} (HTTP ${err.response?.status ?? 0}): ${msg}`);
   }
   if (err instanceof Error) {
     return new Error(`[HL] ${context}: ${err.message}`);
@@ -100,6 +120,7 @@ export function createClient(state: HlState): HlClient {
     try {
       const res = await axios.post<T>(`${state.apiUrl}/info`, payload, {
         headers: { 'Content-Type': 'application/json' },
+        timeout: 30000,
       });
       return res.data;
     } catch (err) {
@@ -115,7 +136,7 @@ export function createClient(state: HlState): HlClient {
       throw new Error('[HL] Not connected — call auth.connect() first');
     }
 
-    const nonce = Date.now();
+    const nonce = nextNonce();
     const connectionId = hashAction(action, nonce, vaultAddress);
 
     const account = privateKeyToAccount(state.privateKey);
@@ -157,14 +178,14 @@ export function createClient(state: HlState): HlClient {
     if (vaultAddress) body['vaultAddress'] = vaultAddress;
 
     if (process.env.HL_DEBUG) {
-      console.log('[HL debug] exchange body:', JSON.stringify(body, null, 2));
+      console.log('[HL debug] exchange action type:', action['type']);
     }
 
     try {
       const res = await axios.post<{ status: string; response: unknown }>(
         `${state.apiUrl}/exchange`,
         body,
-        { headers: { 'Content-Type': 'application/json' } },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 30000 },
       );
       const data = res.data;
       // HL returns HTTP 200 even for logical errors — check status field
@@ -182,6 +203,9 @@ export function createClient(state: HlState): HlClient {
   return {
     info,
     exchange,
-    getWalletAddress: () => state.walletAddress ?? '',
+    getWalletAddress: () => {
+      if (!state.walletAddress) throw new Error('[HL] Not connected — call auth.connect() first');
+      return state.walletAddress;
+    },
   };
 }
