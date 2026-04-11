@@ -212,6 +212,40 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   dead zones, which is what caused the visible chart gaps. Crypto charts pass
   no filter (always open). The filter is deterministic pure math — no state,
   no current-time dependency — so it works correctly for all future timestamps.
+  **Known timing caveat**: holidays are fetched asynchronously by `useNewsEvents`
+  on mount. If bars finish loading before the holiday fetch resolves, `_holidayInfo`
+  is empty and the whitespace filter won't skip any holiday-closed slots for that
+  load. The whitespace is never regenerated after holidays arrive. Practical
+  impact is negligible — the only symptom is the time axis extending slightly into
+  a holiday window when hovering far right, and only when the holiday falls within
+  the whitespace coverage window.
+
+  **If you ever want to remove the whitespace series** (e.g. to adopt a custom
+  HTML time label approach instead), here is what is required and what breaks:
+
+  *What needs to be built first:*
+  - A `CrosshairTimeLabelPrimitive` HTML overlay div (similar to
+    `CrosshairLabelPrimitive.ts`) that subscribes to `chart.subscribeCrosshairMove`
+    and positions itself at the bottom of the chart. For on-bar positions use
+    `param.time` directly. For positions past the last bar, extrapolate:
+    `chart.timeScale().coordinateToLogical(x)` gives the logical bar index;
+    `lastBarTime + (logical - lastBarLogical) * periodSec` gives the timestamp.
+    Use `chart.timeScale().height()` (available in LWC v5) to vertically center
+    the label within the time scale strip. The native label must be hidden with
+    `crosshair.vertLine.labelVisible: false` in `CHART_OPTIONS`.
+  - The crosshair handler needs `periodSec` from the current timeframe — put it in
+    a separate `useEffect` that re-subscribes when `timeframe` changes.
+
+  *What breaks / degrades without a replacement:*
+  - **Time axis tick marks disappear past the last candle.** LWC only renders tick
+    marks where series data exists. There is no LWC API to inject tick marks into
+    blank space — `IHorzScaleBehavior` (via `createChartEx`) could theoretically
+    do this but requires reimplementing the entire horizontal scale from scratch.
+  - **Right-scroll range shrinks to ~15 bars.** Currently users can scroll ~90 days
+    to the right (whitespace coverage). Without it, only `rightOffset: 15` applies.
+  - **Dual-chart crosshair sync loses its range.** The sync in `ChartArea.tsx` notes
+    it works across whitespace regions — without whitespace, syncing past the last
+    bar on one chart may not move the peer chart's crosshair.
 - **Dual-chart crosshair sync** uses a `master` variable (`'left' | 'right' | null`)
   in `ChartArea.tsx`. The chart the mouse is on becomes master; crosshair-move
   events from the other chart are ignored entirely, preventing async bounce-back
