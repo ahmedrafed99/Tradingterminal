@@ -3,7 +3,7 @@ import { CrosshairMode } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { DEFAULT_HLINE_COLOR } from '../../../types/drawing';
-import { snapPriceToOHLC } from '../drawings/magnetSnap';
+import { snapPriceToOHLC, snapPriceToOHLCByTime } from '../drawings/magnetSnap';
 import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR, createDrawingState, getMousePos } from './drawingInteraction';
 import type { DrawingContext } from './drawingInteraction';
@@ -65,16 +65,22 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     // In MagnetOHLC mode the crosshair visually snaps to OHLC; subscribeClick still fires at
     // raw mouse coords, so we capture the snapped price here instead.
     let lastCrosshairSnap: { price: number } | null = null;
-    const crosshairMoveHandler = (param: { point?: { x: number; y: number } }) => {
+    const crosshairMoveHandler = (param: { point?: { x: number; y: number }; time?: number | unknown }) => {
       if (!param.point) { lastCrosshairSnap = null; return; }
       const rawP = series.coordinateToPrice(param.point.y);
       if (rawP === null) return;
-      // When MagnetOHLC is active, snap the price so lastCrosshairSnap matches the visual crosshair.
-      // param.point.y is always the raw mouse Y — the visual snap is chart-internal only.
-      const snapped = _activeCrosshairMode === CrosshairMode.MagnetOHLC
-        ? snapPriceToOHLC(rawP as number, param.point.x, chart, refs.bars.current)
-        : rawP as number;
-      lastCrosshairSnap = { price: snapped };
+      if (_activeCrosshairMode === CrosshairMode.MagnetOHLC) {
+        // In MagnetOHLC mode, lightweight-charts resolves param.time to the exact bar the
+        // crosshair snapped to. Use that time directly — coordinateToTime(rawMouseX) often
+        // lands between candles and causes findBarIndex to return -1, falling back to raw price.
+        const snapTime = typeof param.time === 'number' ? param.time : null;
+        const snapped = snapTime !== null
+          ? snapPriceToOHLCByTime(rawP as number, snapTime, refs.bars.current)
+          : snapPriceToOHLC(rawP as number, param.point.x, chart, refs.bars.current);
+        lastCrosshairSnap = { price: snapped };
+      } else {
+        lastCrosshairSnap = { price: rawP as number };
+      }
     };
     chart.subscribeCrosshairMove(crosshairMoveHandler);
 

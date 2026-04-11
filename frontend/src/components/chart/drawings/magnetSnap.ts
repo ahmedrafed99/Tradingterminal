@@ -23,6 +23,36 @@ function findBarIndex(bars: Bar[], targetTime: number): number {
 }
 
 /**
+ * Snaps mousePrice to the nearest OHLC level of the bar with the given time.
+ * Used when the bar time is already known (e.g. from param.time in MagnetOHLC mode),
+ * avoiding the coordinateToTime(rawMouseX) → exact-match failure path.
+ */
+export function snapPriceToOHLCByTime(
+  mousePrice: number,
+  barTime: number,
+  bars: Bar[],
+): number {
+  if (bars.length === 0) return mousePrice;
+
+  const centerIdx = findBarIndex(bars, barTime);
+  if (centerIdx === -1) return mousePrice;
+
+  let bestPrice = mousePrice;
+  let bestDist = Infinity;
+
+  const b = bars[centerIdx];
+  for (const level of [b.o, b.h, b.l, b.c]) {
+    const dist = Math.abs(level - mousePrice);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestPrice = level;
+    }
+  }
+
+  return bestPrice;
+}
+
+/**
  * Snaps mousePrice to the nearest candle OHLC level of the bar at mouseX.
  * Always snaps to the closest of O/H/L/C regardless of distance.
  * Checks the bar and its ±1 immediate neighbors for edge accuracy.
