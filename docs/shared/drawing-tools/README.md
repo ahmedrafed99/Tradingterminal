@@ -426,10 +426,10 @@ Snaps drawing placement and drag positions to the nearest candle Open/High/Low/C
 - Applies to: hline placement (click), rect/oval start and end corners (mousedown + mouseup), ruler start and end points, arrow path node placement, and all drag-to-move / resize operations.
 - Free draw is intentionally excluded (dense per-pixel points make snapping feel wrong).
 - Crosshair switches to `CrosshairMode.MagnetOHLC` (lightweight-charts native) when magnet is active — the crosshair visually snaps to the nearest OHLC level so users can preview where the drawing will land before clicking.
-- **Placement accuracy**: hline click placement reads from `subscribeCrosshairMove` (which captures the already-snapped price) rather than from the raw mouse coordinate in `subscribeClick`.
+- **Placement accuracy**: hline click placement reads from `subscribeCrosshairMove` (which captures the already-snapped price) rather than from the raw mouse coordinate in `subscribeClick`. The crosshair handler uses `param.time` (the bar time that lightweight-charts already resolved for the snapped crosshair position) to look up the bar, bypassing `coordinateToTime(rawMouseX)` which previously failed when the cursor was between candles — `findBarIndex` (exact binary search) returned -1 and snap fell back to raw price, placing the line at the wrong level.
 
 **Implementation files:**
-- `frontend/src/components/chart/drawings/magnetSnap.ts` — `snapPriceToOHLC` (core OHLC snap), `isMagnetActive` (store + altKey check), `maybeSnap` (convenience wrapper — the only function called externally)
+- `frontend/src/components/chart/drawings/magnetSnap.ts` — `snapPriceToOHLCByTime` (snap using a known bar time — used by the crosshair handler), `snapPriceToOHLC` (snap from raw mouse X — used by mousedown/mousemove handlers), `isMagnetActive`, `maybeSnap`
 - `frontend/src/components/chart/hooks/useChartDrawings.ts` — crosshair mode switching, Alt-hold tracking (`setMagnetHeld`), hline click placement
 - `frontend/src/components/chart/hooks/drawingHandlers.ts` — `maybeSnap` called at all mousedown/mousemove/mouseup placement and drag points
 
