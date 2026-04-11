@@ -33,6 +33,8 @@ export class CrosshairLabelPrimitive {
     overlay.appendChild(this._el);
   }
 
+  get el(): HTMLDivElement { return this._el; }
+
   destroy(): void {
     this._el.remove();
   }

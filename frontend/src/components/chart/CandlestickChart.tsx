@@ -257,6 +257,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       orderLinesRef,
       orderLineMetaRef,
       previewLinesRef,
+      crosshairLabelEl: crosshairLabel.el,
     });
 
     return () => {

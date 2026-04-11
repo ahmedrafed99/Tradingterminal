@@ -51,4 +51,25 @@ export function paintOverlays(
       line.paintToCanvas(ctx, plotWidth, totalWidth);
     }
   }
+
+  // Paint crosshair price label (HTML div — not captured by takeScreenshot).
+  // Gate on style.top (not display) — when crosshair leaves, display is set to 'none'
+  // but top retains the last position, so we can still paint it in snapshots.
+  const crosshairEl = entry.crosshairLabelEl;
+  if (crosshairEl && crosshairEl.style.top && crosshairEl.textContent) {
+    const cy = parseFloat(crosshairEl.style.top);
+    const cw = parseFloat(crosshairEl.style.width);
+    const fullW = totalWidth ?? plotWidth;
+    const h = 20;
+    const text = crosshairEl.textContent || '';
+    ctx.save();
+    ctx.font = `bold ${FONT}`;
+    ctx.fillStyle = crosshairEl.style.background;
+    ctx.fillRect(fullW - cw, cy - h / 2, cw, h);
+    ctx.fillStyle = crosshairEl.style.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, fullW - cw / 2, cy);
+    ctx.restore();
+  }
 }

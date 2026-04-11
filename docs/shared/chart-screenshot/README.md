@@ -43,6 +43,7 @@ Each `ChartEntry` stores:
 | `orderLinesRef` | `{ current: PriceLevelLine[] }` | Mutable ref to live order/position `PriceLevelLine` instances |
 | `orderLineMetaRef` | `{ current: OrderLineMeta[] }` | Parallel metadata array — `{ kind: 'position' }` or `{ kind: 'order' }` for each entry in `orderLinesRef` |
 | `previewLinesRef` | `{ current: PriceLevelLine[] }` | Mutable ref to preview bracket `PriceLevelLine` instances |
+| `crosshairLabelEl` | `HTMLDivElement \| null` | The `CrosshairLabelPrimitive` inner `<div>` — painted onto canvas in screenshots so the crosshair price label appears in captures |
 
 A `ScreenshotOptions` type controls what each capture includes:
 
@@ -60,7 +61,8 @@ A `ScreenshotOptions` type controls what each capture includes:
 4. **Paint text overlays** — read text content from the instrument and OHLC DOM refs and draw them onto the canvas with Canvas 2D API (these are HTML overlays that `takeScreenshot` doesn't capture).
 5. **DPR scaling** — `chart.takeScreenshot()` returns a physical-pixel canvas scaled by `devicePixelRatio`. All LWC coordinate APIs (`priceToCoordinate`, `timeScale().width()`) return CSS pixels. Before painting overlays, `dpr` is computed dynamically as `canvas.width / containerEl.clientWidth`. If `dpr !== 1`, `ctx.scale(dpr, dpr)` is applied so all painting uses CSS pixel values and the context handles the physical-pixel conversion.
 6. **Paint position lines** — if `showPositions` is true, iterate all lines in `orderLinesRef` (position entry + its SL/TP orders) and call `line.paintToCanvas(ctx, plotWidth, cssWidth)` on each. `cssWidth` is the full container width (plot area + price scale); `_labelLeft` is a fraction of this full width so label X anchors use `cssWidth * _labelLeft` rather than `plotWidth * _labelLeft` (which excluded the price scale and shifted labels left). Preview bracket lines (`previewLinesRef`) are never painted — they are pre-submission ghosts, not real orders.
-6. **Dual-chart composite** — if in dual mode, repeat for the right chart and draw both canvases side-by-side onto a new composite canvas.
+7. **Paint crosshair price label** — `CrosshairLabelPrimitive` is an HTML div (`right:0`, `transform:translateY(-50%)`) so it is not captured by `takeScreenshot`. After painting position lines, `paintOverlays` reads `style.top` (center Y in CSS px) and `style.width` from the element's inline style and paints the label rect + text at `x = totalWidth - labelWidth`. The gate is `style.top && textContent` — not `display !== 'none'` — because `updateCrosshairPrice(null)` only sets `display:none` without clearing `top`, so the last crosshair position is preserved even after the mouse leaves the chart. This means the snapshot always shows the crosshair label at wherever it last was.
+8. **Dual-chart composite** — if in dual mode, repeat for the right chart and draw both canvases side-by-side onto a new composite canvas.
 7. **Time banner** — before copying to clipboard, `addTimeBanner()` composites a 30 px black header strip above the chart image showing the current date and NY time (e.g. "Mar 2, 2026  14:32:07 New York"). This banner only appears in the final copied PNG — the preview modal shows the raw chart.
 
 ### Clipboard write
