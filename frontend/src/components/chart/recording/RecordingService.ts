@@ -106,10 +106,11 @@ class RecordingService {
 
       // Paint overlays on the plot area (scale for DPR so text renders at correct size)
       const dpr = devicePixelRatio;
-      const plotWidth = currentEntry.chart.timeScale().width() * dpr;
+      const plotWidth = currentEntry.chart.timeScale().width(); // CSS px — do NOT multiply by dpr
+      const cssWidth = currentEntry.containerEl?.clientWidth ?? composite.width / dpr;
       ctx.save();
       ctx.scale(dpr, dpr);
-      paintOverlays(ctx, currentEntry, plotWidth, composite.height, { showPositions: true });
+      paintOverlays(ctx, currentEntry, plotWidth, composite.height / dpr, { showPositions: true }, cssWidth);
       ctx.restore();
 
       this._rafId = requestAnimationFrame(loop);

@@ -483,7 +483,10 @@ export function ChartToolbar() {
     const ctx = canvas.getContext('2d');
     if (ctx) {
       const plotWidth = entry.chart.timeScale().width();
-      paintOverlays(ctx, entry, plotWidth, canvas.height, { showPositions: options.showPositions });
+      const cssWidth = entry.containerEl?.clientWidth ?? canvas.width;
+      const dpr = canvas.width / cssWidth;
+      if (dpr !== 1) ctx.scale(dpr, dpr);
+      paintOverlays(ctx, entry, plotWidth, canvas.height / dpr, { showPositions: options.showPositions }, cssWidth);
     }
 
     return canvas;

@@ -44,6 +44,7 @@ Everything visible on the chart:
    - Find all `<canvas>` elements within the chart container
    - Draw each at its correct position using `getBoundingClientRect()` offsets
    - Paint HTML overlays using the shared `paintOverlays()` utility
+   - **DPR handling**: `dpr = devicePixelRatio`. The composite canvas is sized in physical pixels (`clientWidth * dpr`). Before calling `paintOverlays`, `ctx.scale(dpr, dpr)` is applied so all overlay painting uses CSS pixel values. `plotWidth` is `timeScale().width()` (CSS px, not multiplied by `dpr`). `cssWidth = containerEl.clientWidth` is passed as `totalWidth` so order label X positions use the full container width rather than just the plot area.
 3. Stream the offscreen canvas via `captureStream(30)` → MediaRecorder (VP9, fallback VP8)
 4. Optionally merge microphone audio track via `getUserMedia({ audio: true })`
 

@@ -14,6 +14,7 @@ export function paintOverlays(
   plotWidth: number,
   canvasHeight: number,
   options: { showPositions: boolean },
+  totalWidth?: number,
 ): void {
   // Clip to plot area so text doesn't bleed into price scale
   ctx.save();
@@ -47,7 +48,7 @@ export function paintOverlays(
   if (options.showPositions) {
     const lines = entry.orderLinesRef.current;
     for (const line of lines) {
-      line.paintToCanvas(ctx, plotWidth);
+      line.paintToCanvas(ctx, plotWidth, totalWidth);
     }
   }
 }

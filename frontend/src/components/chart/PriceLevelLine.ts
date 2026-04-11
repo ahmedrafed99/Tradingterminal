@@ -261,7 +261,7 @@ export class PriceLevelLine {
   // ── Screenshot ─────────────────────────────────────────
 
   /** Paint this line + label + axis label onto a canvas context. */
-  paintToCanvas(ctx: CanvasRenderingContext2D, plotWidth: number): void {
+  paintToCanvas(ctx: CanvasRenderingContext2D, plotWidth: number, totalWidth?: number): void {
     if (this._dead) return;
     const y = this._series.priceToCoordinate(this._price);
     if (y === null || !this._visible) return;
@@ -301,7 +301,8 @@ export class PriceLevelLine {
       }
 
       if (vis.length > 0) {
-        let x = plotWidth * this._labelLeft - totalW / 2;
+        const fullWidth = totalWidth ?? plotWidth;
+        let x = fullWidth * this._labelLeft - totalW / 2;
         for (let j = 0; j < vis.length; j++) {
           const v = vis[j];
           const w = widths[j];
