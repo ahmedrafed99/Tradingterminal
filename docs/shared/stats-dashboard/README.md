@@ -75,7 +75,7 @@ Table-based calendar heatmap showing daily performance.
 
 - Columns: Sun–Fri + Weekly Total (CME futures open Sunday 6pm ET).
 - Rows: one per week within the selected date range.
-- Each cell shows: **net P&L** (20px, green/red) + **trade count** (12px, muted).
+- Each cell shows: **net P&L** (20px, green/red, with `$` prefix and `+`/`-` sign) + **trade count** (12px, muted).
 - Cell background uses desaturated heatmap tones (`--color-heat-green` / `--color-heat-red`) with sqrt intensity scaling so small values are still visible.
 - Weekly total column on the right.
 - Native `title` tooltip on each cell with date, trade count, and exact P&L.
@@ -90,13 +90,15 @@ Table-based calendar heatmap showing daily performance.
 
 Four cards in a 2×2 grid:
 
-**P&L by Hour** — Horizontal bars per trading hour (ET). Each row: `hour:00` label → proportional green/red bar → dollar value. Tooltip on hover with trade count, net P&L, avg P&L. Row and bar highlight on hover (bar brightens from 50% to 80% opacity).
+**P&L by Hour** — Horizontal bars per trading hour (ET). Each row: `hour:00` label → proportional green/red bar → dollar value. Tooltip on hover with trade count, net P&L, avg P&L. Row and bar highlight on hover (bar brightens from 50% to 80% opacity). When a day filter is active, the card title shows a small badge (e.g. `Mon`) and only hours from trades on that day-of-week are shown.
 
 **Long vs Short** — Two-column layout with vertical separator:
 - Full-width proportional trade count bar at the top (`X Long` / `X Short`).
 - Each column: Win Rate mini donut (SVG 64px, neutral `--color-text`) with 18px percentage, Avg Win/Loss 15px inline (`+$X / -$Y`), Total Net 20px. Section sits 60px below the trade count bar for visual balance.
 
-**Performance by Day** — Horizontal bars for Sun–Fri (includes Sunday for CME session open). Each row: day label → proportional bar → avg P&L value. Tooltip with day count, total P&L, avg P&L. Row and bar highlight on hover.
+**Performance by Day** — Horizontal bars for Sun–Fri (includes Sunday for CME session open). Each row: day label → proportional bar → avg P&L value. Tooltip with day count, total P&L, avg P&L.
+- **Interactive filter**: clicking a day row selects it (highlighted with a colored background + outline, bar brightens, label bolds) and filters the **P&L by Hour** card to only show hours for trades on that day-of-week. Click the same row again, or press **Clear** in the card header, to reset to all-time hourly data.
+- Days with no trades are not clickable. Filter state is local to `StatsBreakdowns`.
 
 **Avg Trade Duration** — Winners vs Losers with proportional progress bars showing relative duration.
 

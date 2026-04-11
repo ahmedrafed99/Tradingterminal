@@ -139,7 +139,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
                           className="font-semibold"
                           style={{ fontSize: 20, color: pnlColor(d.net), fontFeatureSettings: '"tnum"', lineHeight: 1.2 }}
                         >
-                          {d.net > 0 ? '+' : d.net < 0 ? '-' : ''}{Math.abs(d.net).toFixed(0)}
+                          {d.net > 0 ? '+' : d.net < 0 ? '-' : ''}${Math.abs(d.net).toFixed(0)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
                           {d.tradeCount} {d.tradeCount === 1 ? 'trade' : 'trades'}
@@ -163,7 +163,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
                   className="font-semibold"
                   style={{ fontSize: 20, color: pnlColor(weekTotal), fontFeatureSettings: '"tnum"' }}
                 >
-                  {weekTotal > 0 ? '+' : weekTotal < 0 ? '-' : ''}{Math.abs(weekTotal).toFixed(0)}
+                  {weekTotal > 0 ? '+' : weekTotal < 0 ? '-' : ''}${Math.abs(weekTotal).toFixed(0)}
                 </div>
               </div>
             </div>

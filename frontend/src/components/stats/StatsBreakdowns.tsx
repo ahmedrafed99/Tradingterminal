@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import type { HourPnl, DirectionStats, DayOfWeekPnl, DurationComparison } from '../../utils/tradeStats';
+import { useState, useEffect, useMemo } from 'react';
+import type { HourPnl, DirectionStats, DayOfWeekPnl, DurationComparison, GroupedTrade } from '../../utils/tradeStats';
+import { buildHourlyData } from '../../utils/tradeStats';
 import { formatDuration } from '../../utils/formatters';
 import { pnlColor, hexToRgba } from './statsHelpers';
 import { COLOR_BUY, COLOR_SELL, COLOR_TABLE_STRIPE } from '../../constants/colors';
+
+const NY_DOW = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' });
 
 const CARD: React.CSSProperties = {
   background: 'var(--color-table-stripe)',
@@ -64,13 +67,20 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
 
 // ── Time of Day ──────────────────────────────────────────────────────────────
 
-function TimeOfDay({ data }: { data: HourPnl[] }) {
+function TimeOfDay({ data, filterDay }: { data: HourPnl[]; filterDay: string | null }) {
   if (data.length === 0) return null;
   const maxAbs = Math.max(...data.map((d) => Math.abs(d.net)), 1);
 
   return (
     <div style={CARD}>
-      <div style={LABEL}>P&L by Hour</div>
+      <div style={{ ...LABEL, display: 'flex', alignItems: 'center', gap: 8 }}>
+        P&L by Hour
+        {filterDay && (
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-muted)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '1px 7px' }}>
+            {filterDay}
+          </span>
+        )}
+      </div>
       <div className="flex flex-col" style={{ gap: 6 }}>
         {data.map((h) => {
           const pct = maxAbs > 0 ? Math.abs(h.net) / maxAbs : 0;
@@ -244,13 +254,23 @@ function LongVsShort({ long, short }: { long: DirectionStats; short: DirectionSt
 
 // ── Day of Week ──────────────────────────────────────────────────────────────
 
-function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
+function DayOfWeek({ data, selectedDay, onDaySelect }: { data: DayOfWeekPnl[]; selectedDay: string | null; onDaySelect: (day: string | null) => void }) {
   if (data.length === 0) return null;
   const maxAbs = Math.max(...data.map((d) => Math.abs(d.avgNet)), 1);
 
   return (
     <div style={CARD}>
-      <div style={LABEL}>Performance by Day</div>
+      <div style={{ ...LABEL, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        Performance by Day
+        {selectedDay && (
+          <button
+            onClick={() => onDaySelect(null)}
+            style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
       <div className="flex flex-col" style={{ gap: 6 }}>
         {data.map((d) => {
           const pct = maxAbs > 0 ? Math.abs(d.avgNet) / maxAbs : 0;
@@ -260,14 +280,25 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
             ? `${d.count} days · Total: ${sign}$${Math.abs(d.totalNet).toFixed(0)} · Avg: $${d.avgNet.toFixed(0)}`
             : 'No trades';
           const barColor = d.avgNet >= 0 ? COLOR_BUY : COLOR_SELL;
+          const isSelected = selectedDay === d.day;
+          const isClickable = d.count > 0;
 
           return (
             <Tooltip key={d.day} text={tooltipText}>
               <div
-                className="flex items-center transition-colors hover:bg-(--color-hover-row)"
-                style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6 }}
+                className="flex items-center transition-colors"
+                onClick={() => isClickable && onDaySelect(isSelected ? null : d.day)}
+                style={{
+                  gap: 10,
+                  cursor: isClickable ? 'pointer' : 'default',
+                  padding: '3px 6px',
+                  borderRadius: 6,
+                  background: isSelected ? hexToRgba(barColor, 0.12) : 'transparent',
+                  outline: isSelected ? `1px solid ${hexToRgba(barColor, 0.35)}` : 'none',
+                  transition: 'background 0.15s ease, outline 0.15s ease',
+                }}
               >
-                <div style={{ width: 30, fontSize: 12, color: 'var(--color-text-muted)' }}>{d.day}</div>
+                <div style={{ width: 30, fontSize: 12, color: isSelected ? 'var(--color-text)' : 'var(--color-text-muted)', fontWeight: isSelected ? 600 : 400, transition: 'color 0.15s ease' }}>{d.day}</div>
                 <div className="flex-1" style={{ height: 18, position: 'relative' }}>
                   <div
                     className="transition-all"
@@ -277,13 +308,11 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
                       top: 2,
                       width: `${barW}%`,
                       height: 14,
-                      background: hexToRgba(barColor, 0.5),
+                      background: hexToRgba(barColor, isSelected ? 0.75 : 0.5),
                       borderRadius: 4,
                       minWidth: d.count > 0 ? 6 : 0,
                       transition: 'width 0.3s ease, background 0.15s ease',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.8); }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.5); }}
                   />
                 </div>
                 <div
@@ -291,7 +320,7 @@ function DayOfWeek({ data }: { data: DayOfWeekPnl[] }) {
                     width: 56,
                     textAlign: 'right',
                     fontSize: 12,
-                    fontWeight: 500,
+                    fontWeight: isSelected ? 600 : 500,
                     color: pnlColor(d.avgNet),
                     fontFeatureSettings: '"tnum"',
                   }}
@@ -368,20 +397,32 @@ function DurationBreakdown({ data }: { data: DurationComparison }) {
 
 export function StatsBreakdowns({
   hourlyData,
+  grouped,
   directionStats,
   dayOfWeekData,
   durationData,
 }: {
   hourlyData: HourPnl[];
+  grouped: GroupedTrade[];
   directionStats: { long: DirectionStats; short: DirectionStats };
   dayOfWeekData: DayOfWeekPnl[];
   durationData: DurationComparison;
 }) {
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+
+  const displayHourlyData = useMemo(() => {
+    if (!selectedDay) return hourlyData;
+    const filtered = grouped.filter(
+      (t) => NY_DOW.format(new Date(t.entryTime)) === selectedDay
+    );
+    return buildHourlyData(filtered);
+  }, [selectedDay, grouped, hourlyData]);
+
   return (
     <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-      <TimeOfDay data={hourlyData} />
+      <TimeOfDay data={displayHourlyData} filterDay={selectedDay} />
       <LongVsShort long={directionStats.long} short={directionStats.short} />
-      <DayOfWeek data={dayOfWeekData} />
+      <DayOfWeek data={dayOfWeekData} selectedDay={selectedDay} onDaySelect={setSelectedDay} />
       <DurationBreakdown data={durationData} />
     </div>
   );

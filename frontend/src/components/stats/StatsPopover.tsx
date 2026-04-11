@@ -156,6 +156,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
               <AnimateIn>
                 <StatsBreakdowns
                   hourlyData={hourlyData}
+                  grouped={grouped}
                   directionStats={directionStats}
                   dayOfWeekData={dayOfWeekData}
                   durationData={durationData}
