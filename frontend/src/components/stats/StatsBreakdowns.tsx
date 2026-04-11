@@ -67,9 +67,20 @@ function Tooltip({ text, children }: { text: string; children: React.ReactNode }
 
 // ── Time of Day ──────────────────────────────────────────────────────────────
 
-function TimeOfDay({ data, filterDay }: { data: HourPnl[]; filterDay: string | null }) {
-  if (data.length === 0) return null;
-  const maxAbs = Math.max(...data.map((d) => Math.abs(d.net)), 1);
+function TimeOfDay({ allData, filteredData, filterDay }: { allData: HourPnl[]; filteredData: HourPnl[] | null; filterDay: string | null }) {
+  if (allData.length === 0) return null;
+
+  // Build a map of hour → filtered entry so we can look up filtered values while iterating allData
+  const filteredMap = useMemo(() => {
+    if (!filteredData) return null;
+    const m = new Map<number, HourPnl>();
+    for (const h of filteredData) m.set(h.hour, h);
+    return m;
+  }, [filteredData]);
+
+  // Bar widths always scale relative to the active dataset's max so bars are meaningful
+  const activeData = filteredData ?? allData;
+  const maxAbs = Math.max(...activeData.map((d) => Math.abs(d.net)), 1);
 
   return (
     <div style={CARD}>
@@ -82,26 +93,32 @@ function TimeOfDay({ data, filterDay }: { data: HourPnl[]; filterDay: string | n
         )}
       </div>
       <div className="flex flex-col" style={{ gap: 6 }}>
-        {data.map((h) => {
-          const pct = maxAbs > 0 ? Math.abs(h.net) / maxAbs : 0;
-          const barW = Math.max(0, pct * 100);
-          const isPos = h.net >= 0;
-          const sign = h.net > 0 ? '+' : h.net < 0 ? '-' : '';
-          const avg = h.count > 0 ? h.net / h.count : 0;
-          const tooltipText = `${h.count} trades · Net: ${sign}$${Math.abs(h.net).toFixed(0)} · Avg: $${avg.toFixed(0)}`;
+        {allData.map((h) => {
+          // When a filter is active, use filtered values for this hour (if any), otherwise show dimmed placeholder
+          const active = filteredMap ? filteredMap.get(h.hour) : h;
+          const dimmed = filteredMap !== null && active === undefined;
+          const display = active ?? { hour: h.hour, net: 0, count: 0 };
 
+          const pct = maxAbs > 0 ? Math.abs(display.net) / maxAbs : 0;
+          const barW = Math.max(0, pct * 100);
+          const isPos = display.net >= 0;
+          const sign = display.net > 0 ? '+' : display.net < 0 ? '-' : '';
+          const avg = display.count > 0 ? display.net / display.count : 0;
+          const tooltipText = display.count > 0
+            ? `${display.count} trades · Net: ${sign}$${Math.abs(display.net).toFixed(0)} · Avg: $${avg.toFixed(0)}`
+            : 'No trades this day';
           const barColor = isPos ? COLOR_BUY : COLOR_SELL;
 
           return (
             <Tooltip key={h.hour} text={tooltipText}>
               <div
                 className="flex items-center transition-colors hover:bg-(--color-hover-row)"
-                style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6 }}
+                style={{ gap: 10, cursor: 'default', padding: '3px 6px', borderRadius: 6, opacity: dimmed ? 0.25 : 1, transition: 'opacity 0.2s ease' }}
               >
                 <div style={{ width: 32, fontSize: 12, color: 'var(--color-text-muted)', textAlign: 'right', fontFeatureSettings: '"tnum"' }}>
                   {h.hour}:00
                 </div>
-                <div className="flex-1 group" style={{ height: 16, position: 'relative' }}>
+                <div className="flex-1" style={{ height: 16, position: 'relative' }}>
                   <div
                     className="transition-all"
                     style={{
@@ -112,10 +129,10 @@ function TimeOfDay({ data, filterDay }: { data: HourPnl[]; filterDay: string | n
                       height: 14,
                       background: hexToRgba(barColor, 0.5),
                       borderRadius: 4,
-                      minWidth: h.count > 0 ? 6 : 0,
+                      minWidth: display.count > 0 ? 6 : 0,
                       transition: 'width 0.3s ease, background 0.15s ease',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.8); }}
+                    onMouseEnter={(e) => { if (!dimmed) e.currentTarget.style.background = hexToRgba(barColor, 0.8); }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = hexToRgba(barColor, 0.5); }}
                   />
                 </div>
@@ -125,11 +142,11 @@ function TimeOfDay({ data, filterDay }: { data: HourPnl[]; filterDay: string | n
                     textAlign: 'right',
                     fontSize: 12,
                     fontWeight: 500,
-                    color: pnlColor(h.net),
+                    color: pnlColor(display.net),
                     fontFeatureSettings: '"tnum"',
                   }}
                 >
-                  {h.count > 0 ? `$${h.net.toFixed(0)}` : '—'}
+                  {display.count > 0 ? `$${display.net.toFixed(0)}` : '—'}
                 </div>
               </div>
             </Tooltip>
@@ -410,17 +427,17 @@ export function StatsBreakdowns({
 }) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  const displayHourlyData = useMemo(() => {
-    if (!selectedDay) return hourlyData;
+  const filteredHourlyData = useMemo(() => {
+    if (!selectedDay) return null;
     const filtered = grouped.filter(
       (t) => NY_DOW.format(new Date(t.entryTime)) === selectedDay
     );
     return buildHourlyData(filtered);
-  }, [selectedDay, grouped, hourlyData]);
+  }, [selectedDay, grouped]);
 
   return (
     <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-      <TimeOfDay data={displayHourlyData} filterDay={selectedDay} />
+      <TimeOfDay allData={hourlyData} filteredData={filteredHourlyData} filterDay={selectedDay} />
       <LongVsShort long={directionStats.long} short={directionStats.short} />
       <DayOfWeek data={dayOfWeekData} selectedDay={selectedDay} onDaySelect={setSelectedDay} />
       <DurationBreakdown data={durationData} />
