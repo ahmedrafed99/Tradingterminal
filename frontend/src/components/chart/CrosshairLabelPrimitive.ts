@@ -26,8 +26,8 @@ export class CrosshairLabelPrimitive {
 
     this._el = document.createElement('div');
     this._el.style.cssText =
-      `position:absolute;right:0;height:18px;font-size:12px;font-weight:bold;` +
-      `font-family:${FONT_FAMILY};line-height:18px;text-align:center;` +
+      `position:absolute;right:0;height:20px;font-size:12px;font-weight:bold;` +
+      `font-family:${FONT_FAMILY};line-height:20px;text-align:center;` +
       `pointer-events:none;transform:translateY(-50%);box-sizing:border-box;` +
       `background:${BG_COLOR};color:${TEXT_COLOR};z-index:30;display:none;`;
     overlay.appendChild(this._el);

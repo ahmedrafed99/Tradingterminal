@@ -63,7 +63,7 @@ export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   crosshair: {
     mode: CrosshairMode.Normal,
     vertLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER },
-    horzLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER },
+    horzLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER, labelVisible: false },
   },
   rightPriceScale: {
     borderColor: COLOR_BORDER,

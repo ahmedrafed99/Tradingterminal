@@ -117,8 +117,8 @@ export class PriceLevelLine {
     // ── Axis label (price badge over the price scale) ──
     this._axisEl = document.createElement('div');
     this._axisEl.style.cssText =
-      `position:absolute;right:0;height:18px;font-size:12px;font-weight:bold;` +
-      `font-family:${FONT};line-height:18px;text-align:center;pointer-events:none;` +
+      `position:absolute;right:0;height:20px;font-size:12px;font-weight:bold;` +
+      `font-family:${FONT};line-height:20px;text-align:center;pointer-events:none;` +
       `transform:translateY(-50%);box-sizing:border-box;z-index:20;`;
     this._syncAxis();
     if (!this._axisVisible) this._axisEl.style.display = 'none';
