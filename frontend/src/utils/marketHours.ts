@@ -149,6 +149,35 @@ export function tradingDurationMs(entryIso: string, exitIso: string): number {
   return Math.max(0, wallMs - closedMs);
 }
 
+/**
+ * Returns true if the given UTC seconds timestamp falls within the CME futures
+ * trading session. Closed windows: daily maintenance 17:00–18:00 ET (Mon–Thu),
+ * weekend Fri 17:00 ET → Sun 18:00 ET, and holidays from the holiday store.
+ */
+export function isTimestampInCMETradingSession(utcSec: number): boolean {
+  const parts = fmtNYWithMin.formatToParts(new Date(utcSec * 1000));
+  const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
+  const year = get('year'), month = get('month'), dayOfMonth = get('day');
+  const h = get('hour') % 24;
+  const m = get('minute');
+  const day = new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay();
+
+  if (day === 6) return false;
+  if (day === 5 && h >= 17) return false;
+  if (day === 0 && h < 18) return false;
+  if (h === 17) return false;
+
+  const mm = String(month).padStart(2, '0');
+  const dd = String(dayOfMonth).padStart(2, '0');
+  const holInfo = _holidayInfo.get(`${year}-${mm}-${dd}`);
+  if (holInfo) {
+    if (holInfo.fullClose) return false;
+    const closeET = ctToET(holInfo.closesAt);
+    if (h > closeET.h || (h === closeET.h && m >= closeET.m)) return false;
+  }
+  return true;
+}
+
 /** Human-readable label for when the market next reopens. */
 export function getNextOpenLabel(): string {
   const { day, h } = getETComponents();

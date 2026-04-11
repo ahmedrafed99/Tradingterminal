@@ -631,7 +631,6 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         lineStyle: fdDef?.lineStyle ?? 'solid',
         text: null,
         contractId: String(contract.id),
-        sessionMode: refs.sessionModeActive.current,
       });
       useStore.getState().setSelectedDrawingIds([createdId]);
     }
@@ -706,7 +705,6 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
           fillColor: rectDef?.fillColor ?? DEFAULT_RECT_FILL,
           text: null,
           contractId: String(contract.id),
-          sessionMode: refs.sessionModeActive.current,
         });
       }
       state.rectCreation = null;
@@ -781,7 +779,6 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
         fillColor: ovalDef?.fillColor ?? DEFAULT_OVAL_FILL,
         text: null,
         contractId: String(contract.id),
-        sessionMode: refs.sessionModeActive.current,
       });
     }
   }

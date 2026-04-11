@@ -6,7 +6,6 @@ import type { Contract, Bar } from '../../services/marketDataService';
 import type { Timeframe } from '../../store/useStore';
 import { useStore } from '../../store/useStore';
 import { CHART_OPTIONS, CANDLESTICK_OPTIONS, nyTimeFormatterRaw, nyTickMarkFormatterRaw } from './chartTheme';
-import type { SessionBarMap } from './sessionBarMapper';
 import { DrawingEditToolbar } from './DrawingEditToolbar';
 import { ChartSettingsButton } from './ChartSettingsButton';
 import { DrawingsPrimitive } from './drawings/DrawingsPrimitive';
@@ -114,10 +113,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   // Peer-chart crosshair sync (populated by ChartArea in dual-chart mode)
   const peerSyncRef = useRef<((price: number, time: unknown) => void) | null>(null);
 
-  // Session-only mode refs
-  const sessionMapRef = useRef<SessionBarMap | null>(null);
-  const sessionModeActiveRef = useRef<boolean>(false);
-
   // --- ChartRefs bag (passed to all hooks) ---
   // Memoized so hooks that depend on refs don't re-run their effects on every render.
   // All values are useRef results (stable across renders), so empty deps is correct.
@@ -163,8 +158,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     hoveredTpOrderId: hoveredTpOrderIdRef,
     tpRedistInFlight: tpRedistInFlightRef,
     scrollBtnShown: scrollBtnShownRef,
-    sessionMap: sessionMapRef,
-    sessionModeActive: sessionModeActiveRef,
     peerSync: peerSyncRef,
   }), []);
 
@@ -177,12 +170,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     setPeerSync: (fn: ((price: number, time: unknown) => void) | null) => { peerSyncRef.current = fn; },
   }));
 
-  // Sync session mode store value into ref so RAF/event handlers can read it without re-subscribing
-  const sessionMode = useStore((s) => chartId === 'left' ? s.sessionMode : s.secondSessionMode);
-  useEffect(() => {
-    sessionModeActiveRef.current = sessionMode;
-  }, [sessionMode]);
-
   // loading/error come from useChartBars below
 
   // -- Chart initialization (runs once) --
@@ -192,17 +179,11 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     const chart = createChart(containerRef.current, {
       ...CHART_OPTIONS,
       localization: {
-        timeFormatter: (t: number) => {
-          const real = sessionMapRef.current?.compressedToReal.get(t) ?? t;
-          return nyTimeFormatterRaw(real);
-        },
+        timeFormatter: (t: number) => nyTimeFormatterRaw(t),
       },
       timeScale: {
         ...CHART_OPTIONS.timeScale,
-        tickMarkFormatter: (t: number, type: number) => {
-          const real = sessionMapRef.current?.compressedToReal.get(t) ?? t;
-          return nyTickMarkFormatterRaw(real, type);
-        },
+        tickMarkFormatter: (t: number, type: number) => nyTickMarkFormatterRaw(t, type),
       },
     });
     const series = chart.addSeries(CandlestickSeries, CANDLESTICK_OPTIONS);

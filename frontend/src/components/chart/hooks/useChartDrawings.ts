@@ -42,14 +42,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     // Sync drawings from store on every render
     const storeState = useStore.getState();
     const contractId = contract?.id;
-    const currentSessionMode = refs.sessionModeActive.current;
     const filtered = contractId != null
-      ? storeState.drawings.filter((d) => {
-          if (String(d.contractId) !== String(contractId)) return false;
-          // Hide drawings whose time coordinates belong to the other mode
-          if (d.sessionMode === undefined) return !currentSessionMode;
-          return d.sessionMode === currentSessionMode;
-        })
+      ? storeState.drawings.filter((d) => String(d.contractId) === String(contractId))
       : [];
     primitive.setDrawings(filtered, storeState.selectedDrawingIds);
 
@@ -57,13 +51,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const unsub = useStore.subscribe((s, prev) => {
       if (s.drawings !== prev.drawings || s.selectedDrawingIds !== prev.selectedDrawingIds) {
         const cid = contract?.id;
-        const sessionActive = refs.sessionModeActive.current;
         const f = cid != null
-          ? s.drawings.filter((d) => {
-              if (String(d.contractId) !== String(cid)) return false;
-              if (d.sessionMode === undefined) return !sessionActive;
-              return d.sessionMode === sessionActive;
-            })
+          ? s.drawings.filter((d) => String(d.contractId) === String(cid))
           : [];
         primitive.setDrawings(f, s.selectedDrawingIds);
       }
@@ -123,7 +112,6 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           contractId: String(contract.id),
           startTime: clickTime ? (clickTime as number) : 0,
           extendLeft: false,
-          sessionMode: refs.sessionModeActive.current,
         });
         setActiveTool('select');
         setSelectedDrawingIds([id]);

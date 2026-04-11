@@ -204,7 +204,14 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   `series.update()` calls are unaffected. Additionally, `timeScale.rightOffset: 15`
   reserves a small buffer of scrollable empty space beyond the last whitespace
   point, and `shiftVisibleRangeOnNewBar` keeps the view auto-scrolling as new
-  candles arrive.
+  candles arrive. **Market-hours filtering**: for futures contracts,
+  `generateWhitespace` is called with `isTimestampInCMETradingSession` as a
+  filter predicate. Candidate whitespace slots that fall inside closed periods
+  (daily maintenance 17:00–18:00 ET, weekend Fri 17:00 → Sun 18:00 ET,
+  holidays) are skipped. This prevents LWC from stretching the time axis into
+  dead zones, which is what caused the visible chart gaps. Crypto charts pass
+  no filter (always open). The filter is deterministic pure math — no state,
+  no current-time dependency — so it works correctly for all future timestamps.
 - **Dual-chart crosshair sync** uses a `master` variable (`'left' | 'right' | null`)
   in `ChartArea.tsx`. The chart the mouse is on becomes master; crosshair-move
   events from the other chart are ignored entirely, preventing async bounce-back
@@ -261,12 +268,6 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   dependency (e.g. `useConditionPreview`, `useConditionLinesSync`) to re-run
   and destroy/recreate state — most visibly, condition preview lines snapping
   back to their default positions during drag.
-- **Session-only mode (gap collapse)**: Always-on behavior (no UI toggle) that hides market-closed periods (CME overnight 17:00–18:00 ET, weekends, holidays) so every candle renders directly adjacent to the previous one — no blank whitespace. Enabled by default via `sessionMode: true` / `secondSessionMode: true` in `layoutSlice`. Implementation:
-  - `sessionBarMapper.ts` is the pure compression engine. `buildSessionBarMap(candles, periodSec)` assigns each bar a sequential fake `UTCTimestamp` starting at `BASE_EPOCH = 1_000_000`, spaced exactly `periodSec` apart. The real timestamp ↔ fake timestamp relationship is stored in two `Map<number,number>` objects (`compressedToReal`, `realToCompressed`). `getOrAssignCompressedTime(realSec, map)` looks up or assigns the next available fake timestamp for real-time new bars. `generateSessionWhitespace(map, count)` extends the sequence for future whitespace padding.
-  - `CandlestickChart` creates the chart with per-chart formatter closures that decode fake→real via `sessionMapRef.current?.compressedToReal.get(t)`, so the time axis tick labels and crosshair label always display the real ET time. Each chart instance (dual-chart) has its own `sessionMapRef`, so left and right charts are fully independent.
-  - `useChartBars` reads `sessionMode` / `secondSessionMode` from the store. When enabled: replaces the standard `candles` array with `map.compressedBars` for `series.setData()`; replaces the standard `generateWhitespace` call with `generateSessionWhitespace`; translates real candle times to compressed times in `handleQuote` before calling `series.update()`; and translates during the visibility-change backfill patch. `sessionMode` is in the historical load `useEffect` dep array, so toggling triggers a full reload.
-  - Drawings are stamped with `sessionMode: boolean` at creation time and filtered in `useChartDrawings` — drawings made in one mode are hidden in the other to prevent broken time coordinates from rendering at wrong positions.
-  - State: `sessionMode` / `secondSessionMode` in `layoutSlice`, persisted via `partialize`. Ref `sessionModeActive` mirrors the store value for use inside RAF/event handlers without needing a new subscription.
 - **Background-tab candle backfill**: When the browser tab is backgrounded,
   `requestAnimationFrame` is throttled (≤1 fps) or paused entirely.
   `handleQuote()` now synchronously flushes the previous `pendingBar` to the

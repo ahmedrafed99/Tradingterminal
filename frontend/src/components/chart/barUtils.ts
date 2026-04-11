@@ -37,22 +37,29 @@ export function getCandlePeriodSeconds(tf: Timeframe): number {
 export function computeStartTime(tf: Timeframe): string {
   const periodSec = getCandlePeriodSeconds(tf);
   const MS_DAY = 86_400_000;
-  // ~500 candles of lookback, clamped between 7 days and 365 days
-  // 7-day minimum ensures we always span a full trading week (covers weekends/holidays)
-  const lookbackMs = Math.min(Math.max(periodSec * 500 * 1000, 7 * MS_DAY), 365 * MS_DAY);
+  // ~500 candles of lookback, clamped between 14 days and 365 days
+  // 14-day minimum ensures we always span two full trading weeks (covers weekends + recent holidays)
+  const lookbackMs = Math.min(Math.max(periodSec * 500 * 1000, 14 * MS_DAY), 365 * MS_DAY);
   return new Date(Date.now() - lookbackMs).toISOString();
 }
 
 /** Generate whitespace data points (time-only, no OHLC) beyond the last candle
- *  so the crosshair time label remains visible when hovering past the latest bar */
+ *  so the crosshair time label remains visible when hovering past the latest bar.
+ *  When `filter` is provided (e.g. isTimestampInCMETradingSession), candidate slots
+ *  that don't pass are skipped so the time axis never stretches into closed periods. */
 export function generateWhitespace(
   lastTime: number,
   periodSec: number,
   count = 50,
+  filter?: (t: number) => boolean,
 ): { time: UTCTimestamp }[] {
   const result: { time: UTCTimestamp }[] = [];
-  for (let i = 1; i <= count; i++) {
-    result.push({ time: (lastTime + periodSec * i) as UTCTimestamp });
+  const limit = filter ? count * 6 : count; // extra headroom to skip closed slots
+  for (let i = 1; i <= limit && result.length < count; i++) {
+    const t = lastTime + periodSec * i;
+    if (!filter || filter(t)) {
+      result.push({ time: t as UTCTimestamp });
+    }
   }
   return result;
 }

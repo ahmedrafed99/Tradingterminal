@@ -1,6 +1,5 @@
 import type { IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts';
 import type { Bar } from '../../../services/marketDataService';
-import type { SessionBarMap } from '../sessionBarMapper';
 import type { Order } from '../../../services/orderService';
 import type { DrawingsPrimitive } from '../drawings/DrawingsPrimitive';
 import type { CountdownPrimitive } from '../CountdownPrimitive';
@@ -120,10 +119,6 @@ export interface ChartRefs {
 
   // Scroll button
   scrollBtnShown: React.MutableRefObject<boolean>;
-
-  // Session-only mode (collapse market-closed gaps)
-  sessionMap: React.MutableRefObject<SessionBarMap | null>;
-  sessionModeActive: React.MutableRefObject<boolean>;
 
   // Peer-chart crosshair sync (set by ChartArea in dual-chart mode)
   peerSync: React.MutableRefObject<((price: number, time: unknown) => void) | null>;
