@@ -38,6 +38,42 @@ export function authHeaders() {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Derive userapi base URL from api base URL (api.topstepx.com → userapi.topstepx.com) */
+function getUserApiBaseUrl(): string {
+  try {
+    const url = new URL(store.baseUrl);
+    url.hostname = url.hostname.replace(/^api\./, 'userapi.');
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return store.baseUrl.replace('//api.', '//userapi.');
+  }
+}
+
+async function enableOcoOnAllAccounts(): Promise<void> {
+  const accountsRes = await axios.post(
+    `${store.baseUrl}/api/Account/search`,
+    { onlyActiveAccounts: true },
+    { headers: authHeaders() },
+  );
+  const accounts: { id: number }[] = accountsRes.data?.accounts ?? accountsRes.data ?? [];
+  const userApiBase = getUserApiBaseUrl();
+
+  await Promise.all(
+    accounts.map((acct) =>
+      axios.post(
+        `${userApiBase}/TradingAccount/setAutoOcoBrackets`,
+        { tradingAccountId: acct.id, autoOcoBrackets: true },
+        { headers: authHeaders() },
+      ),
+    ),
+  );
+  console.log(`[auth] OCO brackets enabled on ${accounts.length} account(s)`);
+}
+
+// ---------------------------------------------------------------------------
 // ExchangeAuth implementation
 // ---------------------------------------------------------------------------
 export const projectXAuth: ExchangeAuth = {
@@ -78,6 +114,11 @@ export const projectXAuth: ExchangeAuth = {
 
     store.token = response.data.token as string;
     console.log(`[auth] ✓ connected`);
+
+    // Auto-enable OCO brackets on all accounts (fire-and-forget)
+    enableOcoOnAllAccounts().catch((err) => {
+      console.warn('[auth] setAutoOcoBrackets failed (non-fatal):', err?.message ?? err);
+    });
   },
 
   disconnect() {

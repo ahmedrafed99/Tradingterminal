@@ -14,6 +14,18 @@ ProjectX is the gateway for TopstepX futures trading. It provides REST APIs and 
 2. Returns JWT token stored in backend memory
 3. Token injected as `Authorization: Bearer` on all subsequent requests
 4. RTC base URL derived from API base URL (`api.` → `rtc.`)
+5. After login, OCO brackets are **auto-enabled** on all active accounts (fire-and-forget)
+
+### Auto OCO Brackets
+
+After a successful login, `auth.ts` fetches all active accounts and calls:
+
+```
+POST https://userapi.topstepx.com/TradingAccount/setAutoOcoBrackets
+{ tradingAccountId: <id>, autoOcoBrackets: true }
+```
+
+This runs in the background (non-fatal if it fails) so bracket orders work immediately without requiring a manual toggle in the TopstepX UI. The `userapi` subdomain is derived automatically from the configured base URL (`api.` → `userapi.`).
 
 ## Realtime (SignalR)
 
@@ -34,14 +46,13 @@ The backend proxies SignalR negotiate requests and upgrades WebSocket connection
 
 ## Fee Normalization
 
-The ProjectX API reports `fees` and `commissions` on closing trades only (per-leg, exit side). TopstepX charges both legs (entry + exit), so the adapter doubles both fields before returning:
+ProjectX API reports `fees` and `commissions` on **every trade** (both entry and exit legs). TopstepX charges per leg, so the true round-trip cost = entry fees + exit fees.
 
-```ts
-fees: t.fees * 2
-commissions: t.commissions * 2
-```
+The frontend accumulates both when building trade groups:
+- `totalFees = exits.reduce(fees) + entry.fees`
+- `totalCommissions = exits.reduce(commissions) + entry.commissions`
 
-This normalization lives in `backend/src/adapters/projectx/trades.ts`. The frontend uses values as-is. **When adding Hyperliquid or other exchanges**, do not double — their APIs report round-trip fees natively.
+This handles partial fills correctly (each leg has its own proportional fee). No doubling in the backend — raw per-leg values are passed through unchanged.
 
 ## Adapter Files
 
