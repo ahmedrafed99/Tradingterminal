@@ -4,6 +4,7 @@ import { CreateConditionSchema, PatchConditionSchema } from '../types/condition'
 import * as store from '../services/conditionStore';
 import * as engine from '../services/conditionEngine';
 import * as barAggregator from '../services/barAggregator';
+import * as tickAggregator from '../services/tickAggregator';
 
 const router = Router();
 
@@ -52,6 +53,7 @@ router.get('/:id', (req, res) => {
 router.post('/', validateBody(CreateConditionSchema), (req, res) => {
   const condition = store.create(req.body);
   barAggregator.reschedule(); // recompute next candle boundary for the new condition
+  tickAggregator.refreshBoundaryTimers(); // start boundary timer for new condition if frontend connected
   res.status(201).json(condition);
 });
 
@@ -102,6 +104,7 @@ router.post('/:id/resume', (req, res) => {
   }
   const updated = store.setStatus(req.params.id, 'armed');
   barAggregator.reschedule();
+  tickAggregator.refreshBoundaryTimers();
   res.json(updated);
 });
 
