@@ -86,11 +86,11 @@ export function buildNativeBracketParams(
   config: BracketConfig,
   side: OrderSide,
   contract: Contract,
-): { stopLossBracket?: { ticks: number; type: number }; takeProfitBracket?: { ticks: number; type: number } } | null {
+): { stopLossBracket?: { ticks: number; type: number }; takeProfitBrackets?: { ticks: number; type: number }[] } | null {
   if (config.takeProfits.length > 1) return null;
 
   const isBuy = side === OrderSide.Buy;
-  const result: { stopLossBracket?: { ticks: number; type: number }; takeProfitBracket?: { ticks: number; type: number } } = {};
+  const result: { stopLossBracket?: { ticks: number; type: number }; takeProfitBrackets?: { ticks: number; type: number }[] } = {};
 
   if (config.stopLoss.points >= 1) {
     result.stopLossBracket = {
@@ -100,13 +100,13 @@ export function buildNativeBracketParams(
   }
 
   if (config.takeProfits.length === 1 && config.takeProfits[0].points >= 1) {
-    result.takeProfitBracket = {
+    result.takeProfitBrackets = [{
       ticks: pointsToTicks(config.takeProfits[0].points, contract) * (isBuy ? 1 : -1),
       type: OrderType.Limit,
-    };
+    }];
   }
 
-  if (!result.stopLossBracket && !result.takeProfitBracket) return null;
+  if (!result.stopLossBracket && !result.takeProfitBrackets) return null;
 
   return result;
 }

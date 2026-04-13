@@ -12,6 +12,14 @@ export function validateBody<T extends ZodType>(schema: T) {
       });
       return;
     }
+    // Warn when Zod strips fields — a mismatch here means the caller sent a
+    // field the schema doesn't know about (e.g. renamed field not updated in frontend).
+    const stripped = Object.keys(req.body as object).filter(
+      (k) => !(k in (result.data as object)),
+    );
+    if (stripped.length > 0) {
+      console.warn(`[validateBody] ${req.path} — stripped unknown fields: ${stripped.join(', ')}`);
+    }
     req.body = result.data;
     next();
   };

@@ -29,7 +29,7 @@ export interface PlaceOrderParams {
   limitPrice?: number;
   stopPrice?: number;
   stopLossBracket?: OrderBracket;
-  takeProfitBracket?: OrderBracket;
+  takeProfitBrackets?: OrderBracket[];
 }
 
 export interface ModifyOrderParams {

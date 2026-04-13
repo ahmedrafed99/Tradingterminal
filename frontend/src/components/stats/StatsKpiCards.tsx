@@ -31,7 +31,7 @@ function useAnimatedValue(target: number, duration = 1200): number {
 
 function AnimatedDollar({ value, fontSize = 28, color }: { value: number; fontSize?: number; color: string }) {
   const animated = useAnimatedValue(value);
-  const sign = animated > 0.005 ? '+' : '';
+  const sign = animated > 0.005 ? '+' : animated < -0.005 ? '-' : '';
   return (
     <span
       className="font-semibold"
@@ -281,12 +281,12 @@ export function StatsKpiCards({ stats }: { stats: TradeStats }) {
             <div>
               {bestWorstMode === '$' ? (
                 stats.bestTrade
-                  ? <AnimatedDollar value={stats.bestTrade.totalNet} fontSize={20} color="var(--color-buy)" />
+                  ? <AnimatedDollar value={stats.bestTrade.totalNet} fontSize={20} color={stats.bestTrade.totalNet >= 0 ? 'var(--color-buy)' : 'var(--color-sell)'} />
                   : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
               ) : (() => {
                 const p = tradePoints(stats.bestTradeByPoints);
                 return p != null
-                  ? <AnimatedNumber value={p} fontSize={20} color="var(--color-buy)" prefix={p >= 0 ? '+' : ''} suffix=" pts" />
+                  ? <AnimatedNumber value={p} fontSize={20} color={p >= 0 ? 'var(--color-buy)' : 'var(--color-sell)'} prefix={p >= 0 ? '+' : ''} suffix=" pts" />
                   : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>;
               })()}
               {(bestWorstMode === '$' ? stats.bestTrade : stats.bestTradeByPoints) && (

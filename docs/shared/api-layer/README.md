@@ -195,8 +195,8 @@ placeOrder(params: {
   size: number                // fractional allowed (crypto)
   limitPrice?: number
   stopPrice?: number
-  stopLossBracket?: { ticks: number; type: number }
-  takeProfitBracket?: { ticks: number; type: number }
+  stopLossBracket?: { ticks: number; type: number }  // tick-offset (ProjectX) or { price } (HL)
+  takeProfitBrackets?: { ticks: number; type: number }[]  // array; adapters convert to exchange format
 }): Promise<{ orderId: string }>
 
 cancelOrder(accountId: string, orderId: string): Promise<void>

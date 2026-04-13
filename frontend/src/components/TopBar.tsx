@@ -73,7 +73,7 @@ function aggregatePnl(trades: Trade[]): { pnl: number; fees: number } {
   for (const t of trades) {
     if (!t.voided) {
       pnl += t.profitAndLoss ?? 0;
-      fees += t.fees ?? 0;
+      fees += (t.fees ?? 0) + (t.commissions ?? 0);
     }
   }
   return { pnl, fees };

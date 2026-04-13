@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type * as http from 'http';
 import type { Duplex } from 'stream';
+import { OrderType, OrderSide } from '../types/enums';
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -38,8 +39,31 @@ export interface ExchangeMarketData {
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------
+
+/**
+ * Bracket leg — either tick-offset (ProjectX) or absolute-price (Hyperliquid).
+ * Adapters narrow to the correct variant at their boundary.
+ */
+export type BracketParam =
+  | { ticks: number; type: number }
+  | { price: number; size?: number };
+
+/** Canonical params for placing an order — shared by route validation and adapters. */
+export interface PlaceOrderParams {
+  accountId: string;
+  contractId: string;
+  type: OrderType;
+  side: OrderSide;
+  size: number;
+  limitPrice?: number;
+  stopPrice?: number;
+  stopLossBracket?: BracketParam;
+  /** Array of TP legs. Adapters convert to exchange-specific format. */
+  takeProfitBrackets?: BracketParam[];
+}
+
 export interface ExchangeOrders {
-  place(params: Record<string, unknown>): Promise<unknown>;
+  place(params: PlaceOrderParams): Promise<unknown>;
   cancel(params: { accountId: string; orderId: string }): Promise<unknown>;
   modify(params: Record<string, unknown>): Promise<unknown>;
   searchOpen(accountId: string): Promise<unknown>;
@@ -64,16 +88,25 @@ export interface ExchangeTrades {
 }
 
 // ---------------------------------------------------------------------------
-// Realtime (SignalR / WebSocket proxy)
+// Realtime (SignalR proxy or native WebSocket multiplexer)
 // ---------------------------------------------------------------------------
-export interface ExchangeRealtime {
+export interface SignalRRealtime {
+  kind: 'signalr';
+  /** Proxies SignalR negotiate HTTP requests to the exchange RTC server. */
   negotiateMiddleware: (req: Request, res: Response, next: NextFunction) => void;
-  handleUpgrade: (
-    req: http.IncomingMessage,
-    socket: Duplex,
-    head: Buffer,
-  ) => void;
+  /** Proxies WebSocket upgrades (/hubs/*) to the exchange RTC server. */
+  handleUpgrade: (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
 }
+
+export interface NativeWsRealtime {
+  kind: 'ws';
+  /** Path the backend listens on for browser WebSocket connections, e.g. '/ws/hl'. */
+  wsPath: string;
+  /** Accepts a WebSocket upgrade and multiplexes it to the upstream exchange WS. */
+  handleUpgrade: (req: http.IncomingMessage, socket: Duplex, head: Buffer) => void;
+}
+
+export type ExchangeRealtime = SignalRRealtime | NativeWsRealtime;
 
 // ---------------------------------------------------------------------------
 // Composite adapter

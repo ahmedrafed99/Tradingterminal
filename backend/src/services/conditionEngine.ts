@@ -3,6 +3,7 @@ import { getAdapter, isConnected } from '../adapters/registry';
 import * as store from './conditionStore';
 import type { Condition, ConditionStatus } from '../types/condition';
 import { OrderType, OrderSide } from '../types/enums';
+import type { PlaceOrderParams } from '../adapters/types';
 import * as barAggregator from './barAggregator';
 
 // ---------------------------------------------------------------------------
@@ -91,7 +92,7 @@ async function executeCondition(condition: Condition): Promise<void> {
 
   const adapter = getAdapter();
 
-  const orderParams: Record<string, unknown> = {
+  const orderParams: PlaceOrderParams = {
     accountId: condition.accountId,
     contractId: condition.contractId,
     type: condition.orderType === 'market' ? OrderType.Market : OrderType.Limit,
@@ -114,10 +115,10 @@ async function executeCondition(condition: Condition): Promise<void> {
       };
     }
     if (condition.bracket.tp && condition.bracket.tp.length === 1) {
-      orderParams.takeProfitBracket = {
+      orderParams.takeProfitBrackets = [{
         ticks: pointsToTicks(condition.bracket.tp[0].points, condition.contractTickSize) * (isBuy ? 1 : -1),
         type: OrderType.Limit,
-      };
+      }];
     }
   }
 

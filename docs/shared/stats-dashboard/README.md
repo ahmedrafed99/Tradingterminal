@@ -42,7 +42,7 @@ A near-full-screen popover triggered by a **Stats** tab in the bottom panel. Dis
 | Card | Content |
 |------|---------|
 | **Profit Factor** | 28px value, green if ≥ 1, red if < 1. Shows "∞" if no losses |
-| **Best / Worst Trade** | Two 20px values side-by-side with vertical divider. Timestamps below each. Header includes a **$ / points toggle** (orange `--color-warning` for active, muted for inactive) to switch ranking between net dollar P&L and raw price-move points. Trades with no known entry price show `—` in points mode. |
+| **Best / Worst Trade** | Two 20px values side-by-side with vertical divider. Timestamps below each. Header includes a **$ / points toggle** (orange `--color-warning` for active, muted for inactive) to switch ranking between net dollar P&L and raw price-move points. Trades with no known entry price show `—` in points mode. **Color reflects actual sign**: best trade is green only if `totalNet > 0`, red if negative (e.g. all losses — best = least-bad loss). |
 | **Streaks & Drawdown** | Row layout: Win Streak, Loss Streak (with separator), Max Drawdown |
 
 Card titles: 14px, `font-weight: 600`, `color: var(--color-text)`.
@@ -195,7 +195,7 @@ Entrance animations trigger on mount or when sections scroll into view:
 | `components/stats/StatsDayDetail.tsx` | Day drill-down: equity curve (via shared component) + trade list table |
 | `components/stats/StatsBreakdowns.tsx` | 2×2 grid: P&L by Hour, Long vs Short (with mini donuts), Day of Week, Duration |
 | `components/stats/AnimateIn.tsx` | Scroll-triggered fade-in + slide-up wrapper using IntersectionObserver |
-| `components/stats/statsHelpers.ts` | Shared utilities: `pnlColor()`, `fmtDollar()`, `niceStep()`, `hexToRgba()`. `fmtDollar()` formats as `+$X.XX` / `-$X.XX` / `$0.00` — all inline P&L formatting must use this sign convention (`+` for positive, `-` for negative, none for zero) |
+| `components/stats/statsHelpers.ts` | Shared utilities: `pnlColor()`, `fmtDollar()`, `niceStep()`, `hexToRgba()`. `fmtDollar()` formats as `+$X.XX` / `-$X.XX` / `$0.00` — all inline P&L formatting must use this sign convention (`+` for positive, `-` for negative, none for zero). `AnimatedDollar` in `StatsKpiCards` follows the same convention: renders `+$X.XX`, `-$X.XX`, or `$0.00`. |
 | `utils/tradeStats.ts` | Pure functions: `groupTrades()`, `computeStats()`, `buildCalendarData()`, `buildHourlyData()`, `buildDirectionStats()`, `buildDayOfWeekData()`, `buildDurationComparison()`. `computeStats()` returns `bestTradeByPoints` / `worstTradeByPoints` (ranked by `pointsGained` — direction-aware price move, null if entry price unknown). |
 
 All components live under `frontend/src/components/stats/`.

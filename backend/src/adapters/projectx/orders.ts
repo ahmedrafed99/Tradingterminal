@@ -1,13 +1,20 @@
 import axios from 'axios';
-import type { ExchangeOrders } from '../types';
+import type { ExchangeOrders, PlaceOrderParams } from '../types';
 import { getBaseUrl, authHeaders } from './auth';
 
 /** ProjectX uses numeric IDs — convert at boundary. */
 const toNum = (id: string) => Number(id);
 
 export const projectXOrders: ExchangeOrders = {
-  async place(params) {
-    const body = { ...params, accountId: toNum(params.accountId as string) };
+  async place(params: PlaceOrderParams) {
+    // Backend schema uses takeProfitBrackets (array); ProjectX gateway expects
+    // takeProfitBracket (singular object). Convert at the adapter boundary.
+    const { takeProfitBrackets, ...rest } = params;
+    const converted: Record<string, unknown> = { ...rest, accountId: toNum(params.accountId) };
+    if (takeProfitBrackets && takeProfitBrackets.length > 0) {
+      converted.takeProfitBracket = takeProfitBrackets[0];
+    }
+    const body = converted;
     const response = await axios.post(
       `${getBaseUrl()}/api/Order/place`,
       body,

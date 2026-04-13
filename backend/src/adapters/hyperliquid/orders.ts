@@ -1,4 +1,4 @@
-import type { ExchangeOrders } from '../types';
+import type { ExchangeOrders, PlaceOrderParams } from '../types';
 import { OrderType, OrderSide } from '../../types/enums';
 import type { HlClient, HlState } from './client';
 import { floatToWire, roundToSigFigs } from './client';
@@ -166,7 +166,7 @@ function markAsTp(wire: Record<string, unknown>): void {
 // ---------------------------------------------------------------------------
 export function createOrders(client: HlClient, _state: HlState): ExchangeOrders {
   return {
-    async place(params) {
+    async place(params: PlaceOrderParams) {
       const {
         contractId,
         type,
@@ -176,39 +176,33 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
         stopPrice,
         stopLossBracket,
         takeProfitBrackets,
-      } = params as {
-        contractId: string;
-        type: OrderType;
-        side: OrderSide;
-        size: number;
-        limitPrice?: number;
-        stopPrice?: number;
-        stopLossBracket?: { price: number };
-        // Single or multiple TP legs; size per leg defaults to equal split
-        takeProfitBrackets?: { price: number; size?: number }[];
-      };
+      } = params;
+      // HL uses absolute prices; narrow BracketParam to the price variant at runtime
+      const hlSL = stopLossBracket != null && 'price' in stopLossBracket
+        ? stopLossBracket as { price: number }
+        : undefined;
+      const hlTPs = (takeProfitBrackets ?? []).filter((b): b is { price: number; size?: number } => 'price' in b);
 
-      const tpBrackets = takeProfitBrackets ?? [];
-      const hasBrackets = stopLossBracket != null || tpBrackets.length > 0;
+      const hasBrackets = hlSL != null || hlTPs.length > 0;
       const oppSide = side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
 
       if (hasBrackets) {
-        const tpSizes = distributeSizes(tpBrackets, size);
+        const tpSizes = distributeSizes(hlTPs, size);
 
         // Build all wires in parallel
         const [entryWire, slWire, ...tpWires] = await Promise.all([
           buildOrderWire(client, { contractId, type, side, size, limitPrice, stopPrice }),
-          stopLossBracket != null
+          hlSL != null
             ? buildOrderWire(client, {
                 contractId,
                 type: OrderType.Stop,
                 side: oppSide,
                 size,
-                stopPrice: stopLossBracket.price,
+                stopPrice: hlSL.price,
                 reduceOnly: true,
               })
             : null,
-          ...tpBrackets.map((tp, i) =>
+          ...hlTPs.map((tp, i) =>
             buildOrderWire(client, {
               contractId,
               type: OrderType.Stop,

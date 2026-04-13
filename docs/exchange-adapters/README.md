@@ -34,6 +34,35 @@ Stores connected adapters by ID. Supports multiple simultaneous connections:
 - `setDefaultExchangeId(id)` / `getDefaultExchangeId()`
 - `listConnected()` — all active exchange IDs
 
+### Order Placement Contract (`PlaceOrderParams`)
+
+`ExchangeOrders.place()` accepts a typed `PlaceOrderParams` (defined in `adapters/types.ts`):
+
+```ts
+interface PlaceOrderParams {
+  accountId: string;
+  contractId: string;
+  type: OrderType;
+  side: OrderSide;
+  size: number;
+  limitPrice?: number;
+  stopPrice?: number;
+  stopLossBracket?: BracketParam;
+  takeProfitBrackets?: BracketParam[];  // always an array; adapters convert to exchange format
+}
+
+type BracketParam =
+  | { ticks: number; type: number }    // ProjectX — tick offsets from entry
+  | { price: number; size?: number };  // Hyperliquid — absolute prices
+```
+
+**Adapter responsibility:** each adapter must convert `takeProfitBrackets` (array) to its gateway's native format at the adapter boundary:
+
+- **ProjectX**: gateway expects singular `takeProfitBracket` (object) — adapter takes `[0]`
+- **Hyperliquid**: gateway accepts multiple legs natively — adapter passes the array through
+
+> **Regression rule:** when adding a new exchange or renaming bracket fields in `PlaceOrderParams`, update the Zod schema in `orderRoutes.ts` and the frontend `PlaceOrderParams` in `orderService.ts` in the same commit. The `validateBody` middleware logs a warning when it strips unknown fields — that warning is a signal that the frontend and backend schemas have diverged.
+
 ### Factory (`backend/src/adapters/factory.ts`)
 
 Maps exchange names to factory functions:

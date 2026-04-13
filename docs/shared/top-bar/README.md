@@ -77,7 +77,7 @@ unrealizedPnl += calcPnl(diff, orderContract, pos.size);
 RP&L: +$85.00
 ```
 
-**Net Realized P&L** = `sum(profitAndLoss) - sum(fees)` for non-voided trades in the current CME session. Matches the TopstepX display exactly.
+**Net Realized P&L** = `sum(profitAndLoss) - sum(fees) - sum(commissions)` for non-voided trades in the current CME session. Both `fees` and `commissions` are included so the figure matches the Stats dashboard `totalNet`.
 
 - **Data source**: `POST /api/Trade/search` with `{ accountId, startTimestamp }` — proxied via `GET /trades/search`
 - **Session boundary**: CME session starts at 6 PM New York time (23:00 UTC in EST, 22:00 UTC in EDT). Calculated by `getCmeSessionStart()` helper in `frontend/src/utils/cmeSession.ts`
