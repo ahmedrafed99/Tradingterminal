@@ -491,7 +491,7 @@ Registry: `frontend/src/constants/shortcuts.ts` — central `SHORTCUT_DEFS` arra
 | `M` | Toggle magnet OHLC snap (persistent toggle — toolbar button highlights) | Yes |
 | `Alt+Hold` | Temporary magnet snap (additive — also snaps even if toggle is off). `preventDefault` stops browser menu bar from stealing focus on Windows. | No |
 | `Ctrl+Hold` | Horizontal snap for free draw / arrow path | No |
-| `Shift` (hold) | Quick ruler — activates ruler tool while held, restores select on release | No |
+| `Shift` (hold) | Quick ruler — activates ruler tool while held, restores select on release. Only fires when Shift is the sole modifier — `Ctrl+Shift`, `Alt+Shift`, `Meta+Shift` do not activate ruler (prevents misfires from browser shortcuts like `Ctrl+Shift+R`). | No |
 | `Ctrl+Drag` | Multi-select drawings via area selection | No |
 
 ### Cursor management

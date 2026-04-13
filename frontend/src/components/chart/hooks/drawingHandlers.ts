@@ -32,7 +32,7 @@ export function onShiftRulerKey(e: KeyboardEvent, ctx: DrawingContext): void {
   const { state } = ctx;
   const st = useStore.getState();
 
-  if (e.type === 'keydown' && e.key === 'Shift') {
+  if (e.type === 'keydown' && e.key === 'Shift' && !e.ctrlKey && !e.altKey && !e.metaKey) {
     // Don't activate ruler while typing in an input/textarea
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
