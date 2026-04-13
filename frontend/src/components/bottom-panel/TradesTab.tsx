@@ -12,7 +12,7 @@ import { tradingDurationMs } from '../../utils/marketHours';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
 import { DatePresetSelector } from './DatePresetSelector';
 
-type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'net' | 'duration';
+type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'commissions' | 'net' | 'duration';
 type SortDir = 'asc' | 'desc';
 
 interface TradeGroup {
@@ -23,6 +23,7 @@ interface TradeGroup {
   totalQty: number;
   totalPnl: number;
   totalFees: number;
+  totalCommissions: number;
   totalNet: number;
   earliestTime: string;
   latestTime: string;
@@ -205,6 +206,7 @@ export function TradesTab() {
       const entry = entryMap.get(exits[0].id)!;
       const totalPnl = exits.reduce((s, t) => s + t.profitAndLoss!, 0);
       const totalFees = exits.reduce((s, t) => s + t.fees, 0);
+      const totalCommissions = exits.reduce((s, t) => s + t.commissions, 0);
       result.push({
         entryId,
         entry,
@@ -212,7 +214,8 @@ export function TradesTab() {
         totalQty: exits.reduce((s, t) => s + t.size, 0),
         totalPnl,
         totalFees,
-        totalNet: totalPnl - totalFees,
+        totalCommissions,
+        totalNet: totalPnl - totalFees - totalCommissions,
         earliestTime: exits[0].creationTimestamp,
         latestTime: exits[exits.length - 1].creationTimestamp,
         isLong: exits[0].side !== OrderSide.Buy,
@@ -228,7 +231,8 @@ export function TradesTab() {
         totalQty: t.size,
         totalPnl: t.profitAndLoss!,
         totalFees: t.fees,
-        totalNet: t.profitAndLoss! - t.fees,
+        totalCommissions: t.commissions,
+        totalNet: t.profitAndLoss! - t.fees - t.commissions,
         earliestTime: t.creationTimestamp,
         latestTime: t.creationTimestamp,
         isLong: t.side !== OrderSide.Buy,
@@ -254,6 +258,7 @@ export function TradesTab() {
         case 'duration': return g.entry ? tradingDurationMs(g.entry.creationTimestamp, g.latestTime) : 0;
         case 'pnl': return g.totalPnl;
         case 'fees': return g.totalFees;
+        case 'commissions': return g.totalCommissions;
         case 'net': return g.totalNet;
       }
     };
@@ -292,7 +297,7 @@ export function TradesTab() {
     );
   }
 
-  const cols = 'grid-cols-[1.2fr_0.7fr_1fr_0.5fr_1.2fr_1.2fr_0.9fr_1fr_0.7fr_1fr]';
+  const cols = 'grid-cols-[1.2fr_0.7fr_1fr_0.5fr_1.2fr_1.2fr_0.9fr_1fr_0.7fr_0.7fr_1fr]';
 
   let rowIdx = 0;
 
@@ -312,6 +317,7 @@ export function TradesTab() {
               ['Duration', 'duration'],
               ['P&L', 'pnl'],
               ['Fees', 'fees'],
+              ['Comm.', 'commissions'],
               ['Net', 'net'],
             ] as const).map(([label, col]) => {
               const active = sortCol === col;
@@ -355,7 +361,7 @@ export function TradesTab() {
         // For single-exit groups, render exactly like before
         if (!isMulti) {
           const trade = group.exits[0];
-          const net = trade.profitAndLoss! - trade.fees;
+          const net = group.totalNet;
           const isVisible = visibleTradeIds.includes(trade.id);
           const stripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
           const selected = isVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
@@ -393,7 +399,10 @@ export function TradesTab() {
                   </span>
                 </div>
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
-                  {trade.fees.toFixed(2)}
+                  {group.totalFees.toFixed(2)}
+                </div>
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
+                  {group.totalCommissions.toFixed(2)}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
                   <span className={`font-medium ${net > 0 ? 'text-(--color-buy)' : net < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}`}>
@@ -449,6 +458,9 @@ export function TradesTab() {
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.totalFees.toFixed(2)}
                 </div>
+                <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
+                  {group.totalCommissions.toFixed(2)}
+                </div>
                 <div className="px-3 text-center whitespace-nowrap">
                   <span className={`font-medium ${group.totalNet > 0 ? 'text-(--color-buy)' : group.totalNet < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}`}>
                     {group.totalNet > 0 ? '+' : ''}{group.totalNet.toFixed(2)}
@@ -459,7 +471,9 @@ export function TradesTab() {
 
             {/* Sub-rows (expanded) */}
             {isExpanded && group.exits.map((trade) => {
-              const net = trade.profitAndLoss! - trade.fees;
+              const tradeFees = trade.fees;
+              const tradeCommissions = trade.commissions;
+              const net = trade.profitAndLoss! - tradeFees - tradeCommissions;
               const isVisible = visibleTradeIds.includes(trade.id);
               const subStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
               const subSelected = isVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
@@ -488,7 +502,10 @@ export function TradesTab() {
                       </span>
                     </div>
                     <div className="px-3 text-center text-(--color-text-muted)/60 whitespace-nowrap">
-                      {trade.fees.toFixed(2)}
+                      {tradeFees.toFixed(2)}
+                    </div>
+                    <div className="px-3 text-center text-(--color-text-muted)/60 whitespace-nowrap">
+                      {tradeCommissions.toFixed(2)}
                     </div>
                     <div className="px-3 text-center whitespace-nowrap">
                       <span className={`${net > 0 ? 'text-(--color-buy)/70' : net < 0 ? 'text-(--color-sell)/70' : 'text-(--color-text-muted)'}`}>

@@ -60,12 +60,12 @@ A chevron button is centered on the `VerticalSeparator` drag bar in `App.tsx`:
 - Fetches filtered display trades on mount and whenever account or preset changes via `tradeService.searchTrades(accountId, startTimestamp, endTimestamp?)`.
 - Re-fetches display trades on SignalR trade events (debounced 500ms). Cache is invalidated on new trade events.
 - Time column shows `MM/DD HH:MM` format for week/month presets, `HH:MM:SS` for session/today.
-- Columns: Time, Side, Symbol, Qty, Entry, Exit, Duration, P&L, Fees, Net.
+- Columns: Time, Side, Symbol, Qty, Entry, Exit, Duration, P&L, Fees, Comm., Net.
 - All columns are center-aligned. Data grid is constrained to 70% width while row backgrounds (stripes, hover, selection) extend full width.
 - **Sortable columns**: Click any column header to sort by that column (descending by default). Click the same column again to toggle between ascending and descending. Active sort column is highlighted in white with a ▲/▼ indicator. Default sort: Time descending (most recent first).
 - **Partial-exit grouping**: Closing trades that share the same entry (via `buildEntryMap()` FIFO matching) are grouped into a single parent row. Single-exit trades render as normal rows with no grouping UI. Multi-exit groups show:
-  - **Parent row**: entry time, total qty, entry price, `N exits ▸/▾` toggle, total duration (entry → last exit), summed P&L / Fees / Net.
-  - **Sub-rows** (when expanded): indented, dimmer text, showing each exit's time, qty, exit price, individual duration (entry → that exit), individual P&L / Fees / Net. Side, Symbol, and Entry columns are left blank (inherited from parent).
+  - **Parent row**: entry time, total qty, entry price, `N exits ▸/▾` toggle, total duration (entry → last exit), summed P&L / Fees / Comm. / Net.
+  - **Sub-rows** (when expanded): indented, dimmer text, showing each exit's time, qty, exit price, individual duration (entry → that exit), individual P&L / Fees / Comm. / Net. Side, Symbol, and Entry columns are left blank (inherited from parent).
   - Expand/collapse is local UI state (`useState<Set<number>>`), toggled by clicking the "N exits" cell.
 - **Duration column**: Shows elapsed time from entry to exit, formatted as `Xs`, `Xm Ys`, or `Xh Ym Zs`.
 - **Click-to-show-on-chart**: Clicking a single-exit row toggles `toggleTradeVisibility(tradeId)`. Clicking a multi-exit parent row toggles all exit IDs at once via `toggleTradeVisibilityBulk(tradeIds)`. Clicking an individual sub-row toggles just that exit. Selected rows get a warm amber highlight: `bg-(--color-warning)/10` background tint with a `border border-(--color-warning)/60` outline. Non-selected rows have `border border-transparent` to preserve layout. Visible trade IDs are consumed by `CandlestickChart.tsx` to render trade zone overlays on the chart via `TradeZonePrimitive`.

@@ -32,6 +32,17 @@ The backend proxies SignalR negotiate requests and upgrades WebSocket connection
 - Suspended bracket orders arrive without prices — corrected via `pendingBracketInfo`
 - Market hours: CME schedule (Sun 6pm – Fri 5pm ET, daily halt 5-6pm ET)
 
+## Fee Normalization
+
+The ProjectX API reports `fees` and `commissions` on closing trades only (per-leg, exit side). TopstepX charges both legs (entry + exit), so the adapter doubles both fields before returning:
+
+```ts
+fees: t.fees * 2
+commissions: t.commissions * 2
+```
+
+This normalization lives in `backend/src/adapters/projectx/trades.ts`. The frontend uses values as-is. **When adding Hyperliquid or other exchanges**, do not double — their APIs report round-trip fees natively.
+
 ## Adapter Files
 
 ```

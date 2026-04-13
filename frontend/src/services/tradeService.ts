@@ -9,6 +9,7 @@ export interface Trade {
   price: number;
   profitAndLoss: number | null;
   fees: number;
+  commissions: number;
   side: OrderSide;
   size: number;
   voided: boolean;
@@ -23,6 +24,7 @@ const fetchTrades = dedupByKey(async (url: string): Promise<Trade[]> => {
     id: String(t.id),
     accountId: String(t.accountId),
     orderId: String(t.orderId),
+    commissions: t.commissions ?? 0,
   }));
 });
 

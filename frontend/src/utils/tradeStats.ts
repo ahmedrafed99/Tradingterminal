@@ -101,7 +101,7 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
     );
     const entry = entryMap.get(exits[0].id)!;
     const totalPnl = exits.reduce((s, t) => s + t.profitAndLoss!, 0);
-    const totalFees = exits.reduce((s, t) => s + t.fees, 0) + entry.fees;
+    const totalFees = exits.reduce((s, t) => s + t.fees + t.commissions, 0);
     const totalQty = exits.reduce((s, t) => s + t.size, 0);
     const weightedPrice = exits.reduce((s, t) => s + t.price * t.size, 0) / totalQty;
 
@@ -128,8 +128,8 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
       exits: [t],
       totalQty: t.size,
       totalPnl: t.profitAndLoss!,
-      totalFees: t.fees,
-      totalNet: t.profitAndLoss! - t.fees,
+      totalFees: t.fees + t.commissions,
+      totalNet: t.profitAndLoss! - t.fees - t.commissions,
       entryTime: t.creationTimestamp,
       exitTime: t.creationTimestamp,
       isLong: t.side !== OrderSide.Buy,
