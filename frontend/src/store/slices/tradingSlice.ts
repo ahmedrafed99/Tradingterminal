@@ -19,6 +19,7 @@ export interface OrdersState {
 // ---------------------------------------------------------------------------
 export interface PositionsState {
   positions: RealtimePosition[];
+  setOpenPositions: (positions: RealtimePosition[], accountId: string) => void;
   upsertPosition: (pos: RealtimePosition) => void;
   clearPositions: () => void;
 }
@@ -145,6 +146,13 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
       updated[idx] = pos;
       return { positions: updated };
     }),
+  setOpenPositions: (positions, accountId) =>
+    set((s) => ({
+      positions: [
+        ...s.positions.filter((p) => p.accountId !== accountId),
+        ...positions,
+      ],
+    })),
   clearPositions: () => set({ positions: [] }),
 
   // Order Panel

@@ -219,7 +219,7 @@ User clicks BUY
 
 **Position close cleanup**: `bracketEngine.clearSession()` returns the set of order IDs it's already cancelling. The subsequent `searchOpenOrders` cleanup pass skips those IDs to avoid double-cancel warning toasts.
 
-**Reconnect resync**: On user hub reconnect, `OrderPanel` re-fetches open orders via `searchOpenOrders()` and replaces the store. This recovers from events missed during the disconnect window.
+**Reconnect resync**: On user hub reconnect, `OrderPanel` re-fetches open orders via `searchOpenOrders()` and replaces the store, and re-fetches open positions via `searchOpenPositions()` using `setOpenPositions()` which replaces all positions for the account. This removes stale position lines for positions that closed while offline (e.g. SL/TP hit during disconnect). Prior to this, only orders were replaced — positions used `upsertPosition` which never removed closed ones.
 
 **Position inference trades**: `inferPositionsFromOrders` reads `sessionTrades` from the store first; if empty (race with `App.tsx`), it fetches trades inline via `tradeService.searchTrades()`. Only the most recent opening trades (newest-first) up to the position size are used for the weighted average — earlier round-trip trades from the same session are excluded.
 

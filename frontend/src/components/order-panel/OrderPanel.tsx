@@ -129,8 +129,8 @@ async function inferPositionsFromOrders(accountId: string, orders: Order[]) {
 function hydratePositionsAndOrders(accountId: string) {
   // Try REST position endpoint first (may not exist on all gateways)
   positionService.searchOpenPositions(accountId).then((positions) => {
-    const st = useStore.getState();
-    for (const pos of positions) st.upsertPosition(pos);
+    // Replace all positions for this account — removes stale ones closed while offline
+    useStore.getState().setOpenPositions(positions, accountId);
   }).catch((err) => {
     console.error('[OrderPanel] Position REST fetch failed:', err instanceof Error ? err.message : err);
   });
