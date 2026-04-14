@@ -8,7 +8,10 @@ export interface ArmedDragState {
   lineIdx: number;
   originalPrice: number;
   startY: number;
-  field: 'triggerPrice' | 'orderPrice';
+  field: 'triggerPrice' | 'orderPrice' | 'slPrice' | 'tpPrice';
+  tpIndex?: number;   // for tpPrice
+  refPrice?: number;  // for slPrice/tpPrice: the order/trigger ref
+  isBuy?: boolean;    // for slPrice/tpPrice: direction
 }
 
 export interface PreviewState {

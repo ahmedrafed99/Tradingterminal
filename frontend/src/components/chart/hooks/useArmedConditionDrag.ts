@@ -61,6 +61,46 @@ export function useArmedConditionDrag(
       const newPrice = line?.getPrice() ?? drag.originalPrice;
       if (newPrice === drag.originalPrice) return;
       const url = resolveConditionServerUrl(useStore.getState().conditionServerUrl);
+
+      if (drag.field === 'slPrice' || drag.field === 'tpPrice') {
+        const existing = useStore.getState().conditions.find((c) => c.id === drag.condId);
+        if (!existing?.bracket) return;
+        const refPrice = drag.refPrice ?? drag.originalPrice;
+        const isBuy = drag.isBuy ?? true;
+        if (drag.field === 'slPrice') {
+          const points = Math.abs(newPrice - refPrice);
+          const newBracket = { ...existing.bracket, sl: { points } };
+          conditionService.update(url, drag.condId, { bracket: newBracket })
+            .then((updated) => useStore.getState().upsertCondition(updated))
+            .catch((err) => {
+              if (line) { line.setPrice(drag.originalPrice); line.syncPosition(); }
+              showToast('error', 'Failed to update condition', errorMessage(err));
+            });
+        } else {
+          const tpIndex = drag.tpIndex ?? 0;
+          const points = Math.abs(newPrice - refPrice);
+          const newTp = (existing.bracket.tp ?? []).map((tp, i) =>
+            i === tpIndex ? { ...tp, points } : tp,
+          );
+          const newBracket = { ...existing.bracket, tp: newTp };
+          conditionService.update(url, drag.condId, { bracket: newBracket })
+            .then((updated) => useStore.getState().upsertCondition(updated))
+            .catch((err) => {
+              if (line) { line.setPrice(drag.originalPrice); line.syncPosition(); }
+              showToast('error', 'Failed to update condition', errorMessage(err));
+            });
+        }
+        // Validate direction: warn if dragged to wrong side
+        const wrongSide = drag.field === 'slPrice'
+          ? (isBuy ? newPrice >= refPrice : newPrice <= refPrice)
+          : (isBuy ? newPrice <= refPrice : newPrice >= refPrice);
+        if (wrongSide) {
+          showToast('error', 'Invalid bracket price', 'SL/TP dragged to wrong side');
+          if (line) { line.setPrice(drag.originalPrice); line.syncPosition(); }
+        }
+        return;
+      }
+
       conditionService.update(url, drag.condId, { [drag.field]: newPrice })
         .then((updated) => { useStore.getState().upsertCondition(updated); })
         .catch((err) => {
