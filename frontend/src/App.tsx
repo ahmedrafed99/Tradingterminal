@@ -14,8 +14,9 @@ import { realtimeService } from './services/realtimeService';
 import { useStore } from './store/useStore';
 import { useSettingsSync } from './hooks/useSettingsSync';
 import { useRemoteDrawings } from './hooks/useRemoteDrawings';
-import { getCmeSessionStart } from './utils/cmeSession';
+import { getCmeSessionStart, getDateRange } from './utils/cmeSession';
 import { allTradesCache } from './components/bottom-panel/TradesTab';
+import { tradeService } from './services/tradeService';
 import { ChevronDown } from './components/icons/ChevronDown';
 import { ChevronUp } from './components/icons/ChevronUp';
 
@@ -157,14 +158,19 @@ export default function App() {
       tradeDebounceRef.current = setTimeout(() => {
         const state = useStore.getState();
         if (state.activeAccountId == null) return;
-        // allTradesCache is refreshed by TradesTab's SignalR handler;
-        // just re-derive session trades from the updated cache
-        const cached = allTradesCache.get(state.activeAccountId!);
-        if (cached) {
-          const sessionStart = getCmeSessionStart();
-          state.setSessionTrades(cached.filter((t) => t.creationTimestamp >= sessionStart));
-        }
-      }, 600); // slightly after TradesTab's 500ms to ensure cache is fresh
+        // Fetch directly — don't rely on TradesTab being mounted to refresh cache
+        const { startTimestamp } = getDateRange('all');
+        tradeService
+          .searchTrades(state.activeAccountId, startTimestamp)
+          .then((trades) => {
+            allTradesCache.set(state.activeAccountId!, trades);
+            const sessionStart = getCmeSessionStart();
+            state.setSessionTrades(trades.filter((t) => t.creationTimestamp >= sessionStart));
+          })
+          .catch((err) => {
+            console.error('[App] Trade re-fetch failed:', err instanceof Error ? err.message : err);
+          });
+      }, 500);
     };
     realtimeService.onTrade(handler);
     return () => {

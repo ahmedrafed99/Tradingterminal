@@ -82,8 +82,21 @@ RP&L: +$85.00
 - **Data source**: `POST /api/Trade/search` with `{ accountId, startTimestamp }` — proxied via `GET /trades/search`
 - **Session boundary**: CME session starts at 6 PM New York time (23:00 UTC in EST, 22:00 UTC in EDT). Calculated by `getCmeSessionStart()` helper in `frontend/src/utils/cmeSession.ts`
 - **`profitAndLoss`** values are in dollars (no tick-value multiplication needed); `null` for opening half-turns (ignored)
-- **Refresh**: re-fetched on SignalR `GatewayUserTrade` events (debounced 500ms) — SignalR trade events do NOT include `profitAndLoss`, so a REST API re-fetch is required
+- **Refresh**: SignalR `GatewayUserTrade` events trigger a REST re-fetch (debounced 500ms) in `App.tsx`. Trade events do NOT include `profitAndLoss`, so a full `tradeService.searchTrades()` call is required. `App.tsx` fetches independently — does **not** depend on `TradesTab` being mounted. Result updates `allTradesCache` and `sessionTrades` store slice.
 - **Color-coded**: positive `text-[#26a69a]` (green) with `+` prefix, negative `text-[#ef5350]` (red), zero `text-[#d1d4dc]` (neutral)
+
+**Data pipeline:**
+```
+SignalR GatewayUserTrade event
+  → App.tsx onTrade handler (debounced 500ms)
+  → tradeService.searchTrades(accountId, startTimestamp)  ← REST fetch
+  → allTradesCache.set(accountId, trades)                 ← shared cache
+  → store.setSessionTrades(trades filtered by getCmeSessionStart())
+  → TopBar useMemo recomputes realizedPnl / realizedFees
+  → RP&L re-renders
+```
+
+Note: `TradesTab` also registers its own `onTrade` handler to refresh its display. Both handlers fire independently — no coupling between them.
 
 ### Right — Connection Status + Latency + Settings
 
