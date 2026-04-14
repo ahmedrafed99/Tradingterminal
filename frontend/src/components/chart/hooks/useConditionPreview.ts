@@ -97,27 +97,28 @@ export function useConditionPreview(
     // Build labels (also wires up interaction handlers)
     updatePreviewLabels();
 
-    // Auto-populate SL/TP from the active bracket preset in the order panel
-    const bracketConfig = resolvePreviewConfig();
-    if (bracketConfig) {
-      const p = previewRef.current!;
-      const toP = (pts: number) => pointsToPrice(pts, contract);
-      if (bracketConfig.stopLoss.points > 0) {
-        const slPrice = snapToTickSize(
-          p.isAbove ? p.orderPrice - toP(bracketConfig.stopLoss.points) : p.orderPrice + toP(bracketConfig.stopLoss.points),
+    function reapplyBracketPreset() {
+      const p = previewRef.current;
+      if (!p) return;
+      const cfg = resolvePreviewConfig();
+      if (!cfg) return;
+      const toP = (pts: number) => pointsToPrice(pts, contract!);
+      if (cfg.stopLoss.points > 0) {
+        addSlLine(snapToTickSize(
+          p.isAbove ? p.orderPrice - toP(cfg.stopLoss.points) : p.orderPrice + toP(cfg.stopLoss.points),
           tickSize,
-        );
-        addSlLine(slPrice);
+        ));
       }
-      const fittedTps = fitTpsToOrderSize(bracketConfig.takeProfits, p.size);
-      for (const tp of fittedTps) {
-        const tpPrice = snapToTickSize(
+      for (const tp of fitTpsToOrderSize(cfg.takeProfits, p.size)) {
+        addTpLine(snapToTickSize(
           p.isAbove ? p.orderPrice + toP(tp.points) : p.orderPrice - toP(tp.points),
           tickSize,
-        );
-        addTpLine(tpPrice, tp.size);
+        ), tp.size);
       }
     }
+
+    // Auto-populate SL/TP from the active bracket preset in the order panel
+    reapplyBracketPreset();
 
     // Keep size in sync when orderSize changes in the store
     const unsubSize = useStore.subscribe((state, prev) => {
@@ -134,35 +135,12 @@ export function useConditionPreview(
       if (state.activePresetId === prev.activePresetId && state.bracketPresets === prev.bracketPresets) return;
       const p = previewRef.current;
       if (!p) return;
-
-      // Clear existing SL/TP
       p.slLine?.destroy();
       p.slLine = null;
       p.slPrice = null;
       for (const tp of p.tpLines) tp.line.destroy();
       p.tpLines = [];
-
-      // Re-apply from new preset
-      const newConfig = resolvePreviewConfig();
-      if (newConfig) {
-        const toP = (pts: number) => pointsToPrice(pts, contract!);
-        if (newConfig.stopLoss.points > 0) {
-          const slPrice = snapToTickSize(
-            p.isAbove ? p.orderPrice - toP(newConfig.stopLoss.points) : p.orderPrice + toP(newConfig.stopLoss.points),
-            tickSize,
-          );
-          addSlLine(slPrice);
-        }
-        const fittedTps = fitTpsToOrderSize(newConfig.takeProfits, p.size);
-        for (const tp of fittedTps) {
-          const tpPrice = snapToTickSize(
-            p.isAbove ? p.orderPrice + toP(tp.points) : p.orderPrice - toP(tp.points),
-            tickSize,
-          );
-          addTpLine(tpPrice, tp.size);
-        }
-      }
-
+      reapplyBracketPreset();
       updatePreviewLabels();
     });
 
@@ -268,26 +246,7 @@ export function useConditionPreview(
                 p.slPrice = null;
                 for (const tp of p.tpLines) tp.line.destroy();
                 p.tpLines = [];
-                // Re-apply bracket preset in market mode
-                const cfg = resolvePreviewConfig();
-                if (cfg) {
-                  const toP = (pts: number) => pointsToPrice(pts, contract!);
-                  if (cfg.stopLoss.points > 0) {
-                    const slPrice = snapToTickSize(
-                      p.isAbove ? p.orderPrice - toP(cfg.stopLoss.points) : p.orderPrice + toP(cfg.stopLoss.points),
-                      tickSize,
-                    );
-                    addSlLine(slPrice);
-                  }
-                  const fittedTps = fitTpsToOrderSize(cfg.takeProfits, p.size);
-                  for (const tp of fittedTps) {
-                    const tpPrice = snapToTickSize(
-                      p.isAbove ? p.orderPrice + toP(tp.points) : p.orderPrice - toP(tp.points),
-                      tickSize,
-                    );
-                    addTpLine(tpPrice, tp.size);
-                  }
-                }
+                reapplyBracketPreset();
               } else {
                 p.isMarket = false;
               }
