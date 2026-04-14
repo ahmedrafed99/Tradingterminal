@@ -96,6 +96,16 @@ export function useConditionPreview(
     // Build labels (also wires up interaction handlers)
     updatePreviewLabels();
 
+    // Keep size in sync when orderSize changes in the store
+    const unsubSize = useStore.subscribe((state, prev) => {
+      if (state.orderSize !== prev.orderSize) {
+        const p = previewRef.current;
+        if (!p) return;
+        p.size = state.orderSize;
+        updatePreviewLabels();
+      }
+    });
+
     function updatePreviewLabels() {
       const p = previewRef.current;
       if (!p || !p.condLine) return;
@@ -614,6 +624,7 @@ export function useConditionPreview(
     }
 
     return () => {
+      unsubSize();
       destroyPreview();
     };
   }, [conditionPreview, contract, conditionServerUrl, timeframe, refs, previewRef, previewDragRef]);
