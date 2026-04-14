@@ -8,8 +8,9 @@ import { PriceLevelLine } from '../PriceLevelLine';
 import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ArmedDragState } from './conditionLineTypes';
-import { CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL, CLR_ARM_ABOVE, CLR_ARM_BELOW } from './conditionLineTypes';
+import { CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL, CLR_ARM_ABOVE, CLR_ARM_BELOW, CLR_SL, CLR_TP } from './conditionLineTypes';
 import { LABEL_BG, LABEL_TEXT, CLOSE_BG, wireCloseHover } from './labelUtils';
+import { snapToTickSize } from '../barUtils';
 
 /**
  * Effect 1: Creates dashed lines on the chart for each armed condition
@@ -110,10 +111,42 @@ export function useArmedConditionLines(
       linesRef.current.push(line);
       condIdsRef.current.push(condId);
 
-      // --- Order price line (limit orders only) ---
+      const isBuy = cond.orderSide === 'buy';
+      const sideBg = isBuy ? CLR_BUY : CLR_SELL;
+
+      // --- Market order label (side-by-side with trigger line) ---
+      if (cond.orderType === 'market') {
+        const sideLabel = isBuy ? 'Buy Market' : 'Sell Market';
+
+        // Ghost line at same price — hidden, just carries the label
+        const orderLine = new PriceLevelLine({
+          price: cond.triggerPrice,
+          series,
+          overlay,
+          chartApi: chart,
+          lineColor: sideBg,
+          lineStyle: 'dashed',
+          lineWidth: 0,
+          axisLabelVisible: false,
+          tickSize,
+        });
+
+        orderLine.setLabel([
+          { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT },
+          { text: String(cond.orderSize), bg: sideBg, color: LABEL_TEXT },
+        ]);
+
+        // Position side-by-side with trigger label
+        line.setLabelLeft(0.30);
+        orderLine.setLabelLeft(0.65);
+
+        linesRef.current.push(orderLine);
+        condIdsRef.current.push(condId);
+      }
+
+      // --- Limit order line ---
       if (cond.orderType === 'limit' && cond.orderPrice != null) {
-        const sideLabel = cond.orderSide === 'buy' ? 'Buy Limit' : 'Sell Limit';
-        const sideBg = cond.orderSide === 'buy' ? CLR_BUY : CLR_SELL;
+        const sideLabel = isBuy ? 'Buy Limit' : 'Sell Limit';
 
         const orderLine = new PriceLevelLine({
           price: cond.orderPrice,
@@ -156,7 +189,6 @@ export function useArmedConditionLines(
             });
           }
 
-          // Drag to modify order price
           orderLabelEl.addEventListener('mousedown', (e) => {
             if (e.target === orderXCell || orderXCell?.contains(e.target as Node)) return;
             e.preventDefault();
@@ -175,6 +207,62 @@ export function useArmedConditionLines(
 
         linesRef.current.push(orderLine);
         condIdsRef.current.push(condId);
+      }
+
+      // --- Bracket SL/TP lines ---
+      if (cond.bracket?.enabled) {
+        // Reference price: limit order price if known, else trigger price
+        const refPrice = cond.orderType === 'limit' && cond.orderPrice != null
+          ? cond.orderPrice
+          : cond.triggerPrice;
+
+        if (cond.bracket.sl) {
+          const slPrice = snapToTickSize(
+            isBuy ? refPrice - cond.bracket.sl.points : refPrice + cond.bracket.sl.points,
+            tickSize,
+          );
+          const slLine = new PriceLevelLine({
+            price: slPrice,
+            series,
+            overlay,
+            chartApi: chart,
+            lineColor: CLR_SL,
+            lineStyle: 'dashed',
+            lineWidth: 1,
+            axisLabelVisible: true,
+            tickSize,
+          });
+          slLine.setLabel([
+            { text: 'SL', bg: CLR_SL, color: '#fff' },
+            { text: `${cond.bracket.sl.points}pts`, bg: LABEL_BG, color: LABEL_TEXT },
+          ]);
+          linesRef.current.push(slLine);
+          condIdsRef.current.push(condId);
+        }
+
+        for (const tp of cond.bracket.tp ?? []) {
+          const tpPrice = snapToTickSize(
+            isBuy ? refPrice + tp.points : refPrice - tp.points,
+            tickSize,
+          );
+          const tpLine = new PriceLevelLine({
+            price: tpPrice,
+            series,
+            overlay,
+            chartApi: chart,
+            lineColor: CLR_TP,
+            lineStyle: 'dashed',
+            lineWidth: 1,
+            axisLabelVisible: true,
+            tickSize,
+          });
+          tpLine.setLabel([
+            { text: 'TP', bg: CLR_TP, color: '#fff' },
+            { text: `${tp.points}pts`, bg: LABEL_BG, color: LABEL_TEXT },
+          ]);
+          linesRef.current.push(tpLine);
+          condIdsRef.current.push(condId);
+        }
       }
     }
 
