@@ -205,8 +205,8 @@ export function TradesTab() {
       );
       const entry = entryMap.get(exits[0].id)!;
       const totalPnl = exits.reduce((s, t) => s + t.profitAndLoss!, 0);
-      const totalFees = exits.reduce((s, t) => s + t.fees, 0);
-      const totalCommissions = exits.reduce((s, t) => s + t.commissions, 0);
+      const totalFees = exits.reduce((s, t) => s + t.fees, 0) + entry.fees;
+      const totalCommissions = exits.reduce((s, t) => s + t.commissions, 0) + entry.commissions;
       result.push({
         entryId,
         entry,
