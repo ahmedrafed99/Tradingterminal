@@ -14,8 +14,9 @@ import {
   LABEL_BG, LABEL_TEXT, CLOSE_BG, BUY_COLOR, wireCloseHover,
 } from './labelUtils';
 import { snapToTickSize } from '../barUtils';
-import { calcPnl } from '../../../utils/instrument';
+import { pointsToPrice } from '../../../utils/instrument';
 import type { PreviewState, PreviewDragState } from './conditionLineTypes';
+import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
 import {
   CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL,
   CLR_ARM_ABOVE, CLR_ARM_BELOW, CLR_SL, CLR_TP,
@@ -96,6 +97,28 @@ export function useConditionPreview(
     // Build labels (also wires up interaction handlers)
     updatePreviewLabels();
 
+    // Auto-populate SL/TP from the active bracket preset in the order panel
+    const bracketConfig = resolvePreviewConfig();
+    if (bracketConfig) {
+      const p = previewRef.current!;
+      const toP = (pts: number) => pointsToPrice(pts, contract);
+      if (bracketConfig.stopLoss.points > 0) {
+        const slPrice = snapToTickSize(
+          p.isAbove ? p.orderPrice - toP(bracketConfig.stopLoss.points) : p.orderPrice + toP(bracketConfig.stopLoss.points),
+          tickSize,
+        );
+        addSlLine(slPrice);
+      }
+      const fittedTps = fitTpsToOrderSize(bracketConfig.takeProfits, p.size);
+      for (const tp of fittedTps) {
+        const tpPrice = snapToTickSize(
+          p.isAbove ? p.orderPrice + toP(tp.points) : p.orderPrice - toP(tp.points),
+          tickSize,
+        );
+        addTpLine(tpPrice, tp.size);
+      }
+    }
+
     // Keep size in sync when orderSize changes in the store
     const unsubSize = useStore.subscribe((state, prev) => {
       if (state.orderSize !== prev.orderSize) {
@@ -104,6 +127,43 @@ export function useConditionPreview(
         p.size = state.orderSize;
         updatePreviewLabels();
       }
+    });
+
+    // Re-sync SL/TP lines when bracket preset changes
+    const unsubBracket = useStore.subscribe((state, prev) => {
+      if (state.activePresetId === prev.activePresetId && state.bracketPresets === prev.bracketPresets) return;
+      const p = previewRef.current;
+      if (!p) return;
+
+      // Clear existing SL/TP
+      p.slLine?.destroy();
+      p.slLine = null;
+      p.slPrice = null;
+      for (const tp of p.tpLines) tp.line.destroy();
+      p.tpLines = [];
+
+      // Re-apply from new preset
+      const newConfig = resolvePreviewConfig();
+      if (newConfig) {
+        const toP = (pts: number) => pointsToPrice(pts, contract!);
+        if (newConfig.stopLoss.points > 0) {
+          const slPrice = snapToTickSize(
+            p.isAbove ? p.orderPrice - toP(newConfig.stopLoss.points) : p.orderPrice + toP(newConfig.stopLoss.points),
+            tickSize,
+          );
+          addSlLine(slPrice);
+        }
+        const fittedTps = fitTpsToOrderSize(newConfig.takeProfits, p.size);
+        for (const tp of fittedTps) {
+          const tpPrice = snapToTickSize(
+            p.isAbove ? p.orderPrice + toP(tp.points) : p.orderPrice - toP(tp.points),
+            tickSize,
+          );
+          addTpLine(tpPrice, tp.size);
+        }
+      }
+
+      updatePreviewLabels();
     });
 
     function updatePreviewLabels() {
@@ -208,6 +268,26 @@ export function useConditionPreview(
                 p.slPrice = null;
                 for (const tp of p.tpLines) tp.line.destroy();
                 p.tpLines = [];
+                // Re-apply bracket preset in market mode
+                const cfg = resolvePreviewConfig();
+                if (cfg) {
+                  const toP = (pts: number) => pointsToPrice(pts, contract!);
+                  if (cfg.stopLoss.points > 0) {
+                    const slPrice = snapToTickSize(
+                      p.isAbove ? p.orderPrice - toP(cfg.stopLoss.points) : p.orderPrice + toP(cfg.stopLoss.points),
+                      tickSize,
+                    );
+                    addSlLine(slPrice);
+                  }
+                  const fittedTps = fitTpsToOrderSize(cfg.takeProfits, p.size);
+                  for (const tp of fittedTps) {
+                    const tpPrice = snapToTickSize(
+                      p.isAbove ? p.orderPrice + toP(tp.points) : p.orderPrice - toP(tp.points),
+                      tickSize,
+                    );
+                    addTpLine(tpPrice, tp.size);
+                  }
+                }
               } else {
                 p.isMarket = false;
               }
@@ -431,15 +511,15 @@ export function useConditionPreview(
       return formatTpPnl(orderPr, tpPr, sz, isAbv, contract!);
     }
 
-    function addSlLine() {
+    function addSlLine(atPrice?: number) {
       const p = previewRef.current;
       if (!p || p.slLine || !series || !overlay || !chart) return;
 
       const isAbove = p.isAbove;
       const slOffset = tickSize * 15;
-      const slPrice = isAbove
+      const slPrice = atPrice ?? (isAbove
         ? snapToTickSize(p.orderPrice - slOffset, tickSize)
-        : snapToTickSize(p.orderPrice + slOffset, tickSize);
+        : snapToTickSize(p.orderPrice + slOffset, tickSize));
 
       const pnlTxt = slPnlText(p.orderPrice, slPrice, p.size, isAbove);
 
@@ -492,7 +572,7 @@ export function useConditionPreview(
       updatePreviewLabels();
     }
 
-    function addTpLine() {
+    function addTpLine(atPrice?: number, atSize?: number) {
       const p = previewRef.current;
       if (!p || !series || !overlay || !chart) return;
 
@@ -502,11 +582,11 @@ export function useConditionPreview(
 
       const isAbove = p.isAbove;
       const tpOffset = tickSize * (30 + p.tpLines.length * 15);
-      const tpPrice = isAbove
+      const tpPrice = atPrice ?? (isAbove
         ? snapToTickSize(p.orderPrice + tpOffset, tickSize)
-        : snapToTickSize(p.orderPrice - tpOffset, tickSize);
+        : snapToTickSize(p.orderPrice - tpOffset, tickSize));
 
-      const tpSize = remaining;
+      const tpSize = atSize ?? remaining;
       const pnlTxt = tpPnlText(p.orderPrice, tpPrice, tpSize, isAbove);
 
       const tpLine = new PriceLevelLine({
@@ -625,6 +705,7 @@ export function useConditionPreview(
 
     return () => {
       unsubSize();
+      unsubBracket();
       destroyPreview();
     };
   }, [conditionPreview, contract, conditionServerUrl, timeframe, refs, previewRef, previewDragRef]);
