@@ -497,10 +497,10 @@ function StrokePopover({
             className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
             style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
           >
-            <svg width="50" height="10" viewBox="0 0 50 10" style={{ flex: 1 }}>
+            <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" style={{ flex: 1 }}>
               <line x1="0" y1="5" x2="50" y2="5" stroke="currentColor" strokeWidth={w} />
             </svg>
-            <span style={{ fontSize: 11, flexShrink: 0 }}>{w}px</span>
+            <span style={{ fontSize: 11, flexShrink: 0, width: 42, textAlign: 'center' }}>{w}px</span>
           </button>
         );
       })}
@@ -516,16 +516,16 @@ function StrokePopover({
             className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
             style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
           >
-            <svg width="50" height="10" viewBox="0 0 50 10" style={{ flex: 1 }}>
+            <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" style={{ flex: 1 }}>
               <line
-                x1="2" y1="5" x2="48" y2="5"
+                x1="0" y1="5" x2="50" y2="5"
                 stroke="currentColor"
                 strokeWidth="1.5"
                 strokeDasharray={dasharray}
                 strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap'] ?? 'butt'}
               />
             </svg>
-            <span style={{ fontSize: 11, flexShrink: 0 }}>{label}</span>
+            <span style={{ fontSize: 11, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
           </button>
         );
       })}
