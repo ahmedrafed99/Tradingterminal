@@ -141,8 +141,16 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
   // Cached markers for hit-testing
   private _cachedMarkers: MarkerData[] = [];
 
-  // Scroll listener (to hide tooltip on scroll)
+  // Scroll listener (to hide tooltip on scroll + invalidate marker positions)
   private _rangeUnsub: (() => void) | null = null;
+
+  // Dirty flag — skip _buildMarkers() when markers haven't changed
+  private _markersDirty = true;
+  private _cachedBuildResult: MarkerData[] = [];
+
+  // Cached pane height (updated by ResizeObserver, avoids clientHeight reflow per frame)
+  private _cachedPaneHeight = 400;
+  private _resizeObserver: ResizeObserver | null = null;
 
   // -- Lifecycle --
 
@@ -160,6 +168,8 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     this._removeCursorOverride();
     this._rangeUnsub?.();
     this._rangeUnsub = null;
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
   }
 
   // Called after attaching, to provide the overlay element and chart element
@@ -168,9 +178,25 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     this._chartEl = chartEl;
     this._chart = chart;
 
-    // Dismiss tooltip on scroll
+    // Cache initial pane height
+    this._cachedPaneHeight = chartEl.clientHeight - chart.timeScale().height();
+
+    // Track resize to update cached pane height without per-frame clientHeight reads
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = new ResizeObserver(() => {
+      this._cachedPaneHeight = chartEl.clientHeight - (chart.timeScale().height() ?? 0);
+      this._requestUpdate?.();
+    });
+    this._resizeObserver.observe(chartEl);
+
+    // Dismiss tooltip on scroll + invalidate marker x-coords (timeToCoordinate changes)
+    this._rangeUnsub?.();
     this._rangeUnsub = (() => {
-      const cb = () => { this._pinnedIdx = -1; this._hideTooltip(); };
+      const cb = () => {
+        this._pinnedIdx = -1;
+        this._hideTooltip();
+        this._markersDirty = true;
+      };
       chart.timeScale().subscribeVisibleLogicalRangeChange(cb);
       return () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(cb);
     })();
@@ -180,12 +206,14 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
   setEvents(events: NewsEvent[]): void {
     this._events = events;
+    this._markersDirty = true;
     this._requestUpdate?.();
   }
 
   setEnabled(enabled: boolean): void {
     this._enabled = enabled;
     if (!enabled) { this._pinnedIdx = -1; this._hideTooltip(); }
+    this._markersDirty = true;
     this._requestUpdate?.();
   }
 
@@ -251,10 +279,13 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       return this._emptyViews;
     }
 
-    const markers = this._buildMarkers();
-    this._cachedMarkers = markers;
-    const paneHeight = this._getPaneHeight();
-    this._paneView.update(markers, paneHeight, this._hoveredIdx);
+    if (this._markersDirty) {
+      this._cachedBuildResult = this._buildMarkers();
+      this._cachedMarkers = this._cachedBuildResult;
+      this._markersDirty = false;
+    }
+
+    this._paneView.update(this._cachedBuildResult, this._cachedPaneHeight, this._hoveredIdx);
     return this._paneViewsArr;
   }
 
@@ -265,7 +296,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
   // -- Internals --
 
   private _hitTest(x: number, y: number): number {
-    const paneHeight = this._getPaneHeight();
+    const paneHeight = this._cachedPaneHeight;
     const markerY = paneHeight - BOTTOM_OFFSET;
     const markers = this._cachedMarkers;
     const threshold = (MARKER_RADIUS + 3) * (MARKER_RADIUS + 3);
@@ -276,11 +307,6 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       if (dx * dx + dy * dy <= threshold) return i;
     }
     return -1;
-  }
-
-  private _getPaneHeight(): number {
-    if (!this._chartEl || !this._chart) return 400;
-    return this._chartEl.clientHeight - this._chart.timeScale().height();
   }
 
   private _buildMarkers(): MarkerData[] {
@@ -385,7 +411,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       this._overlayEl.appendChild(this._tooltipEl);
     }
 
-    const paneHeight = this._getPaneHeight();
+    const paneHeight = this._cachedPaneHeight;
     const markerY = paneHeight - BOTTOM_OFFSET;
 
     // Build tooltip content
