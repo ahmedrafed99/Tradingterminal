@@ -403,13 +403,13 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       html += `<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px">`;
       html += `<div style="display:flex; align-items:center; gap:5px">`;
       html += `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${impactColor}; flex-shrink:0"></span>`;
-      html += `<span style="font-size:10px; color:${impactColor}; font-weight:600; text-transform:uppercase; letter-spacing:0.3px">${ev.impact} impact</span>`;
+      html += `<span style="font-size:var(--font-size-sm); color:${impactColor}; font-weight:600; text-transform:uppercase; letter-spacing:0.3px">${ev.impact} impact</span>`;
       html += `</div>`;
-      html += `<span style="font-size:10px; color:var(--color-text-muted)">${timeStr}</span>`;
+      html += `<span style="font-size:var(--font-size-sm); color:var(--color-text-medium)">${timeStr}</span>`;
       html += `</div>`;
 
       // Title
-      html += `<div style="font-size:11px; color:var(--color-text, #d1d4dc); font-weight:600; line-height:1.3; margin-bottom:8px">${this._escapeHtml(ev.title)}</div>`;
+      html += `<div style="font-size:var(--font-size-sm); color:var(--color-text, #d1d4dc); font-weight:600; line-height:1.3; margin-bottom:8px">${this._escapeHtml(ev.title)}</div>`;
 
       // Data grid (actual / consensus / previous)
       const hasActual = ev.actual !== null;
@@ -423,13 +423,13 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
         html += `<div style="display:grid; grid-template-columns:repeat(${cols}, 1fr); gap:2px 12px; margin-bottom:6px">`;
         // Column headers
-        if (hasActual) html += `<div style="font-size:10px; color:var(--color-text-muted); font-weight:500">Actual</div>`;
-        if (hasConsensus) html += `<div style="font-size:10px; color:var(--color-text-muted); font-weight:500">Cons.</div>`;
-        if (hasPrevious) html += `<div style="font-size:10px; color:var(--color-text-muted); font-weight:500">Prev.</div>`;
+        if (hasActual) html += `<div style="font-size:var(--font-size-sm); color:var(--color-text-muted); font-weight:500">Actual</div>`;
+        if (hasConsensus) html += `<div style="font-size:var(--font-size-sm); color:var(--color-text-muted); font-weight:500">Cons.</div>`;
+        if (hasPrevious) html += `<div style="font-size:var(--font-size-sm); color:var(--color-text-muted); font-weight:500">Prev.</div>`;
         // Values
-        if (hasActual) html += `<div style="font-size:11px; color:${actualColor}; font-weight:600">${ev.actual}</div>`;
-        if (hasConsensus) html += `<div style="font-size:11px; color:var(--color-text); font-weight:400">${ev.consensus}</div>`;
-        if (hasPrevious) html += `<div style="font-size:11px; color:var(--color-text-muted); font-weight:400">${ev.previous}</div>`;
+        if (hasActual) html += `<div style="font-size:var(--font-size-sm); color:${actualColor}; font-weight:600">${ev.actual}</div>`;
+        if (hasConsensus) html += `<div style="font-size:var(--font-size-sm); color:var(--color-text); font-weight:400">${ev.consensus}</div>`;
+        if (hasPrevious) html += `<div style="font-size:var(--font-size-sm); color:var(--color-text-muted); font-weight:400">${ev.previous}</div>`;
         html += `</div>`;
 
         // Beat/miss indicator
@@ -437,7 +437,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
           const beatLabel = ev.isBetterThanExpected ? 'Better than expected' : 'Worse than expected';
           html += `<div style="display:flex; align-items:center; gap:4px">`;
           html += `<span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--color-text-muted)"></span>`;
-          html += `<span style="font-size:10px; color:var(--color-text-muted); font-weight:500">${beatLabel}</span>`;
+          html += `<span style="font-size:var(--font-size-sm); color:var(--color-text-muted); font-weight:500">${beatLabel}</span>`;
           html += `</div>`;
         }
       }
