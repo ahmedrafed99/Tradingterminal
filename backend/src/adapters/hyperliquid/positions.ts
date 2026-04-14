@@ -27,7 +27,7 @@ export function createPositions(client: HlClient): ExchangePositions {
         user: wallet,
       });
 
-      return data.assetPositions
+      const positions = data.assetPositions
         .filter((ap) => parseFloat(ap.position.szi) !== 0)
         .map((ap) => {
           const szi = parseFloat(ap.position.szi);
@@ -44,6 +44,7 @@ export function createPositions(client: HlClient): ExchangePositions {
               : null,
           };
         });
+      return { success: true, positions };
     },
   };
 }

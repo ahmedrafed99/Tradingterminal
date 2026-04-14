@@ -4,9 +4,7 @@ A localhost web app for trading on a candlestick chart. Built on an adapter patt
 
 **Supported exchanges:**
 - [ProjectX (TopstepX)](https://gateway.docs.projectx.com/docs/intro) — CME futures
-
-**Planned:**
-- Hyperliquid — Crypto perpetuals, spot, tradfi (see `docs/exchange-adapters/hyperliquid.md`)
+- Hyperliquid — Crypto perpetuals, spot, tradfi (backend complete; frontend integration pending — see `docs/exchange-adapters/hyperliquid.md`)
 
 ---
 

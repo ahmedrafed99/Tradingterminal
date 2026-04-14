@@ -2,8 +2,7 @@ import WebSocket, { WebSocketServer } from 'ws';
 import type * as net from 'net';
 import type * as http from 'http';
 import type { Duplex } from 'stream';
-import type { Request, Response } from 'express';
-import type { ExchangeRealtime } from '../types';
+import type { NativeWsRealtime } from '../types';
 import type { HlState } from './client';
 
 // ---------------------------------------------------------------------------
@@ -17,12 +16,9 @@ function subscriptionKey(sub: Record<string, unknown>): string {
   return JSON.stringify(sorted);
 }
 
-// ---------------------------------------------------------------------------
-// WebSocket upgrade server (noServer — we do the upgrade manually)
-// ---------------------------------------------------------------------------
-const wss = new WebSocketServer({ noServer: true });
-
-export function createRealtime(state: HlState): ExchangeRealtime {
+export function createRealtime(state: HlState): NativeWsRealtime {
+  // Scoped to this adapter instance — avoids sharing across reconnects
+  const wss = new WebSocketServer({ noServer: true });
   // These live in the closure — isolated per adapter instance
   const clients = new Set<WebSocket>();
   const subscriptions = new Map<string, Record<string, unknown>>();
@@ -100,13 +96,8 @@ export function createRealtime(state: HlState): ExchangeRealtime {
   }
 
   return {
-    // Hyperliquid doesn't use SignalR — return 404 for any negotiate request
-    negotiateMiddleware(_req: Request, res: Response) {
-      res.status(404).json({
-        success: false,
-        errorMessage: 'Hyperliquid does not use SignalR hubs. Connect via /ws/hl instead.',
-      });
-    },
+    kind: 'ws' as const,
+    wsPath: '/ws/hl',
 
     handleUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer) {
       wss.handleUpgrade(req, socket as net.Socket, head, (ws) => {

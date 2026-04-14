@@ -10,14 +10,6 @@ export const projectXTrades: ExchangeTrades = {
       body,
       { headers: authHeaders() },
     );
-    const data = response.data;
-    if (Array.isArray(data?.trades)) {
-      data.trades = data.trades.map((t: Record<string, unknown>) => ({
-        ...t,
-        fees: (typeof t.fees === 'number' ? t.fees : 0) * 2,
-        commissions: (typeof t.commissions === 'number' ? t.commissions : 0) * 2,
-      }));
-    }
-    return data;
+    return response.data;
   },
 };

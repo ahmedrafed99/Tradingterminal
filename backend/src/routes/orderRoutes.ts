@@ -6,10 +6,11 @@ import { OrderType, OrderSide } from '../types/enums';
 
 const router = Router();
 
-const BracketSchema = z.object({
-  ticks: z.number().int(),
-  type: z.number().int(),
-});
+// ProjectX brackets use tick offsets; Hyperliquid uses absolute prices
+const BracketSchema = z.union([
+  z.object({ ticks: z.number().int(), type: z.number().int() }),
+  z.object({ price: z.number(), size: z.number().positive().optional() }),
+]);
 
 const PlaceOrderSchema = z.object({
   accountId: z.string().min(1),

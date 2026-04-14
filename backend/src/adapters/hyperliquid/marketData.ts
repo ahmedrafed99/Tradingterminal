@@ -40,14 +40,16 @@ interface HlCandle {
 // ---------------------------------------------------------------------------
 // Interval mapping
 // ---------------------------------------------------------------------------
-const UNIT_MAP: Record<string, string> = {
-  Minute: 'm',
-  Hour: 'h',
-  Day: 'd',
-  Week: 'w',
+// Supports both ProjectX numeric codes (1=Minute, 2=Hour, 3=Day, 4=Week)
+// and string names (Minute/Hour/Day/Week).
+const UNIT_MAP: Record<string | number, string> = {
+  Minute: 'm', 1: 'm',
+  Hour: 'h',   2: 'h',
+  Day: 'd',    3: 'd',
+  Week: 'w',   4: 'w',
 };
 
-function toHlInterval(unit: string, unitNumber: number): string {
+function toHlInterval(unit: string | number, unitNumber: number): string {
   const suffix = UNIT_MAP[unit] ?? 'm';
   return `${unitNumber}${suffix}`;
 }
@@ -184,31 +186,38 @@ export function createMarketData(client: HlClient): ExchangeMarketData {
         contractId,
         unit,
         unitNumber,
+        startTime: startTimeField,
+        endTime: endTimeField,
         startTimestamp,
         endTimestamp,
       } = params as {
         contractId: string;
-        unit: string;
+        unit: string | number;
         unitNumber: number;
-        startTimestamp: string;
+        startTime?: string;
+        endTime?: string;
+        startTimestamp?: string;
         endTimestamp?: string;
       };
 
+      const startStr = startTimeField ?? startTimestamp ?? '';
+      const endStr = endTimeField ?? endTimestamp;
+
       const interval = toHlInterval(unit, unitNumber);
-      const startTime = new Date(startTimestamp).getTime();
+      const startTime = new Date(startStr).getTime();
       const req: Record<string, unknown> = {
         coin: contractId,
         interval,
         startTime,
       };
-      if (endTimestamp) req['endTime'] = new Date(endTimestamp).getTime();
+      if (endStr) req['endTime'] = new Date(endStr).getTime();
 
       const candles = await client.info<HlCandle[]>({
         type: 'candleSnapshot',
         req,
       });
 
-      return candles.map((c) => ({
+      const bars = candles.map((c) => ({
         timestamp: new Date(c.t).toISOString(),
         open: parseFloat(c.o),
         high: parseFloat(c.h),
@@ -217,6 +226,7 @@ export function createMarketData(client: HlClient): ExchangeMarketData {
         volume: parseFloat(c.v),
         trades: c.n,
       }));
+      return { success: true, bars };
     },
   };
 }

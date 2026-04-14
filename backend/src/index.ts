@@ -98,7 +98,7 @@ app.use('/hubs', (req, res, next) => {
     return;
   }
   const { realtime } = getAdapter();
-  if (realtime?.negotiateMiddleware) {
+  if (realtime?.kind === 'signalr') {
     realtime.negotiateMiddleware(req, res, next);
   } else {
     res.status(404).json({ success: false, errorMessage: 'This exchange does not support SignalR hubs' });

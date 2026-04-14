@@ -12,6 +12,25 @@ The adapter integrates via direct REST + WebSocket — no SignalR, no third-part
 
 ---
 
+## Response Shapes
+
+All adapter methods return `{ success: true, ... }` matching the `GatewayResponse` contract expected by frontend services.
+
+| Method | Return shape |
+|--------|-------------|
+| `accounts.list()` | `{ success: true, accounts: Account[] }` |
+| `positions.searchOpen()` | `{ success: true, positions: Position[] }` |
+| `trades.search()` | `{ success: true, trades: Trade[] }` |
+| `orders.searchOpen()` | `{ success: true, orders: Order[] }` |
+| `orders.place()` | `{ success: true, orderId: 'COIN:OID' }` |
+| `orders.cancel()` | `{ success: true }` |
+| `orders.modify()` | `{ success: true }` |
+| `marketData.retrieveBars()` | `{ success: true, bars: Bar[] }` |
+
+> **Why this matters**: `assertSuccess()` in `orderService.ts` throws if `success !== true`. Without these wrappers, all mutations silently fail on the frontend.
+
+---
+
 ## Key Differences from ProjectX
 
 | Aspect | ProjectX | Hyperliquid |
@@ -67,6 +86,28 @@ backend/src/adapters/hyperliquid/
 ├── trades.ts       userFills → normalized trades
 └── realtime.ts     Native WebSocket multiplexer at /ws/hl
 ```
+
+---
+
+## Bar Intervals
+
+`retrieveBars` accepts both naming conventions for time range params:
+
+| Field | Accepted aliases |
+|-------|-----------------|
+| start | `startTime` (route convention) or `startTimestamp` (legacy) |
+| end   | `endTime` (route convention) or `endTimestamp` (legacy) |
+
+The `unit` field accepts either numeric codes (from route schema) or string names:
+
+| Numeric | String | HL interval |
+|---------|--------|-------------|
+| `1` | `"Minute"` | `Nm` |
+| `2` | `"Hour"` | `Nh` |
+| `3` | `"Day"` | `Nd` |
+| `4` | `"Week"` | `Nw` |
+
+Route schema validates `unit` as `z.number().int().positive()`, so always send numeric codes.
 
 ---
 

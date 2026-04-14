@@ -22,16 +22,19 @@ export function createAccounts(client: HlClient, state: HlState): ExchangeAccoun
 
       const balance = parseFloat(data.marginSummary.accountValue);
 
-      return [
-        {
-          id: wallet,
-          name: 'Hyperliquid',
-          balance,
-          canTrade: state.connected,
-          isVisible: true,
-          simulated: state.isTestnet,
-        },
-      ];
+      return {
+        success: true,
+        accounts: [
+          {
+            id: wallet,
+            name: 'Hyperliquid',
+            balance,
+            canTrade: state.connected,
+            isVisible: true,
+            simulated: state.isTestnet,
+          },
+        ],
+      };
     },
   };
 }

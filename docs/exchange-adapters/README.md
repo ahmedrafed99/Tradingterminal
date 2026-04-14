@@ -87,7 +87,7 @@ interface ExchangeRealtime {
 }
 ```
 
-Hyperliquid uses a native WebSocket (not SignalR). When adding Hyperliquid, this interface will need a second variant — either a union type or an optional `wsPath` + `handleWsConnection` path alongside the existing SignalR fields.
+Hyperliquid uses a native WebSocket (not SignalR). The `ExchangeRealtime` interface exposes `handleUpgrade` — for HL this proxies to `wss://api.hyperliquid[-testnet].xyz/ws` instead of a SignalR hub. The frontend needs a matching `HyperliquidRealtimeAdapter` (not yet wired) to consume `/ws/hl` events.
 
 ---
 
@@ -185,4 +185,4 @@ This will drive:
 | Exchange | Status | Category | Realtime Mode | Auth Method |
 |----------|--------|----------|--------------|-------------|
 | [ProjectX](projectx.md) | ✅ Live | Futures | SignalR proxy | API key + username → JWT |
-| [Hyperliquid](hyperliquid.md) | 🔲 Planned | Crypto | Native WebSocket | Private key → EIP-712 signing |
+| [Hyperliquid](hyperliquid.md) | 🔄 Backend complete, frontend pending | Crypto | Native WebSocket | Private key → EIP-712 signing |

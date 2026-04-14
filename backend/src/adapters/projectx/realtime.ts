@@ -15,6 +15,7 @@ wsProxy.on('error', (err, _req, socket) => {
 });
 
 export const projectXRealtime: ExchangeRealtime = {
+  kind: 'signalr',
   async negotiateMiddleware(req: Request, res: Response) {
     try {
       const targetUrl = `${getRtcBaseUrl()}${req.originalUrl}`;

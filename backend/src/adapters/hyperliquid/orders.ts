@@ -37,6 +37,23 @@ function parseOrderId(id: string): { coin: string; oid: number } {
 }
 
 /**
+ * Extract the first order's oid from an HL exchange response.
+ * HL statuses can be:
+ *   { resting: { oid } } | { filled: { oid } } | { waitingForFill: { oid } } | "success" | { error: "..." }
+ */
+function extractFirstOid(result: unknown): number | null {
+  const statuses = (result as { response?: { data?: { statuses?: unknown[] } } })
+    ?.response?.data?.statuses;
+  if (!Array.isArray(statuses) || statuses.length === 0) return null;
+  const first = statuses[0] as Record<string, unknown>;
+  for (const key of ['resting', 'filled', 'waitingForFill']) {
+    const s = first[key] as { oid?: number } | undefined;
+    if (s?.oid != null) return s.oid;
+  }
+  return null;
+}
+
+/**
  * HL returns HTTP 200 + status:"ok" even when an individual order in the batch
  * was rejected. Check statuses[] and throw if any error is present.
  */
@@ -225,7 +242,8 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
             grouping: 'normalTpsl',
           });
           assertOrderStatuses(result, 'place (bracket)');
-          return result;
+          const oid = extractFirstOid(result);
+          return { success: true, orderId: oid != null ? `${contractId}:${oid}` : '' };
         }
 
         // All other cases (multi-TP, or only one leg) — entry first, then all legs in one batch
@@ -241,15 +259,17 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
           ...(slWire != null ? [slWire.wire] : []),
         ];
 
-        if (legWires.length === 0) return entryResult;
+        if (legWires.length > 0) {
+          const legsResult = await client.exchange({
+            type: 'order',
+            orders: legWires,
+            grouping: 'na',
+          });
+          assertOrderStatuses(legsResult, 'place (bracket legs)');
+        }
 
-        const legsResult = await client.exchange({
-          type: 'order',
-          orders: legWires,
-          grouping: 'na',
-        });
-        assertOrderStatuses(legsResult, 'place (bracket legs)');
-        return legsResult;
+        const entryOid = extractFirstOid(entryResult);
+        return { success: true, orderId: entryOid != null ? `${contractId}:${entryOid}` : '' };
       }
 
       // Simple order — no brackets
@@ -263,7 +283,8 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
         grouping: 'na',
       });
       assertOrderStatuses(result, 'place');
-      return result;
+      const oid = extractFirstOid(result);
+      return { success: true, orderId: oid != null ? `${contractId}:${oid}` : '' };
     },
 
     async cancel(params) {
@@ -276,7 +297,7 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
         cancels: [{ a: assetIndex, o: oid }],
       });
       assertOrderStatuses(result, 'cancel');
-      return result;
+      return { success: true };
     },
 
     async modify(params) {
@@ -333,7 +354,7 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
         });
 
         // Re-place with updated values
-        return await client.exchange({
+        const replaceResult = await client.exchange({
           type: 'order',
           orders: [{
             a: assetIndex,
@@ -345,10 +366,12 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
           }],
           grouping: 'na',
         });
+        assertOrderStatuses(replaceResult, 'modify (trigger replace)');
+        return { success: true };
       }
 
       // Limit order — use batchModify
-      return await client.exchange({
+      const modifyResult = await client.exchange({
         type: 'batchModify',
         modifies: [{
           oid,
@@ -362,15 +385,17 @@ export function createOrders(client: HlClient, _state: HlState): ExchangeOrders 
           },
         }],
       });
+      assertOrderStatuses(modifyResult, 'modify');
+      return { success: true };
     },
 
     async searchOpen(_accountId) {
       const wallet = client.getWalletAddress();
-      const orders = await client.info<HlOpenOrder[]>({
+      const raw = await client.info<HlOpenOrder[]>({
         type: 'frontendOpenOrders',
         user: wallet,
       });
-      return orders.map((o) => normalizeOrder(o, wallet));
+      return { success: true, orders: raw.map((o) => normalizeOrder(o, wallet)) };
     },
   };
 }

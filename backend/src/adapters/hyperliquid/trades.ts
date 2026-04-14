@@ -34,7 +34,7 @@ export function createTrades(client: HlClient): ExchangeTrades {
       const endTime = endTimestamp ? new Date(endTimestamp).getTime() : Infinity;
       const filtered = fills.filter((f) => f.time >= startTime && f.time <= endTime);
 
-      return filtered.map((f) => ({
+      const trades = filtered.map((f) => ({
         id: String(f.tid),
         accountId: wallet,
         contractId: f.coin,
@@ -47,6 +47,7 @@ export function createTrades(client: HlClient): ExchangeTrades {
         timestamp: new Date(f.time).toISOString(),
         closedPnl: parseFloat(f.closedPnl),
       }));
+      return { success: true, trades };
     },
   };
 }
