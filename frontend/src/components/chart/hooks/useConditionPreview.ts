@@ -230,6 +230,18 @@ export function useConditionPreview(
 
         if (p.isMarket) {
           labelEl.style.cursor = 'default';
+          const sideCell = cells[0];
+          if (sideCell) {
+            makeClickable(sideCell);
+            sideCell.addEventListener('mousedown', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              const p = previewRef.current;
+              if (!p) return;
+              p.isAbove = !p.isAbove;
+              updatePreviewLabels();
+            });
+          }
         }
 
         const sizeCell = cells[1];
