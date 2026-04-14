@@ -55,5 +55,6 @@ export interface Condition extends CreateConditionInput {
   createdAt: string;        // ISO 8601
   updatedAt: string;        // ISO 8601
   triggeredAt?: string;     // ISO 8601
+  triggeredOrderId?: string; // order placed when condition fired
   errorMessage?: string;    // set on 'failed'
 }

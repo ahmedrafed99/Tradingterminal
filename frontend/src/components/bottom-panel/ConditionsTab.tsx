@@ -8,6 +8,9 @@ import type { Condition } from '../../services/conditionService';
 import { shortSymbol } from '../../utils/formatters';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { syncForwarder } from '../../services/conditionTickForwarder';
+import { OrderSide } from '../../types/enums';
+import { pointsToPrice } from '../../utils/instrument';
+import { fitTpsToOrderSize } from '../chart/hooks/resolvePreviewConfig';
 
 const ALL_STATUSES = ['armed', 'paused', 'triggered', 'failed', 'expired'] as const;
 type ConditionStatus = (typeof ALL_STATUSES)[number];
@@ -67,6 +70,51 @@ export function ConditionsTab() {
     });
   }
 
+  function applyConditionBracketInfo(c: Condition) {
+    if (!c.bracket?.enabled || c.orderPrice == null || c.orderType !== 'limit') return;
+
+    const side = c.orderSide === 'buy' ? OrderSide.Buy : OrderSide.Sell;
+    const entryPrice = c.orderPrice;
+
+    // Resolve contract for accurate point→price conversion; fall back to tick formula
+    const storeContract = useStore.getState().contract;
+    const contract = storeContract?.id === c.contractId
+      ? storeContract
+      : { tickSize: c.contractTickSize, ticksPerPoint: Math.round(1 / c.contractTickSize) } as Parameters<typeof pointsToPrice>[1];
+
+    const toP = (pts: number) => pointsToPrice(pts, contract);
+    const rawTps = (c.bracket.tp ?? []).map((tp, i) => ({
+      id: String(i),
+      points: tp.points,
+      size: tp.size ?? c.orderSize,
+    }));
+    const fittedTps = fitTpsToOrderSize(rawTps, c.orderSize);
+
+    useStore.getState().setPendingBracketInfo({
+      entryPrice,
+      slPrice: c.bracket.sl && c.bracket.sl.points > 0
+        ? (side === OrderSide.Buy ? entryPrice - toP(c.bracket.sl.points) : entryPrice + toP(c.bracket.sl.points))
+        : null,
+      tpPrices: fittedTps.map((tp) =>
+        side === OrderSide.Buy ? entryPrice + toP(tp.points) : entryPrice - toP(tp.points),
+      ),
+      side,
+      orderSize: c.orderSize,
+      tpSizes: fittedTps.map((tp) => tp.size),
+    });
+
+    useStore.setState({
+      previewHideEntry: true,
+      previewSide: side,
+      limitPrice: entryPrice,
+      orderType: 'limit',
+    });
+
+    if (c.triggeredOrderId) {
+      useStore.getState().setPendingEntryOrderId(c.triggeredOrderId);
+    }
+  }
+
   // Tick forwarder — forward live quotes to backend for real-time condition evaluation
   useEffect(() => {
     const hasArmed = conditions.some((c) => c.status === 'armed');
@@ -87,6 +135,7 @@ export function ConditionsTab() {
       onTriggered: (c) => {
         upsertCondition(c);
         addToast({ type: 'success', message: `Condition triggered: ${c.conditionType} ${c.triggerPrice}` });
+        applyConditionBracketInfo(c);
       },
       onFailed: (c) => {
         upsertCondition(c);

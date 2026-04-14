@@ -32,6 +32,7 @@ export interface Condition {
   createdAt: string;
   updatedAt: string;
   triggeredAt?: string;
+  triggeredOrderId?: string;
   errorMessage?: string;
 }
 

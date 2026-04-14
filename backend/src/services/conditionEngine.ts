@@ -69,9 +69,10 @@ export async function evaluateBar(
     console.log(`[conditionEngine] TRIGGERED ${condition.id}: ${condition.conditionType} trigger=${condition.triggerPrice} close=${close} (delay: ${delaySec}s after bar close)`);
 
     try {
-      await executeCondition(condition);
+      const triggeredOrderId = await executeCondition(condition);
       const updated = store.setStatus(condition.id, 'triggered', {
         triggeredAt: new Date().toISOString(),
+        ...(triggeredOrderId != null ? { triggeredOrderId } : {}),
       });
       broadcast('triggered', updated);
     } catch (err: unknown) {
@@ -87,7 +88,7 @@ export async function evaluateBar(
 // Order execution
 // ---------------------------------------------------------------------------
 
-async function executeCondition(condition: Condition): Promise<void> {
+async function executeCondition(condition: Condition): Promise<string | undefined> {
   if (!isConnected()) throw new Error('Not connected to exchange');
 
   const adapter = getAdapter();
@@ -122,14 +123,13 @@ async function executeCondition(condition: Condition): Promise<void> {
     }
   }
 
-  const result = await adapter.orders.place(orderParams) as { success?: boolean; errorMessage?: string };
+  const result = await adapter.orders.place(orderParams) as { success?: boolean; errorMessage?: string; orderId?: string | number };
 
   if (result && result.success === false) {
     throw new Error(result.errorMessage || 'Gateway returned success=false');
   }
 
-  // TODO: For 2+ TPs, monitor fill via SignalR and place additional TPs client-side
-  // (same pattern as frontend bracketEngine)
+  return result?.orderId != null ? String(result.orderId) : undefined;
 }
 
 function pointsToTicks(points: number, tickSize: number): number {

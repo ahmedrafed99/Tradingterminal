@@ -111,7 +111,7 @@ export function update(id: string, patch: PatchConditionInput): Condition | null
 export function setStatus(
   id: string,
   status: Condition['status'],
-  extra?: Partial<Pick<Condition, 'triggeredAt' | 'errorMessage'>>,
+  extra?: Partial<Pick<Condition, 'triggeredAt' | 'triggeredOrderId' | 'errorMessage'>>,
 ): Condition | null {
   const idx = conditions.findIndex((c) => c.id === id);
   if (idx === -1) return null;
