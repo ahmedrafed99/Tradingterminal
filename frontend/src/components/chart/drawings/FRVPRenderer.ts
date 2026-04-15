@@ -70,10 +70,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
       const maxBarW = Math.min(MAX_BAR_WIDTH_CSS * hpr, ctx.canvas.width * 0.25);
 
-      // Draw VP bars first (behind the line)
       this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr);
 
-      // Vertical anchor line
+      // Vertical anchor line — same color as bars
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth * hpr;
       applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
@@ -83,7 +82,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Selection handles at top and bottom of anchor line
+      // Selection handles at top and bottom
       if (this._selected) {
         const hr = Math.round(5 * vpr);
         ctx.fillStyle = COLOR_LABEL_TEXT;
@@ -117,6 +116,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     const numBars = this._drawing.numBars && this._drawing.numBars > 1 ? this._drawing.numBars : 0;
     const showPoc = this._drawing.showPoc !== false;
     const pocColor = this._drawing.pocColor ?? COLOR_ACCENT;
+    const extendPoc = this._drawing.extendPoc === true;
 
     const [r, g, b] = parseColor(this._drawing.color);
     const barColor = rgba(r, g, b, 0.45);
@@ -207,7 +207,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       ctx.setLineDash([]);
       ctx.beginPath();
       ctx.moveTo(anchorX, pocLine.y);
-      ctx.lineTo(anchorX + pocLine.w, pocLine.y);
+      ctx.lineTo(extendPoc ? ctx.canvas.width : anchorX + pocLine.w, pocLine.y);
       ctx.stroke();
     }
   }

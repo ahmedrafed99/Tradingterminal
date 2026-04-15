@@ -794,6 +794,9 @@ export function DrawingEditToolbar({
   const [showStroke, setShowStroke] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [showPocColor, setShowPocColor] = useState(false);
+  const [frvpTab, setFrvpTab] = useState<'input' | 'style' | null>(null);
+  const [showFrvpBarColor, setShowFrvpBarColor] = useState(false);
+  const [showFrvpPocColor, setShowFrvpPocColor] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -802,7 +805,7 @@ export function DrawingEditToolbar({
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowFrvpBarColor(false); setShowFrvpPocColor(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -878,266 +881,381 @@ export function DrawingEditToolbar({
         }
       }}
     >
-      {/* Color picker */}
-      <div className="relative">
-        <button
-          onClick={() => { const v = !showColor; closeAll(); setShowColor(v); }}
-          className={`${btnBase} ${showColor ? btnActive : btnHover}`}
-          title="Color"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
-            <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
-          </svg>
-          {/* Color dot overlay on pencil tip */}
-          <div style={{
-            position: 'absolute', bottom: 4, right: 4,
-            width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
-            background: drawing.color, border: '1px solid var(--color-border)',
-          }} />
-        </button>
-        {showColor && (
-          <ColorPopover
-            current={drawing.color}
-            onChange={(color) => updateDrawing(drawing.id, { color })}
-            onClose={() => setShowColor(false)}
-          />
-        )}
-      </div>
+      {drawing.type === 'frvp' ? (() => {
+        const frvp = drawing as FRVPDrawing;
+        const pocVisible = frvp.showPoc !== false;
+        return (
+          <div className="relative" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Input tab */}
+            <button
+              onClick={() => { const v = frvpTab === 'input' ? null : 'input'; closeAll(); setFrvpTab(v); }}
+              className={`${btnBase} !w-auto ${frvpTab === 'input' ? btnActive : btnHover}`}
+              style={{ padding: '0 8px', fontSize: 11, fontWeight: 600 }}
+            >
+              Input
+            </button>
+            {/* Style tab */}
+            <button
+              onClick={() => { const v = frvpTab === 'style' ? null : 'style'; closeAll(); setFrvpTab(v); }}
+              className={`${btnBase} !w-auto ${frvpTab === 'style' ? btnActive : btnHover}`}
+              style={{ padding: '0 8px', fontSize: 11, fontWeight: 600 }}
+            >
+              Style
+            </button>
 
-      {/* Fill color (rect & oval) */}
-      {(drawing.type === 'rect' || drawing.type === 'oval') && (
+            {/* Tab panel */}
+            {frvpTab && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  padding: '10px 12px',
+                  background: 'var(--color-panel)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: RADIUS.XL,
+                  boxShadow: SHADOW.LG,
+                  zIndex: Z.DROPDOWN,
+                  minWidth: 180,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {frvpTab === 'input' && (
+                  <>
+                    {/* Bars */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Bars</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={500}
+                        step={1}
+                        value={frvp.numBars ?? 0}
+                        onChange={(e) => {
+                          const v = Math.max(0, Math.min(500, parseInt(e.target.value, 10) || 0));
+                          updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        style={{
+                          width: 52,
+                          height: 24,
+                          background: 'var(--color-input-bg, var(--color-surface))',
+                          border: '1px solid var(--color-border)',
+                          borderRadius: RADIUS.MD,
+                          color: 'var(--color-text)',
+                          fontSize: 12,
+                          textAlign: 'center',
+                          padding: 0,
+                        }}
+                      />
+                    </div>
+                    {/* POC toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>POC</span>
+                      <button
+                        onClick={() => updateDrawing(drawing.id, { showPoc: !pocVisible } as Partial<Drawing>)}
+                        style={{
+                          width: 36,
+                          height: 20,
+                          borderRadius: 10,
+                          border: 'none',
+                          cursor: 'pointer',
+                          background: pocVisible ? 'var(--color-accent)' : 'var(--color-border)',
+                          position: 'relative',
+                          transition: 'background var(--transition-fast)',
+                          flexShrink: 0,
+                        }}
+                        title={pocVisible ? 'Hide POC' : 'Show POC'}
+                      >
+                        <span style={{
+                          position: 'absolute',
+                          top: 2,
+                          left: pocVisible ? 18 : 2,
+                          width: 16,
+                          height: 16,
+                          borderRadius: '50%',
+                          background: '#fff',
+                          transition: 'left var(--transition-fast)',
+                        }} />
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {frvpTab === 'style' && (
+                  <>
+                    {/* Bar color */}
+                    <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Bar color</span>
+                      <button
+                        onClick={() => { const v = !showFrvpBarColor; setShowFrvpPocColor(false); setShowFrvpBarColor(v); }}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: RADIUS.MD,
+                          background: frvp.color,
+                          border: showFrvpBarColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                          transition: 'border var(--transition-fast)',
+                        }}
+                      />
+                      {showFrvpBarColor && (
+                        <ColorPopover
+                          current={frvp.color}
+                          onChange={(color) => updateDrawing(drawing.id, { color } as Partial<Drawing>)}
+                          onClose={() => setShowFrvpBarColor(false)}
+                        />
+                      )}
+                    </div>
+                    {/* POC color */}
+                    {pocVisible && (
+                      <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>POC color</span>
+                        <button
+                          onClick={() => { const v = !showFrvpPocColor; setShowFrvpBarColor(false); setShowFrvpPocColor(v); }}
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: RADIUS.MD,
+                            background: frvp.pocColor ?? '#ff9800',
+                            border: showFrvpPocColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            transition: 'border var(--transition-fast)',
+                          }}
+                        />
+                        {showFrvpPocColor && (
+                          <ColorPopover
+                            current={frvp.pocColor ?? '#ff9800'}
+                            onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
+                            onClose={() => setShowFrvpPocColor(false)}
+                          />
+                        )}
+                      </div>
+                    )}
+                    {/* Extend POC right */}
+                    {pocVisible && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Extend POC</span>
+                        <button
+                          onClick={() => updateDrawing(drawing.id, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}
+                          style={{
+                            width: 36,
+                            height: 20,
+                            borderRadius: 10,
+                            border: 'none',
+                            cursor: 'pointer',
+                            background: frvp.extendPoc ? 'var(--color-accent)' : 'var(--color-border)',
+                            position: 'relative',
+                            transition: 'background var(--transition-fast)',
+                            flexShrink: 0,
+                          }}
+                          title={frvp.extendPoc ? 'Stop extending POC' : 'Extend POC to right'}
+                        >
+                          <span style={{
+                            position: 'absolute',
+                            top: 2,
+                            left: frvp.extendPoc ? 18 : 2,
+                            width: 16,
+                            height: 16,
+                            borderRadius: '50%',
+                            background: '#fff',
+                            transition: 'left var(--transition-fast)',
+                          }} />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })() : (
         <>
-          <Divider />
+          {/* Color picker */}
           <div className="relative">
             <button
-              onClick={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
-              className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
-              title="Fill color"
+              onClick={() => { const v = !showColor; closeAll(); setShowColor(v); }}
+              className={`${btnBase} ${showColor ? btnActive : btnHover}`}
+              title="Color"
             >
-              {/* Paint bucket + droplet icon */}
-              <svg width="16" height="16" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
-                <path stroke="currentColor" d="M13.5 6.5l-3-3-7 7 7.59 7.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82L13.5 6.5zm0 0v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
-                <path fill="currentColor" d="M0 16.5C0 15 2.5 12 2.5 12S5 15 5 16.5 4 19 2.5 19 0 18 0 16.5z" />
-                <circle fill="currentColor" cx="9.5" cy="9.5" r="1.5" />
+              <svg width="14" height="14" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
+                <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
               </svg>
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
                 width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
-                background: (drawing as any).fillColor || 'transparent',
-                border: '1px solid var(--color-border)',
+                background: drawing.color, border: '1px solid var(--color-border)',
               }} />
             </button>
-            {showFillColor && (
+            {showColor && (
               <ColorPopover
-                current={(drawing as any).fillColor || 'rgba(255,152,0,0.15)'}
-                onChange={(color) => updateDrawing(drawing.id, { fillColor: color } as Partial<Drawing>)}
-                onClose={() => setShowFillColor(false)}
+                current={drawing.color}
+                onChange={(color) => updateDrawing(drawing.id, { color })}
+                onClose={() => setShowColor(false)}
               />
             )}
           </div>
-        </>
-      )}
 
-      {/* FRVP: aggregation bar count + POC controls */}
-      {drawing.type === 'frvp' && (() => {
-        const frvp = drawing as FRVPDrawing;
-        const pocVisible = frvp.showPoc !== false;
-        const pocCol = frvp.pocColor ?? 'var(--color-accent)';
-        return (
-          <>
-            <Divider />
-            {/* Bars count */}
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 4px' }}
-              title="Number of bars (0 = raw tick level)"
-            >
-              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Bars</span>
-              <input
-                type="number"
-                min={0}
-                max={500}
-                step={1}
-                value={frvp.numBars ?? 0}
-                onChange={(e) => {
-                  const v = Math.max(0, Math.min(500, parseInt(e.target.value, 10) || 0));
-                  updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>);
-                }}
-                onMouseDown={(e) => e.stopPropagation()}
-                style={{
-                  width: 44,
-                  height: 24,
-                  background: 'var(--color-input-bg, var(--color-surface))',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 4,
-                  color: 'var(--color-text)',
-                  fontSize: 12,
-                  textAlign: 'center',
-                  padding: 0,
-                }}
-              />
-            </div>
-            <Divider />
-            {/* POC toggle */}
-            <button
-              onClick={() => updateDrawing(drawing.id, { showPoc: !pocVisible } as Partial<Drawing>)}
-              className={`${btnBase} !w-auto ${pocVisible ? btnActive : btnHover}`}
-              style={{ padding: '0 7px', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}
-              title={pocVisible ? 'Hide POC' : 'Show POC'}
-            >
-              POC
-            </button>
-            {/* POC color */}
-            {pocVisible && (
+          {/* Fill color (rect & oval) */}
+          {(drawing.type === 'rect' || drawing.type === 'oval') && (
+            <>
+              <Divider />
               <div className="relative">
                 <button
-                  onClick={() => { const v = !showPocColor; closeAll(); setShowPocColor(v); }}
-                  className={`${btnBase} ${showPocColor ? btnActive : btnHover}`}
-                  title="POC color"
+                  onClick={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
+                  className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
+                  title="Fill color"
                 >
-                  <svg width="14" height="14" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
-                    <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
+                  <svg width="16" height="16" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
+                    <path stroke="currentColor" d="M13.5 6.5l-3-3-7 7 7.59 7.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82L13.5 6.5zm0 0v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
+                    <path fill="currentColor" d="M0 16.5C0 15 2.5 12 2.5 12S5 15 5 16.5 4 19 2.5 19 0 18 0 16.5z" />
+                    <circle fill="currentColor" cx="9.5" cy="9.5" r="1.5" />
                   </svg>
                   <div style={{
                     position: 'absolute', bottom: 4, right: 4,
                     width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
-                    background: pocCol, border: '1px solid var(--color-border)',
+                    background: (drawing as any).fillColor || 'transparent',
+                    border: '1px solid var(--color-border)',
                   }} />
                 </button>
-                {showPocColor && (
+                {showFillColor && (
                   <ColorPopover
-                    current={frvp.pocColor ?? '#ff9800'}
-                    onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
-                    onClose={() => setShowPocColor(false)}
+                    current={(drawing as any).fillColor || 'rgba(255,152,0,0.15)'}
+                    onChange={(color) => updateDrawing(drawing.id, { fillColor: color } as Partial<Drawing>)}
+                    onClose={() => setShowFillColor(false)}
                   />
                 )}
               </div>
-            )}
-          </>
-        );
-      })()}
+            </>
+          )}
 
-      {/* Text (not shown for freedraw) */}
-      {drawing.type !== 'freedraw' && drawing.type !== 'frvp' && (
-        <>
+          {/* Text (not shown for freedraw) */}
+          {drawing.type !== 'freedraw' && (
+            <>
+              <Divider />
+              <div className="relative">
+                <button
+                  onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
+                  className={`${btnBase} ${showText ? btnActive : btnHover}`}
+                  title="Text"
+                >
+                  <svg width="11" height="13" viewBox="0 0 13 15" shapeRendering="geometricPrecision" fill="none">
+                    <path stroke="currentColor" d="M4 14.5h2.5m2.5 0H6.5m0 0V.5m0 0h-5a1 1 0 0 0-1 1V4m6-3.5h5a1 1 0 0 1 1 1V4" />
+                  </svg>
+                  <div style={{
+                    position: 'absolute', bottom: 4, right: 4,
+                    width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
+                    background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
+                  }} />
+                </button>
+                {showText && (
+                  <TextPopover
+                    drawing={drawing}
+                    onUpdate={(patch) => updateDrawing(drawing.id, patch)}
+                    onClose={() => setShowText(false)}
+                  />
+                )}
+              </div>
+            </>
+          )}
+
           <Divider />
+
+          {/* Stroke width / style */}
           <div className="relative">
             <button
-              onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
-              className={`${btnBase} ${showText ? btnActive : btnHover}`}
-              title="Text"
+              onClick={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
+              className={`${btnBase} !w-auto ${showStroke ? btnActive : btnHover}`}
+              style={{ padding: '0 8px', gap: 6 }}
+              title="Line style"
             >
-              <svg width="11" height="13" viewBox="0 0 13 15" shapeRendering="geometricPrecision" fill="none">
-                <path stroke="currentColor" d="M4 14.5h2.5m2.5 0H6.5m0 0V.5m0 0h-5a1 1 0 0 0-1 1V4m6-3.5h5a1 1 0 0 1 1 1V4" />
-              </svg>
-              {/* Text color dot */}
-              <div style={{
-                position: 'absolute', bottom: 4, right: 4,
-                width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
-                background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
-              }} />
+              {(() => {
+                const sw = drawing.strokeWidth;
+                const h = sw + 6;
+                const ls = (drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid';
+                const dasharray = ls === 'dashed' ? `${sw * 4} ${sw * 3}` : ls === 'dotted' ? `${sw * 1.2} ${sw * 2.5}` : undefined;
+                const linecap = ls === 'dotted' ? 'round' : 'butt';
+                return (
+                  <svg width="22" height={h} viewBox={`0 0 22 ${h}`} style={{ flexShrink: 0 }}>
+                    <line x1="0" y1={h / 2} x2="22" y2={h / 2}
+                      stroke="currentColor" strokeWidth={sw}
+                      strokeDasharray={dasharray}
+                      strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
+                    />
+                  </svg>
+                );
+              })()}
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
             </button>
-            {showText && (
-              <TextPopover
-                drawing={drawing}
-                onUpdate={(patch) => updateDrawing(drawing.id, patch)}
-                onClose={() => setShowText(false)}
+            {showStroke && (
+              <StrokePopover
+                currentWidth={drawing.strokeWidth}
+                currentStyle={(drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid'}
+                onChange={(patch) => updateDrawing(drawing.id, patch)}
+                onClose={() => setShowStroke(false)}
               />
             )}
           </div>
-        </>
-      )}
 
-      <Divider />
-
-      {/* Stroke width / style */}
-      <div className="relative">
-        <button
-          onClick={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
-          className={`${btnBase} !w-auto ${showStroke ? btnActive : btnHover}`}
-          style={{ padding: '0 8px', gap: 6 }}
-          title="Line style"
-        >
-          {/* Line preview showing current style */}
-          {(() => {
-            const sw = drawing.strokeWidth;
-            const h = sw + 6;
-            const ls = (drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid';
-            const dasharray = ls === 'dashed' ? `${sw * 4} ${sw * 3}` : ls === 'dotted' ? `${sw * 1.2} ${sw * 2.5}` : undefined;
-            const linecap = ls === 'dotted' ? 'round' : 'butt';
-            return (
-              <svg width="22" height={h} viewBox={`0 0 22 ${h}`} style={{ flexShrink: 0 }}>
-                <line x1="0" y1={h / 2} x2="22" y2={h / 2}
-                  stroke="currentColor" strokeWidth={sw}
-                  strokeDasharray={dasharray}
-                  strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
-                />
-              </svg>
-            );
-          })()}
-          <span style={{ fontSize: 13, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
-        </button>
-        {showStroke && (
-          <StrokePopover
-            currentWidth={drawing.strokeWidth}
-            currentStyle={(drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid'}
-            onChange={(patch) => updateDrawing(drawing.id, patch)}
-            onClose={() => setShowStroke(false)}
-          />
-        )}
-      </div>
-
-      {/* Extend left toggle (hline only) */}
-      {drawing.type === 'hline' && (
-        <>
-          <Divider />
-          <button
-            onClick={() => updateDrawing(drawing.id, { extendLeft: drawing.extendLeft === false ? true : false })}
-            className={`${btnBase} ${drawing.extendLeft === false ? btnActive : btnHover}`}
-            title={drawing.extendLeft === false ? 'Extend to full width' : 'Start from click point'}
-          >
-            {drawing.extendLeft === false ? (
-              /* Ray: line with center handle (not extended) */
-              <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor" fillRule="nonzero">
-                <path d="M4 15h8.5v-1h-8.5zM16.5 15h8.5v-1h-8.5z" />
-                <path d="M14.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
-              </svg>
-            ) : (
-              /* HLine: line with left endpoint handle (extended) — same as DrawingToolbar */
-              <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor" fillRule="nonzero">
-                <path d="M8.5 15h16.5v-1h-16.5z" />
-                <path d="M6.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
-              </svg>
-            )}
-          </button>
-        </>
-      )}
-
-      {/* Template dropdown (hline only) */}
-      {drawing.type === 'hline' && (
-        <>
-          <Divider />
-          <div className="relative">
-            <button
-              onClick={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
-              className={`${btnBase} !w-auto ${showTemplate ? btnActive : btnHover}`}
-              style={{ padding: '0 8px', gap: 4, fontSize: 11, fontWeight: 500 }}
-              title="Template"
-            >
-              <span>Template</span>
-              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"
-                style={{ transform: showTemplate ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}
+          {/* Extend left toggle (hline only) */}
+          {drawing.type === 'hline' && (
+            <>
+              <Divider />
+              <button
+                onClick={() => updateDrawing(drawing.id, { extendLeft: drawing.extendLeft === false ? true : false })}
+                className={`${btnBase} ${drawing.extendLeft === false ? btnActive : btnHover}`}
+                title={drawing.extendLeft === false ? 'Extend to full width' : 'Start from click point'}
               >
-                <path d="M2.5 4L5 6.5L7.5 4" />
-              </svg>
-            </button>
-            {showTemplate && (
-              <TemplatePopover
-                drawing={drawing}
-                onApply={(t) => updateDrawing(drawing.id, { color: t.color, strokeWidth: t.strokeWidth, lineStyle: t.lineStyle ?? 'solid', text: t.text })}
-                onClose={() => setShowTemplate(false)}
-              />
-            )}
-          </div>
+                {drawing.extendLeft === false ? (
+                  <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor" fillRule="nonzero">
+                    <path d="M4 15h8.5v-1h-8.5zM16.5 15h8.5v-1h-8.5z" />
+                    <path d="M14.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
+                  </svg>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor" fillRule="nonzero">
+                    <path d="M8.5 15h16.5v-1h-16.5z" />
+                    <path d="M6.5 16c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
+                  </svg>
+                )}
+              </button>
+            </>
+          )}
+
+          {/* Template dropdown (hline only) */}
+          {drawing.type === 'hline' && (
+            <>
+              <Divider />
+              <div className="relative">
+                <button
+                  onClick={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
+                  className={`${btnBase} !w-auto ${showTemplate ? btnActive : btnHover}`}
+                  style={{ padding: '0 8px', gap: 4, fontSize: 11, fontWeight: 500 }}
+                  title="Template"
+                >
+                  <span>Template</span>
+                  <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5"
+                    style={{ transform: showTemplate ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}
+                  >
+                    <path d="M2.5 4L5 6.5L7.5 4" />
+                  </svg>
+                </button>
+                {showTemplate && (
+                  <TemplatePopover
+                    drawing={drawing}
+                    onApply={(t) => updateDrawing(drawing.id, { color: t.color, strokeWidth: t.strokeWidth, lineStyle: t.lineStyle ?? 'solid', text: t.text })}
+                    onClose={() => setShowTemplate(false)}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 

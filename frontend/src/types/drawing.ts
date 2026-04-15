@@ -138,6 +138,7 @@ export interface FRVPDrawing extends DrawingBase {
   numBars?: number;    // bucket count for aggregation; undefined/0 = raw tick-level
   showPoc?: boolean;   // show POC line; undefined/true = visible
   pocColor?: string;   // POC line color; undefined = COLOR_ACCENT
+  extendPoc?: boolean; // extend POC line to right edge; undefined/false = bar width only
 }
 
 // ---------------------------------------------------------------------------
