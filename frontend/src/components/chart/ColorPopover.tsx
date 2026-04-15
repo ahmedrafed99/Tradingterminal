@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
@@ -242,6 +242,7 @@ export function ColorPopover({
       className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
       style={{ zIndex: Z.DROPDOWN, padding: 10, width: 252 }}
       onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Color palette grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: customColors.length > 0 ? 4 : 8 }}>
