@@ -11,7 +11,8 @@ import type {
 } from 'lightweight-charts';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { ISeriesPrimitive } from 'lightweight-charts';
-import type { Drawing, RulerMetrics } from '../../../types/drawing';
+import type { Drawing, FRVPDrawing, RulerMetrics } from '../../../types/drawing';
+import type { Bar } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { HLinePaneView } from './HLineRenderer';
@@ -575,6 +576,63 @@ class FRVPPreviewPaneView implements IPrimitivePaneView {
 }
 
 // ---------------------------------------------------------------------------
+// FRVP range creation preview: two dashed vertical lines with shaded fill
+// ---------------------------------------------------------------------------
+class FRVPRangePreviewRenderer implements IPrimitivePaneRenderer {
+  private _x1: number;
+  private _x2: number;
+  private _color: string;
+
+  constructor(x1: number, x2: number, color: string) {
+    this._x1 = x1;
+    this._x2 = x2;
+    this._color = color;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx }) => {
+      const left = Math.min(this._x1, this._x2);
+      const right = Math.max(this._x1, this._x2);
+      const h = ctx.canvas.height;
+
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = this._color;
+      ctx.fillRect(left, 0, right - left, h);
+      ctx.globalAlpha = 1;
+
+      ctx.strokeStyle = this._color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      for (const x of [this._x1, this._x2]) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    });
+  }
+}
+
+class FRVPRangePreviewPaneView implements IPrimitivePaneView {
+  private _x1: number;
+  private _x2: number;
+  private _color: string;
+
+  constructor(x1: number, x2: number, color: string) {
+    this._x1 = x1;
+    this._x2 = x2;
+    this._color = color;
+  }
+
+  zOrder(): 'top' { return 'top'; }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new FRVPRangePreviewRenderer(this._x1, this._x2, this._color);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Selection rectangle renderer: dashed rectangle during Ctrl+drag multi-select
 // ---------------------------------------------------------------------------
 class SelectionRectRenderer implements IPrimitivePaneRenderer {
@@ -733,8 +791,12 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _selectedIds: string[] = [];
   private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | FRVPPaneView)[] = [];
 
-  // Shared VP VolumeMap ref for FRVP drawings
+  // Shared VP VolumeMap ref for FRVP anchor-mode drawings
   private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
+  // Per-drawing volume maps for range-mode FRVP drawings (keyed by drawing ID)
+  private _rangeVolumeMaps: Map<string, { current: Map<number, number> }> = new Map();
+  // Raw bars for range-mode volume computation
+  private _barsRef: Bar[] = [];
   private _tickSize = 0.01;
 
   // Drag preview (oval creation)
@@ -752,8 +814,11 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   // Free draw creation preview
   private _freeDrawPreview: FreeDrawPreviewPaneView | null = null;
 
-  // FRVP creation preview
+  // FRVP creation preview (anchor mode: vertical drag)
   private _frvpPreview: FRVPPreviewPaneView | null = null;
+
+  // FRVP creation preview (range mode: horizontal drag)
+  private _frvpRangePreview: FRVPRangePreviewPaneView | null = null;
 
   // Price axis labels for drawings
   private _decimals = 2;
@@ -813,6 +878,50 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** Update tick size for FRVP bar sizing (call when contract changes) */
   setTickSize(tickSize: number): void {
     this._tickSize = tickSize > 0 ? tickSize : 0.01;
+  }
+
+  /** Called when a range-mode FRVP's auto-computed bounds differ from the stored values */
+  private _onRangeBoundsUpdate: ((id: string, pMin: number, pMax: number) => void) | null = null;
+
+  /** Register a callback to sync auto-computed range bounds back to the store */
+  setOnRangeBoundsUpdate(cb: (id: string, pMin: number, pMax: number) => void): void {
+    this._onRangeBoundsUpdate = cb;
+  }
+
+  /** Feed raw bars for range-mode FRVP volume computation */
+  setBarsRef(bars: Bar[]): void {
+    this._barsRef = bars;
+    const hasRange = this._drawings.some((d) => d.type === 'frvp' && (d as FRVPDrawing).mode === 'range');
+    if (hasRange) {
+      this._rebuildViews();
+      this._requestUpdate?.();
+    }
+  }
+
+  /** Compute pMin/pMax from bars in [t1, t2]. Returns null if no bars in range. */
+  computeRangeBounds(t1: number, t2: number): { pMin: number; pMax: number } | null {
+    const tMin = Math.min(t1, t2);
+    const tMax = Math.max(t1, t2);
+    let pMin = Infinity, pMax = -Infinity;
+    for (const bar of this._barsRef) {
+      const barTime = Math.floor(new Date(bar.t).getTime() / 1000);
+      if (barTime < tMin || barTime > tMax) continue;
+      if (bar.l < pMin) pMin = bar.l;
+      if (bar.h > pMax) pMax = bar.h;
+    }
+    return pMin <= pMax ? { pMin, pMax } : null;
+  }
+
+  /** Show a two-line range preview during range-mode FRVP drag creation */
+  setFRVPRangePreview(x1: number, x2: number, color: string): void {
+    this._frvpRangePreview = new FRVPRangePreviewPaneView(x1, x2, color);
+    this._requestUpdate?.();
+  }
+
+  /** Clear the range-mode FRVP creation preview */
+  clearFRVPRangePreview(): void {
+    this._frvpRangePreview = null;
+    this._requestUpdate?.();
   }
 
   /** Forward hover price to all FRVP pane views for bar highlight + label */
@@ -898,6 +1007,28 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  /** Distribute each bar's volume evenly across tick levels in its [low, high] range. */
+  private _buildRangeVolumeMap(t1: number, t2: number, tickSize: number): Map<number, number> {
+    const map = new Map<number, number>();
+    const ts = tickSize > 0 ? tickSize : 0.01;
+    const tMin = Math.min(t1, t2);
+    const tMax = Math.max(t1, t2);
+    for (const bar of this._barsRef) {
+      const barTime = Math.floor(new Date(bar.t).getTime() / 1000);
+      if (barTime < tMin || barTime > tMax) continue;
+      if (bar.v <= 0 || bar.h < bar.l) continue;
+      const lowIdx = Math.round(bar.l / ts);
+      const highIdx = Math.round(bar.h / ts);
+      const numTicks = Math.max(highIdx - lowIdx + 1, 1);
+      const volPerTick = bar.v / numTicks;
+      for (let i = lowIdx; i <= highIdx; i++) {
+        const price = i * ts;
+        map.set(price, (map.get(price) ?? 0) + volPerTick);
+      }
+    }
+    return map;
+  }
+
   private _rebuildViews(): void {
     if (!this._series || !this._chart) {
       this._paneViews = [];
@@ -918,7 +1049,24 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (d.type === 'marker') {
         return new MarkerPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'frvp') {
-        return new FRVPPaneView(d, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
+        const frvp = d as FRVPDrawing;
+        if (frvp.mode === 'range' && frvp.t2 !== undefined) {
+          let mapRef = this._rangeVolumeMaps.get(d.id);
+          if (!mapRef) { mapRef = { current: new Map() }; this._rangeVolumeMaps.set(d.id, mapRef); }
+          mapRef.current = this._buildRangeVolumeMap(frvp.anchorTime, frvp.t2, this._tickSize);
+          // Auto-sync pMin/pMax from actual bar range if they differ (e.g. after mode switch)
+          const bounds = this.computeRangeBounds(frvp.anchorTime, frvp.t2);
+          if (bounds && this._onRangeBoundsUpdate) {
+            const tol = this._tickSize;
+            if (Math.abs(bounds.pMin - frvp.pMin) > tol || Math.abs(bounds.pMax - frvp.pMax) > tol) {
+              const cb = this._onRangeBoundsUpdate;
+              const id = frvp.id;
+              queueMicrotask(() => cb(id, bounds.pMin, bounds.pMax));
+            }
+          }
+          return new FRVPPaneView(frvp, selected, this._series!, this._chart!, mapRef, this._tickSize, this._requestUpdate);
+        }
+        return new FRVPPaneView(d as FRVPDrawing, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
       } else {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }
@@ -938,6 +1086,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (this._rulerDragPreview) extras.push(this._rulerDragPreview);
     if (this._freeDrawPreview) extras.push(this._freeDrawPreview);
     if (this._frvpPreview) extras.push(this._frvpPreview);
+    if (this._frvpRangePreview) extras.push(this._frvpRangePreview);
     if (this._selectionRect) extras.push(this._selectionRect);
     if (extras.length > 0) return [...this._paneViews, ...extras];
     return this._paneViews;

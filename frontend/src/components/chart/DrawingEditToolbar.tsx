@@ -946,9 +946,11 @@ export function DrawingEditToolbar({
 
                 {frvpTab === 'style' && (
                   <>
+                    {/* ── Bars section ── */}
+                    <span className={`${SECTION_LABEL} block text-center`}>Bars</span>
                     {/* Bar color */}
                     <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>Bar color</span>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>Color</span>
                       <button
                         onClick={() => { const v = !showFrvpBarColor; setShowFrvpPocColor(false); setShowFrvpBarColor(v); }}
                         style={{
@@ -966,46 +968,29 @@ export function DrawingEditToolbar({
                         />
                       )}
                     </div>
-                    {/* Divider */}
+                    {/* Show Values */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => updateDrawing(drawing.id, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
+                    >
+                      <span style={{
+                        width: 14, height: 14, borderRadius: 3,
+                        border: '1.5px solid var(--color-border)',
+                        background: frvp.showBarValues ? '#ffffff' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, transition: 'background var(--transition-fast)',
+                      }}>
+                        {frvp.showBarValues && (
+                          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                            <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Show Values</span>
+                    </label>
+
+                    {/* ── POC section ── */}
                     <div style={{ borderTop: '1px solid var(--color-border)', margin: '2px 0' }} />
-                    {/* POC section: toggle + swatch */}
-                    <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
-                        onClick={() => updateDrawing(drawing.id, { showPoc: !pocVisible } as Partial<Drawing>)}
-                      >
-                        <span style={{
-                          width: 14, height: 14, borderRadius: 3,
-                          border: '1.5px solid var(--color-border)',
-                          background: pocVisible ? '#ffffff' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0, transition: 'background var(--transition-fast)',
-                        }}>
-                          {pocVisible && (
-                            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                              <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          )}
-                        </span>
-                        <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>POC</span>
-                      </label>
-                      <button
-                        onClick={() => { const v = !showFrvpPocColor; setShowFrvpBarColor(false); setShowFrvpPocColor(v); }}
-                        style={{
-                          width: 24, height: 24, borderRadius: RADIUS.MD,
-                          background: frvp.pocColor ?? '#ff9800',
-                          border: showFrvpPocColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                          cursor: 'pointer', flexShrink: 0, transition: 'border var(--transition-fast)',
-                          opacity: pocVisible ? 1 : 0.35,
-                        }}
-                      />
-                      {showFrvpPocColor && (
-                        <ColorPopover
-                          current={frvp.pocColor ?? '#ff9800'}
-                          onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
-                          onClose={() => setShowFrvpPocColor(false)}
-                        />
-                      )}
-                    </div>
+                    <span className={`${SECTION_LABEL} block text-center`}>POC</span>
                     {/* Extend Right */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
                       onClick={() => updateDrawing(drawing.id, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}
@@ -1025,25 +1010,44 @@ export function DrawingEditToolbar({
                       </span>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Extend Right</span>
                     </label>
-                    {/* Bar Values */}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-                      onClick={() => updateDrawing(drawing.id, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
-                    >
-                      <span style={{
-                        width: 14, height: 14, borderRadius: 3,
-                        border: '1.5px solid var(--color-border)',
-                        background: frvp.showBarValues ? '#ffffff' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0, transition: 'background var(--transition-fast)',
-                      }}>
-                        {frvp.showBarValues && (
-                          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                            <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                      </span>
-                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Bar Values</span>
-                    </label>
+                    {/* POC color + visibility toggle */}
+                    <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
+                        onClick={() => updateDrawing(drawing.id, { showPoc: !pocVisible } as Partial<Drawing>)}
+                      >
+                        <span style={{
+                          width: 14, height: 14, borderRadius: 3,
+                          border: '1.5px solid var(--color-border)',
+                          background: pocVisible ? '#ffffff' : 'transparent',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0, transition: 'background var(--transition-fast)',
+                        }}>
+                          {pocVisible && (
+                            <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                              <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          )}
+                        </span>
+                        <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Color</span>
+                      </label>
+                      <button
+                        onClick={() => { const v = !showFrvpPocColor; setShowFrvpBarColor(false); setShowFrvpPocColor(v); }}
+                        style={{
+                          width: 24, height: 24, borderRadius: RADIUS.MD,
+                          background: frvp.pocColor ?? '#ff9800',
+                          border: showFrvpPocColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                          cursor: 'pointer', flexShrink: 0, transition: 'border var(--transition-fast)',
+                          opacity: pocVisible ? 1 : 0.35,
+                        }}
+                      />
+                      {showFrvpPocColor && (
+                        <ColorPopover
+                          current={frvp.pocColor ?? '#ff9800'}
+                          onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
+                          onClose={() => setShowFrvpPocColor(false)}
+                        />
+                      )}
+                    </div>
                   </>
                 )}
               </div>

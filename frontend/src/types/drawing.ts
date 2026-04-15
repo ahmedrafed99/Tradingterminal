@@ -132,9 +132,11 @@ export interface MarkerDrawing extends DrawingBase {
 // ---------------------------------------------------------------------------
 export interface FRVPDrawing extends DrawingBase {
   type: 'frvp';
-  anchorTime: number;  // time position of the vertical anchor line
-  pMin: number;        // lower price bound
-  pMax: number;        // upper price bound
+  mode?: 'anchor' | 'range';  // 'anchor' = single time point + manual price range (default); 'range' = two time points + auto price range from candles
+  anchorTime: number;  // t1: time of left anchor line (both modes)
+  t2?: number;         // range mode only: right time boundary
+  pMin: number;        // lower price bound (manual in anchor mode; auto-computed in range mode)
+  pMax: number;        // upper price bound (manual in anchor mode; auto-computed in range mode)
   numBars?: number;        // bucket count for aggregation; undefined/0 = raw tick-level
   showPoc?: boolean;       // show POC line; undefined/true = visible
   pocColor?: string;       // POC line color; undefined = COLOR_ACCENT

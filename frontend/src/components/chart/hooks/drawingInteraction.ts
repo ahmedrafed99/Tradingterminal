@@ -33,6 +33,7 @@ export interface DrawingState {
   frvpCreation: {
     startX: number; startY: number;
     startTime: number; startPrice: number;
+    mode: 'anchor' | 'range';
   } | null;
 
   drawingDrag: {
