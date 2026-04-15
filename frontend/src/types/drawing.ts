@@ -146,6 +146,7 @@ export interface FRVPDrawing extends DrawingBase {
   pocColor?: string;       // POC line color; undefined = COLOR_ACCENT
   extendPoc?: boolean;     // extend POC line to right edge; undefined/false = bar width only
   showBarValues?: boolean; // show volume label on hover; undefined/false = hidden
+  highlightOnHover?: boolean; // highlight bar on crosshair hover; undefined/true = enabled
 }
 
 // ---------------------------------------------------------------------------

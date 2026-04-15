@@ -114,7 +114,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         ctx.fillRect(rectLeft, topY, rectRight - rectLeft, bottomY - topY);
       }
 
-      const result = this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr);
+      const result = this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
       if (result) {
         hoveredBar = { cssAnchorX, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
       }
@@ -191,6 +191,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     maxBarW: number,
     _hpr: number,
     vpr: number,
+    highlightOnHover: boolean,
   ): { bitmapCenterY: number; volume: number } | null {
     const vmap = this._volumeMapRef.current;
     if (vmap.size === 0) return null;
@@ -208,7 +209,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     const barColor = rgba(r, g, b, 0.45);
     const hoverColor = rgba(r, g, b, 0.75);
 
-    const hoverP = this._hoverPrice;
+    const hoverP = highlightOnHover ? this._hoverPrice : null;
 
     // pocLine: { y, w } in bitmap pixels — filled during bar loop, drawn after
     let pocLine: { y: number; w: number } | null = null;
