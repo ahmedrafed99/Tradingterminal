@@ -135,10 +135,11 @@ export interface FRVPDrawing extends DrawingBase {
   anchorTime: number;  // time position of the vertical anchor line
   pMin: number;        // lower price bound
   pMax: number;        // upper price bound
-  numBars?: number;    // bucket count for aggregation; undefined/0 = raw tick-level
-  showPoc?: boolean;   // show POC line; undefined/true = visible
-  pocColor?: string;   // POC line color; undefined = COLOR_ACCENT
-  extendPoc?: boolean; // extend POC line to right edge; undefined/false = bar width only
+  numBars?: number;        // bucket count for aggregation; undefined/0 = raw tick-level
+  showPoc?: boolean;       // show POC line; undefined/true = visible
+  pocColor?: string;       // POC line color; undefined = COLOR_ACCENT
+  extendPoc?: boolean;     // extend POC line to right edge; undefined/false = bar width only
+  showBarValues?: boolean; // show volume label on hover; undefined/false = hidden
 }
 
 // ---------------------------------------------------------------------------

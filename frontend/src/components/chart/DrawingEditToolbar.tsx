@@ -1025,6 +1025,25 @@ export function DrawingEditToolbar({
                       </span>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Extend Right</span>
                     </label>
+                    {/* Bar Values */}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => updateDrawing(drawing.id, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
+                    >
+                      <span style={{
+                        width: 14, height: 14, borderRadius: 3,
+                        border: '1.5px solid var(--color-border)',
+                        background: frvp.showBarValues ? '#ffffff' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, transition: 'background var(--transition-fast)',
+                      }}>
+                        {frvp.showBarValues && (
+                          <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                            <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
+                      </span>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Bar Values</span>
+                    </label>
                   </>
                 )}
               </div>

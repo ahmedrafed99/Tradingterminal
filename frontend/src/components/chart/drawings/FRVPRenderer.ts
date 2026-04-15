@@ -2,9 +2,17 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
+import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE, COLOR_TEXT } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
 import { applyLineDash } from './rendererUtils';
 import { hitTestRect } from './hitTesting';
+
+/** Vertical expansion (CSS px) added to hovered bar on each side */
+const EXPAND_PX = 3;
+/** Lerp speed toward expand target per frame */
+const EXPAND_LERP = 0.25;
+/** Label background */
+const LABEL_BG = 'rgba(19, 23, 34, 0.90)';
 
 // ---------------------------------------------------------------------------
 // Color helpers (copied from VolumeProfilePrimitive.ts)
@@ -30,6 +38,12 @@ const MAX_BAR_WIDTH_CSS = 180;
 // FRVP Renderer
 // ---------------------------------------------------------------------------
 
+interface HoveredBarInfo {
+  cssAnchorX: number;
+  cssCenterY: number;
+  volume: number;
+}
+
 class FRVPRendererImpl implements IPrimitivePaneRenderer {
   private _drawing: FRVPDrawing;
   private _selected: boolean;
@@ -37,6 +51,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
   private _chart: IChartApiBase<Time>;
   private _volumeMapRef: { current: Map<number, number> };
   private _tickSize: number;
+  private _hoverPrice: number | null;
+  private _expandMap: Map<number, number>;
+  private _requestUpdate: (() => void) | null;
 
   constructor(
     drawing: FRVPDrawing,
@@ -45,6 +62,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     chart: IChartApiBase<Time>,
     volumeMapRef: { current: Map<number, number> },
     tickSize: number,
+    hoverPrice: number | null,
+    expandMap: Map<number, number>,
+    requestUpdate: (() => void) | null,
   ) {
     this._drawing = drawing;
     this._selected = selected;
@@ -52,9 +72,14 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     this._chart = chart;
     this._volumeMapRef = volumeMapRef;
     this._tickSize = tickSize;
+    this._hoverPrice = hoverPrice;
+    this._expandMap = expandMap;
+    this._requestUpdate = requestUpdate;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
+    let hoveredBar: HoveredBarInfo | null = null;
+
     target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
       const cssAnchorX = this._chart.timeScale().timeToCoordinate(this._drawing.anchorTime as unknown as Time);
       const cssPMaxY = this._series.priceToCoordinate(this._drawing.pMax);
@@ -70,7 +95,10 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
       const maxBarW = Math.min(MAX_BAR_WIDTH_CSS * hpr, ctx.canvas.width * 0.25);
 
-      this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr);
+      const result = this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr);
+      if (result) {
+        hoveredBar = { cssAnchorX, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
+      }
 
       // Vertical anchor line — same color as bars
       ctx.strokeStyle = this._drawing.color;
@@ -96,6 +124,31 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
       }
     });
+
+    // Draw value label in media space so font is crisp
+    if (hoveredBar && this._drawing.showBarValues) {
+      const { cssAnchorX, cssCenterY, volume } = hoveredBar as HoveredBarInfo;
+      target.useMediaCoordinateSpace(({ context: ctx }) => {
+        const volText = volume.toLocaleString();
+        ctx.font = `11px ${FONT_FAMILY}`;
+        const textW = ctx.measureText(volText).width;
+        const pad = 5;
+        const labelW = textW + pad * 2;
+        const labelH = 18;
+        const labelX = cssAnchorX + 4;
+        const labelY = cssCenterY - labelH / 2;
+
+        ctx.fillStyle = LABEL_BG;
+        ctx.beginPath();
+        ctx.roundRect(labelX, labelY, labelW, labelH, 3);
+        ctx.fill();
+
+        ctx.fillStyle = COLOR_TEXT;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(volText, labelX + pad, cssCenterY);
+      });
+    }
   }
 
   private _drawBars(
@@ -106,9 +159,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     maxBarW: number,
     _hpr: number,
     vpr: number,
-  ): void {
+  ): { bitmapCenterY: number; volume: number } | null {
     const vmap = this._volumeMapRef.current;
-    if (vmap.size === 0) return;
+    if (vmap.size === 0) return null;
 
     const pMin = Math.min(this._drawing.pMin, this._drawing.pMax);
     const pMax = Math.max(this._drawing.pMin, this._drawing.pMax);
@@ -120,9 +173,15 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
     const [r, g, b] = parseColor(this._drawing.color);
     const barColor = rgba(r, g, b, 0.45);
+    const hoverColor = rgba(r, g, b, 0.75);
+
+    const hoverP = this._hoverPrice;
 
     // pocLine: { y, w } in bitmap pixels — filled during bar loop, drawn after
     let pocLine: { y: number; w: number } | null = null;
+    let hoveredResult: { bitmapCenterY: number; volume: number } | null = null;
+
+    let needsAnim = false;
 
     if (numBars > 0) {
       // ── Aggregated mode: divide [pMin, pMax] into numBars equal-height buckets ──
@@ -140,7 +199,12 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       for (let i = 0; i < numBars; i++) {
         if (buckets[i] > maxVol) { maxVol = buckets[i]; pocIdx = i; }
       }
-      if (maxVol === 0) return;
+      if (maxVol === 0) return null;
+
+      // Determine which bucket index is hovered
+      const hoverIdx = hoverP !== null
+        ? Math.min(Math.max(Math.floor((hoverP - pMin) / bucketSize), -1), numBars)
+        : -1;
 
       for (let i = 0; i < numBars; i++) {
         if (buckets[i] === 0) continue;
@@ -158,11 +222,25 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         const barCenterY = cssY * vpr;
         if (barCenterY < topY - barH || barCenterY > bottomY + barH) continue;
 
+        const isHovered = i === hoverIdx;
+        const key = bucketMidPrice;
+        const curExpand = this._expandMap.get(key) ?? 0;
+        const targetExpand = isHovered ? EXPAND_PX * vpr : 0;
+        let expand = curExpand;
+        if (Math.abs(curExpand - targetExpand) < 0.3) {
+          if (curExpand !== targetExpand) this._expandMap.set(key, targetExpand);
+        } else {
+          expand = curExpand + (targetExpand - curExpand) * EXPAND_LERP;
+          this._expandMap.set(key, expand);
+          needsAnim = true;
+        }
+
         const barW = (buckets[i] / maxVol) * maxBarW;
-        ctx.fillStyle = barColor;
-        ctx.fillRect(anchorX, barCenterY - barH / 2, barW, barH);
+        ctx.fillStyle = isHovered ? hoverColor : barColor;
+        ctx.fillRect(anchorX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
         if (i === pocIdx) pocLine = { y: barCenterY, w: barW };
+        if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: buckets[i] };
       }
     } else {
       // ── Raw mode: one bar per tick-level price ──
@@ -175,7 +253,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         entries.push({ price, vol });
         if (vol > maxVol) { maxVol = vol; pocPrice = price; }
       }
-      if (maxVol === 0 || entries.length === 0) return;
+      if (maxVol === 0 || entries.length === 0) return null;
 
       const tickPixels = (() => {
         const yLo = this._series.priceToCoordinate(pMin);
@@ -192,11 +270,24 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         const barCenterY = cssY * vpr;
         if (barCenterY < topY - barH || barCenterY > bottomY + barH) continue;
 
+        const isHovered = hoverP !== null && Math.abs(price - hoverP) < tickSize * 0.5 + 1e-9;
+        const curExpand = this._expandMap.get(price) ?? 0;
+        const targetExpand = isHovered ? EXPAND_PX * vpr : 0;
+        let expand = curExpand;
+        if (Math.abs(curExpand - targetExpand) < 0.3) {
+          if (curExpand !== targetExpand) this._expandMap.set(price, targetExpand);
+        } else {
+          expand = curExpand + (targetExpand - curExpand) * EXPAND_LERP;
+          this._expandMap.set(price, expand);
+          needsAnim = true;
+        }
+
         const barW = (vol / maxVol) * maxBarW;
-        ctx.fillStyle = barColor;
-        ctx.fillRect(anchorX, barCenterY - barH / 2, barW, barH);
+        ctx.fillStyle = isHovered ? hoverColor : barColor;
+        ctx.fillRect(anchorX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
         if (Math.abs(price - pocPrice) < tickSize * 0.5) pocLine = { y: barCenterY, w: barW };
+        if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: vol };
       }
     }
 
@@ -210,6 +301,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       ctx.lineTo(extendPoc ? ctx.canvas.width : anchorX + pocLine.w, pocLine.y);
       ctx.stroke();
     }
+
+    if (needsAnim) this._requestUpdate?.();
+    return hoveredResult;
   }
 }
 
@@ -224,6 +318,9 @@ export class FRVPPaneView implements IPrimitivePaneView {
   private _chart: IChartApiBase<Time>;
   private _volumeMapRef: { current: Map<number, number> };
   private _tickSize: number;
+  private _hoverPrice: number | null = null;
+  private _expandMap: Map<number, number> = new Map();
+  private _requestUpdate: (() => void) | null;
 
   constructor(
     drawing: FRVPDrawing,
@@ -232,6 +329,7 @@ export class FRVPPaneView implements IPrimitivePaneView {
     chart: IChartApiBase<Time>,
     volumeMapRef: { current: Map<number, number> },
     tickSize: number,
+    requestUpdate: (() => void) | null = null,
   ) {
     this._drawing = drawing;
     this._selected = selected;
@@ -239,6 +337,14 @@ export class FRVPPaneView implements IPrimitivePaneView {
     this._chart = chart;
     this._volumeMapRef = volumeMapRef;
     this._tickSize = tickSize;
+    this._requestUpdate = requestUpdate;
+  }
+
+  /** Called from DrawingsPrimitive on crosshair move. Returns true if changed. */
+  setHoverPrice(price: number | null): boolean {
+    if (price === this._hoverPrice) return false;
+    this._hoverPrice = price;
+    return true;
   }
 
   zOrder(): 'normal' {
@@ -249,6 +355,7 @@ export class FRVPPaneView implements IPrimitivePaneView {
     return new FRVPRendererImpl(
       this._drawing, this._selected, this._series, this._chart,
       this._volumeMapRef, this._tickSize,
+      this._hoverPrice, this._expandMap, this._requestUpdate,
     );
   }
 

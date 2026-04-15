@@ -67,8 +67,9 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     // raw mouse coords, so we capture the snapped price here instead.
     let lastCrosshairSnap: { price: number } | null = null;
     const crosshairMoveHandler = (param: { point?: { x: number; y: number }; time?: number | unknown }) => {
-      if (!param.point) { lastCrosshairSnap = null; return; }
+      if (!param.point) { lastCrosshairSnap = null; primitive.setFRVPHoverPrice(null); return; }
       const rawP = series.coordinateToPrice(param.point.y);
+      primitive.setFRVPHoverPrice(rawP as number | null);
       if (rawP === null) return;
       if (_activeCrosshairMode === CrosshairMode.MagnetOHLC) {
         // In MagnetOHLC mode, lightweight-charts resolves param.time to the exact bar the
@@ -294,6 +295,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       unsub();
       unsubCursor();
       chart.unsubscribeCrosshairMove(crosshairMoveHandler);
+      primitive.setFRVPHoverPrice(null);
       state.arrowPathCreation = null;
       state.arrowPathNodeDrag = null;
       state.rectCreation = null;

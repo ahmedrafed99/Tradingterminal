@@ -815,6 +815,17 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._tickSize = tickSize > 0 ? tickSize : 0.01;
   }
 
+  /** Forward hover price to all FRVP pane views for bar highlight + label */
+  setFRVPHoverPrice(price: number | null): void {
+    let changed = false;
+    for (const v of this._paneViews) {
+      if (v instanceof FRVPPaneView) {
+        if (v.setHoverPrice(price)) changed = true;
+      }
+    }
+    if (changed) this._requestUpdate?.();
+  }
+
   /** Show a dashed line during oval drag creation */
   setDragPreview(x1: number, y1: number, x2: number, y2: number, fillColor: string = ''): void {
     this._dragPreview = new DragPreviewPaneView(x1, y1, x2, y2, fillColor);
@@ -907,7 +918,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (d.type === 'marker') {
         return new MarkerPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'frvp') {
-        return new FRVPPaneView(d, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize);
+        return new FRVPPaneView(d, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
       } else {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }
