@@ -811,7 +811,7 @@ export function DrawingEditToolbar({
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
 
-  const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text-muted) transition-colors duration-150";
+  const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text) transition-colors duration-150";
   const btnHover = "hover:bg-(--color-hover-toolbar) hover:text-(--color-text)";
   const btnActive = "bg-(--color-hover-toolbar) text-white";
 
@@ -886,7 +886,7 @@ export function DrawingEditToolbar({
         const frvp = drawing as FRVPDrawing;
         const pocVisible = frvp.showPoc !== false;
         return (
-          <div className="relative" style={{ display: 'flex', alignItems: 'center', gap: 2, width: 180 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, width: 180 }}>
             {/* Input tab */}
             <button
               onClick={() => { const v = frvpTab === 'input' ? null : 'input'; closeAll(); setFrvpTab(v); }}
@@ -905,27 +905,29 @@ export function DrawingEditToolbar({
             </button>
 
             {/* Tab panel */}
-            {frvpTab && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 6px)',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  padding: '10px 12px',
-                  background: 'var(--color-panel)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: RADIUS.XL,
-                  boxShadow: SHADOW.LG,
-                  zIndex: Z.DROPDOWN,
-                  width: 180,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                }}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => e.stopPropagation()}
-              >
+            <div
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                right: 0,
+                padding: '10px 12px',
+                background: 'var(--color-panel)',
+                border: '1px solid var(--color-border)',
+                borderRadius: RADIUS.XL,
+                boxShadow: SHADOW.LG,
+                zIndex: Z.DROPDOWN,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                opacity: frvpTab ? 1 : 0,
+                transform: frvpTab ? 'translateY(0)' : 'translateY(-4px)',
+                pointerEvents: frvpTab ? 'auto' : 'none',
+                transition: 'opacity 150ms ease, transform 150ms ease',
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
                 {frvpTab === 'input' && (
                   <>
                     {/* Bars — spinner */}
@@ -1026,7 +1028,6 @@ export function DrawingEditToolbar({
                   </>
                 )}
               </div>
-            )}
           </div>
         );
       })() : (
@@ -1038,7 +1039,7 @@ export function DrawingEditToolbar({
               className={`${btnBase} ${showColor ? btnActive : btnHover}`}
               title="Color"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
+              <svg width="18" height="18" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
                 <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
               </svg>
               <div style={{
@@ -1066,7 +1067,7 @@ export function DrawingEditToolbar({
                   className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
                   title="Fill color"
                 >
-                  <svg width="16" height="16" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
+                  <svg width="20" height="20" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
                     <path stroke="currentColor" d="M13.5 6.5l-3-3-7 7 7.59 7.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82L13.5 6.5zm0 0v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
                     <path fill="currentColor" d="M0 16.5C0 15 2.5 12 2.5 12S5 15 5 16.5 4 19 2.5 19 0 18 0 16.5z" />
                     <circle fill="currentColor" cx="9.5" cy="9.5" r="1.5" />
@@ -1099,7 +1100,7 @@ export function DrawingEditToolbar({
                   className={`${btnBase} ${showText ? btnActive : btnHover}`}
                   title="Text"
                 >
-                  <svg width="11" height="13" viewBox="0 0 13 15" shapeRendering="geometricPrecision" fill="none">
+                  <svg width="14" height="16" viewBox="0 0 13 15" shapeRendering="geometricPrecision" fill="none">
                     <path stroke="currentColor" d="M4 14.5h2.5m2.5 0H6.5m0 0V.5m0 0h-5a1 1 0 0 0-1 1V4m6-3.5h5a1 1 0 0 1 1 1V4" />
                   </svg>
                   <div style={{
