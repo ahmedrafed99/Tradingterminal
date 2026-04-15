@@ -18,6 +18,9 @@ interface DrawingStyleDefaults {
   mode?: 'anchor' | 'range';
   // FRVP-specific
   numBars?: number;
+  rowSizeMode?: 'count' | 'price';
+  rowSizePrice?: number;
+  rowTickSize?: number;
   pocColor?: string;
   showPoc?: boolean;
   extendPoc?: boolean;

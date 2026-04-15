@@ -887,7 +887,7 @@ export function DrawingEditToolbar({
         const frvp = drawing as FRVPDrawing;
         const pocVisible = frvp.showPoc !== false;
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, width: 180 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, width: 240 }}>
             {/* Input tab */}
             <button
               onClick={() => { const v = frvpTab === 'input' ? null : 'input'; closeAll(); setFrvpTab(v); }}
@@ -912,7 +912,7 @@ export function DrawingEditToolbar({
                 top: 'calc(100% + 6px)',
                 left: 0,
                 right: 0,
-                padding: '10px 12px',
+                padding: '14px 16px',
                 background: 'var(--color-panel)',
                 border: '1px solid var(--color-border)',
                 borderRadius: RADIUS.XL,
@@ -920,7 +920,7 @@ export function DrawingEditToolbar({
                 zIndex: Z.DROPDOWN,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 10,
+                gap: 14,
                 opacity: frvpTab ? 1 : 0,
                 transform: frvpTab ? 'translateY(0)' : 'translateY(-4px)',
                 pointerEvents: frvpTab ? 'auto' : 'none',
@@ -965,17 +965,64 @@ export function DrawingEditToolbar({
                         })}
                       </div>
                     </div>
-                    {/* Bars — spinner */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                    {/* Row Size — mode toggle + spinner */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row Size</span>
-                      <SpinnerInput
-                        value={frvp.numBars ?? 0}
-                        onChange={(v) => updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>)}
-                        min={0}
-                        max={500}
-                        step={1}
-                      />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* Count | Price pill */}
+                        <div style={{ display: 'flex', gap: 1, background: 'var(--color-surface)', borderRadius: RADIUS.MD, padding: 2 }}>
+                          {(['count', 'price'] as const).map((m) => {
+                            const active = (frvp.rowSizeMode ?? 'count') === m;
+                            return (
+                              <button
+                                key={m}
+                                onClick={() => updateDrawing(drawing.id, { rowSizeMode: m } as Partial<Drawing>)}
+                                style={{
+                                  fontSize: 11, fontWeight: 600, padding: '2px 8px',
+                                  borderRadius: RADIUS.SM, border: 'none', cursor: 'pointer',
+                                  background: active ? 'var(--color-hover-toolbar)' : 'transparent',
+                                  color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
+                                  transition: 'background var(--transition-fast), color var(--transition-fast)',
+                                }}
+                              >
+                                {m === 'count' ? 'Count' : 'Price'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {(frvp.rowSizeMode ?? 'count') === 'count' ? (
+                          <SpinnerInput
+                            value={frvp.numBars ?? 0}
+                            onChange={(v) => updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>)}
+                            min={0}
+                            max={500}
+                            step={1}
+                          />
+                        ) : (
+                          <SpinnerInput
+                            value={frvp.rowSizePrice ?? 1}
+                            onChange={(v) => updateDrawing(drawing.id, { rowSizePrice: v } as Partial<Drawing>)}
+                            min={frvp.rowTickSize ?? 0.01}
+                            max={10000}
+                            step={frvp.rowTickSize ?? 0.25}
+                          />
+                        )}
+                      </div>
                     </div>
+                    {/* Tick Size — visible only in price mode */}
+                    {(frvp.rowSizeMode ?? 'count') === 'price' && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Tick Size</span>
+                        <SpinnerInput
+                          value={frvp.rowTickSize ?? 0.25}
+                          onChange={(v) => updateDrawing(drawing.id, { rowTickSize: Math.max(0.0001, v) } as Partial<Drawing>)}
+                          min={0.0001}
+                          max={10000}
+                          step={0.0001}
+                          inputWidth={64}
+                        />
+                      </div>
+                    )}
                   </>
                 )}
 

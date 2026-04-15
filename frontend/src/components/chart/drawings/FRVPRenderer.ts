@@ -198,7 +198,8 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     const pMin = Math.min(this._drawing.pMin, this._drawing.pMax);
     const pMax = Math.max(this._drawing.pMin, this._drawing.pMax);
     const tickSize = this._tickSize > 0 ? this._tickSize : 0.01;
-    const numBars = this._drawing.numBars && this._drawing.numBars > 1 ? this._drawing.numBars : 0;
+    const isPriceMode = this._drawing.rowSizeMode === 'price' && (this._drawing.rowSizePrice ?? 0) > 0;
+    const numBars = (!isPriceMode && this._drawing.numBars && this._drawing.numBars > 1) ? this._drawing.numBars : 0;
     const showPoc = this._drawing.showPoc !== false;
     const pocColor = this._drawing.pocColor ?? COLOR_ACCENT;
     const extendPoc = this._drawing.extendPoc === true;
@@ -215,7 +216,67 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
     let needsAnim = false;
 
-    if (numBars > 0) {
+    if (isPriceMode) {
+      // ── Price mode: fixed price range per row ──
+      const bucketSize = this._drawing.rowSizePrice!;
+      const numBucketsCalc = Math.ceil((pMax - pMin) / bucketSize);
+      if (numBucketsCalc < 1) return null;
+      const buckets = new Float64Array(numBucketsCalc);
+
+      for (const [price, vol] of vmap) {
+        if (price < pMin - 1e-9 || price > pMax + 1e-9) continue;
+        const idx = Math.min(Math.floor((price - pMin) / bucketSize), numBucketsCalc - 1);
+        buckets[idx] += vol;
+      }
+
+      let maxVol = 0;
+      let pocIdx = 0;
+      for (let i = 0; i < numBucketsCalc; i++) {
+        if (buckets[i] > maxVol) { maxVol = buckets[i]; pocIdx = i; }
+      }
+      if (maxVol === 0) return null;
+
+      const hoverIdx = hoverP !== null
+        ? Math.min(Math.max(Math.floor((hoverP - pMin) / bucketSize), -1), numBucketsCalc)
+        : -1;
+
+      for (let i = 0; i < numBucketsCalc; i++) {
+        if (buckets[i] === 0) continue;
+
+        const bucketMidPrice = pMin + (i + 0.5) * bucketSize;
+        const cssY = this._series.priceToCoordinate(bucketMidPrice);
+        if (cssY === null) continue;
+
+        const cssYLo = this._series.priceToCoordinate(pMin + i * bucketSize);
+        const cssYHi = this._series.priceToCoordinate(pMin + (i + 1) * bucketSize);
+        const barH = cssYLo !== null && cssYHi !== null
+          ? Math.max(Math.abs(cssYHi - cssYLo) * vpr - 1, 1)
+          : Math.max((bottomY - topY) / numBucketsCalc - 1, 1);
+
+        const barCenterY = cssY * vpr;
+        if (barCenterY < topY - barH || barCenterY > bottomY + barH) continue;
+
+        const isHovered = i === hoverIdx;
+        const key = bucketMidPrice;
+        const curExpand = this._expandMap.get(key) ?? 0;
+        const targetExpand = isHovered ? EXPAND_PX * vpr : 0;
+        let expand = curExpand;
+        if (Math.abs(curExpand - targetExpand) < 0.3) {
+          if (curExpand !== targetExpand) this._expandMap.set(key, targetExpand);
+        } else {
+          expand = curExpand + (targetExpand - curExpand) * EXPAND_LERP;
+          this._expandMap.set(key, expand);
+          needsAnim = true;
+        }
+
+        const barW = (buckets[i] / maxVol) * maxBarW;
+        ctx.fillStyle = isHovered ? hoverColor : barColor;
+        ctx.fillRect(anchorX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
+
+        if (i === pocIdx) pocLine = { y: barCenterY, w: barW };
+        if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: buckets[i] };
+      }
+    } else if (numBars > 0) {
       // ── Aggregated mode: divide [pMin, pMax] into numBars equal-height buckets ──
       const bucketSize = (pMax - pMin) / numBars;
       const buckets = new Float64Array(numBars);

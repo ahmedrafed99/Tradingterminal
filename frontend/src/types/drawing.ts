@@ -138,7 +138,10 @@ export interface FRVPDrawing extends DrawingBase {
   t2Auto?: boolean;    // range mode only: when true, t2 tracks the latest bar automatically
   pMin: number;        // lower price bound (manual in anchor mode; auto-computed in range mode)
   pMax: number;        // upper price bound (manual in anchor mode; auto-computed in range mode)
-  numBars?: number;        // bucket count for aggregation; undefined/0 = raw tick-level
+  numBars?: number;        // bucket count for aggregation; undefined/0 = raw tick-level (used when rowSizeMode === 'count')
+  rowSizeMode?: 'count' | 'price'; // 'count' (default) = numBars buckets; 'price' = fixed price range per row
+  rowSizePrice?: number;   // price range per row when rowSizeMode === 'price' (e.g. 1.0 = 1 point)
+  rowTickSize?: number;    // user-defined tick size used as step for rowSizePrice spinner
   showPoc?: boolean;       // show POC line; undefined/true = visible
   pocColor?: string;       // POC line color; undefined = COLOR_ACCENT
   extendPoc?: boolean;     // extend POC line to right edge; undefined/false = bar width only
