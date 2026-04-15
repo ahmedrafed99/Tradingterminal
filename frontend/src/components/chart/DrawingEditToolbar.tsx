@@ -976,7 +976,11 @@ export function DrawingEditToolbar({
                             return (
                               <button
                                 key={m}
-                                onClick={() => updateDrawing(drawing.id, { rowSizeMode: m } as Partial<Drawing>)}
+                                onClick={() => {
+                                  const patch: Partial<FRVPDrawing> = { rowSizeMode: m };
+                                  if (m === 'price' && !(frvp.rowSizePrice! > 0)) patch.rowSizePrice = 1;
+                                  updateDrawing(drawing.id, patch as Partial<Drawing>);
+                                }}
                                 style={{
                                   fontSize: 11, fontWeight: 600, padding: '2px 8px',
                                   borderRadius: RADIUS.SM, border: 'none', cursor: 'pointer',
