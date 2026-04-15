@@ -191,26 +191,28 @@ export function useChartBars(
     let pendingPrice: number | null = null;
     let quoteRafId = 0;
 
+    // Volume tracking: cumulative quote volume → per-bar volume for FRVP range mode
+    let prevCumulativeVolume: number | null = null;
+    let pendingBarVolume = 0;
+
     function flushQuote() {
       quoteRafId = 0;
       if (pendingBar && refs.series.current) {
         refs.series.current.update(pendingBar);
         refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
 
-        // Keep refs.bars.current in sync so range-mode FRVP pMin/pMax stay current.
-        // Only the high and low matter for FRVP bounds — volume stays as loaded.
+        // Keep refs.bars.current in sync (OHLCV) so range-mode FRVP builds correct volume maps.
         const bars = refs.bars.current;
         const barTimeSec = pendingBar.time as number;
         const last = bars.length > 0 ? bars[bars.length - 1] : null;
         const lastTimeSec = last ? Math.floor(new Date(last.t).getTime() / 1000) : -1;
         if (last && lastTimeSec === barTimeSec) {
-          // Update in-place: only h and l can change on a live bar
           if (pendingBar.high > last.h) last.h = pendingBar.high;
           if (pendingBar.low < last.l) last.l = pendingBar.low;
+          last.v = pendingBarVolume;
           refs.drawingsPrimitive.current?.setBarsRef(bars);
         } else if (lastTimeSec < barTimeSec) {
-          // New bar period — append a stub bar (volume unknown from quote stream)
-          bars.push({ t: new Date(barTimeSec * 1000).toISOString(), o: pendingBar.open, h: pendingBar.high, l: pendingBar.low, c: pendingBar.close, v: 0 });
+          bars.push({ t: new Date(barTimeSec * 1000).toISOString(), o: pendingBar.open, h: pendingBar.high, l: pendingBar.low, c: pendingBar.close, v: pendingBarVolume });
           refs.drawingsPrimitive.current?.setBarsRef(bars);
         }
       }
@@ -246,8 +248,15 @@ export function useChartBars(
       const price = data.lastPrice;
       if (price == null || !isFinite(price)) return;
 
+      // Compute per-tick volume delta from cumulative quote volume
+      const tickVol = prevCumulativeVolume !== null && data.volume > prevCumulativeVolume
+        ? data.volume - prevCumulativeVolume
+        : 0;
+      prevCumulativeVolume = data.volume;
+
       if (lastBar.time === candleTime) {
         // Update existing bar
+        pendingBarVolume += tickVol;
         const updated: CandlestickData<UTCTimestamp> = {
           time: candleTime,
           open: lastBar.open,
@@ -264,6 +273,7 @@ export function useChartBars(
           refs.series.current.update(pendingBar);
           refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
         }
+        pendingBarVolume = tickVol; // reset accumulator for the new bar
         const newBar: CandlestickData<UTCTimestamp> = {
           time: candleTime,
           open: price,
