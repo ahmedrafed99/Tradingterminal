@@ -50,6 +50,17 @@ function BrushIcon() {
   );
 }
 
+function FRVPIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="22" height="22" fill="none">
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M5 21.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM3.5 24a2.5 2.5 0 0 0 .5-4.95V3H3v16.05A2.5 2.5 0 0 0 3.5 24zM25 5.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zM23.5 3a2.5 2.5 0 0 1 .5 4.95V24h-1V7.95A2.5 2.5 0 0 1 23.5 3z" />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M9 7H4v2h5V7zM3 6v4h7V6H3z" />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M12 10H4v2h8v-2zM3 9v4h10V9H3z" />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M7 13H4v2h3v-2zm-4-1v4h5v-4H3z" />
+    </svg>
+  );
+}
+
 function RulerIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
@@ -91,6 +102,7 @@ const TOOLS: { id: DrawingTool; icon: React.FC; label: string; hints?: TooltipHi
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
   { id: 'ruler',     icon: RulerIcon,   label: 'Ruler',    hints: [{ key: 'Shift', desc: 'hold' }] },
   { id: 'freedraw',  icon: BrushIcon,   label: 'Free Draw' },
+  { id: 'frvp',      icon: FRVPIcon,    label: 'Fixed Range Volume Profile' },
 ];
 
 const KEY_BADGE_STYLE: React.CSSProperties = {

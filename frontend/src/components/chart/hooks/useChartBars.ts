@@ -130,6 +130,10 @@ export function useChartBars(
           cd.setDecimals(dec);
           cd.setPeriod(periodSec);
           refs.drawingsPrimitive.current?.setDecimals(dec);
+          refs.drawingsPrimitive.current?.setTickSize(contract?.tickSize ?? 0.01);
+          if (refs.vpPrimitive.current) {
+            refs.drawingsPrimitive.current?.setSharedVolumeMap(refs.vpPrimitive.current.getVolumeMap());
+          }
           refs.crosshairLabel.current?.setDecimals(dec);
           refs.crosshairLabel.current?.setTickSize(contract?.tickSize ?? 0);
           if (refs.lastBar.current) {
@@ -312,14 +316,12 @@ export function useChartBars(
     };
   }, [connected, contract, timeframe]);
 
-  // -- Volume profile depth subscription --
+  // -- Volume profile depth subscription (always active when connected+contract) --
+  // Depth data feeds both the VP indicator and FRVP drawings — decouple from vpEnabled.
   useEffect(() => {
     const vp = refs.vpPrimitive.current;
-    if (!vp) return;
-
-    vp.setEnabled(vpEnabled);
-    if (!connected || !vpEnabled || !contract) {
-      vp.clear();
+    if (!vp || !connected || !contract) {
+      refs.vpPrimitive.current?.clear();
       return;
     }
 
@@ -333,12 +335,10 @@ export function useChartBars(
 
       for (const entry of entries) {
         if (entry.type === DepthType.Reset) {
-          // Reset marker — clear and prepare for snapshot
           vp.clear();
           continue;
         }
         if (entry.type === DepthType.VolumeAtPrice) {
-          // Volume at Price — snapshot or incremental update
           vp.updateLevel(entry.price, entry.volume);
         }
       }
@@ -351,9 +351,13 @@ export function useChartBars(
       realtimeService.offDepth(handleDepth);
       realtimeService.unsubscribeDepth(contractId);
       vp.clear();
-      vp.setEnabled(false);
     };
-  }, [connected, contract, vpEnabled]);
+  }, [connected, contract]);
+
+  // -- VP rendering toggle (separate from data so toggling doesn't re-subscribe) --
+  useEffect(() => {
+    refs.vpPrimitive.current?.setEnabled(vpEnabled);
+  }, [vpEnabled]);
 
   // -- VP color sync (separate so color changes don't re-subscribe depth) --
   useEffect(() => {

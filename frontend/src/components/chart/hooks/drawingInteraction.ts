@@ -30,9 +30,14 @@ export interface DrawingState {
     origP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
   } | null;
 
+  frvpCreation: {
+    startX: number; startY: number;
+    startTime: number; startPrice: number;
+  } | null;
+
   drawingDrag: {
     drawingId: string;
-    type: 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
+    type: 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp';
     startX: number;
     startY: number;
     origPrice: number;
@@ -109,6 +114,7 @@ export function createDrawingState(): DrawingState {
     arrowPathNodeDrag: null,
     rectCreation: null,
     freeDrawCreation: null,
+    frvpCreation: null,
     ctrlDragSelect: null,
     chartPanning: false,
     overlayHitCaptured: false,

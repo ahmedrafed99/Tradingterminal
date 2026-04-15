@@ -1,6 +1,6 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
-import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR } from '../../../types/drawing';
+import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
@@ -18,7 +18,7 @@ export function onCtrlDragSelectDown(e: MouseEvent, ctx: DrawingContext): void {
   if (st.activeTool !== 'select') return;
   // Don't start if another interaction is in progress
   if (state.drawingDrag || state.ovalResize || state.arrowPathNodeDrag || state.ovalDrag
-      || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.freeDrawCreation) return;
+      || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.freeDrawCreation || state.frvpCreation) return;
 
   const { x, y } = getMousePos(e, container);
   state.ctrlDragSelect = { startX: x, startY: y };
@@ -64,7 +64,7 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const st = useStore.getState();
   if (st.activeTool !== 'select' || st.selectedDrawingIds.length !== 1) return;
   const drawing = st.drawings.find((d) => d.id === st.selectedDrawingIds[0]);
-  if (!drawing || (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler')) return;
+  if (!drawing || (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler' && drawing.type !== 'frvp')) return;
 
   const { x, y } = getMousePos(e, container);
   const hit = primitive.getHandleAt(x, y);
@@ -88,7 +88,28 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
     }
   }
 
-  if (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'ruler') return;
+  if (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'ruler' && drawing.type !== 'frvp') return;
+
+  // FRVP uses anchorTime/pMin/pMax — handle separately before p1/p2 reading
+  if (drawing.type === 'frvp') {
+    const h = hit.handle;
+    if (h !== 'n' && h !== 's') return;
+    const fixedPrice = h === 'n' ? drawing.pMin : drawing.pMax;
+    const movingPrice = h === 'n' ? drawing.pMax : drawing.pMin;
+    state.ovalResize = {
+      drawingId: drawing.id,
+      handle: h,
+      fixedCorner: { time: drawing.anchorTime, price: fixedPrice },
+      movingCorner: { time: drawing.anchorTime, price: movingPrice },
+      origP1: { time: drawing.anchorTime, price: drawing.pMin },
+      origP2: { time: drawing.anchorTime, price: drawing.pMax },
+    };
+    container.style.cursor = 'grabbing';
+    chart.applyOptions({ handleScroll: false, handleScale: false });
+    e.stopPropagation();
+    e.preventDefault();
+    return;
+  }
 
   const p1 = drawing.p1;
   const p2 = drawing.p2;
@@ -215,6 +236,16 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
       origBarOffsets: drawing.points.map((p) => ({ barOffset: p.barOffset, price: p.price })),
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
+  } else if (drawing.type === 'frvp') {
+    const data = getDataPos(chart, series, x, y);
+    if (!data) return;
+    state.drawingDrag = {
+      drawingId: drawing.id, type: 'frvp',
+      startX: x, startY: y, origPrice: 0,
+      origP1: { time: drawing.anchorTime, price: drawing.pMin },
+      origP2: { time: drawing.anchorTime, price: drawing.pMax },
+      startTime: data.time, startPrice: data.price, origStartTime: 0,
+    };
   }
 
   st.setSelectedDrawingIds([drawing.id]);
@@ -226,7 +257,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
 /** Mousedown: start rect creation on first click, or capture for second click. */
 export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, refs } = ctx;
-  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation) return;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rulerCreation || state.freeDrawCreation || state.frvpCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'rect') return;
   const { x, y } = getMousePos(e, container);
@@ -252,7 +283,7 @@ export function onRectMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 /** Mousedown: start oval drag-to-create. */
 export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, refs } = ctx;
-  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation) return;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.frvpCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'oval') return;
   const { x, y } = getMousePos(e, container);
@@ -269,7 +300,7 @@ export function onOvalMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 /** Mousedown: start free draw brush stroke. */
 export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container } = ctx;
-  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.freeDrawCreation) return;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation || state.rectCreation || state.rulerCreation || state.freeDrawCreation || state.frvpCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'freedraw') return;
   const { x, y } = getMousePos(e, container);
@@ -295,6 +326,30 @@ export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const fdDef = useStore.getState().drawingDefaults['freedraw'];
   ctx.primitive.setFreeDrawPreview([{ x, y }], fdDef?.color ?? DEFAULT_FREEDRAW_COLOR, fdDef?.strokeWidth ?? 2);
 
+  e.stopPropagation();
+  e.preventDefault();
+}
+
+/** Mousedown: start FRVP drag-to-create. */
+export function onFRVPMouseDown(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, chart, series, container, refs } = ctx;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation
+      || state.rectCreation || state.rulerCreation || state.freeDrawCreation) return;
+  const tool = useStore.getState().activeTool;
+  if (tool !== 'frvp') return;
+  const { x, y } = getMousePos(e, container);
+  const rawPrice = series.coordinateToPrice(y);
+  const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
+  if (rawPrice === null || !anchorTimeRaw) return;
+  const startPrice = maybeSnap(e, rawPrice as number, x, chart, refs.bars.current);
+  const startY = startPrice !== (rawPrice as number) ? (series.priceToCoordinate(startPrice) ?? y) : y;
+  state.frvpCreation = {
+    startX: x, startY,
+    startTime: anchorTimeRaw as number, startPrice,
+  };
+  const frvpDef = useStore.getState().drawingDefaults['frvp'];
+  ctx.primitive.setFRVPPreview(x, startY, startY, frvpDef?.color ?? DEFAULT_FRVP_COLOR);
+  chart.applyOptions({ handleScroll: false, handleScale: false });
   e.stopPropagation();
   e.preventDefault();
 }
@@ -356,6 +411,17 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
           },
         }, true);
       }
+    } else if (state.drawingDrag.type === 'frvp') {
+      const data = getDataPos(chart, series, x, y);
+      if (data) {
+        const dp = maybeSnap(e, data.price, x, chart, refs.bars.current) - state.drawingDrag.startPrice;
+        const dt = data.time - state.drawingDrag.startTime;
+        useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
+          anchorTime: state.drawingDrag.origP1.time + dt,
+          pMin: state.drawingDrag.origP1.price + dp,
+          pMax: state.drawingDrag.origP2.price + dp,
+        }, true);
+      }
     } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
       const data = getDataPos(chart, series, x, y);
       if (data) {
@@ -406,19 +472,29 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
 
     const resizePrice = (rawPrice: number) => maybeSnap(e, rawPrice, x, chart, refs.bars.current);
 
-    if (h === 'n' || h === 's') {
-      // Cardinal vertical: only price follows mouse, X stays from original moving corner
-      const mc = state.ovalResize.movingCorner;
-      newP2 = { time: mc.time, price: resizePrice(data.price), anchorTime: mc.anchorTime, barOffset: mc.barOffset };
-    } else if (h === 'w' || h === 'e') {
-      // Cardinal horizontal: only X follows mouse, price stays from original moving corner
-      newP2 = { time: data.time, price: state.ovalResize.movingCorner.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
+    // FRVP only has 'n'/'s' handles — only price changes, anchorTime stays fixed
+    const resizingDrawing = useStore.getState().drawings.find((d) => d.id === state.ovalResize!.drawingId);
+    if (resizingDrawing?.type === 'frvp') {
+      const fixedPrice = state.ovalResize.fixedCorner.price;
+      const newPrice = resizePrice(data.price);
+      useStore.getState().updateDrawing(state.ovalResize.drawingId, {
+        pMin: Math.min(fixedPrice, newPrice),
+        pMax: Math.max(fixedPrice, newPrice),
+      }, true);
     } else {
-      // Corner handles: both axes follow mouse
-      newP2 = { time: data.time, price: resizePrice(data.price), anchorTime: data.anchorTime, barOffset: data.barOffset };
+      if (h === 'n' || h === 's') {
+        // Cardinal vertical: only price follows mouse, X stays from original moving corner
+        const mc = state.ovalResize.movingCorner;
+        newP2 = { time: mc.time, price: resizePrice(data.price), anchorTime: mc.anchorTime, barOffset: mc.barOffset };
+      } else if (h === 'w' || h === 'e') {
+        // Cardinal horizontal: only X follows mouse, price stays from original moving corner
+        newP2 = { time: data.time, price: state.ovalResize.movingCorner.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
+      } else {
+        // Corner handles: both axes follow mouse
+        newP2 = { time: data.time, price: resizePrice(data.price), anchorTime: data.anchorTime, barOffset: data.barOffset };
+      }
+      useStore.getState().updateDrawing(state.ovalResize.drawingId, { p1: newP1, p2: newP2 }, true);
     }
-
-    useStore.getState().updateDrawing(state.ovalResize.drawingId, { p1: newP1, p2: newP2 }, true);
     e.stopPropagation();
     e.preventDefault();
     return;
@@ -499,6 +575,23 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // FRVP creation drag preview — only Y changes (X stays fixed at anchor)
+  if (state.frvpCreation) {
+    const { y } = getMousePos(e, container);
+    let previewY = y;
+    const rp = series.coordinateToPrice(y);
+    if (rp !== null) {
+      const snapped = maybeSnap(e, rp as number, state.frvpCreation.startX, chart, refs.bars.current);
+      if (snapped !== (rp as number)) { const sy = series.priceToCoordinate(snapped); if (sy !== null) previewY = sy; }
+    }
+    const frvpDef = useStore.getState().drawingDefaults['frvp'];
+    primitive.setFRVPPreview(
+      state.frvpCreation.startX, state.frvpCreation.startY, previewY,
+      frvpDef?.color ?? DEFAULT_FRVP_COLOR,
+    );
+    return;
+  }
+
   // Oval creation drag preview
   if (!state.ovalDrag) return;
   const { x, y } = getMousePos(e, container);
@@ -554,6 +647,10 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
         prev.p1 = { ...state.drawingDrag.origP1 };
         prev.p2 = { ...state.drawingDrag.origP2 };
+      } else if (state.drawingDrag.type === 'frvp') {
+        prev.anchorTime = state.drawingDrag.origP1.time;
+        prev.pMin = state.drawingDrag.origP1.price;
+        prev.pMax = state.drawingDrag.origP2.price;
       } else if ((state.drawingDrag.type === 'arrowpath' || state.drawingDrag.type === 'freedraw') && state.drawingDrag.origBarOffsets) {
         prev.anchorTime = state.drawingDrag.origAnchorTime;
         prev.points = state.drawingDrag.origBarOffsets.map((p) => ({ ...p }));
@@ -590,10 +687,14 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
 
   // Resize drag end
   if (state.ovalResize) {
+    const resizedDrawing = useStore.getState().drawings.find((d) => d.id === state.ovalResize!.drawingId);
+    const undoPrev = resizedDrawing?.type === 'frvp'
+      ? { pMin: state.ovalResize.origP1.price, pMax: state.ovalResize.origP2.price }
+      : { p1: { ...state.ovalResize.origP1 }, p2: { ...state.ovalResize.origP2 } };
     useStore.getState().pushDrawingUndo({
       type: 'update',
       drawingId: state.ovalResize.drawingId,
-      previous: { p1: { ...state.ovalResize.origP1 }, p2: { ...state.ovalResize.origP2 } },
+      previous: undoPrev,
     });
     const resized = useStore.getState().drawings.find((d) => d.id === state.ovalResize!.drawingId);
     if (resized && resized.type === 'ruler') {
@@ -635,6 +736,38 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       useStore.getState().setSelectedDrawingIds([createdId]);
     }
     state.freeDrawCreation = null;
+    return;
+  }
+
+  // FRVP creation: drag to create
+  if (state.frvpCreation && e.button === 0) {
+    const { y } = getMousePos(e, container);
+    const dy = Math.abs(y - state.frvpCreation.startY);
+    primitive.clearFRVPPreview();
+    chart.applyOptions({ handleScroll: true, handleScale: true });
+    if (dy > 5 && contract !== null) {
+      const rawEndPrice = series.coordinateToPrice(y);
+      if (rawEndPrice !== null) {
+        const endPrice = maybeSnap(e, rawEndPrice as number, state.frvpCreation.startX, chart, refs.bars.current);
+        const frvpDef = useStore.getState().drawingDefaults['frvp'];
+        const createdId = crypto.randomUUID();
+        useStore.getState().addDrawing({
+          id: createdId,
+          type: 'frvp',
+          anchorTime: state.frvpCreation.startTime,
+          pMin: Math.min(state.frvpCreation.startPrice, endPrice),
+          pMax: Math.max(state.frvpCreation.startPrice, endPrice),
+          color: frvpDef?.color ?? DEFAULT_FRVP_COLOR,
+          strokeWidth: frvpDef?.strokeWidth ?? 1,
+          lineStyle: frvpDef?.lineStyle ?? 'solid',
+          text: null,
+          contractId: String(contract.id),
+        });
+        useStore.getState().setActiveTool('select');
+        useStore.getState().setSelectedDrawingIds([createdId]);
+      }
+    }
+    state.frvpCreation = null;
     return;
   }
 

@@ -92,7 +92,6 @@ async function handleRemoteOrder(d: any): Promise<void> {
       bracketConfig,
     });
 
-    console.log('[useRemoteDrawings] Order placed:', result.orderId);
   } catch (err) {
     console.error('[useRemoteDrawings] Order failed:', err);
   }

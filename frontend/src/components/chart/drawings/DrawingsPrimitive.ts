@@ -21,6 +21,7 @@ import { RulerPaneView } from './RulerRenderer';
 import { FreeDrawPaneView } from './FreeDrawRenderer';
 import { RectPaneView } from './RectRenderer';
 import { MarkerPaneView } from './MarkerRenderer';
+import { FRVPPaneView } from './FRVPRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -508,6 +509,72 @@ class FreeDrawPreviewPaneView implements IPrimitivePaneView {
 }
 
 // ---------------------------------------------------------------------------
+// FRVP creation preview: dashed vertical line with endpoint handles
+// ---------------------------------------------------------------------------
+class FRVPPreviewRenderer implements IPrimitivePaneRenderer {
+  private _x: number;
+  private _y1: number;
+  private _y2: number;
+  private _color: string;
+
+  constructor(x: number, y1: number, y2: number, color: string) {
+    this._x = x;
+    this._y1 = y1;
+    this._y2 = y2;
+    this._color = color;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx }) => {
+      const top = Math.min(this._y1, this._y2);
+      const bottom = Math.max(this._y1, this._y2);
+      if (bottom - top < 1) return;
+
+      ctx.strokeStyle = this._color;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(this._x, top);
+      ctx.lineTo(this._x, bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = COLOR_LABEL_TEXT;
+      ctx.strokeStyle = COLOR_HANDLE_STROKE;
+      ctx.lineWidth = 1.5;
+      for (const hy of [top, bottom]) {
+        ctx.beginPath();
+        ctx.arc(this._x, hy, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      }
+    });
+  }
+}
+
+class FRVPPreviewPaneView implements IPrimitivePaneView {
+  private _x: number;
+  private _y1: number;
+  private _y2: number;
+  private _color: string;
+
+  constructor(x: number, y1: number, y2: number, color: string) {
+    this._x = x;
+    this._y1 = y1;
+    this._y2 = y2;
+    this._color = color;
+  }
+
+  zOrder(): 'top' {
+    return 'top';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new FRVPPreviewRenderer(this._x, this._y1, this._y2, this._color);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Selection rectangle renderer: dashed rectangle during Ctrl+drag multi-select
 // ---------------------------------------------------------------------------
 class SelectionRectRenderer implements IPrimitivePaneRenderer {
@@ -664,7 +731,11 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private _drawings: Drawing[] = [];
   private _selectedIds: string[] = [];
-  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView)[] = [];
+  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | FRVPPaneView)[] = [];
+
+  // Shared VP VolumeMap ref for FRVP drawings
+  private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
+  private _tickSize = 0.01;
 
   // Drag preview (oval creation)
   private _dragPreview: DragPreviewPaneView | null = null;
@@ -680,6 +751,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   // Free draw creation preview
   private _freeDrawPreview: FreeDrawPreviewPaneView | null = null;
+
+  // FRVP creation preview
+  private _frvpPreview: FRVPPreviewPaneView | null = null;
 
   // Price axis labels for drawings
   private _decimals = 2;
@@ -729,6 +803,16 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** Update decimal places for price formatting (call when contract changes) */
   setDecimals(decimals: number): void {
     this._decimals = decimals;
+  }
+
+  /** Pass the live VolumeMap reference from VolumeProfilePrimitive for FRVP drawings */
+  setSharedVolumeMap(map: Map<number, number>): void {
+    this._sharedVolumeMap.current = map;
+  }
+
+  /** Update tick size for FRVP bar sizing (call when contract changes) */
+  setTickSize(tickSize: number): void {
+    this._tickSize = tickSize > 0 ? tickSize : 0.01;
   }
 
   /** Show a dashed line during oval drag creation */
@@ -791,6 +875,18 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  /** Show a dashed vertical line preview during FRVP drag creation */
+  setFRVPPreview(anchorX: number, y1: number, y2: number, color: string): void {
+    this._frvpPreview = new FRVPPreviewPaneView(anchorX, y1, y2, color);
+    this._requestUpdate?.();
+  }
+
+  /** Clear the FRVP creation preview */
+  clearFRVPPreview(): void {
+    this._frvpPreview = null;
+    this._requestUpdate?.();
+  }
+
   private _rebuildViews(): void {
     if (!this._series || !this._chart) {
       this._paneViews = [];
@@ -810,6 +906,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         return new ArrowPathPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'marker') {
         return new MarkerPaneView(d, selected, this._series!, this._chart!);
+      } else if (d.type === 'frvp') {
+        return new FRVPPaneView(d, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize);
       } else {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }
@@ -828,6 +926,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (this._arrowPathPreview) extras.push(this._arrowPathPreview);
     if (this._rulerDragPreview) extras.push(this._rulerDragPreview);
     if (this._freeDrawPreview) extras.push(this._freeDrawPreview);
+    if (this._frvpPreview) extras.push(this._frvpPreview);
     if (this._selectionRect) extras.push(this._selectionRect);
     if (extras.length > 0) return [...this._paneViews, ...extras];
     return this._paneViews;
@@ -939,6 +1038,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (view instanceof RulerPaneView) {
         const handle = view.hitTestHandle(x, y);
         if (handle) return { drawingId: view.drawingId, handle };
+      } else if (view instanceof FRVPPaneView) {
+        const handle = view.hitTestHandle(x, y);
+        if (handle) return { drawingId: view.drawingId, handle };
       }
     }
     return null;
@@ -990,6 +1092,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (view instanceof RulerPaneView) {
         hit = view.hitTest(x, y);
       } else if (view instanceof FreeDrawPaneView) {
+        hit = view.hitTest(x, y);
+      } else if (view instanceof FRVPPaneView) {
         hit = view.hitTest(x, y);
       }
       if (hit) {

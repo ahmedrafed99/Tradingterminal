@@ -3,7 +3,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
-import type { Drawing, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
+import type { Drawing, FRVPDrawing, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
 
@@ -793,6 +793,7 @@ export function DrawingEditToolbar({
   const [showText, setShowText] = useState(false);
   const [showStroke, setShowStroke] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
+  const [showPocColor, setShowPocColor] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -801,7 +802,7 @@ export function DrawingEditToolbar({
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -937,8 +938,86 @@ export function DrawingEditToolbar({
         </>
       )}
 
+      {/* FRVP: aggregation bar count + POC controls */}
+      {drawing.type === 'frvp' && (() => {
+        const frvp = drawing as FRVPDrawing;
+        const pocVisible = frvp.showPoc !== false;
+        const pocCol = frvp.pocColor ?? 'var(--color-accent)';
+        return (
+          <>
+            <Divider />
+            {/* Bars count */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 4px' }}
+              title="Number of bars (0 = raw tick level)"
+            >
+              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>Bars</span>
+              <input
+                type="number"
+                min={0}
+                max={500}
+                step={1}
+                value={frvp.numBars ?? 0}
+                onChange={(e) => {
+                  const v = Math.max(0, Math.min(500, parseInt(e.target.value, 10) || 0));
+                  updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  width: 44,
+                  height: 24,
+                  background: 'var(--color-input-bg, var(--color-surface))',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 4,
+                  color: 'var(--color-text)',
+                  fontSize: 12,
+                  textAlign: 'center',
+                  padding: 0,
+                }}
+              />
+            </div>
+            <Divider />
+            {/* POC toggle */}
+            <button
+              onClick={() => updateDrawing(drawing.id, { showPoc: !pocVisible } as Partial<Drawing>)}
+              className={`${btnBase} !w-auto ${pocVisible ? btnActive : btnHover}`}
+              style={{ padding: '0 7px', fontSize: 10, fontWeight: 600, letterSpacing: '0.03em' }}
+              title={pocVisible ? 'Hide POC' : 'Show POC'}
+            >
+              POC
+            </button>
+            {/* POC color */}
+            {pocVisible && (
+              <div className="relative">
+                <button
+                  onClick={() => { const v = !showPocColor; closeAll(); setShowPocColor(v); }}
+                  className={`${btnBase} ${showPocColor ? btnActive : btnHover}`}
+                  title="POC color"
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
+                    <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
+                  </svg>
+                  <div style={{
+                    position: 'absolute', bottom: 4, right: 4,
+                    width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
+                    background: pocCol, border: '1px solid var(--color-border)',
+                  }} />
+                </button>
+                {showPocColor && (
+                  <ColorPopover
+                    current={frvp.pocColor ?? '#ff9800'}
+                    onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
+                    onClose={() => setShowPocColor(false)}
+                  />
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
       {/* Text (not shown for freedraw) */}
-      {drawing.type !== 'freedraw' && (
+      {drawing.type !== 'freedraw' && drawing.type !== 'frvp' && (
         <>
           <Divider />
           <div className="relative">

@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Drawing tool identifiers
 // ---------------------------------------------------------------------------
-export type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
+export type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp';
 
 // ---------------------------------------------------------------------------
 // Text configuration for drawings
@@ -128,9 +128,22 @@ export interface MarkerDrawing extends DrawingBase {
 }
 
 // ---------------------------------------------------------------------------
+// Fixed Range Volume Profile drawing
+// ---------------------------------------------------------------------------
+export interface FRVPDrawing extends DrawingBase {
+  type: 'frvp';
+  anchorTime: number;  // time position of the vertical anchor line
+  pMin: number;        // lower price bound
+  pMax: number;        // upper price bound
+  numBars?: number;    // bucket count for aggregation; undefined/0 = raw tick-level
+  showPoc?: boolean;   // show POC line; undefined/true = visible
+  pocColor?: string;   // POC line color; undefined = COLOR_ACCENT
+}
+
+// ---------------------------------------------------------------------------
 // Union type
 // ---------------------------------------------------------------------------
-export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing;
+export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing | FRVPDrawing;
 
 // ---------------------------------------------------------------------------
 // Horizontal line template (saved style presets)
@@ -157,4 +170,5 @@ export const DEFAULT_RULER_COLOR = COLOR_ACCENT;
 export const DEFAULT_RECT_COLOR = '#ff9800';
 export const DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)';
 export const DEFAULT_FREEDRAW_COLOR = '#ffffff';
+export const DEFAULT_FRVP_COLOR = COLOR_ACCENT;
 export const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4] as const;
