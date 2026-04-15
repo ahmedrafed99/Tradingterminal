@@ -6,6 +6,7 @@ import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 import type { Drawing, FRVPDrawing, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
+import { SpinnerInput } from '../SpinnerInput';
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -797,7 +798,6 @@ export function DrawingEditToolbar({
   const [frvpTab, setFrvpTab] = useState<'input' | 'style' | null>(null);
   const [showFrvpBarColor, setShowFrvpBarColor] = useState(false);
   const [showFrvpPocColor, setShowFrvpPocColor] = useState(false);
-  const [frvpSpinnerHover, setFrvpSpinnerHover] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -928,102 +928,16 @@ export function DrawingEditToolbar({
               >
                 {frvpTab === 'input' && (
                   <>
-                    {/* Bars — custom spinner */}
+                    {/* Bars — spinner */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row Size</span>
-                      <div
-                        onMouseEnter={() => setFrvpSpinnerHover(true)}
-                        onMouseLeave={() => setFrvpSpinnerHover(false)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'stretch',
-                          border: '1px solid var(--color-border)',
-                          borderRadius: RADIUS.MD,
-                          overflow: 'hidden',
-                          background: 'transparent',
-                          height: 26,
-                          flexShrink: 0,
-                        }}>
-                        <input
-                          type="number"
-                          min={0}
-                          max={500}
-                          step={1}
-                          value={frvp.numBars ?? 0}
-                          onChange={(e) => {
-                            const v = Math.max(0, Math.min(500, parseInt(e.target.value, 10) || 0));
-                            updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>);
-                          }}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          style={{
-                            width: 44,
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--color-text)',
-                            fontSize: 12,
-                            textAlign: 'center',
-                            padding: '0 4px',
-                            outline: 'none',
-                            appearance: 'textfield',
-                          } as React.CSSProperties}
-                        />
-                        <div style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          width: 16,
-                          opacity: frvpSpinnerHover ? 1 : 0,
-                          transition: 'opacity 0.15s ease',
-                          pointerEvents: frvpSpinnerHover ? 'auto' : 'none',
-                        }}>
-                          <button
-                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onClick={() => {
-                              const v = Math.min(500, (frvp.numBars ?? 0) + 1);
-                              updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>);
-                            }}
-                            style={{
-                              flex: 1,
-                              border: 'none',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              color: 'var(--color-text-muted)',
-                            }}
-                            className="hover:bg-(--color-hover-toolbar) hover:text-(--color-text) transition-colors"
-                          >
-                            <svg width="7" height="5" viewBox="0 0 7 5" fill="currentColor">
-                              <path d="M3.5 0L7 5H0z" />
-                            </svg>
-                          </button>
-                          <button
-                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onClick={() => {
-                              const v = Math.max(0, (frvp.numBars ?? 0) - 1);
-                              updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>);
-                            }}
-                            style={{
-                              flex: 1,
-                              border: 'none',
-                              background: 'transparent',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: 0,
-                              color: 'var(--color-text-muted)',
-                            }}
-                            className="hover:bg-(--color-hover-toolbar) hover:text-(--color-text) transition-colors"
-                          >
-                            <svg width="7" height="5" viewBox="0 0 7 5" fill="currentColor">
-                              <path d="M3.5 5L0 0H7z" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
+                      <SpinnerInput
+                        value={frvp.numBars ?? 0}
+                        onChange={(v) => updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>)}
+                        min={0}
+                        max={500}
+                        step={1}
+                      />
                     </div>
                   </>
                 )}
@@ -1091,10 +1005,9 @@ export function DrawingEditToolbar({
                       )}
                     </div>
                     {/* Extend Right */}
-                    <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, cursor: 'pointer', userSelect: 'none' }}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
                       onClick={() => updateDrawing(drawing.id, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}
                     >
-                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Extend Right</span>
                       <span style={{
                         width: 14, height: 14, borderRadius: 3,
                         border: '1.5px solid var(--color-border)',
@@ -1108,6 +1021,7 @@ export function DrawingEditToolbar({
                           </svg>
                         )}
                       </span>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Extend Right</span>
                     </label>
                   </>
                 )}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
+import { SpinnerInput } from '../SpinnerInput';
 
 // 10-column palette matching standard design-tool layout
 export const COLOR_PALETTE = [
@@ -148,29 +149,14 @@ export function OpacitySlider({
           />
         </div>
         {/* Percentage label */}
-        <input
-          type="number"
+        <SpinnerInput
+          value={opacity}
+          onChange={onChange}
           min={0}
           max={100}
-          value={opacity}
-          onChange={(e) => {
-            const v = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
-            onChange(v);
-          }}
-          style={{
-            color: 'var(--color-text)',
-            background: 'var(--color-panel)',
-            border: '1px solid var(--color-border)',
-            borderRadius: RADIUS.LG,
-            fontSize: 11,
-            fontWeight: 500,
-            width: 40,
-            textAlign: 'center',
-            padding: '2px 0',
-            outline: 'none',
-            flexShrink: 0,
-            MozAppearance: 'textfield',
-          }}
+          step={1}
+          inputWidth={40}
+          height={24}
         />
       </div>
     </div>
