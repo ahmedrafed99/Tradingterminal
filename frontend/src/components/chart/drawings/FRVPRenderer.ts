@@ -93,14 +93,33 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
       if (bottomY - topY < 1) return;
 
-      const maxBarW = Math.min(MAX_BAR_WIDTH_CSS * hpr, ctx.canvas.width * 0.25);
+      // In range mode, cap bar width at the pixel distance between t1 and t2
+      let maxBarW = Math.min(MAX_BAR_WIDTH_CSS * hpr, ctx.canvas.width * 0.25);
+      let cssT2X: number | null = null;
+      if (this._drawing.mode === 'range' && this._drawing.t2 !== undefined) {
+        cssT2X = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
+        if (cssT2X !== null) {
+          const rangePx = Math.abs(cssT2X - cssAnchorX) * hpr;
+          maxBarW = Math.min(maxBarW, rangePx);
+        }
+      }
+
+      // Range mode: semi-transparent background rect from t1 to t2
+      if (this._drawing.mode === 'range' && cssT2X !== null) {
+        const t2X = cssT2X * hpr;
+        const [r, g, b] = parseColor(this._drawing.color);
+        ctx.fillStyle = rgba(r, g, b, 0.08);
+        const rectLeft = Math.min(anchorX, t2X);
+        const rectRight = Math.max(anchorX, t2X);
+        ctx.fillRect(rectLeft, topY, rectRight - rectLeft, bottomY - topY);
+      }
 
       const result = this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr);
       if (result) {
         hoveredBar = { cssAnchorX, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
       }
 
-      // Vertical anchor line — same color as bars
+      // Vertical anchor line (t1 only)
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth * hpr;
       applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
@@ -110,17 +129,30 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Selection handles at top and bottom
+      // Selection handles
       if (this._selected) {
         const hr = Math.round(5 * vpr);
         ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = COLOR_HANDLE_STROKE;
         ctx.lineWidth = Math.round(1.5 * vpr);
-        for (const hy of [topY, bottomY]) {
-          ctx.beginPath();
-          ctx.arc(anchorX, hy, hr, 0, 2 * Math.PI);
-          ctx.fill();
-          ctx.stroke();
+
+        if (this._drawing.mode === 'range' && cssT2X !== null) {
+          // Range mode: handles at t1 and t2 lines, vertically centered
+          const midY = (topY + bottomY) / 2;
+          for (const hx of [anchorX, cssT2X * hpr]) {
+            ctx.beginPath();
+            ctx.arc(hx, midY, hr, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+          }
+        } else {
+          // Anchor mode: handles at top and bottom of the price range
+          for (const hy of [topY, bottomY]) {
+            ctx.beginPath();
+            ctx.arc(anchorX, hy, hr, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+          }
         }
       }
     });
@@ -366,7 +398,13 @@ export class FRVPPaneView implements IPrimitivePaneView {
     if (ax === null || yPMax === null || yPMin === null) return false;
     const top = Math.min(yPMax, yPMin);
     const bottom = Math.max(yPMax, yPMin);
-    // Hit within the anchor line or the bar area to its right
+    if (this._drawing.mode === 'range' && this._drawing.t2 !== undefined) {
+      const t2x = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
+      if (t2x === null) return false;
+      const left = Math.min(ax, t2x) - 6;
+      const right = Math.max(ax, t2x) + 6;
+      return hitTestRect(mouseX, mouseY, left, top, right, bottom);
+    }
     return hitTestRect(mouseX, mouseY, ax - 6, top, ax + MAX_BAR_WIDTH_CSS, bottom);
   }
 
@@ -378,6 +416,14 @@ export class FRVPPaneView implements IPrimitivePaneView {
     if (ax === null || yPMax === null || yPMin === null) return null;
 
     const tol = 8;
+    if (this._drawing.mode === 'range' && this._drawing.t2 !== undefined) {
+      const t2x = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
+      if (t2x === null) return null;
+      const midY = (Math.min(yPMax, yPMin) + Math.max(yPMax, yPMin)) / 2;
+      if (Math.abs(mx - ax) <= tol && Math.abs(my - midY) <= tol) return 'w';
+      if (Math.abs(mx - t2x) <= tol && Math.abs(my - midY) <= tol) return 'e';
+      return null;
+    }
     if (Math.abs(mx - ax) <= tol && Math.abs(my - yPMax) <= tol) return 'n';
     if (Math.abs(mx - ax) <= tol && Math.abs(my - yPMin) <= tol) return 's';
     return null;
@@ -388,12 +434,15 @@ export class FRVPPaneView implements IPrimitivePaneView {
     const yPMax = this._series.priceToCoordinate(this._drawing.pMax);
     const yPMin = this._series.priceToCoordinate(this._drawing.pMin);
     if (ax === null || yPMax === null || yPMin === null) return null;
-    return {
-      x1: ax,
-      y1: Math.min(yPMax, yPMin),
-      x2: ax + MAX_BAR_WIDTH_CSS,
-      y2: Math.max(yPMax, yPMin),
-    };
+    const top = Math.min(yPMax, yPMin);
+    const bottom = Math.max(yPMax, yPMin);
+    if (this._drawing.mode === 'range' && this._drawing.t2 !== undefined) {
+      const t2x = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
+      if (t2x !== null) {
+        return { x1: Math.min(ax, t2x), y1: top, x2: Math.max(ax, t2x), y2: bottom };
+      }
+    }
+    return { x1: ax, y1: top, x2: ax + MAX_BAR_WIDTH_CSS, y2: bottom };
   }
 
   get drawingId(): string {

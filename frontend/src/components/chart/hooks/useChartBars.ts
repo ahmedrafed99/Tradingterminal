@@ -92,6 +92,10 @@ export function useChartBars(
 
         series.setData(candles);
         refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
+        if (refs.lastBar.current) {
+          useStore.getState().setLastBarTime(refs.lastBar.current.time as number);
+          refs.drawingsPrimitive.current?.setLastBarTime(refs.lastBar.current.time as number);
+        }
         refs.bidAskPrimitive.current?.clear();
         refs.bidAskPrimitive.current?.setTickSize(contract!.tickSize);
 
@@ -131,6 +135,7 @@ export function useChartBars(
           cd.setPeriod(periodSec);
           refs.drawingsPrimitive.current?.setDecimals(dec);
           refs.drawingsPrimitive.current?.setTickSize(contract?.tickSize ?? 0.01);
+          refs.drawingsPrimitive.current?.setBarsRef(sorted);
           if (refs.vpPrimitive.current) {
             refs.drawingsPrimitive.current?.setSharedVolumeMap(refs.vpPrimitive.current.getVolumeMap());
           }
@@ -251,6 +256,8 @@ export function useChartBars(
         };
         refs.lastBar.current = newBar;
         pendingBar = newBar;
+        useStore.getState().setLastBarTime(candleTime);
+        refs.drawingsPrimitive.current?.setLastBarTime(candleTime);
       }
 
       pendingPrice = price;

@@ -15,6 +15,7 @@ interface DrawingStyleDefaults {
   strokeWidth: number;
   lineStyle?: LineStyle;
   fillColor?: string;
+  mode?: 'anchor' | 'range';
 }
 
 export interface DrawingsState {
@@ -26,6 +27,8 @@ export interface DrawingsState {
   drawingDefaults: Record<string, DrawingStyleDefaults>;
   magnetEnabled: boolean;
   magnetHeld: boolean;
+  lastBarTime: number | null;
+  setLastBarTime: (t: number | null) => void;
   setMagnetHeld: (held: boolean) => void;
   setActiveTool: (tool: DrawingTool) => void;
   setDrawingToolbarOpen: (open: boolean) => void;
@@ -75,6 +78,8 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
   drawingDefaults: {} as Record<string, DrawingStyleDefaults>,
   magnetEnabled: false,
   magnetHeld: false,
+  lastBarTime: null,
+  setLastBarTime: (lastBarTime) => set({ lastBarTime }),
   setMagnetHeld: (magnetHeld) => set({ magnetHeld }),
   setActiveTool: (activeTool) => set({ activeTool, selectedDrawingIds: [] }),
   setDrawingToolbarOpen: (drawingToolbarOpen) => set({ drawingToolbarOpen }),
@@ -102,7 +107,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           { type: 'update', drawingId: id, previous },
         ].slice(-50);
 
-        if (existing && ('color' in patch || 'strokeWidth' in patch || 'lineStyle' in patch || 'fillColor' in patch)) {
+        if (existing && ('color' in patch || 'strokeWidth' in patch || 'lineStyle' in patch || 'fillColor' in patch || 'mode' in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
           const updated: DrawingStyleDefaults = {
             color: (patch as { color?: string }).color ?? cur.color,
@@ -113,6 +118,9 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           }
           if ('fillColor' in patch || cur.fillColor) {
             updated.fillColor = (patch as { fillColor?: string }).fillColor ?? cur.fillColor;
+          }
+          if ('mode' in patch || cur.mode) {
+            updated.mode = (patch as { mode?: 'anchor' | 'range' }).mode ?? cur.mode;
           }
           result.drawingDefaults = {
             ...s.drawingDefaults,

@@ -930,6 +930,40 @@ export function DrawingEditToolbar({
             >
                 {frvpTab === 'input' && (
                   <>
+                    {/* Mode toggle: anchor vs range */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Mode</span>
+                      <div style={{ display: 'flex', gap: 2, background: 'var(--color-surface)', borderRadius: RADIUS.MD, padding: 2 }}>
+                        {(['anchor', 'range'] as const).map((m) => {
+                          const active = (frvp.mode ?? 'anchor') === m;
+                          return (
+                            <button
+                              key={m}
+                              onClick={() => {
+                                if (active) return;
+                                if (m === 'range') {
+                                  const latestBar = useStore.getState().lastBarTime;
+                                  const defaultT2 = latestBar ?? (frvp.anchorTime + 3600);
+                                  updateDrawing(drawing.id, { mode: 'range', t2: defaultT2, t2Auto: true } as Partial<Drawing>);
+                                } else {
+                                  // Switch back to anchor: clear t2
+                                  updateDrawing(drawing.id, { mode: 'anchor', t2: undefined } as Partial<Drawing>);
+                                }
+                              }}
+                              style={{
+                                fontSize: 12, fontWeight: 600, padding: '2px 10px',
+                                borderRadius: RADIUS.SM, border: 'none', cursor: 'pointer',
+                                background: active ? 'var(--color-hover-toolbar)' : 'transparent',
+                                color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
+                                transition: 'background var(--transition-fast), color var(--transition-fast)',
+                              }}
+                            >
+                              {m === 'anchor' ? 'Anchor' : 'Range'}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                     {/* Bars — spinner */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row Size</span>

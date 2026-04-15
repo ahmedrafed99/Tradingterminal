@@ -40,6 +40,11 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
 
     const ctx: DrawingContext = { chart, series, container, primitive, contract, refs, state };
 
+    // Register callback so DrawingsPrimitive can sync range-mode FRVP bounds back to the store
+    primitive.setOnRangeBoundsUpdate((id, pMin, pMax) => {
+      useStore.getState().updateDrawing(id, { pMin, pMax });
+    });
+
     // Sync drawings from store on every render
     const storeState = useStore.getState();
     const contractId = contract?.id;

@@ -580,55 +580,62 @@ class FRVPPreviewPaneView implements IPrimitivePaneView {
 // ---------------------------------------------------------------------------
 class FRVPRangePreviewRenderer implements IPrimitivePaneRenderer {
   private _x1: number;
+  private _y1: number;
   private _x2: number;
+  private _y2: number;
   private _color: string;
 
-  constructor(x1: number, x2: number, color: string) {
+  constructor(x1: number, y1: number, x2: number, y2: number, color: string) {
     this._x1 = x1;
+    this._y1 = y1;
     this._x2 = x2;
+    this._y2 = y2;
     this._color = color;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const left = Math.min(this._x1, this._x2);
-      const right = Math.max(this._x1, this._x2);
-      const h = ctx.canvas.height;
-
-      ctx.globalAlpha = 0.08;
-      ctx.fillStyle = this._color;
-      ctx.fillRect(left, 0, right - left, h);
-      ctx.globalAlpha = 1;
+      const { _x1: x1, _y1: y1, _x2: x2, _y2: y2 } = this;
 
       ctx.strokeStyle = this._color;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
-      for (const x of [this._x1, this._x2]) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, h);
-        ctx.stroke();
-      }
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
       ctx.setLineDash([]);
+
+      // Endpoint dots
+      ctx.fillStyle = this._color;
+      for (const [x, y] of [[x1, y1], [x2, y2]] as [number, number][]) {
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      }
     });
   }
 }
 
 class FRVPRangePreviewPaneView implements IPrimitivePaneView {
   private _x1: number;
+  private _y1: number;
   private _x2: number;
+  private _y2: number;
   private _color: string;
 
-  constructor(x1: number, x2: number, color: string) {
+  constructor(x1: number, y1: number, x2: number, y2: number, color: string) {
     this._x1 = x1;
+    this._y1 = y1;
     this._x2 = x2;
+    this._y2 = y2;
     this._color = color;
   }
 
   zOrder(): 'top' { return 'top'; }
 
   renderer(): IPrimitivePaneRenderer | null {
-    return new FRVPRangePreviewRenderer(this._x1, this._x2, this._color);
+    return new FRVPRangePreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._color);
   }
 }
 
@@ -820,6 +827,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   // FRVP creation preview (range mode: horizontal drag)
   private _frvpRangePreview: FRVPRangePreviewPaneView | null = null;
 
+  // Latest bar time — used to resolve t2Auto for range FRVPs
+  private _lastBarTime = 0;
+
   // Price axis labels for drawings
   private _decimals = 2;
   private _priceAxisTextCache = new Map<string, string>();
@@ -882,6 +892,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   /** Called when a range-mode FRVP's auto-computed bounds differ from the stored values */
   private _onRangeBoundsUpdate: ((id: string, pMin: number, pMax: number) => void) | null = null;
+  /** Tracks last synced bounds per drawing to prevent infinite microtask loop */
+  private _lastSyncedBounds = new Map<string, { pMin: number; pMax: number }>();
 
   /** Register a callback to sync auto-computed range bounds back to the store */
   setOnRangeBoundsUpdate(cb: (id: string, pMin: number, pMax: number) => void): void {
@@ -898,6 +910,31 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     }
   }
 
+  /** Single-pass: build volume map AND compute pMin/pMax from bars in [t1, t2]. */
+  private _buildRangeData(t1: number, t2: number, tickSize: number): { volumeMap: Map<number, number>; pMin: number; pMax: number } | null {
+    const ts = tickSize > 0 ? tickSize : 0.01;
+    const tMin = Math.min(t1, t2);
+    const tMax = Math.max(t1, t2);
+    const map = new Map<number, number>();
+    let pMin = Infinity, pMax = -Infinity;
+    for (const bar of this._barsRef) {
+      const barTime = Math.floor(new Date(bar.t).getTime() / 1000);
+      if (barTime < tMin || barTime > tMax) continue;
+      if (bar.l < pMin) pMin = bar.l;
+      if (bar.h > pMax) pMax = bar.h;
+      if (bar.v <= 0 || bar.h < bar.l) continue;
+      const lowIdx = Math.round(bar.l / ts);
+      const highIdx = Math.round(bar.h / ts);
+      const numTicks = Math.max(highIdx - lowIdx + 1, 1);
+      const volPerTick = bar.v / numTicks;
+      for (let i = lowIdx; i <= highIdx; i++) {
+        const price = i * ts;
+        map.set(price, (map.get(price) ?? 0) + volPerTick);
+      }
+    }
+    return pMin <= pMax ? { volumeMap: map, pMin, pMax } : null;
+  }
+
   /** Compute pMin/pMax from bars in [t1, t2]. Returns null if no bars in range. */
   computeRangeBounds(t1: number, t2: number): { pMin: number; pMax: number } | null {
     const tMin = Math.min(t1, t2);
@@ -912,15 +949,22 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     return pMin <= pMax ? { pMin, pMax } : null;
   }
 
-  /** Show a two-line range preview during range-mode FRVP drag creation */
-  setFRVPRangePreview(x1: number, x2: number, color: string): void {
-    this._frvpRangePreview = new FRVPRangePreviewPaneView(x1, x2, color);
+  /** Show a diagonal line preview during range-mode FRVP drag creation */
+  setFRVPRangePreview(x1: number, y1: number, x2: number, y2: number, color: string): void {
+    this._frvpRangePreview = new FRVPRangePreviewPaneView(x1, y1, x2, y2, color);
     this._requestUpdate?.();
   }
 
   /** Clear the range-mode FRVP creation preview */
   clearFRVPRangePreview(): void {
     this._frvpRangePreview = null;
+    this._requestUpdate?.();
+  }
+
+  /** Track latest bar time for t2Auto resolution in range FRVPs */
+  setLastBarTime(t: number): void {
+    this._lastBarTime = t;
+    this._rebuildViews();
     this._requestUpdate?.();
   }
 
@@ -1007,27 +1051,6 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
-  /** Distribute each bar's volume evenly across tick levels in its [low, high] range. */
-  private _buildRangeVolumeMap(t1: number, t2: number, tickSize: number): Map<number, number> {
-    const map = new Map<number, number>();
-    const ts = tickSize > 0 ? tickSize : 0.01;
-    const tMin = Math.min(t1, t2);
-    const tMax = Math.max(t1, t2);
-    for (const bar of this._barsRef) {
-      const barTime = Math.floor(new Date(bar.t).getTime() / 1000);
-      if (barTime < tMin || barTime > tMax) continue;
-      if (bar.v <= 0 || bar.h < bar.l) continue;
-      const lowIdx = Math.round(bar.l / ts);
-      const highIdx = Math.round(bar.h / ts);
-      const numTicks = Math.max(highIdx - lowIdx + 1, 1);
-      const volPerTick = bar.v / numTicks;
-      for (let i = lowIdx; i <= highIdx; i++) {
-        const price = i * ts;
-        map.set(price, (map.get(price) ?? 0) + volPerTick);
-      }
-    }
-    return map;
-  }
 
   private _rebuildViews(): void {
     if (!this._series || !this._chart) {
@@ -1051,20 +1074,30 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (d.type === 'frvp') {
         const frvp = d as FRVPDrawing;
         if (frvp.mode === 'range' && frvp.t2 !== undefined) {
+          // Resolve effective t2: auto-follow latest bar when t2Auto is true
+          const effectiveT2 = frvp.t2Auto && this._lastBarTime > 0 ? this._lastBarTime : frvp.t2;
+          const effectiveFrvp = effectiveT2 !== frvp.t2 ? { ...frvp, t2: effectiveT2 } : frvp;
           let mapRef = this._rangeVolumeMaps.get(d.id);
           if (!mapRef) { mapRef = { current: new Map() }; this._rangeVolumeMaps.set(d.id, mapRef); }
-          mapRef.current = this._buildRangeVolumeMap(frvp.anchorTime, frvp.t2, this._tickSize);
-          // Auto-sync pMin/pMax from actual bar range if they differ (e.g. after mode switch)
-          const bounds = this.computeRangeBounds(frvp.anchorTime, frvp.t2);
-          if (bounds && this._onRangeBoundsUpdate) {
+          const rangeData = this._buildRangeData(frvp.anchorTime, effectiveT2, this._tickSize);
+          mapRef.current = rangeData?.volumeMap ?? new Map();
+          // Auto-sync pMin/pMax from actual bar range if they differ (e.g. after mode switch).
+          // Gate with _lastSyncedBounds to prevent microtask→updateDrawing→_rebuildViews loop.
+          if (rangeData && this._onRangeBoundsUpdate) {
             const tol = this._tickSize;
-            if (Math.abs(bounds.pMin - frvp.pMin) > tol || Math.abs(bounds.pMax - frvp.pMax) > tol) {
+            const last = this._lastSyncedBounds.get(frvp.id);
+            const alreadySynced = last &&
+              Math.abs(last.pMin - rangeData.pMin) <= tol &&
+              Math.abs(last.pMax - rangeData.pMax) <= tol;
+            if (!alreadySynced && (Math.abs(rangeData.pMin - frvp.pMin) > tol || Math.abs(rangeData.pMax - frvp.pMax) > tol)) {
               const cb = this._onRangeBoundsUpdate;
               const id = frvp.id;
-              queueMicrotask(() => cb(id, bounds.pMin, bounds.pMax));
+              const { pMin, pMax } = rangeData;
+              this._lastSyncedBounds.set(id, { pMin, pMax });
+              queueMicrotask(() => cb(id, pMin, pMax));
             }
           }
-          return new FRVPPaneView(frvp, selected, this._series!, this._chart!, mapRef, this._tickSize, this._requestUpdate);
+          return new FRVPPaneView(effectiveFrvp, selected, this._series!, this._chart!, mapRef, this._tickSize, this._requestUpdate);
         }
         return new FRVPPaneView(d as FRVPDrawing, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
       } else {

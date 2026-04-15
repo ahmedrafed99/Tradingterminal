@@ -135,6 +135,7 @@ export interface FRVPDrawing extends DrawingBase {
   mode?: 'anchor' | 'range';  // 'anchor' = single time point + manual price range (default); 'range' = two time points + auto price range from candles
   anchorTime: number;  // t1: time of left anchor line (both modes)
   t2?: number;         // range mode only: right time boundary
+  t2Auto?: boolean;    // range mode only: when true, t2 tracks the latest bar automatically
   pMin: number;        // lower price bound (manual in anchor mode; auto-computed in range mode)
   pMax: number;        // upper price bound (manual in anchor mode; auto-computed in range mode)
   numBars?: number;        // bucket count for aggregation; undefined/0 = raw tick-level
