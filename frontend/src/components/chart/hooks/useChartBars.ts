@@ -196,6 +196,23 @@ export function useChartBars(
       if (pendingBar && refs.series.current) {
         refs.series.current.update(pendingBar);
         refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
+
+        // Keep refs.bars.current in sync so range-mode FRVP pMin/pMax stay current.
+        // Only the high and low matter for FRVP bounds — volume stays as loaded.
+        const bars = refs.bars.current;
+        const barTimeSec = pendingBar.time as number;
+        const last = bars.length > 0 ? bars[bars.length - 1] : null;
+        const lastTimeSec = last ? Math.floor(new Date(last.t).getTime() / 1000) : -1;
+        if (last && lastTimeSec === barTimeSec) {
+          // Update in-place: only h and l can change on a live bar
+          if (pendingBar.high > last.h) last.h = pendingBar.high;
+          if (pendingBar.low < last.l) last.l = pendingBar.low;
+          refs.drawingsPrimitive.current?.setBarsRef(bars);
+        } else if (lastTimeSec < barTimeSec) {
+          // New bar period — append a stub bar (volume unknown from quote stream)
+          bars.push({ t: new Date(barTimeSec * 1000).toISOString(), o: pendingBar.open, h: pendingBar.high, l: pendingBar.low, c: pendingBar.close, v: 0 });
+          refs.drawingsPrimitive.current?.setBarsRef(bars);
+        }
       }
       if (pendingPrice != null) {
         refs.countdown.current?.updatePrice(pendingPrice, true);

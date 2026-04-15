@@ -16,6 +16,12 @@ interface DrawingStyleDefaults {
   lineStyle?: LineStyle;
   fillColor?: string;
   mode?: 'anchor' | 'range';
+  // FRVP-specific
+  numBars?: number;
+  pocColor?: string;
+  showPoc?: boolean;
+  extendPoc?: boolean;
+  showBarValues?: boolean;
 }
 
 export interface DrawingsState {
@@ -107,20 +113,39 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           { type: 'update', drawingId: id, previous },
         ].slice(-50);
 
-        if (existing && ('color' in patch || 'strokeWidth' in patch || 'lineStyle' in patch || 'fillColor' in patch || 'mode' in patch)) {
+        const frvpKeys = ['numBars', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues'] as const;
+        const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...frvpKeys] as const;
+        if (existing && styleKeys.some((k) => k in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
+          const p = patch as Record<string, unknown>;
           const updated: DrawingStyleDefaults = {
-            color: (patch as { color?: string }).color ?? cur.color,
-            strokeWidth: (patch as { strokeWidth?: number }).strokeWidth ?? cur.strokeWidth,
+            color: (p.color as string) ?? cur.color,
+            strokeWidth: (p.strokeWidth as number) ?? cur.strokeWidth,
           };
           if ('lineStyle' in patch || cur.lineStyle) {
-            updated.lineStyle = (patch as { lineStyle?: LineStyle }).lineStyle ?? cur.lineStyle;
+            updated.lineStyle = (p.lineStyle as LineStyle) ?? cur.lineStyle;
           }
           if ('fillColor' in patch || cur.fillColor) {
-            updated.fillColor = (patch as { fillColor?: string }).fillColor ?? cur.fillColor;
+            updated.fillColor = (p.fillColor as string) ?? cur.fillColor;
           }
           if ('mode' in patch || cur.mode) {
-            updated.mode = (patch as { mode?: 'anchor' | 'range' }).mode ?? cur.mode;
+            updated.mode = (p.mode as 'anchor' | 'range') ?? cur.mode;
+          }
+          // FRVP-specific defaults
+          if ('numBars' in patch || cur.numBars !== undefined) {
+            updated.numBars = (p.numBars as number) ?? cur.numBars;
+          }
+          if ('pocColor' in patch || cur.pocColor !== undefined) {
+            updated.pocColor = (p.pocColor as string) ?? cur.pocColor;
+          }
+          if ('showPoc' in patch || cur.showPoc !== undefined) {
+            updated.showPoc = (p.showPoc as boolean) ?? cur.showPoc;
+          }
+          if ('extendPoc' in patch || cur.extendPoc !== undefined) {
+            updated.extendPoc = (p.extendPoc as boolean) ?? cur.extendPoc;
+          }
+          if ('showBarValues' in patch || cur.showBarValues !== undefined) {
+            updated.showBarValues = (p.showBarValues as boolean) ?? cur.showBarValues;
           }
           result.drawingDefaults = {
             ...s.drawingDefaults,

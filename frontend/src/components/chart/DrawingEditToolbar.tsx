@@ -6,6 +6,7 @@ import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 import type { Drawing, FRVPDrawing, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
+import { COLOR_ACCENT } from '../../constants/colors';
 import { SpinnerInput } from '../SpinnerInput';
 
 // ---------------------------------------------------------------------------
@@ -1068,7 +1069,7 @@ export function DrawingEditToolbar({
                         onClick={() => { const v = !showFrvpPocColor; setShowFrvpBarColor(false); setShowFrvpPocColor(v); }}
                         style={{
                           width: 24, height: 24, borderRadius: RADIUS.MD,
-                          background: frvp.pocColor ?? '#ff9800',
+                          background: frvp.pocColor ?? COLOR_ACCENT,
                           border: showFrvpPocColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
                           cursor: 'pointer', flexShrink: 0, transition: 'border var(--transition-fast)',
                           opacity: pocVisible ? 1 : 0.35,
@@ -1076,7 +1077,7 @@ export function DrawingEditToolbar({
                       />
                       {showFrvpPocColor && (
                         <ColorPopover
-                          current={frvp.pocColor ?? '#ff9800'}
+                          current={frvp.pocColor ?? COLOR_ACCENT}
                           onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
                           onClose={() => setShowFrvpPocColor(false)}
                         />

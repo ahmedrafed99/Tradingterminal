@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RADIUS } from '../constants/layout';
 
 interface SpinnerInputProps {
@@ -25,6 +25,12 @@ export function SpinnerInput({
   height = 26,
 }: SpinnerInputProps) {
   const [hovered, setHovered] = useState(false);
+  const [inputStr, setInputStr] = useState(String(value));
+
+  // Sync display when parent value changes externally (e.g. undo, spinner buttons)
+  useEffect(() => {
+    setInputStr(String(value));
+  }, [value]);
 
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
 
@@ -44,17 +50,22 @@ export function SpinnerInput({
       }}
     >
       <input
-        type="number"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
+        type="text"
+        inputMode="numeric"
+        value={inputStr}
         onChange={(e) => {
-          const v = parseFloat(e.target.value);
+          const raw = e.target.value;
+          setInputStr(raw);
+          const v = parseFloat(raw);
           if (!isNaN(v)) onChange(clamp(v));
         }}
+        onBlur={() => {
+          const v = parseFloat(inputStr);
+          const clamped = isNaN(v) ? min : clamp(v);
+          onChange(clamped);
+          setInputStr(String(clamped));
+        }}
         onMouseDown={(e) => e.stopPropagation()}
-        className="[&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         style={{
           width: inputWidth,
           border: 'none',
@@ -64,9 +75,7 @@ export function SpinnerInput({
           textAlign: 'center',
           padding: '0 4px',
           outline: 'none',
-          appearance: 'textfield',
-          MozAppearance: 'textfield',
-        } as React.CSSProperties}
+        }}
       />
       <div
         style={{

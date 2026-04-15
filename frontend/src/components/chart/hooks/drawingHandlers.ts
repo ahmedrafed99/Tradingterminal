@@ -849,6 +849,11 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
             color: frvpDef?.color ?? DEFAULT_FRVP_COLOR,
             strokeWidth: frvpDef?.strokeWidth ?? 1,
             lineStyle: frvpDef?.lineStyle ?? 'solid',
+            numBars: frvpDef?.numBars,
+            pocColor: frvpDef?.pocColor,
+            showPoc: frvpDef?.showPoc,
+            extendPoc: frvpDef?.extendPoc,
+            showBarValues: frvpDef?.showBarValues,
             text: null,
             contractId: String(contract.id),
           });
@@ -874,6 +879,11 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
             color: frvpDef?.color ?? DEFAULT_FRVP_COLOR,
             strokeWidth: frvpDef?.strokeWidth ?? 1,
             lineStyle: frvpDef?.lineStyle ?? 'solid',
+            numBars: frvpDef?.numBars,
+            pocColor: frvpDef?.pocColor,
+            showPoc: frvpDef?.showPoc,
+            extendPoc: frvpDef?.extendPoc,
+            showBarValues: frvpDef?.showBarValues,
             text: null,
             contractId: String(contract.id),
           });
