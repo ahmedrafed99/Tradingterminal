@@ -13,7 +13,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 // Types
 // ---------------------------------------------------------------------------
 
-/** price → total session volume at that price */
+/** price → total session DOM volume (resting orders) at that price */
 export type VolumeMap = Map<number, number>;
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ const EXPAND_LERP = 0.25;
 // Bars renderer — draws histogram bars + dotted ref line (z-order: bottom)
 // ---------------------------------------------------------------------------
 
-class VolumeProfileBarsRenderer implements IPrimitivePaneRenderer {
+class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
   private _bars: BarData[];
   private _hoverIdx: number;
   private _barColor: string;
@@ -156,7 +156,7 @@ class VolumeProfileBarsRenderer implements IPrimitivePaneRenderer {
 // Tooltip renderer — draws hover label (z-order: top, above candles)
 // ---------------------------------------------------------------------------
 
-class VolumeProfileTooltipRenderer implements IPrimitivePaneRenderer {
+class MarketDepthTooltipRenderer implements IPrimitivePaneRenderer {
   private _bars: BarData[];
   private _hoverIdx: number;
   private _expandMap: Map<number, number>;
@@ -207,7 +207,7 @@ class VolumeProfileTooltipRenderer implements IPrimitivePaneRenderer {
 // PaneView wrappers
 // ---------------------------------------------------------------------------
 
-class VolumeProfileBarsPaneView implements IPrimitivePaneView {
+class MarketDepthBarsPaneView implements IPrimitivePaneView {
   _bars: BarData[] = [];
   _hoverIdx = -1;
   _barColor = '';
@@ -232,7 +232,7 @@ class VolumeProfileBarsPaneView implements IPrimitivePaneView {
   }
 
   renderer(): IPrimitivePaneRenderer {
-    return new VolumeProfileBarsRenderer(
+    return new MarketDepthBarsRenderer(
       this._bars, this._hoverIdx,
       this._barColor, this._hoverColor, this._refLineColor,
       this._expandMap, this._hoverExpand, this._requestUpdate,
@@ -244,7 +244,7 @@ class VolumeProfileBarsPaneView implements IPrimitivePaneView {
   }
 }
 
-class VolumeProfileTooltipPaneView implements IPrimitivePaneView {
+class MarketDepthTooltipPaneView implements IPrimitivePaneView {
   _bars: BarData[] = [];
   _hoverIdx = -1;
   _expandMap: Map<number, number>; // shared ref with bars view
@@ -261,7 +261,7 @@ class VolumeProfileTooltipPaneView implements IPrimitivePaneView {
   }
 
   renderer(): IPrimitivePaneRenderer {
-    return new VolumeProfileTooltipRenderer(
+    return new MarketDepthTooltipRenderer(
       this._bars, this._hoverIdx,
       this._expandMap, this._hoverExpand,
     );
@@ -273,10 +273,10 @@ class VolumeProfileTooltipPaneView implements IPrimitivePaneView {
 }
 
 // ---------------------------------------------------------------------------
-// VolumeProfilePrimitive — attach to the candlestick series
+// MarketDepthPrimitive — attach to the candlestick series
 // ---------------------------------------------------------------------------
 
-export class VolumeProfilePrimitive implements ISeriesPrimitive<Time> {
+export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
   private _series: ISeriesApi<SeriesType, Time> | null = null;
   private _requestUpdate: (() => void) | null = null;
 
@@ -292,8 +292,8 @@ export class VolumeProfilePrimitive implements ISeriesPrimitive<Time> {
   private _hoverColor = 'rgba(128, 128, 128, 0.40)';
   private _refLineColor = 'rgba(128, 128, 128, 0.25)';
 
-  private _barsView = new VolumeProfileBarsPaneView();
-  private _tooltipView = new VolumeProfileTooltipPaneView(this._barsView._expandMap);
+  private _barsView = new MarketDepthBarsPaneView();
+  private _tooltipView = new MarketDepthTooltipPaneView(this._barsView._expandMap);
   private _paneViewsArr: readonly IPrimitivePaneView[] = [this._barsView, this._tooltipView];
   private _emptyViews: readonly IPrimitivePaneView[] = [];
 
@@ -369,7 +369,7 @@ export class VolumeProfilePrimitive implements ISeriesPrimitive<Time> {
     if (prevBar !== newBar) this._requestUpdate?.();
   }
 
-  /** Get the volume map (for VP trade mode click hit-test in the component) */
+  /** Get the volume map (for FRVP anchor mode) */
   getVolumeMap(): VolumeMap {
     return this._volumeMap;
   }

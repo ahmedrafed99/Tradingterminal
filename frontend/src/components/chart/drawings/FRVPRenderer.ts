@@ -15,7 +15,7 @@ const EXPAND_LERP = 0.25;
 const LABEL_BG = 'rgba(19, 23, 34, 0.90)';
 
 // ---------------------------------------------------------------------------
-// Color helpers (copied from VolumeProfilePrimitive.ts)
+// Color helpers (copied from MarketDepthPrimitive.ts)
 // ---------------------------------------------------------------------------
 
 function parseColor(color: string): [number, number, number, number] {

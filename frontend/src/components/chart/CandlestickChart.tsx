@@ -13,7 +13,7 @@ import { CountdownPrimitive } from './CountdownPrimitive';
 import { CrosshairLabelPrimitive } from './CrosshairLabelPrimitive';
 import { registerChart, unregisterChart } from './screenshot/chartRegistry';
 import { TradeZonePrimitive } from './TradeZonePrimitive';
-import { VolumeProfilePrimitive } from './VolumeProfilePrimitive';
+import { MarketDepthPrimitive } from './MarketDepthPrimitive';
 import { BidAskPrimitive } from './BidAskPrimitive';
 import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
 import type { PriceLevelLine } from './PriceLevelLine';
@@ -64,7 +64,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const crosshairLabelRef = useRef<CrosshairLabelPrimitive | null>(null);
   const whitespaceSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const tradeZonePrimitiveRef = useRef<TradeZonePrimitive | null>(null);
-  const vpPrimitiveRef = useRef<VolumeProfilePrimitive | null>(null);
+  const domPrimitiveRef = useRef<MarketDepthPrimitive | null>(null);
   const bidAskPrimitiveRef = useRef<BidAskPrimitive | null>(null);
   const newsEventsPrimitiveRef = useRef<NewsEventsPrimitive | null>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
@@ -130,7 +130,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     crosshairLabel: crosshairLabelRef,
     whitespaceSeries: whitespaceSeriesRef,
     tradeZonePrimitive: tradeZonePrimitiveRef,
-    vpPrimitive: vpPrimitiveRef,
+    domPrimitive: domPrimitiveRef,
     bidAskPrimitive: bidAskPrimitiveRef,
     newsEventsPrimitive: newsEventsPrimitiveRef,
     ohlc: ohlcRef,
@@ -209,10 +209,10 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     countdown.setOverlay(overlayRef.current!, chart);
     countdownRef.current = countdown;
 
-    // Attach volume profile primitive — renders behind everything else
-    const vpPrimitive = new VolumeProfilePrimitive();
-    series.attachPrimitive(vpPrimitive);
-    vpPrimitiveRef.current = vpPrimitive;
+    // Attach market depth primitive — renders behind everything else
+    const domPrimitive = new MarketDepthPrimitive();
+    series.attachPrimitive(domPrimitive);
+    domPrimitiveRef.current = domPrimitive;
 
     // Attach bid/ask footprint primitive — per-candle bid/ask bars
     const bidAskPrimitive = new BidAskPrimitive();
@@ -271,7 +271,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       countdownRef.current = null;
       crosshairLabelRef.current = null;
       tradeZonePrimitiveRef.current = null;
-      vpPrimitiveRef.current = null;
+      domPrimitiveRef.current = null;
       bidAskPrimitiveRef.current = null;
       newsEventsPrimitiveRef.current = null;
       el.removeEventListener('mousedown', onSelectClick);

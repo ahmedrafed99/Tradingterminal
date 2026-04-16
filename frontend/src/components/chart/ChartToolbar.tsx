@@ -99,34 +99,34 @@ function useNYClock(marketType: MarketType = 'futures') {
 }
 
 function IndicatorsDropdown() {
-  const vpEnabled = useStore((s) =>
-    s.selectedChart === 'left' ? s.vpEnabled : s.secondVpEnabled);
-  const setVpEnabled = useStore((s) =>
-    s.selectedChart === 'left' ? s.setVpEnabled : s.setSecondVpEnabled);
-  const vpColor = useStore((s) =>
-    s.selectedChart === 'left' ? s.vpColor : s.secondVpColor);
-  const setVpColor = useStore((s) =>
-    s.selectedChart === 'left' ? s.setVpColor : s.setSecondVpColor);
-  const vpHoverExpand = useStore((s) =>
-    s.selectedChart === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
-  const setVpHoverExpand = useStore((s) =>
-    s.selectedChart === 'left' ? s.setVpHoverExpand : s.setSecondVpHoverExpand);
+  const domEnabled = useStore((s) =>
+    s.selectedChart === 'left' ? s.domEnabled : s.secondDomEnabled);
+  const setDomEnabled = useStore((s) =>
+    s.selectedChart === 'left' ? s.setDomEnabled : s.setSecondDomEnabled);
+  const domColor = useStore((s) =>
+    s.selectedChart === 'left' ? s.domColor : s.secondDomColor);
+  const setDomColor = useStore((s) =>
+    s.selectedChart === 'left' ? s.setDomColor : s.setSecondDomColor);
+  const domHoverExpand = useStore((s) =>
+    s.selectedChart === 'left' ? s.domHoverExpand : s.secondDomHoverExpand);
+  const setDomHoverExpand = useStore((s) =>
+    s.selectedChart === 'left' ? s.setDomHoverExpand : s.setSecondDomHoverExpand);
   const bidAskEnabled = useStore((s) =>
     s.selectedChart === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
   const setBidAskEnabled = useStore((s) =>
     s.selectedChart === 'left' ? s.setBidAskEnabled : s.setSecondBidAskEnabled);
   const [open, setOpen] = useState(false);
-  const [editingVp, setEditingVp] = useState(false);
+  const [editingDom, setEditingDom] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
 
-  const closeIndicatorMenu = useCallback(() => { setOpen(false); setEditingVp(false); }, []);
+  const closeIndicatorMenu = useCallback(() => { setOpen(false); setEditingDom(false); }, []);
   useClickOutside(ref, open, closeIndicatorMenu);
 
   return (
     <div ref={ref} className="relative self-stretch flex items-center">
       <button
-        onClick={() => { setOpen((o) => !o); setEditingVp(false); }}
+        onClick={() => { setOpen((o) => !o); setEditingDom(false); }}
         className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
           open ? 'text-(--color-text)' : 'text-(--color-text-muted) hover:text-(--color-text)'
         }`}
@@ -146,25 +146,25 @@ function IndicatorsDropdown() {
           className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
           style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, minWidth: 220 }}
         >
-          {!editingVp ? (
+          {!editingDom ? (
             <div style={{ padding: 6 }}>
-              {/* Volume Profile row */}
+              {/* Market Depth row */}
               <div
                 className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 {/* Checkbox */}
                 <button
-                  onClick={() => setVpEnabled(!vpEnabled)}
+                  onClick={() => setDomEnabled(!domEnabled)}
                   style={{
                     width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
-                    border: vpEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
-                    background: vpEnabled ? 'var(--color-accent)' : 'transparent',
+                    border: domEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
+                    background: domEnabled ? 'var(--color-accent)' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer',
                   }}
                 >
-                  {vpEnabled && (
+                  {domEnabled && (
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
                       <path d="M2 5l2.5 2.5L8 3" />
                     </svg>
@@ -175,23 +175,23 @@ function IndicatorsDropdown() {
                 <span
                   className="flex-1 text-xs text-(--color-text) cursor-pointer select-none"
                   style={{ marginLeft: 10 }}
-                  onClick={() => setVpEnabled(!vpEnabled)}
+                  onClick={() => setDomEnabled(!domEnabled)}
                 >
-                  Volume Profile
+                  Market Depth
                 </span>
 
                 {/* Color swatch */}
                 <div
                   style={{
                     width: 12, height: 12, borderRadius: RADIUS.SM, flexShrink: 0,
-                    background: vpColor, border: '1px solid var(--color-border)',
+                    background: domColor, border: '1px solid var(--color-border)',
                     marginRight: 8,
                   }}
                 />
 
                 {/* Edit (pencil) button */}
                 <button
-                  onClick={(e) => { e.stopPropagation(); setEditingVp(true); }}
+                  onClick={(e) => { e.stopPropagation(); setEditingDom(true); }}
                   className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
                   title="Edit color"
                 >
@@ -234,20 +234,20 @@ function IndicatorsDropdown() {
             </div>
           ) : (
             (() => {
-              const vpParsed = parseColorWithOpacity(vpColor);
+              const domParsed = parseColorWithOpacity(domColor);
               return (
                 <div style={{ padding: 10, width: 252 }}>
                   {/* Back arrow + title */}
                   <div className="flex items-center gap-2" style={{ marginBottom: 10 }}>
                     <button
-                      onClick={() => setEditingVp(false)}
+                      onClick={() => setEditingDom(false)}
                       className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M19 12H5M12 19l-7-7 7-7" />
                       </svg>
                     </button>
-                    <span className="text-xs text-(--color-text) font-medium">Volume Profile Settings</span>
+                    <span className="text-xs text-(--color-text) font-medium">Market Depth Settings</span>
                   </div>
 
                   {/* Color section */}
@@ -258,12 +258,12 @@ function IndicatorsDropdown() {
                     {COLOR_PALETTE.flat().map((c, i) => (
                       <button
                         key={`${c}-${i}`}
-                        onClick={() => setVpColor(toRgba(c, vpParsed.opacity))}
+                        onClick={() => setDomColor(toRgba(c, domParsed.opacity))}
                         style={{
                           width: 20, height: 20, background: c, borderRadius: RADIUS.MD,
-                          border: c === vpParsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
+                          border: c === domParsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
                           cursor: 'pointer',
-                          boxShadow: c === vpParsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
+                          boxShadow: c === domParsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
                         }}
                       />
                     ))}
@@ -285,16 +285,16 @@ function IndicatorsDropdown() {
                   <input
                     ref={customInputRef}
                     type="color"
-                    value={vpParsed.hex}
-                    onChange={(e) => setVpColor(toRgba(e.target.value, vpParsed.opacity))}
+                    value={domParsed.hex}
+                    onChange={(e) => setDomColor(toRgba(e.target.value, domParsed.opacity))}
                     style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
                   />
 
                   {/* Opacity slider */}
                   <OpacitySlider
-                    hex={vpParsed.hex}
-                    opacity={vpParsed.opacity}
-                    onChange={(op) => setVpColor(toRgba(vpParsed.hex, op))}
+                    hex={domParsed.hex}
+                    opacity={domParsed.opacity}
+                    onChange={(op) => setDomColor(toRgba(domParsed.hex, op))}
                   />
 
                   {/* Divider */}
@@ -303,13 +303,13 @@ function IndicatorsDropdown() {
                   {/* Hover Expand toggle */}
                   <div
                     className="flex items-center justify-between cursor-pointer"
-                    onClick={() => setVpHoverExpand(!vpHoverExpand)}
+                    onClick={() => setDomHoverExpand(!domHoverExpand)}
                   >
                     <span className="text-xs text-(--color-text)">Hover Expand</span>
                     <div
                       style={{
                         width: 32, height: 18, borderRadius: RADIUS.PILL,
-                        background: vpHoverExpand ? 'var(--color-accent)' : 'var(--color-surface)',
+                        background: domHoverExpand ? 'var(--color-accent)' : 'var(--color-surface)',
                         border: '1px solid var(--color-border)',
                         position: 'relative',
                         transition: 'background var(--transition-fast)',
@@ -321,7 +321,7 @@ function IndicatorsDropdown() {
                           width: 14, height: 14, borderRadius: RADIUS.CIRCLE,
                           background: '#fff',
                           position: 'absolute', top: 1,
-                          left: vpHoverExpand ? 16 : 1,
+                          left: domHoverExpand ? 16 : 1,
                           transition: 'left var(--transition-fast)',
                         }}
                       />

@@ -74,23 +74,21 @@ export interface DualChartState {
 }
 
 // ---------------------------------------------------------------------------
-// Volume Profile
+// Market Depth
 // ---------------------------------------------------------------------------
-export interface VolumeProfileState {
-  vpEnabled: boolean;
-  vpTradeMode: boolean;
-  vpColor: string;
-  vpHoverExpand: boolean;
-  secondVpEnabled: boolean;
-  secondVpColor: string;
-  secondVpHoverExpand: boolean;
-  setVpEnabled: (enabled: boolean) => void;
-  setVpTradeMode: (enabled: boolean) => void;
-  setVpColor: (color: string) => void;
-  setVpHoverExpand: (enabled: boolean) => void;
-  setSecondVpEnabled: (enabled: boolean) => void;
-  setSecondVpColor: (color: string) => void;
-  setSecondVpHoverExpand: (enabled: boolean) => void;
+export interface MarketDepthState {
+  domEnabled: boolean;
+  domColor: string;
+  domHoverExpand: boolean;
+  secondDomEnabled: boolean;
+  secondDomColor: string;
+  secondDomHoverExpand: boolean;
+  setDomEnabled: (enabled: boolean) => void;
+  setDomColor: (color: string) => void;
+  setDomHoverExpand: (enabled: boolean) => void;
+  setSecondDomEnabled: (enabled: boolean) => void;
+  setSecondDomColor: (color: string) => void;
+  setSecondDomHoverExpand: (enabled: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +125,7 @@ export interface OrderPanelPositionState {
   setOrderPanelSide: (side: 'left' | 'right') => void;
 }
 
-export type LayoutSlice = UiState & BottomPanelState & DualChartState & VolumeProfileState & BidAskFootprintState & NewsState & OrderPanelPositionState;
+export type LayoutSlice = UiState & BottomPanelState & DualChartState & MarketDepthState & BidAskFootprintState & NewsState & OrderPanelPositionState;
 
 type Set = {
   (partial: Partial<LayoutSlice>): void;
@@ -214,21 +212,19 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   setSelectedChart: (selectedChart) => set({ selectedChart }),
   setSplitRatio: (splitRatio) => set({ splitRatio: Math.max(0.2, Math.min(0.8, splitRatio)) }),
 
-  // Volume Profile
-  vpEnabled: false,
-  vpTradeMode: false,
-  vpColor: '#808080',
-  vpHoverExpand: true,
-  secondVpEnabled: false,
-  secondVpColor: '#808080',
-  secondVpHoverExpand: true,
-  setVpEnabled: (vpEnabled) => set({ vpEnabled }),
-  setVpTradeMode: (vpTradeMode) => set({ vpTradeMode }),
-  setVpColor: (vpColor) => set({ vpColor }),
-  setVpHoverExpand: (vpHoverExpand) => set({ vpHoverExpand }),
-  setSecondVpEnabled: (secondVpEnabled) => set({ secondVpEnabled }),
-  setSecondVpColor: (secondVpColor) => set({ secondVpColor }),
-  setSecondVpHoverExpand: (secondVpHoverExpand) => set({ secondVpHoverExpand }),
+  // Market Depth
+  domEnabled: false,
+  domColor: '#808080',
+  domHoverExpand: true,
+  secondDomEnabled: false,
+  secondDomColor: '#808080',
+  secondDomHoverExpand: true,
+  setDomEnabled: (domEnabled) => set({ domEnabled }),
+  setDomColor: (domColor) => set({ domColor }),
+  setDomHoverExpand: (domHoverExpand) => set({ domHoverExpand }),
+  setSecondDomEnabled: (secondDomEnabled) => set({ secondDomEnabled }),
+  setSecondDomColor: (secondDomColor) => set({ secondDomColor }),
+  setSecondDomHoverExpand: (secondDomHoverExpand) => set({ secondDomHoverExpand }),
 
   // Bid/Ask Footprint
   bidAskEnabled: false,

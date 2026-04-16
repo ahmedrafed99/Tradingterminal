@@ -880,7 +880,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._decimals = decimals;
   }
 
-  /** Pass the live VolumeMap reference from VolumeProfilePrimitive for FRVP drawings */
+  /** Pass the live VolumeMap reference from MarketDepthPrimitive for FRVP drawings */
   setSharedVolumeMap(map: Map<number, number>): void {
     this._sharedVolumeMap.current = map;
   }

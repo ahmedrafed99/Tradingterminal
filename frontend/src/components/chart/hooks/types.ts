@@ -5,7 +5,7 @@ import type { DrawingsPrimitive } from '../drawings/DrawingsPrimitive';
 import type { CountdownPrimitive } from '../CountdownPrimitive';
 import type { CrosshairLabelPrimitive } from '../CrosshairLabelPrimitive';
 import type { TradeZonePrimitive } from '../TradeZonePrimitive';
-import type { VolumeProfilePrimitive } from '../VolumeProfilePrimitive';
+import type { MarketDepthPrimitive } from '../MarketDepthPrimitive';
 import type { NewsEventsPrimitive } from '../primitives/NewsEventsPrimitive';
 import type { BidAskPrimitive } from '../BidAskPrimitive';
 import type { PriceLevelLine } from '../PriceLevelLine';
@@ -75,7 +75,7 @@ export interface ChartRefs {
   crosshairLabel: React.MutableRefObject<CrosshairLabelPrimitive | null>;
   whitespaceSeries: React.MutableRefObject<ISeriesApi<'Line'> | null>;
   tradeZonePrimitive: React.MutableRefObject<TradeZonePrimitive | null>;
-  vpPrimitive: React.MutableRefObject<VolumeProfilePrimitive | null>;
+  domPrimitive: React.MutableRefObject<MarketDepthPrimitive | null>;
   newsEventsPrimitive: React.MutableRefObject<NewsEventsPrimitive | null>;
   bidAskPrimitive: React.MutableRefObject<BidAskPrimitive | null>;
 

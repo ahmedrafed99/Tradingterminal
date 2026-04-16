@@ -31,9 +31,9 @@ export function useChartBars(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const vpEnabled = useStore((s) => chartId === 'left' ? s.vpEnabled : s.secondVpEnabled);
-  const vpColor = useStore((s) => chartId === 'left' ? s.vpColor : s.secondVpColor);
-  const vpHoverExpand = useStore((s) => chartId === 'left' ? s.vpHoverExpand : s.secondVpHoverExpand);
+  const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : s.secondDomEnabled);
+  const domColor = useStore((s) => chartId === 'left' ? s.domColor : s.secondDomColor);
+  const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : s.secondDomHoverExpand);
   const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
 
   // Bump to force historical bar reload on market hub reconnect
@@ -136,8 +136,8 @@ export function useChartBars(
           refs.drawingsPrimitive.current?.setDecimals(dec);
           refs.drawingsPrimitive.current?.setTickSize(contract?.tickSize ?? 0.01);
           refs.drawingsPrimitive.current?.setBarsRef(sorted);
-          if (refs.vpPrimitive.current) {
-            refs.drawingsPrimitive.current?.setSharedVolumeMap(refs.vpPrimitive.current.getVolumeMap());
+          if (refs.domPrimitive.current) {
+            refs.drawingsPrimitive.current?.setSharedVolumeMap(refs.domPrimitive.current.getVolumeMap());
           }
           refs.crosshairLabel.current?.setDecimals(dec);
           refs.crosshairLabel.current?.setTickSize(contract?.tickSize ?? 0);
@@ -350,12 +350,12 @@ export function useChartBars(
     };
   }, [connected, contract, timeframe]);
 
-  // -- Volume profile depth subscription (always active when connected+contract) --
-  // Depth data feeds both the VP indicator and FRVP drawings — decouple from vpEnabled.
+  // -- Market depth subscription (always active when connected+contract) --
+  // Depth data feeds both the Market Depth indicator and FRVP drawings — decouple from domEnabled.
   useEffect(() => {
-    const vp = refs.vpPrimitive.current;
+    const vp = refs.domPrimitive.current;
     if (!vp || !connected || !contract) {
-      refs.vpPrimitive.current?.clear();
+      refs.domPrimitive.current?.clear();
       return;
     }
 
@@ -388,31 +388,31 @@ export function useChartBars(
     };
   }, [connected, contract]);
 
-  // -- VP rendering toggle (separate from data so toggling doesn't re-subscribe) --
+  // -- Market depth rendering toggle (separate from data so toggling doesn't re-subscribe) --
   useEffect(() => {
-    refs.vpPrimitive.current?.setEnabled(vpEnabled);
-  }, [vpEnabled]);
+    refs.domPrimitive.current?.setEnabled(domEnabled);
+  }, [domEnabled]);
 
-  // -- VP color sync (separate so color changes don't re-subscribe depth) --
+  // -- Market depth color sync --
   useEffect(() => {
-    refs.vpPrimitive.current?.setColor(vpColor);
-  }, [vpColor]);
+    refs.domPrimitive.current?.setColor(domColor);
+  }, [domColor]);
 
-  // -- VP hover expand sync --
+  // -- Market depth hover expand sync --
   useEffect(() => {
-    refs.vpPrimitive.current?.setHoverExpand(vpHoverExpand);
-  }, [vpHoverExpand]);
+    refs.domPrimitive.current?.setHoverExpand(domHoverExpand);
+  }, [domHoverExpand]);
 
   // -- Bid/Ask footprint enabled sync --
   useEffect(() => {
     refs.bidAskPrimitive.current?.setEnabled(bidAskEnabled);
   }, [bidAskEnabled]);
 
-  // -- VP hover tracking (crosshair move feeds hover price to primitive) --
+  // -- Market depth hover tracking (crosshair move feeds hover price to primitive) --
   useEffect(() => {
     const chart = refs.chart.current;
-    const vp = refs.vpPrimitive.current;
-    if (!chart || !vp || !vpEnabled) return;
+    const vp = refs.domPrimitive.current;
+    if (!chart || !vp || !domEnabled) return;
 
     let rafId = 0;
 
@@ -440,7 +440,7 @@ export function useChartBars(
       chart.unsubscribeCrosshairMove(onCrosshairMove);
       vp.setHoverPrice(null);
     };
-  }, [vpEnabled]);
+  }, [domEnabled]);
 
   return { loading, error };
 }
