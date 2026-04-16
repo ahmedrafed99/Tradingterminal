@@ -178,6 +178,33 @@ export function isTimestampInCMETradingSession(utcSec: number): boolean {
   return true;
 }
 
+/**
+ * Returns the UTC seconds timestamp for the start of the current CME session (18:00 ET).
+ * If current ET hour >= 18: today's 18:00 ET; otherwise yesterday's 18:00 ET.
+ */
+export function getCurrentSessionStartSec(): number {
+  const now = Date.now();
+  const parts = fmtNYWithMin.formatToParts(new Date(now));
+  const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
+  const year = get('year'), month = get('month'), day = get('day');
+  const hour = get('hour') % 24;
+
+  // Session started today (if current ET hour >= 18) or yesterday
+  const startDayUtc = hour >= 18
+    ? Date.UTC(year, month - 1, day)
+    : Date.UTC(year, month - 1, day - 1);
+
+  // Find UTC ms where ET hour = 18 (EDT = UTC-4 → UTC 22:00; EST = UTC-5 → UTC 23:00)
+  for (const utcH of [22, 23]) {
+    const candidateMs = startDayUtc + utcH * 3600 * 1000;
+    const cParts = fmtNYWithMin.formatToParts(new Date(candidateMs));
+    const cHour = Number(cParts.find(p => p.type === 'hour')!.value) % 24;
+    if (cHour === 18) return Math.floor(candidateMs / 1000);
+  }
+  // Fallback to EST (UTC-5)
+  return Math.floor((startDayUtc + 23 * 3600 * 1000) / 1000);
+}
+
 /** Human-readable label for when the market next reopens. */
 export function getNextOpenLabel(): string {
   const { day, h } = getETComponents();

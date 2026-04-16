@@ -83,6 +83,15 @@ export type PositionHandler = (position: RealtimePosition, action: number) => vo
 export type AccountHandler  = (account: RealtimeAccount, action: number) => void;
 export type TradeHandler    = (trade: RealtimeTrade, action: number) => void;
 
+/** A single executed market fill — price and number of contracts traded. */
+export interface MarketTick {
+  price: number;
+  size: number;
+  timestampMs: number;
+}
+
+export type MarketTickHandler = (contractId: string, ticks: MarketTick[]) => void;
+
 // ── Adapter interface ─────────────────────────────────────────────────────
 
 export interface RealtimeAdapter {
@@ -113,6 +122,8 @@ export interface RealtimeAdapter {
   offAccount(handler: AccountHandler): void;
   onTrade(handler: TradeHandler): void;
   offTrade(handler: TradeHandler): void;
+  onMarketTick(handler: MarketTickHandler): void;
+  offMarketTick(handler: MarketTickHandler): void;
   onUserReconnect(handler: () => void): void;
   offUserReconnect(handler: () => void): void;
   onMarketReconnect(handler: () => void): void;

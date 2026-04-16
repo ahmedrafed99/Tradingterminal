@@ -4,7 +4,7 @@ import type {
   RealtimeAdapter, Quote, DepthEntry,
   RealtimeOrder, RealtimePosition, RealtimeAccount, RealtimeTrade,
   QuoteHandler, DepthHandler, OrderHandler, PositionHandler,
-  AccountHandler, TradeHandler,
+  AccountHandler, TradeHandler, MarketTick, MarketTickHandler,
 } from '../types';
 
 // ── SignalR-specific helpers (not part of the public adapter API) ──────────
@@ -28,12 +28,13 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   private marketHub: signalR.HubConnection | null = null;
   private userHub:   signalR.HubConnection | null = null;
 
-  private quoteHandlers:    QuoteHandler[]    = [];
-  private depthHandlers:    DepthHandler[]    = [];
-  private orderHandlers:    OrderHandler[]    = [];
-  private positionHandlers: PositionHandler[] = [];
-  private accountHandlers:  AccountHandler[]  = [];
-  private tradeHandlers:    TradeHandler[]    = [];
+  private quoteHandlers:      QuoteHandler[]      = [];
+  private depthHandlers:      DepthHandler[]      = [];
+  private orderHandlers:      OrderHandler[]      = [];
+  private positionHandlers:   PositionHandler[]   = [];
+  private accountHandlers:    AccountHandler[]    = [];
+  private tradeHandlers:      TradeHandler[]      = [];
+  private marketTickHandlers: MarketTickHandler[] = [];
 
   private subscribedQuotes: Set<string> = new Set();
   private subscribedDepth: Set<string> = new Set();
@@ -83,11 +84,26 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
       this.quoteHandlers.forEach((h) => h(contractId, data));
     });
 
-    // Market hub: GatewayTrade — use trade price to keep lastPrice fresh
+    // Market hub: GatewayTrade — dispatch fills as MarketTick[] and synthesize quote update.
     // GatewayQuote only fires on best-bid/ask changes and can go silent;
     // trades fire on every fill, so we synthesize a quote update from them.
     this.marketHub.on('GatewayTrade', (contractId: string, trades: unknown) => {
       const arr = Array.isArray(trades) ? trades : [trades];
+
+      // Dispatch to market tick handlers (for FRVP trade volume accumulation)
+      if (this.marketTickHandlers.length > 0) {
+        const ticks: MarketTick[] = [];
+        for (const t of arr) {
+          const raw = t as { price?: number; Price?: number; size?: number; Size?: number; volume?: number; Volume?: number; timestamp?: string };
+          const price = raw.price ?? raw.Price;
+          const size = raw.size ?? raw.Size ?? raw.volume ?? raw.Volume ?? 1;
+          if (price && price > 0) {
+            ticks.push({ price, size, timestampMs: raw.timestamp ? new Date(raw.timestamp).getTime() : Date.now() });
+          }
+        }
+        if (ticks.length > 0) this.marketTickHandlers.forEach((h) => h(contractId, ticks));
+      }
+
       const last = arr[arr.length - 1] as { price?: number; timestamp?: string } | undefined;
       if (!last?.price) return;
 
@@ -261,8 +277,11 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   offPosition(handler: PositionHandler) { this.positionHandlers = this.positionHandlers.filter((h) => h !== handler); }
   offAccount(handler: AccountHandler)   { this.accountHandlers  = this.accountHandlers.filter((h) => h !== handler); }
 
-  onTrade(handler: TradeHandler)       { this.tradeHandlers.push(handler); }
-  offTrade(handler: TradeHandler)      { this.tradeHandlers    = this.tradeHandlers.filter((h) => h !== handler); }
+  onTrade(handler: TradeHandler)             { this.tradeHandlers.push(handler); }
+  offTrade(handler: TradeHandler)            { this.tradeHandlers       = this.tradeHandlers.filter((h) => h !== handler); }
+
+  onMarketTick(handler: MarketTickHandler)   { this.marketTickHandlers.push(handler); }
+  offMarketTick(handler: MarketTickHandler)  { this.marketTickHandlers  = this.marketTickHandlers.filter((h) => h !== handler); }
 
   onUserReconnect(handler: () => void)  { this.userReconnectHandlers.push(handler); }
   offUserReconnect(handler: () => void) { this.userReconnectHandlers = this.userReconnectHandlers.filter((h) => h !== handler); }

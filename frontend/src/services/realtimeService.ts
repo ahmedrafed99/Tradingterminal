@@ -12,6 +12,8 @@ export type {
   PositionHandler,
   AccountHandler,
   TradeHandler,
+  MarketTick,
+  MarketTickHandler,
   RealtimeAdapter,
 } from '../adapters/types';
 
@@ -23,6 +25,7 @@ export type GatewayQuote = Quote;
 import type {
   QuoteHandler as QH, DepthHandler as DH, OrderHandler as OH,
   PositionHandler as PH, AccountHandler as AH, TradeHandler as TH,
+  MarketTickHandler as MTH,
 } from '../adapters/types';
 import { setRealtimeAdapter, getRealtimeAdapter } from '../adapters/registry';
 import { createProjectXRealtimeAdapter } from '../adapters/projectx';
@@ -56,6 +59,8 @@ export const realtimeService = {
   offAccount:          (h: AH)      => adapter().offAccount(h),
   onTrade:             (h: TH)      => adapter().onTrade(h),
   offTrade:            (h: TH)      => adapter().offTrade(h),
+  onMarketTick:        (h: MTH)     => adapter().onMarketTick(h),
+  offMarketTick:       (h: MTH)     => adapter().offMarketTick(h),
   onUserReconnect:     (h: () => void) => adapter().onUserReconnect(h),
   offUserReconnect:    (h: () => void) => adapter().offUserReconnect(h),
   onMarketReconnect:   (h: () => void) => adapter().onMarketReconnect(h),

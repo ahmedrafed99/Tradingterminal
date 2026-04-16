@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CandlestickData, UTCTimestamp } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { marketDataService } from '../../../services/marketDataService';
-import { realtimeService, type GatewayQuote, type DepthEntry } from '../../../services/realtimeService';
+import { realtimeService, type GatewayQuote, type DepthEntry, type MarketTick } from '../../../services/realtimeService';
 import { DepthType } from '../../../types/enums';
 import {
   barToCandle,
@@ -15,7 +15,7 @@ import {
   generateWhitespace,
 } from '../barUtils';
 import type { ChartRefs } from './types';
-import { getSchedule, isTimestampInCMETradingSession } from '../../../utils/marketHours';
+import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec } from '../../../utils/marketHours';
 
 /**
  * Handles historical bar loading, real-time quote subscription, and volume profile.
@@ -30,6 +30,9 @@ export function useChartBars(
   const connected = useStore((s) => s.connected);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Accumulated trade volume map for anchor-mode FRVP drawings (price → contracts traded)
+  const tradeAnchorMapRef = useRef(new Map<number, number>());
 
   const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : s.secondDomEnabled);
   const domColor = useStore((s) => chartId === 'left' ? s.domColor : s.secondDomColor);
@@ -136,9 +139,26 @@ export function useChartBars(
           refs.drawingsPrimitive.current?.setDecimals(dec);
           refs.drawingsPrimitive.current?.setTickSize(contract?.tickSize ?? 0.01);
           refs.drawingsPrimitive.current?.setBarsRef(sorted);
-          if (refs.domPrimitive.current) {
-            refs.drawingsPrimitive.current?.setSharedVolumeMap(refs.domPrimitive.current.getVolumeMap());
+
+          // Build trade volume map from current-session bars only for anchor-mode FRVP drawings.
+          // Distributes each bar's volume evenly across its price range (low→high).
+          const ts = contract?.tickSize ?? 0.01;
+          const sessionStart = contract?.marketType === 'futures' ? getCurrentSessionStartSec() : 0;
+          const tradeMap = new Map<number, number>();
+          for (const bar of sorted) {
+            if (sessionStart > 0 && Math.floor(new Date(bar.t).getTime() / 1000) < sessionStart) continue;
+            if (bar.v <= 0 || bar.h < bar.l) continue;
+            const lowIdx = Math.round(bar.l / ts);
+            const highIdx = Math.round(bar.h / ts);
+            const numTicks = Math.max(highIdx - lowIdx + 1, 1);
+            const volPerTick = bar.v / numTicks;
+            for (let i = lowIdx; i <= highIdx; i++) {
+              const price = Math.round(i * ts * 1e10) / 1e10;
+              tradeMap.set(price, (tradeMap.get(price) ?? 0) + volPerTick);
+            }
           }
+          tradeAnchorMapRef.current = tradeMap;
+          refs.drawingsPrimitive.current?.setSharedVolumeMap(tradeAnchorMapRef.current);
           refs.crosshairLabel.current?.setDecimals(dec);
           refs.crosshairLabel.current?.setTickSize(contract?.tickSize ?? 0);
           if (refs.lastBar.current) {
@@ -297,6 +317,17 @@ export function useChartBars(
 
     realtimeService.onQuote(handleQuote);
 
+    // Accumulate live GatewayTrade ticks into the anchor-mode FRVP volume map
+    function handleMarketTick(tickContractId: string, ticks: MarketTick[]) {
+      if (tickContractId !== contractId) return;
+      const ts = contract?.tickSize ?? 0.01;
+      for (const tick of ticks) {
+        const key = Math.round(Math.round(tick.price / ts) * ts * 1e10) / 1e10;
+        tradeAnchorMapRef.current.set(key, (tradeAnchorMapRef.current.get(key) ?? 0) + tick.size);
+      }
+    }
+    realtimeService.onMarketTick(handleMarketTick);
+
     // When the tab regains visibility after being backgrounded, silently
     // backfill any candles that closed while RAF was throttled.
     function handleVisibilityChange() {
@@ -345,6 +376,7 @@ export function useChartBars(
       cancelAnimationFrame(quoteRafId);
       refs.countdown.current?.setLive(false);
       realtimeService.offQuote(handleQuote);
+      realtimeService.offMarketTick(handleMarketTick);
       realtimeService.unsubscribeQuotes(contractId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

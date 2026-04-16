@@ -798,11 +798,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _selectedIds: string[] = [];
   private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | FRVPPaneView)[] = [];
 
-  // Shared VP VolumeMap ref for FRVP anchor-mode drawings
+  // Shared VP VolumeMap ref for all FRVP drawings (real trade ticks, session-scoped)
   private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
-  // Per-drawing volume maps for range-mode FRVP drawings (keyed by drawing ID)
-  private _rangeVolumeMaps: Map<string, { current: Map<number, number> }> = new Map();
-  // Raw bars for range-mode volume computation
+  // Raw bars for range-mode pMin/pMax computation
   private _barsRef: Bar[] = [];
   private _tickSize = 0.01;
 
@@ -908,31 +906,6 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       this._rebuildViews();
       this._requestUpdate?.();
     }
-  }
-
-  /** Single-pass: build volume map AND compute pMin/pMax from bars in [t1, t2]. */
-  private _buildRangeData(t1: number, t2: number, tickSize: number): { volumeMap: Map<number, number>; pMin: number; pMax: number } | null {
-    const ts = tickSize > 0 ? tickSize : 0.01;
-    const tMin = Math.min(t1, t2);
-    const tMax = Math.max(t1, t2);
-    const map = new Map<number, number>();
-    let pMin = Infinity, pMax = -Infinity;
-    for (const bar of this._barsRef) {
-      const barTime = Math.floor(new Date(bar.t).getTime() / 1000);
-      if (barTime < tMin || barTime > tMax) continue;
-      if (bar.l < pMin) pMin = bar.l;
-      if (bar.h > pMax) pMax = bar.h;
-      if (bar.v <= 0 || bar.h < bar.l) continue;
-      const lowIdx = Math.round(bar.l / ts);
-      const highIdx = Math.round(bar.h / ts);
-      const numTicks = Math.max(highIdx - lowIdx + 1, 1);
-      const volPerTick = bar.v / numTicks;
-      for (let i = lowIdx; i <= highIdx; i++) {
-        const price = i * ts;
-        map.set(price, (map.get(price) ?? 0) + volPerTick);
-      }
-    }
-    return pMin <= pMax ? { volumeMap: map, pMin, pMax } : null;
   }
 
   /** Compute pMin/pMax from bars in [t1, t2]. Returns null if no bars in range. */
@@ -1077,27 +1050,26 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
           // Resolve effective t2: auto-follow latest bar when t2Auto is true
           const effectiveT2 = frvp.t2Auto && this._lastBarTime > 0 ? this._lastBarTime : frvp.t2;
           const effectiveFrvp = effectiveT2 !== frvp.t2 ? { ...frvp, t2: effectiveT2 } : frvp;
-          let mapRef = this._rangeVolumeMaps.get(d.id);
-          if (!mapRef) { mapRef = { current: new Map() }; this._rangeVolumeMaps.set(d.id, mapRef); }
-          const rangeData = this._buildRangeData(frvp.anchorTime, effectiveT2, this._tickSize);
-          mapRef.current = rangeData?.volumeMap ?? new Map();
-          // Auto-sync pMin/pMax from actual bar range if they differ (e.g. after mode switch).
+          // Auto-sync pMin/pMax from actual candle range if they differ.
           // Gate with _lastSyncedBounds to prevent microtask→updateDrawing→_rebuildViews loop.
-          if (rangeData && this._onRangeBoundsUpdate) {
+          const bounds = this.computeRangeBounds(frvp.anchorTime, effectiveT2);
+          if (bounds && this._onRangeBoundsUpdate) {
             const tol = this._tickSize;
             const last = this._lastSyncedBounds.get(frvp.id);
             const alreadySynced = last &&
-              Math.abs(last.pMin - rangeData.pMin) <= tol &&
-              Math.abs(last.pMax - rangeData.pMax) <= tol;
-            if (!alreadySynced && (Math.abs(rangeData.pMin - frvp.pMin) > tol || Math.abs(rangeData.pMax - frvp.pMax) > tol)) {
+              Math.abs(last.pMin - bounds.pMin) <= tol &&
+              Math.abs(last.pMax - bounds.pMax) <= tol;
+            if (!alreadySynced && (Math.abs(bounds.pMin - frvp.pMin) > tol || Math.abs(bounds.pMax - frvp.pMax) > tol)) {
               const cb = this._onRangeBoundsUpdate;
               const id = frvp.id;
-              const { pMin, pMax } = rangeData;
+              const { pMin, pMax } = bounds;
               this._lastSyncedBounds.set(id, { pMin, pMax });
               queueMicrotask(() => cb(id, pMin, pMax));
             }
           }
-          return new FRVPPaneView(effectiveFrvp, selected, this._series!, this._chart!, mapRef, this._tickSize, this._requestUpdate);
+          // Use shared volume map (real trade ticks) — same data source as anchor mode.
+          // Renderer clips bars to [pMin, pMax] so only prices within the dragged range show.
+          return new FRVPPaneView(effectiveFrvp, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
         }
         return new FRVPPaneView(d as FRVPDrawing, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
       } else {
