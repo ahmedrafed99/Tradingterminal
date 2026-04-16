@@ -161,7 +161,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     if (hoveredBar && this._drawing.showBarValues) {
       const { cssAnchorX, cssCenterY, volume } = hoveredBar as HoveredBarInfo;
       target.useMediaCoordinateSpace(({ context: ctx }) => {
-        const volText = volume.toLocaleString();
+        const volText = volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : String(Math.round(volume));
         ctx.font = `11px ${FONT_FAMILY}`;
         const textW = ctx.measureText(volText).width;
         const pad = 5;
