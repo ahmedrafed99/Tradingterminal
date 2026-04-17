@@ -354,7 +354,7 @@ export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 export function onFRVPMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, refs } = ctx;
   if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation
-      || state.rectCreation || state.rulerCreation || state.freeDrawCreation) return;
+      || state.rectCreation || state.rulerCreation || state.freeDrawCreation || state.frvpCreation) return;
   const tool = useStore.getState().activeTool;
   if (tool !== 'frvp') return;
   const { x, y } = getMousePos(e, container);

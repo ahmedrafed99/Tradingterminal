@@ -1,5 +1,6 @@
 import { useStore } from '../../../store/useStore';
 import { DEFAULT_ARROWPATH_COLOR } from '../../../types/drawing';
+import type { FRVPDrawing } from '../../../types/drawing';
 import { matchesShortcut, getEffectiveShortcuts } from '../../../constants/shortcuts';
 import type { DrawingContext } from './drawingInteraction';
 import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
@@ -109,6 +110,20 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // FRVP in progress: cancel
+  if (state.frvpCreation) {
+    const frvpMode = state.frvpCreation.mode;
+    state.frvpCreation = null;
+    if (frvpMode === 'range') {
+      primitive.clearFRVPRangePreview();
+    } else {
+      primitive.clearFRVPPreview();
+    }
+    resetChartInteraction(ctx);
+    setActiveTool('select');
+    return;
+  }
+
   // Any other drawing tool active: cancel to select
   if (activeTool !== 'select') {
     setActiveTool('select');
@@ -208,6 +223,18 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
       useStore.getState().setActiveTool('select');
       return;
     }
+    if (state.frvpCreation) {
+      const frvpMode = state.frvpCreation.mode;
+      state.frvpCreation = null;
+      if (frvpMode === 'range') {
+        primitive.clearFRVPRangePreview();
+      } else {
+        primitive.clearFRVPPreview();
+      }
+      resetChartInteraction(ctx);
+      useStore.getState().setActiveTool('select');
+      return;
+    }
     if (state.arrowPathNodeDrag) {
       useStore.getState().updateDrawing(state.arrowPathNodeDrag.drawingId, {
         points: [...state.arrowPathNodeDrag.origPoints],
@@ -226,6 +253,15 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
           anchorTime: state.drawingDrag.origAnchorTime,
           points: state.drawingDrag.origBarOffsets.map((p) => ({ ...p })),
         }, true);
+      } else if (state.drawingDrag.type === 'frvp') {
+        const isRange = state.drawingDrag.origP2.time !== state.drawingDrag.origP1.time;
+        const prev: Partial<FRVPDrawing> = {
+          anchorTime: state.drawingDrag.origP1.time,
+          pMin: state.drawingDrag.origP1.price,
+          pMax: state.drawingDrag.origP2.price,
+        };
+        if (isRange) prev.t2 = state.drawingDrag.origP2.time;
+        useStore.getState().updateDrawing(state.drawingDrag.drawingId, prev, true);
       } else {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
           p1: state.drawingDrag.origP1, p2: state.drawingDrag.origP2,
@@ -237,9 +273,18 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
       return;
     }
     if (state.ovalResize) {
-      useStore.getState().updateDrawing(state.ovalResize.drawingId, {
-        p1: state.ovalResize.origP1, p2: state.ovalResize.origP2,
-      }, true);
+      const resizedDrawing = useStore.getState().drawings.find((d) => d.id === state.ovalResize!.drawingId);
+      const frvpResized = resizedDrawing?.type === 'frvp' ? resizedDrawing as FRVPDrawing : null;
+      if (frvpResized) {
+        const undoPrev: Partial<FRVPDrawing> = frvpResized.mode === 'range'
+          ? { anchorTime: state.ovalResize.origP1.time, t2: state.ovalResize.origP2.time, pMin: state.ovalResize.origP1.price, pMax: state.ovalResize.origP2.price }
+          : { pMin: state.ovalResize.origP1.price, pMax: state.ovalResize.origP2.price };
+        useStore.getState().updateDrawing(state.ovalResize.drawingId, undoPrev, true);
+      } else {
+        useStore.getState().updateDrawing(state.ovalResize.drawingId, {
+          p1: state.ovalResize.origP1, p2: state.ovalResize.origP2,
+        }, true);
+      }
       state.ovalResize = null;
       resetChartInteraction(ctx);
       return;

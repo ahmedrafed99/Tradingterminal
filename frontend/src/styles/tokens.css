@@ -67,6 +67,7 @@
 
   /* ── Label System ── */
   --color-label-bg: #cac9cb;
+  --color-chart-label-overlay: rgba(19, 23, 34, 0.90);
   --color-label-text: #000000;
   --color-label-close: #e0e0e0;
   --color-label-close-hover: #b8b8b8;

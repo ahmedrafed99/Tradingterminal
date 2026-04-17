@@ -116,7 +116,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           { type: 'update', drawingId: id, previous },
         ].slice(-50);
 
-        const frvpKeys = ['numBars', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues'] as const;
+        const frvpKeys = ['numBars', 'rowSizeMode', 'rowSizePrice', 'rowTickSize', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues'] as const;
         const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...frvpKeys] as const;
         if (existing && styleKeys.some((k) => k in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
@@ -137,6 +137,15 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           // FRVP-specific defaults
           if ('numBars' in patch || cur.numBars !== undefined) {
             updated.numBars = (p.numBars as number) ?? cur.numBars;
+          }
+          if ('rowSizeMode' in patch || cur.rowSizeMode !== undefined) {
+            updated.rowSizeMode = (p.rowSizeMode as 'count' | 'price') ?? cur.rowSizeMode;
+          }
+          if ('rowSizePrice' in patch || cur.rowSizePrice !== undefined) {
+            updated.rowSizePrice = (p.rowSizePrice as number) ?? cur.rowSizePrice;
+          }
+          if ('rowTickSize' in patch || cur.rowTickSize !== undefined) {
+            updated.rowTickSize = (p.rowTickSize as number) ?? cur.rowTickSize;
           }
           if ('pocColor' in patch || cur.pocColor !== undefined) {
             updated.pocColor = (p.pocColor as string) ?? cur.pocColor;

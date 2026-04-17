@@ -937,6 +937,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** Track latest bar time for t2Auto resolution in range FRVPs */
   setLastBarTime(t: number): void {
     this._lastBarTime = t;
+    const hasRange = this._drawings.some((d) => d.type === 'frvp' && (d as FRVPDrawing).mode === 'range' && (d as FRVPDrawing).t2Auto);
+    if (!hasRange) return;
     this._rebuildViews();
     this._requestUpdate?.();
   }

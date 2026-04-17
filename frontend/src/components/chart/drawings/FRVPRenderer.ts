@@ -2,7 +2,7 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE, COLOR_TEXT } from '../../../constants/colors';
+import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE, COLOR_TEXT, COLOR_CHART_LABEL_OVERLAY } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { applyLineDash } from './rendererUtils';
 import { hitTestRect } from './hitTesting';
@@ -11,8 +11,6 @@ import { hitTestRect } from './hitTesting';
 const EXPAND_PX = 3;
 /** Lerp speed toward expand target per frame */
 const EXPAND_LERP = 0.25;
-/** Label background */
-const LABEL_BG = 'rgba(19, 23, 34, 0.90)';
 
 // ---------------------------------------------------------------------------
 // Color helpers (copied from MarketDepthPrimitive.ts)
@@ -170,7 +168,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         const labelX = cssAnchorX + 4;
         const labelY = cssCenterY - labelH / 2;
 
-        ctx.fillStyle = LABEL_BG;
+        ctx.fillStyle = COLOR_CHART_LABEL_OVERLAY;
         ctx.beginPath();
         ctx.roundRect(labelX, labelY, labelW, labelH, 3);
         ctx.fill();
