@@ -34,7 +34,7 @@ docs/
 │   ├── chart-layout/          — Dual chart + crosshair sync
 │   ├── drawing-tools/         — HLine, oval, arrow path, free draw, renderers, templates
 │   │   └── undo/              — Ctrl+Z undo stack for drawings
-│   ├── order-panel/           — Order entry sidebar, market/limit, buy/sell
+│   ├── order-panel/           — Order entry sidebar, market/limit, buy/sell, symbol blacklist
 │   │   └── bracket-settings/  — Preset UI: SL, multi-TP, conditions
 │   ├── bracket-engine/        — Runtime SL/TP placement after fill, condition evaluation
 │   ├── bottom-panel/          — Orders + Trades tabs, trade zone visualization
@@ -103,6 +103,7 @@ docs/
 | Trade zone visualization (FIFO matching)    | `docs/shared/bottom-panel/` |
 | Stats dashboard (KPI, equity curve, calendar)| `docs/shared/stats-dashboard/` |
 | Instrument selector (categories, exchanges) | `docs/shared/instrument-selector/` |
+| Symbol blacklist (block trading on symbols) | `docs/shared/order-panel/` → BlacklistBanner |
 | Conditional orders (candle-close triggers)  | `docs/shared/conditional-orders/` |
 | Voice notifications on fills                | `docs/shared/voice-notifications/` |
 | Chart video recording                       | `docs/shared/video-recording/` |
@@ -112,7 +113,7 @@ docs/
 | **System & Architecture** | |
 | Design tokens (colors, font, z-index)       | `docs/shared/design-tokens/` |
 | Settings persistence / file backup          | `docs/shared/settings-persistence/` |
-| All Zustand store slices (9 domain slices)  | `docs/shared/frontend/` → Zustand Store |
+| All Zustand store slices (10 domain slices) | `docs/shared/frontend/` → Zustand Store |
 | All service API signatures                  | `docs/shared/frontend/` → Service Layer |
 | Realtime adapter interface + hub events      | `docs/shared/frontend/` → realtimeService.ts / adapters/ |
 | Shared components (Modal, TabButton, icons) | `docs/shared/frontend/` → Shared Components |
@@ -163,10 +164,10 @@ docs/
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
-│  │  │  Zustand Store (9 domain slices)                     │   │   │
+│  │  │  Zustand Store (10 domain slices)                    │   │   │
 │  │  │  connection | instrument | trading | drawings        │   │   │
 │  │  │  layout | conditions | chartSettings | shortcuts     │   │   │
-│  │  │  toast                                               │   │   │
+│  │  │  blacklist | toast                                   │   │   │
 │  │  └──────────────────────────────────────────────────────┘   │   │
 │  │                                                              │   │
 │  │  ┌──────────────────────────────────────────────────────┐   │   │
@@ -214,7 +215,7 @@ docs/
 |-------|---------|
 | Frontend | React 19 + TypeScript + Vite |
 | Chart | Lightweight Charts v5 (TradingView OSS) |
-| State | Zustand (9 domain slices, persisted to localStorage + backend JSON file) |
+| State | Zustand (10 domain slices, persisted to localStorage + backend JSON file) |
 | Styling | Tailwind CSS |
 | Typography | System font stack: `-apple-system, BlinkMacSystemFont, Trebuchet MS, Roboto, Ubuntu, sans-serif` |
 | Backend proxy | Node.js + Express |

@@ -46,8 +46,8 @@ const OpenOrdersQuery = z.object({
 
 // POST /orders/place
 router.post('/place', validateBody(PlaceOrderSchema), withConnection(async (req, res) => {
-  const { contractName } = req.body;
-  if (contractName && await isBlacklisted(contractName)) {
+  const { contractName, accountId } = req.body;
+  if (contractName && await isBlacklisted(contractName, accountId)) {
     const root = contractName.replace(/[A-Z]\d+$/i, '').toUpperCase();
     res.status(403).json({ success: false, errorMessage: `${root} is blacklisted — orders are disabled on this symbol.` });
     return;

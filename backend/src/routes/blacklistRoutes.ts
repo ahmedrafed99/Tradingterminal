@@ -8,18 +8,23 @@ const router = Router();
 // GET /blacklist
 router.get('/', async (_req, res) => {
   try {
-    const symbols = await getBlacklist();
-    res.json({ success: true, symbols });
+    const data = await getBlacklist();
+    res.json({ success: true, ...data });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ success: false, errorMessage: msg });
   }
 });
 
-// POST /blacklist/sync — replace full list (sent by frontend on every change)
-router.post('/sync', validateBody(z.object({ symbols: z.array(z.string()) })), async (req, res) => {
+// POST /blacklist/sync — replace full structure (sent by frontend on every change)
+const SyncSchema = z.object({
+  global: z.array(z.string()),
+  accounts: z.record(z.string(), z.array(z.string())),
+});
+
+router.post('/sync', validateBody(SyncSchema), async (req, res) => {
   try {
-    await saveBlacklist(req.body.symbols);
+    await saveBlacklist(req.body);
     res.json({ success: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';

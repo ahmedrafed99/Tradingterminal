@@ -1,11 +1,17 @@
 import api from '../../services/api';
 
+export interface BlacklistData {
+  global: string[];
+  accounts: Record<string, string[]>;
+}
+
 export interface BlacklistSlice {
-  blacklistedSymbols: string[];
-  addToBlacklist: (id: string) => void;
-  removeFromBlacklist: (id: string) => void;
+  blacklist: BlacklistData;
+  setBlacklistGlobal: (symbols: string[]) => void;
+  setBlacklistAccount: (accountId: string, symbols: string[]) => void;
+  removeSymbolFromAll: (sym: string) => void;
   clearBlacklist: () => void;
-  isBlacklisted: (id: string | null | undefined) => boolean;
+  isBlacklisted: (sym: string | null | undefined) => boolean;
 }
 
 type Set = {
@@ -13,8 +19,8 @@ type Set = {
   (fn: (s: BlacklistSlice) => Partial<BlacklistSlice>): void;
 };
 
-function syncToBackend(symbols: string[]): void {
-  api.post('/blacklist/sync', { symbols }).catch(() => {
+function syncToBackend(data: BlacklistData): void {
+  api.post('/blacklist/sync', data).catch(() => {
     // Best-effort — backend may not be running yet
   });
 }
@@ -24,32 +30,52 @@ export function createBlacklistSlice(
   get: () => BlacklistSlice,
 ): BlacklistSlice {
   return {
-    blacklistedSymbols: [],
+    blacklist: { global: [], accounts: {} },
 
-    addToBlacklist: (id) => {
-      set((s) => ({
-        blacklistedSymbols: s.blacklistedSymbols.includes(id)
-          ? s.blacklistedSymbols
-          : [...s.blacklistedSymbols, id],
-      }));
-      syncToBackend(get().blacklistedSymbols);
+    setBlacklistGlobal: (symbols) => {
+      set((s) => ({ blacklist: { ...s.blacklist, global: symbols } }));
+      syncToBackend(get().blacklist);
     },
 
-    removeFromBlacklist: (id) => {
+    setBlacklistAccount: (accountId, symbols) => {
       set((s) => ({
-        blacklistedSymbols: s.blacklistedSymbols.filter((sym) => sym !== id),
+        blacklist: {
+          ...s.blacklist,
+          accounts: { ...s.blacklist.accounts, [accountId]: symbols },
+        },
       }));
-      syncToBackend(get().blacklistedSymbols);
+      syncToBackend(get().blacklist);
+    },
+
+    removeSymbolFromAll: (sym) => {
+      set((s) => {
+        const newAccounts: Record<string, string[]> = {};
+        for (const [id, list] of Object.entries(s.blacklist.accounts)) {
+          newAccounts[id] = list.filter((x) => x !== sym);
+        }
+        return {
+          blacklist: {
+            global: s.blacklist.global.filter((x) => x !== sym),
+            accounts: newAccounts,
+          },
+        };
+      });
+      syncToBackend(get().blacklist);
     },
 
     clearBlacklist: () => {
-      set({ blacklistedSymbols: [] });
-      syncToBackend([]);
+      set({ blacklist: { global: [], accounts: {} } });
+      syncToBackend({ global: [], accounts: {} });
     },
 
-    isBlacklisted: (id) => {
-      if (!id) return false;
-      return get().blacklistedSymbols.includes(id);
+    isBlacklisted: (sym) => {
+      if (!sym) return false;
+      const state = get() as any;
+      const { blacklist } = state;
+      if (blacklist.global.includes(sym)) return true;
+      const activeAccountId: string | null = state.activeAccountId ?? null;
+      if (activeAccountId && blacklist.accounts[activeAccountId]?.includes(sym)) return true;
+      return false;
     },
   };
 }

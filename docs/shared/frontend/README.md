@@ -6,7 +6,7 @@ Full index of shared components, constants, store slices, hooks, utilities, and 
 
 ## Zustand Store (`store/`)
 
-The store is split into **9 domain slices** combined in `useStore.ts` via Zustand's `persist` middleware with `partialize` for selective localStorage persistence.
+The store is split into **10 domain slices** combined in `useStore.ts` via Zustand's `persist` middleware with `partialize` for selective localStorage persistence.
 
 ```
 store/
@@ -24,6 +24,7 @@ store/
     ├── conditionsSlice.ts   ← conditional orders, condition server URL
     ├── chartSettingsSlice.ts← bar colors, canvas background, FPS counter, trade zone settings
     ├── shortcutsSlice.ts    ← custom keyboard shortcut bindings
+    ├── blacklistSlice.ts    ← symbol blacklist: blocked root symbols, add/remove/clear, backend sync
     └── toastSlice.ts        ← toast notifications queue
 ```
 
@@ -192,6 +193,7 @@ All services call the local Express proxy (never ProjectX directly). See `docs/a
 | `positionService` | `services/positionService.ts` | Open positions REST query (graceful degradation to SignalR-only) |
 | `conditionTickForwarder` | `services/conditionTickForwarder.ts` | WebSocket bridge forwarding quote ticks to condition engine |
 | `manualCloseTracker` | `services/manualCloseTracker.ts` | Tracks manual position closes to prevent wrong sound alerts |
+| `placeOrderWithBrackets` | `services/placeOrderWithBrackets.ts` | Shared order placement logic used by BuySellButtons and quick-order paths; re-checks blacklist before submitting |
 
 ---
 

@@ -105,14 +105,22 @@ and the preview toggle that overlays ghost lines on the chart.
 - Toggles `previewEnabled` in Zustand
 - When enabled the `PreviewOverlay` in the chart renders ghost lines
 
+### `BlacklistBanner`
+- Renders inside the order panel, above the Buy/Sell buttons, **only when the active order contract's root symbol is blacklisted**
+- Root symbol extraction: `contract.name.replace(/[A-Z]\d+$/i, '')` (e.g. `NQH5` → `NQ`)
+- Styled as a warning strip: amber left border (`2px solid var(--color-warning)`), 8% amber tinted background
+- Shows `⊘ {sym} blocked` label + a **Manage** link that opens SettingsModal on the **Trading** tab via `setSettingsInitialTab('trading') + setSettingsOpen(true)`
+- Returns `null` if symbol is not blacklisted — zero layout impact
+
 ### `BuySellButtons`
 - **Buy** (`bg-(--color-btn-buy)`, hover `bg-(--color-btn-buy-hover)`): label `Buy +{size} {Market|Limit}`
 - **Sell** (`bg-(--color-btn-sell)`, hover `bg-(--color-btn-sell-hover)`): label `Sell -{size} {Market|Limit}`
 - `text-[11px] font-bold text-(--color-text)`, side-by-side layout
 - Both use `activeAccountId`, `activeContractId`, `orderSize`, and the active
   bracket configuration from the store
-- Buttons disabled when: not connected, no instrument selected, **or market is closed**
+- Buttons disabled when: not connected, no instrument selected, market is closed, **or active symbol is blacklisted**
 - **Market-closed state**: `useMarketStatus(marketType)` (1 s reactive hook) returns `{ open }` and drives `canPlace`. The `marketType` (`'futures' | 'crypto'`) is read from the active contract — crypto markets are always open. When closed, buttons are `disabled:opacity-50`. No banner is shown — the chart's MarketStatusBadge (red/green dot) already communicates market status. A second `getSchedule(marketType).isOpen()` call inside `handlePlace` guards against the race where the hook value is stale at click time.
+- **Blacklist guard**: `isBlacklisted(contractSym)` from `blacklistSlice` is checked both in `canPlace` (disables buttons) and inside `handlePlace` (throws if bypassed). `placeOrderWithBrackets` also re-checks on the client side before submitting.
 - On placement failure: shows error toast alongside inline error text
 
 ### `PositionDisplay`
@@ -198,6 +206,7 @@ interface OrderPanelState {
 ```
 User clicks BUY
   └─► client-side guard: getSchedule(marketType).isOpen() → toast + return if closed
+  └─► blacklist guard: isBlacklisted(contractSym) → throw if symbol is blocked
   └─► build payload:
         { accountId, contractId, type: 2 (market) or 1 (limit),
           side: 0 (Bid), size, limitPrice? }
@@ -280,6 +289,35 @@ This cleanup runs in `OrderPanel.tsx`'s order event handler.
 
 ---
 
+## Symbol Blacklist
+
+Prevents order placement on specific instruments. Operates on **root symbols** (e.g. `NQ`, not `NQH5`).
+
+### How it works
+
+1. **Store** (`blacklistSlice`): `blacklistedSymbols: string[]` — array of blocked root symbols. Persisted to localStorage. Every mutation (`addToBlacklist`, `removeFromBlacklist`, `clearBlacklist`) calls `syncToBackend()` which POSTs to `/blacklist/sync` (best-effort, does not block the UI).
+2. **Backend** (`blacklistService.ts`): Persists to `backend/data/blacklist.json`. In-memory `Set<string>` cache. Also exports `isBlacklisted(contractName)` used by server-side order guards.
+3. **UI — BlacklistBanner**: Shown in the order panel above the Buy/Sell buttons when the active contract's root symbol is blocked. Includes a **Manage** link → SettingsModal → Trading tab.
+4. **UI — BuySellButtons**: `canPlace` includes `!isBlacklisted(contractSym)`. `handlePlace` re-throws if blocked.
+5. **UI — placeOrderWithBrackets**: Re-checks `isBlacklisted` before submitting — defensive guard for call paths that bypass the button.
+6. **UI — InstrumentSelector**: Blocked symbols shown with a `blocked` badge in the dropdown (dimmed, not selectable for blocking again).
+
+### Managing the blacklist
+
+Settings → **Trading** tab → **Symbol Blacklist** section:
+- Search field (backed by `useInstrumentSearch`) to find and add symbols
+- Each blocked symbol shown with an ✕ remove button
+- **Clear all** button to unblock everything
+
+### Backend API
+
+| Method | Route | Body | Response |
+|--------|-------|------|----------|
+| GET | `/blacklist` | — | `{ success, symbols: string[] }` |
+| POST | `/blacklist/sync` | `{ symbols: string[] }` | `{ success }` |
+
+---
+
 ## API Calls
 
 | Action | Proxy Route | ProjectX Endpoint |
@@ -287,3 +325,5 @@ This cleanup runs in `OrderPanel.tsx`'s order event handler.
 | Search contracts | GET /contracts/search?q= | POST /api/Contract/search |
 | Place order | POST /orders/place | POST /api/Order/place |
 | Real-time positions | SignalR user feed | /hubs/user → GotPosition |
+| Get blacklist | GET /blacklist | — (local only) |
+| Sync blacklist | POST /blacklist/sync | — (local only) |

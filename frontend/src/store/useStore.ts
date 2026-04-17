@@ -52,7 +52,7 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'chart-store',
-      version: 1,
+      version: 2,
       migrate: (persisted: any, version: number) => {
         if (version === 0) {
           const wasVisible = persisted.newsVisible ?? true;
@@ -60,6 +60,12 @@ export const useStore = create<Store>()(
           persisted.newsImpactFilter = wasVisible
             ? { high: true, medium: false, low: false }
             : { high: false, medium: false, low: false };
+        }
+        if (version < 2) {
+          // migrate flat blacklistedSymbols array → { global, accounts }
+          const old: string[] = persisted.blacklistedSymbols ?? [];
+          delete persisted.blacklistedSymbols;
+          persisted.blacklist = { global: old, accounts: {} };
         }
         return persisted;
       },
@@ -110,7 +116,7 @@ export const useStore = create<Store>()(
         copyEnabled: s.copyEnabled,
         copyMasterAccountId: s.copyMasterAccountId,
         copyFollowerIds: s.copyFollowerIds,
-        blacklistedSymbols: s.blacklistedSymbols,
+        blacklist: s.blacklist,
       }),
     },
   ),
