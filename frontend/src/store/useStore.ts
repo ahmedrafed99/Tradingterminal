@@ -11,6 +11,7 @@ import { createConditionsSlice } from './slices/conditionsSlice';
 import { createToastSlice } from './slices/toastSlice';
 import { createChartSettingsSlice } from './slices/chartSettingsSlice';
 import { createShortcutsSlice } from './slices/shortcutsSlice';
+import { createBlacklistSlice } from './slices/blacklistSlice';
 
 // Slice types
 import type { ConnectionSlice } from './slices/connectionSlice';
@@ -22,6 +23,7 @@ import type { ConditionsSlice } from './slices/conditionsSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { ChartSettingsSlice } from './slices/chartSettingsSlice';
 import type { ShortcutsSlice } from './slices/shortcutsSlice';
+import type { BlacklistSlice } from './slices/blacklistSlice';
 
 // Re-export commonly used types so consumers don't need to change imports
 export type { Timeframe } from './slices/instrumentSlice';
@@ -32,11 +34,11 @@ export type { ToastItem } from './slices/toastSlice';
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
-  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice;
+  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice;
 
 export const useStore = create<Store>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...createConnectionSlice(set as any),
       ...createInstrumentSlice(set as any),
       ...createTradingSlice(set as any),
@@ -46,6 +48,7 @@ export const useStore = create<Store>()(
       ...createToastSlice(set as any),
       ...createChartSettingsSlice(set as any),
       ...createShortcutsSlice(set as any),
+      ...createBlacklistSlice(set as any, get as any),
     }),
     {
       name: 'chart-store',
@@ -107,6 +110,7 @@ export const useStore = create<Store>()(
         copyEnabled: s.copyEnabled,
         copyMasterAccountId: s.copyMasterAccountId,
         copyFollowerIds: s.copyFollowerIds,
+        blacklistedSymbols: s.blacklistedSymbols,
       }),
     },
   ),

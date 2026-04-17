@@ -23,6 +23,7 @@ export interface OrderBracket {
 export interface PlaceOrderParams {
   accountId: string;
   contractId: string;
+  contractName?: string;
   type: OrderType;
   side: OrderSide;
   size: number;

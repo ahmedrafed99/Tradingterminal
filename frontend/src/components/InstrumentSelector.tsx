@@ -36,6 +36,8 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const isBlacklisted = useStore((s) => s.isBlacklisted);
+
   const {
     query, setQuery, searching, results,
     showingSearch, displayList, bookmarks,
@@ -110,6 +112,8 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
           {displayList.map((c) => {
             const active = contract?.id === c.id;
             const bookmarked = isBookmarked(c);
+            const sym = c.name.replace(/[A-Z]\d+$/i, '');
+            const blocked = isBlacklisted(sym);
             return (
               <div
                 key={c.id}
@@ -120,7 +124,18 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
                 onClick={() => handleSelect(c)}
               >
                 <div className="flex-1 text-center">
-                  <div className={`text-xs font-medium ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}>{c.name}</div>
+                  <div className={`text-xs font-medium ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}>
+                    {c.name}
+                    {blocked && (
+                      <span
+                        title="Blocked"
+                        className="text-(--color-warning)"
+                        style={{ marginLeft: 4, fontSize: 10, opacity: 0.7 }}
+                      >
+                        ⊘
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[10px] text-(--color-text-muted) truncate">{c.description}</div>
                 </div>
                 <button

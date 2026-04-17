@@ -35,9 +35,11 @@ const DATA_FEED_PROVIDERS = [
 const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-sm text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
-  const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials } = useStore(useShallow((s) => ({
+  const { settingsOpen, setSettingsOpen, settingsInitialTab, setSettingsInitialTab, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials } = useStore(useShallow((s) => ({
     settingsOpen: s.settingsOpen,
     setSettingsOpen: s.setSettingsOpen,
+    settingsInitialTab: s.settingsInitialTab,
+    setSettingsInitialTab: s.setSettingsInitialTab,
     connected: s.connected,
     baseUrl: s.baseUrl,
     setConnected: s.setConnected,
@@ -70,6 +72,13 @@ export function SettingsModal() {
       }).catch(() => {});
     }
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (settingsOpen && settingsInitialTab) {
+      setTab(settingsInitialTab as SettingsTab);
+      setSettingsInitialTab(null);
+    }
+  }, [settingsOpen, settingsInitialTab]);
 
   if (!settingsOpen) return null;
 
@@ -255,6 +264,36 @@ export function SettingsModal() {
                     <span className="block text-[11px] text-(--color-text-muted)" style={{ marginTop: 6 }}>Condition server defaults to localhost:3001. Set a remote URL for server mode.</span>
                   </div>
 
+                  {/* Actions */}
+                  <div className="flex items-center" style={{ gap: 10 }}>
+                    <button
+                      onClick={() => setSettingsOpen(false)}
+                      className="text-sm text-(--color-text-muted) hover:text-white transition-colors"
+                      style={{ padding: '8px 16px' }}
+                    >
+                      Cancel
+                    </button>
+                    {connected ? (
+                      <button
+                        onClick={handleDisconnect}
+                        disabled={loading}
+                        className="text-sm font-medium rounded-lg bg-(--color-error)/20 text-(--color-error) hover:bg-(--color-error)/30 transition-all disabled:opacity-50"
+                        style={{ padding: '8px 24px' }}
+                      >
+                        {loading ? 'Disconnecting...' : 'Disconnect'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleConnect}
+                        disabled={loading || !userName || !apiKey}
+                        className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+                        style={{ padding: '8px 24px' }}
+                      >
+                        {loading ? 'Connecting...' : 'Connect'}
+                      </button>
+                    )}
+                  </div>
+
                   {error && (
                     <p className="text-xs text-(--color-error) bg-(--color-error)/10 rounded-lg" style={{ padding: '10px 16px' }}>{error}</p>
                   )}
@@ -274,37 +313,6 @@ export function SettingsModal() {
             )}
           </div>
 
-          {/* Footer — only for datafeed tab */}
-          {tab === 'datafeed' && (
-            <div className="flex justify-end items-center border-t border-(--color-border)/30 shrink-0" style={{ padding: '14px 32px', gap: 10 }}>
-              <button
-                onClick={() => setSettingsOpen(false)}
-                className="text-sm text-(--color-text-muted) hover:text-white transition-colors"
-                style={{ padding: '8px 16px' }}
-              >
-                Cancel
-              </button>
-              {connected ? (
-                <button
-                  onClick={handleDisconnect}
-                  disabled={loading}
-                  className="text-sm font-medium rounded-lg bg-(--color-error)/20 text-(--color-error) hover:bg-(--color-error)/30 transition-all disabled:opacity-50"
-                  style={{ padding: '8px 24px' }}
-                >
-                  {loading ? 'Disconnecting...' : 'Disconnect'}
-                </button>
-              ) : (
-                <button
-                  onClick={handleConnect}
-                  disabled={loading || !userName || !apiKey}
-                  className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
-                  style={{ padding: '8px 24px' }}
-                >
-                  {loading ? 'Connecting...' : 'Connect'}
-                </button>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </Modal>

@@ -11,7 +11,9 @@ import { DEFAULT_PINNED } from './instrumentSlice';
 export interface UiState {
   settingsHydrated: boolean;
   settingsOpen: boolean;
+  settingsInitialTab: string | null;
   setSettingsOpen: (open: boolean) => void;
+  setSettingsInitialTab: (tab: string | null) => void;
   editingPresetId: string | 'new' | null;
   setEditingPresetId: (id: string | 'new' | null) => void;
   hideAccountName: boolean;
@@ -136,7 +138,9 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   // UI
   settingsHydrated: false,
   settingsOpen: false,
+  settingsInitialTab: null,
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  setSettingsInitialTab: (settingsInitialTab) => set({ settingsInitialTab }),
   editingPresetId: null,
   setEditingPresetId: (editingPresetId) => set({ editingPresetId }),
   hideAccountName: false,

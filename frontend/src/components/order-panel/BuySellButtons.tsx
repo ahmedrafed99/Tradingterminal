@@ -34,11 +34,15 @@ export function BuySellButtons() {
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isBlacklisted = useStore((s) => s.isBlacklisted);
+  const contractSym = orderContract?.name.replace(/[A-Z]\d+$/i, '') ?? null;
+
   const { open: marketOpen } = useMarketStatus(marketType);
   const canPlace =
     activeAccountId != null &&
     orderContract != null &&
     marketOpen &&
+    !isBlacklisted(contractSym) &&
     (orderType === 'market' || (orderType === 'limit' && limitPrice != null));
 
   async function handlePlace(side: OrderSide) {

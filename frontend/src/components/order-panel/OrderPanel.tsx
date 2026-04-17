@@ -21,6 +21,7 @@ import { OrderTypeTabs } from './OrderTypeTabs';
 import { ContractsSpinner } from './ContractsSpinner';
 import { BracketSummary } from './BracketSummary';
 import { BuySellButtons } from './BuySellButtons';
+import { BlacklistBanner } from './BlacklistBanner';
 import { PositionDisplay } from './PositionDisplay';
 
 const BracketSettingsModal = lazy(() => import('./BracketSettingsModal').then(m => ({ default: m.BracketSettingsModal })));
@@ -619,6 +620,9 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
 
         {/* Preview toggle */}
         <PreviewToggle />
+
+        {/* Blacklist warning */}
+        <BlacklistBanner />
 
         {/* Buy / Sell */}
         <BuySellButtons />

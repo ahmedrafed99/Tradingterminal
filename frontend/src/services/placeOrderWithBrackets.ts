@@ -38,9 +38,15 @@ export async function placeOrderWithBrackets(
 ): Promise<PlaceWithBracketsResult> {
   const { accountId, contractId, contract, side, size, orderType, limitPrice, stopPrice, bracketConfig } = req;
 
+  const sym = contract.name.replace(/[A-Z]\d+$/i, '');
+  if (useStore.getState().isBlacklisted(sym)) {
+    throw new Error(`${sym} is blacklisted — orders are disabled on this symbol.`);
+  }
+
   const params: PlaceOrderParams = {
     accountId,
     contractId,
+    contractName: contract.name,
     type: orderType,
     side,
     size,

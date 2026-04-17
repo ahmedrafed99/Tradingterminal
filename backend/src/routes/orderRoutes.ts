@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody, validateQuery } from '../validate';
 import { withConnection, resolveAdapter } from '../middleware/withConnection';
 import { OrderType, OrderSide } from '../types/enums';
+import { isBlacklisted } from '../services/blacklistService';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ const BracketSchema = z.union([
 const PlaceOrderSchema = z.object({
   accountId: z.string().min(1),
   contractId: z.string().min(1),
+  contractName: z.string().optional(),
   type: z.nativeEnum(OrderType),
   side: z.nativeEnum(OrderSide),
   size: z.number().positive(),
@@ -44,6 +46,12 @@ const OpenOrdersQuery = z.object({
 
 // POST /orders/place
 router.post('/place', validateBody(PlaceOrderSchema), withConnection(async (req, res) => {
+  const { contractName } = req.body;
+  if (contractName && await isBlacklisted(contractName)) {
+    const root = contractName.replace(/[A-Z]\d+$/i, '').toUpperCase();
+    res.status(403).json({ success: false, errorMessage: `${root} is blacklisted — orders are disabled on this symbol.` });
+    return;
+  }
   const data = await resolveAdapter(req).orders.place(req.body);
   res.json(data);
 }));
