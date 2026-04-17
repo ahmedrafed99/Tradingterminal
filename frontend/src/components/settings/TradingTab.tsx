@@ -9,6 +9,17 @@ import type { Contract } from '../../services/marketDataService';
 
 const SECTION_TITLE = 'text-xs font-medium text-(--color-text) uppercase tracking-wider';
 
+function scopeLabel(sym: string, global: string[], accounts: Record<string, string[]>, accountCount: number): string {
+  const inGlobal = global.includes(sym);
+  const accountMatches = Object.values(accounts).filter((arr) => arr.includes(sym)).length;
+
+  if (inGlobal && accountMatches === 0) return 'Global only';
+  if (inGlobal && accountMatches === accountCount && accountCount > 0) return 'All accounts';
+  if (inGlobal && accountMatches > 0) return `Global + ${accountMatches} account${accountMatches > 1 ? 's' : ''}`;
+  if (!inGlobal && accountMatches > 0) return `${accountMatches} account${accountMatches > 1 ? 's' : ''}`;
+  return 'Not blocked';
+}
+
 export function TradingTab() {
   const {
     blacklist,
@@ -31,14 +42,21 @@ export function TradingTab() {
   );
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  const [openScopeSym, setOpenScopeSym] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const scopeRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { query, setQuery, searching, results, showingSearch, displayList } = useInstrumentSearch();
 
   useClickOutside(searchRef, true, () => setDropdownOpen(false));
 
-  // All symbols blocked in any scope
+  // Close scope dropdown when clicking outside it
+  useClickOutside(
+    { current: openScopeSym ? (scopeRefs.current[openScopeSym] ?? null) : null },
+    true,
+    () => setOpenScopeSym(null),
+  );
+
   const allSymbols = useMemo(() => {
     const set = new Set([
       ...blacklist.global,
@@ -51,12 +69,12 @@ export function TradingTab() {
 
   function handleAdd(c: Contract) {
     const sym = c.name.replace(/[A-Z]\d+$/i, '');
-    const alreadyExists = blacklist.global.includes(sym) ||
+    const alreadyExists =
+      blacklist.global.includes(sym) ||
       Object.values(blacklist.accounts).some((arr) => arr.includes(sym));
     if (alreadyExists) {
       showToast('info', `${sym} already blocked`);
     } else {
-      // Block on active account by default; fall back to global if no account
       if (activeAccountId) {
         const current = blacklist.accounts[activeAccountId] ?? [];
         setBlacklistAccount(activeAccountId, [...current, sym]);
@@ -85,11 +103,13 @@ export function TradingTab() {
   }
 
   function handleRemoveRow(sym: string) {
+    if (openScopeSym === sym) setOpenScopeSym(null);
     removeSymbolFromAll(sym);
-    showToast('success', `${sym} unblocked`, 'Orders on this symbol are re-enabled.');
+    showToast('success', `${sym} unblocked`);
   }
 
   function handleClearAll() {
+    setOpenScopeSym(null);
     clearBlacklist();
     showToast('success', 'All symbols unblocked');
   }
@@ -102,7 +122,7 @@ export function TradingTab() {
         <div>
           <div className={SECTION_TITLE} style={{ marginBottom: 10 }}>Symbol Blacklist</div>
           <p className="text-[11px] text-(--color-text-muted)" style={{ marginBottom: 14 }}>
-            Blocked symbols cannot be traded. Global blocks all accounts; per-account blocks only that account.
+            Blocked symbols cannot be traded. Choose which accounts each block applies to.
           </p>
 
           {/* Search / add */}
@@ -158,95 +178,117 @@ export function TradingTab() {
             )}
           </div>
 
-          {/* Matrix table */}
+          {/* Blocked list */}
           {!hasAny ? (
             <p className="text-xs text-(--color-text-muted) text-center" style={{ padding: '12px 0' }}>
               No symbols blocked — orders can be placed on any symbol.
             </p>
           ) : (
-            <div>
-              <div className="overflow-x-auto rounded-lg border border-(--color-border)">
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr className="border-b border-(--color-border)" style={{ background: 'var(--color-surface)' }}>
-                      <th className="text-left text-[11px] font-medium text-(--color-text-muted)" style={{ padding: '7px 12px', minWidth: 72 }}>
-                        Symbol
-                      </th>
-                      <th className="text-center text-[11px] font-medium text-(--color-text-muted)" style={{ padding: '7px 10px', minWidth: 64 }}>
-                        Global
-                      </th>
-                      {accounts.map((acc) => (
-                        <th
-                          key={acc.id}
-                          className="text-center text-[11px] font-medium text-(--color-text-muted)"
-                          style={{ padding: '7px 10px', minWidth: 90, maxWidth: 120 }}
-                          title={acc.name}
-                        >
-                          <span
-                            className="block overflow-hidden text-ellipsis whitespace-nowrap"
-                            style={{ maxWidth: 110 }}
-                          >
-                            {acc.name}
-                          </span>
-                        </th>
-                      ))}
-                      <th style={{ width: 32 }} />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allSymbols.map((sym) => (
-                      <tr
-                        key={sym}
-                        className="border-b border-(--color-border)/40 transition-colors"
-                        style={{
-                          background: hoveredRow === sym
-                            ? 'color-mix(in srgb, var(--color-warning) 6%, transparent)'
-                            : undefined,
-                        }}
-                        onMouseEnter={() => setHoveredRow(sym)}
-                        onMouseLeave={() => setHoveredRow(null)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {allSymbols.map((sym) => {
+                const isOpen = openScopeSym === sym;
+                const label = scopeLabel(sym, blacklist.global, blacklist.accounts, accounts.length);
+
+                return (
+                  <div
+                    key={sym}
+                    ref={(el) => { scopeRefs.current[sym] = el; }}
+                    className="relative"
+                  >
+                    {/* Row */}
+                    <div
+                      className="flex items-center gap-2 rounded-lg border border-(--color-warning)/20 transition-colors"
+                      style={{
+                        padding: '7px 10px',
+                        background: 'color-mix(in srgb, var(--color-warning) 6%, transparent)',
+                      }}
+                    >
+                      {/* Symbol name */}
+                      <span className="text-sm font-semibold text-(--color-warning)" style={{ minWidth: 36 }}>
+                        {sym}
+                      </span>
+
+                      {/* Scope dropdown trigger */}
+                      <button
+                        className="flex items-center gap-1.5 flex-1 rounded-md border border-(--color-border) bg-(--color-input) text-[11px] text-(--color-text-muted) hover:text-(--color-text) hover:border-(--color-border-bright) transition-colors"
+                        style={{ padding: '4px 8px', justifyContent: 'space-between' }}
+                        onClick={() => setOpenScopeSym(isOpen ? null : sym)}
                       >
-                        <td style={{ padding: '7px 12px' }}>
-                          <span className="text-sm font-medium text-(--color-warning)">{sym}</span>
-                        </td>
-                        <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                        <span>{label}</span>
+                        <span style={{ opacity: 0.5, fontSize: 9 }}>{isOpen ? '▲' : '▼'}</span>
+                      </button>
+
+                      {/* Remove row */}
+                      <button
+                        onClick={() => handleRemoveRow(sym)}
+                        className="text-[11px] text-(--color-text-dim) hover:text-(--color-error) transition-colors"
+                        title={`Remove ${sym}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Scope dropdown panel */}
+                    {isOpen && (
+                      <div
+                        className="absolute left-0 right-0 top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg py-1 animate-dropdown-in"
+                        style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
+                      >
+                        {/* Global option */}
+                        <label
+                          className="flex items-center gap-2.5 mx-1 rounded-md hover:bg-(--color-hover-row) transition-colors cursor-pointer"
+                          style={{ padding: '6px 10px' }}
+                        >
                           <input
                             type="checkbox"
                             checked={blacklist.global.includes(sym)}
                             onChange={() => toggleGlobal(sym)}
                             className="cursor-pointer accent-(--color-warning)"
                           />
-                        </td>
-                        {accounts.map((acc) => (
-                          <td key={acc.id} style={{ padding: '7px 10px', textAlign: 'center' }}>
-                            <input
-                              type="checkbox"
-                              checked={(blacklist.accounts[acc.id] ?? []).includes(sym)}
-                              onChange={() => toggleAccount(sym, acc.id)}
-                              className="cursor-pointer accent-(--color-warning)"
+                          <span className="text-xs text-(--color-text)">Global</span>
+                          <span className="text-[10px] text-(--color-text-muted)" style={{ marginLeft: 'auto' }}>all accounts</span>
+                        </label>
+
+                        {/* Per-account options */}
+                        {accounts.length > 0 && (
+                          <>
+                            <div
+                              className="border-t border-(--color-border)/50"
+                              style={{ margin: '4px 0' }}
                             />
-                          </td>
-                        ))}
-                        <td style={{ padding: '7px 8px', textAlign: 'center' }}>
-                          <button
-                            onClick={() => handleRemoveRow(sym)}
-                            className="text-[11px] text-(--color-text-dim) hover:text-(--color-error) transition-colors"
-                            style={{ opacity: hoveredRow === sym ? 1 : 0, transition: 'opacity var(--transition-fast)' }}
-                            title={`Remove ${sym}`}
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            {accounts.map((acc) => (
+                              <label
+                                key={acc.id}
+                                className="flex items-center gap-2.5 mx-1 rounded-md hover:bg-(--color-hover-row) transition-colors cursor-pointer"
+                                style={{ padding: '6px 10px' }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={(blacklist.accounts[acc.id] ?? []).includes(sym)}
+                                  onChange={() => toggleAccount(sym, acc.id)}
+                                  className="cursor-pointer accent-(--color-warning)"
+                                />
+                                <span
+                                  className="text-xs text-(--color-text) overflow-hidden text-ellipsis whitespace-nowrap"
+                                  style={{ maxWidth: 180 }}
+                                  title={acc.name}
+                                >
+                                  {acc.name}
+                                </span>
+                              </label>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
               <button
                 onClick={handleClearAll}
                 className="text-[11px] text-(--color-text-muted) hover:text-(--color-error) transition-colors text-right self-end"
-                style={{ marginTop: 8, display: 'block', marginLeft: 'auto' }}
+                style={{ marginTop: 6 }}
               >
                 Clear all
               </button>
