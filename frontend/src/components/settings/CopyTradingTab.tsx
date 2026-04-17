@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { CustomSelect } from '../shared/CustomSelect';
 
-const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider';
+const SECTION_TITLE = 'text-xs font-medium text-(--color-text) uppercase tracking-wider';
 
 export function CopyTradingTab() {
   const {
@@ -62,7 +62,7 @@ export function CopyTradingTab() {
     <div style={{ padding: '20px 24px 24px' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {accounts.length < 2 && (
-          <p className="text-xs text-(--color-text-dim) bg-(--color-border)/20 rounded-lg text-center" style={{ padding: '10px 16px' }}>
+          <p className="text-xs text-(--color-text-muted) bg-(--color-border)/20 rounded-lg text-center" style={{ padding: '10px 16px' }}>
             Copy trading requires at least 2 connected accounts.
           </p>
         )}
@@ -78,7 +78,7 @@ export function CopyTradingTab() {
                 onChange={handleMasterChange}
                 style={{ width: '100%' }}
               />
-              <p className="text-[10px] text-(--color-text-dim)" style={{ marginTop: 6 }}>
+              <p className="text-[11px] text-(--color-text-muted)" style={{ marginTop: 6 }}>
                 Trades on this account will be copied to the follower.
               </p>
             </div>
@@ -94,9 +94,9 @@ export function CopyTradingTab() {
                   style={{ width: '100%' }}
                 />
               ) : (
-                <p className="text-[11px] text-(--color-text-dim)">Select a master account first.</p>
+                <p className="text-xs text-(--color-text-muted)">Select a master account first.</p>
               )}
-              <p className="text-[10px] text-(--color-text-dim)" style={{ marginTop: 6 }}>
+              <p className="text-[11px] text-(--color-text-muted)" style={{ marginTop: 6 }}>
                 This account will mirror all trades from the master.
               </p>
             </div>
@@ -105,12 +105,12 @@ export function CopyTradingTab() {
             <div className="flex items-center justify-between">
               <div>
                 <div className={SECTION_TITLE}>Status</div>
-                <span className="text-xs text-(--color-text-muted)" style={{ marginTop: 4, display: 'block' }}>
+                <span className="text-sm text-(--color-text)" style={{ marginTop: 4, display: 'block' }}>
                   {copyEnabled ? 'Active' : 'Inactive'}
                 </span>
               </div>
               <label className="flex items-center gap-2 cursor-pointer select-none">
-                <span className={`text-[11px] ${copyEnabled ? 'text-(--color-buy)' : 'text-(--color-text-dim)'}`}>
+                <span className={`text-xs ${copyEnabled ? 'text-(--color-buy)' : 'text-(--color-text-muted)'}`}>
                   {copyEnabled ? 'On' : 'Off'}
                 </span>
                 <button

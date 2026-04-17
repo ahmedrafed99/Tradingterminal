@@ -33,7 +33,7 @@ export function RecordingTab() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Storage folder */}
         <div>
-          <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>
+          <div className="text-xs font-medium text-(--color-text) uppercase tracking-wider" style={{ marginBottom: 12 }}>
             Storage Location
           </div>
           <div className="flex items-center" style={{ gap: 10 }}>
@@ -44,13 +44,13 @@ export function RecordingTab() {
               {folderName ? (
                 <span className="text-(--color-text-bright)">{folderName}</span>
               ) : (
-                <span className="text-(--color-text-dim)">No folder selected</span>
+                <span className="text-(--color-text-muted)">No folder selected</span>
               )}
             </div>
             <button
               onClick={handleChooseFolder}
               disabled={picking}
-              className="text-xs font-medium rounded-lg bg-(--color-surface) border border-(--color-border) text-(--color-text) hover:bg-(--color-hover-row) transition-all disabled:opacity-50 whitespace-nowrap"
+              className="text-sm font-medium rounded-lg bg-(--color-surface) border border-(--color-border) text-(--color-text) hover:bg-(--color-hover-row) transition-all disabled:opacity-50 whitespace-nowrap"
               style={{ padding: '10px 14px' }}
             >
               {picking ? 'Opening...' : folderName ? 'Change Folder' : 'Choose Folder'}
@@ -69,12 +69,12 @@ export function RecordingTab() {
             )}
           </div>
           {!folderName && (
-            <span className="block text-[10px] text-(--color-warning)" style={{ marginTop: 6 }}>
+            <span className="block text-[11px] text-(--color-warning)" style={{ marginTop: 6 }}>
               Choose a folder to enable recording. Recordings will be saved as .webm files.
             </span>
           )}
           {folderName && (
-            <span className="block text-[10px] text-(--color-text-dim)" style={{ marginTop: 6 }}>
+            <span className="block text-[11px] text-(--color-text-muted)" style={{ marginTop: 6 }}>
               Recordings are saved directly to this folder. No backend involved.
             </span>
           )}
@@ -82,7 +82,7 @@ export function RecordingTab() {
 
         {/* Microphone */}
         <div>
-          <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>
+          <div className="text-xs font-medium text-(--color-text) uppercase tracking-wider" style={{ marginBottom: 12 }}>
             Audio
           </div>
           <label className="flex items-center cursor-pointer" style={{ gap: 10 }}>
@@ -95,9 +95,9 @@ export function RecordingTab() {
               }}
               className="accent-(--color-accent)"
             />
-            <span className="text-xs text-(--color-text)">Record microphone audio</span>
+            <span className="text-sm text-(--color-text)">Record microphone audio</span>
           </label>
-          <span className="block text-[10px] text-(--color-text-dim)" style={{ marginTop: 6 }}>
+          <span className="block text-[11px] text-(--color-text-muted)" style={{ marginTop: 6 }}>
             When enabled, your mic input will be included in recordings. Browser will ask for permission on first use.
           </span>
         </div>

@@ -10,12 +10,13 @@ import { SoundTab } from './settings/SoundTab';
 import { ShortcutsTab } from './settings/ShortcutsTab';
 import { RecordingTab } from './settings/RecordingTab';
 import { CopyTradingTab } from './settings/CopyTradingTab';
+import { TradingTab } from './settings/TradingTab';
 import { Modal } from './shared/Modal';
 import { CustomSelect } from './shared/CustomSelect';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
-type SettingsTab = 'datafeed' | 'database' | 'sound' | 'shortcuts' | 'recording' | 'copytrading';
+type SettingsTab = 'datafeed' | 'database' | 'sound' | 'shortcuts' | 'recording' | 'copytrading' | 'trading';
 
 const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'datafeed', label: 'Data Feed' },
@@ -24,13 +25,14 @@ const TABS: { id: SettingsTab; label: string }[] = [
   { id: 'shortcuts', label: 'Shortcuts' },
   { id: 'recording', label: 'Recording' },
   { id: 'copytrading', label: 'Copy Trading' },
+  { id: 'trading', label: 'Trading' },
 ];
 
 const DATA_FEED_PROVIDERS = [
   { id: 'topstepx', label: 'TopstepX by ProjectX' },
 ];
 
-const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
+const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-sm text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function SettingsModal() {
   const { settingsOpen, setSettingsOpen, connected, baseUrl, setConnected, setAccounts, conditionServerUrl, setConditionServerUrl, rememberCredentials, setRememberCredentials } = useStore(useShallow((s) => ({
@@ -55,11 +57,9 @@ export function SettingsModal() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
 
-  // Sync url fields when store values change
   useEffect(() => { setUrl(baseUrl || DEFAULT_BASE_URL); }, [baseUrl]);
   useEffect(() => { setCondUrl(conditionServerUrl); }, [conditionServerUrl]);
 
-  // Load saved credentials from encrypted backend storage when modal opens
   useEffect(() => {
     if (settingsOpen && rememberCredentials) {
       credentialService.load().then((creds) => {
@@ -67,7 +67,7 @@ export function SettingsModal() {
           setUserName(creds.userName);
           setApiKey(creds.apiKey);
         }
-      }).catch(() => {}); // silent — user can re-enter manually
+      }).catch(() => {});
     }
   }, [settingsOpen]);
 
@@ -101,7 +101,6 @@ export function SettingsModal() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Disconnect failed');
     } finally {
-      // Always clean up state — even if one service threw, the connection is torn down
       setConnected(false);
       setAccounts([]);
       setLoading(false);
@@ -109,79 +108,81 @@ export function SettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setSettingsOpen(false)} backdropClassName="!items-start" className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden" style={{ marginTop: '8vh' }}>
-        {/* Header */}
-        <div className="border-b border-(--color-border)/30" style={{ padding: '18px 24px 0 24px' }}>
-          <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
-            <h2 className="text-sm font-semibold text-white">Settings</h2>
-            <button
-              onClick={() => setSettingsOpen(false)}
-              className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
-              style={{ width: 32, height: 32 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
+    <Modal
+      onClose={() => setSettingsOpen(false)}
+      backdropClassName="!items-start"
+      className="w-screen h-screen flex flex-col bg-(--color-surface) border-x border-(--color-border) shadow-2xl overflow-hidden"
+      style={{ marginTop: 0 }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-(--color-border)/30 shrink-0" style={{ padding: '16px 24px' }}>
+        <h2 className="text-sm font-semibold text-white">Settings</h2>
+        <button
+          onClick={() => setSettingsOpen(false)}
+          className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
+          style={{ width: 32, height: 32 }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
 
-          {/* Tabs */}
-          <div className="flex" style={{ gap: 2 }}>
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className={`text-xs font-medium transition-colors relative cursor-pointer ${
-                  tab === t.id
-                    ? 'text-white'
-                    : 'text-(--color-text-muted) hover:text-(--color-text)'
-                }`}
-                style={{ padding: '8px 16px' }}
-              >
-                {t.label}
-                {tab === t.id && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-(--color-accent) rounded-full" />
-                )}
-              </button>
-            ))}
-          </div>
+      {/* Body: sidebar + content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div className="border-r border-(--color-border)/30 shrink-0 overflow-y-auto" style={{ width: 180, padding: '12px 8px' }}>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`w-full text-left text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+                tab === t.id
+                  ? 'bg-(--color-accent)/15 text-white'
+                  : 'text-(--color-text) hover:text-white hover:bg-(--color-border)/20'
+              }`}
+              style={{ padding: '8px 12px', marginBottom: 2 }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {/* Body */}
-        <div className="overflow-y-auto flex-1">
-          {tab === 'datafeed' && (
-            <>
-              <div style={{ padding: '20px 24px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  {/* Provider selector */}
-                  <div>
-                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Provider</div>
-                    <CustomSelect
-                      value={provider}
-                      options={DATA_FEED_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
-                      onChange={(v) => setProvider(v)}
-                      disabled={connected || loading}
-                      style={{ width: '100%' }}
-                    />
+        {/* Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="overflow-y-auto flex-1">
+
+            {tab === 'datafeed' && (
+              <div style={{ padding: '24px 32px', maxWidth: 720 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+                  {/* Provider + Status row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, alignItems: 'end' }}>
+                    <div>
+                      <div className="text-xs font-medium text-(--color-text) uppercase tracking-wider" style={{ marginBottom: 10 }}>Provider</div>
+                      <CustomSelect
+                        value={provider}
+                        options={DATA_FEED_PROVIDERS.map((p) => ({ value: p.id, label: p.label }))}
+                        onChange={(v) => setProvider(v)}
+                        disabled={connected || loading}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    <div className="flex items-center" style={{ gap: 8, paddingBottom: 10 }}>
+                      <span className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                      <span className="text-sm text-(--color-text)">
+                        {connected ? 'Connected' : 'Disconnected'}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Status pill */}
-                  <div className="flex items-center" style={{ gap: 8 }}>
-                    <span
-                      className={`inline-block w-2 h-2 rounded-full ${connected ? 'bg-emerald-400' : 'bg-red-400'}`}
-                    />
-                    <span className="text-xs text-(--color-text-muted)">
-                      {connected ? `Connected · ${baseUrl}` : 'Disconnected'}
-                    </span>
-                  </div>
-
-                  {/* Connection Fields */}
+                  {/* Credentials — 2-col */}
                   <div>
-                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Credentials</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div className="text-xs font-medium text-(--color-text) uppercase tracking-wider" style={{ marginBottom: 10 }}>Credentials</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <label className="block">
-                        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Username</span>
+                        <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>Username</span>
                         <input
                           type="text"
                           value={userName}
@@ -192,9 +193,8 @@ export function SettingsModal() {
                           style={{ padding: '10px 14px' }}
                         />
                       </label>
-
                       <label className="block">
-                        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>API Key</span>
+                        <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>API Key</span>
                         <input
                           type="password"
                           value={apiKey}
@@ -205,25 +205,30 @@ export function SettingsModal() {
                           style={{ padding: '10px 14px' }}
                         />
                       </label>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer select-none" style={{ marginTop: 10 }}>
+                      <input
+                        type="checkbox"
+                        checked={rememberCredentials}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setRememberCredentials(on);
+                          if (!on) {
+                            credentialService.clear().catch(() => {});
+                          }
+                        }}
+                        className="accent-(--color-accent)"
+                      />
+                      <span className="text-xs text-(--color-text)">Remember credentials</span>
+                    </label>
+                  </div>
 
-                      <label className="flex items-center gap-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={rememberCredentials}
-                          onChange={(e) => {
-                            const on = e.target.checked;
-                            setRememberCredentials(on);
-                            if (!on) {
-                              credentialService.clear().catch(() => {});
-                            }
-                          }}
-                          className="accent-(--color-accent)"
-                        />
-                        <span className="text-[11px] text-(--color-text-muted)">Remember credentials</span>
-                      </label>
-
+                  {/* URLs — 2-col */}
+                  <div>
+                    <div className="text-xs font-medium text-(--color-text) uppercase tracking-wider" style={{ marginBottom: 10 }}>Endpoints</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <label className="block">
-                        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Gateway URL</span>
+                        <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>Gateway URL</span>
                         <input
                           type="text"
                           value={url}
@@ -234,76 +239,74 @@ export function SettingsModal() {
                           style={{ padding: '10px 14px' }}
                         />
                       </label>
+                      <label className="block">
+                        <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>Condition Server URL</span>
+                        <input
+                          type="text"
+                          value={condUrl}
+                          onChange={(e) => setCondUrl(e.target.value)}
+                          onBlur={() => setConditionServerUrl(condUrl.trim())}
+                          placeholder="http://localhost:3001"
+                          className={INPUT_CLS}
+                          style={{ padding: '10px 14px' }}
+                        />
+                      </label>
                     </div>
+                    <span className="block text-[11px] text-(--color-text-muted)" style={{ marginTop: 6 }}>Condition server defaults to localhost:3001. Set a remote URL for server mode.</span>
                   </div>
 
-                  {/* Condition Server — always editable */}
-                  <div>
-                    <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: 12 }}>Condition Server</div>
-                    <label className="block">
-                      <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>Server URL</span>
-                      <input
-                        type="text"
-                        value={condUrl}
-                        onChange={(e) => setCondUrl(e.target.value)}
-                        onBlur={() => setConditionServerUrl(condUrl.trim())}
-                        placeholder="http://localhost:3001"
-                        className={INPUT_CLS}
-                        style={{ padding: '10px 14px' }}
-                      />
-                      <span className="block text-[10px] text-(--color-text-dim)" style={{ marginTop: 6 }}>Defaults to localhost:3001 (local backend). Set a remote URL for server mode.</span>
-                    </label>
-                  </div>
-
-                  {/* Error */}
                   {error && (
-                    <p className="text-xs text-(--color-error) bg-(--color-error)/10 rounded-lg text-center" style={{ padding: '10px 16px' }}>{error}</p>
+                    <p className="text-xs text-(--color-error) bg-(--color-error)/10 rounded-lg" style={{ padding: '10px 16px' }}>{error}</p>
                   )}
                 </div>
               </div>
+            )}
 
-              {/* Footer */}
-              <div className="flex justify-between items-center border-t border-(--color-border)/30" style={{ padding: '16px 24px' }}>
-                <div />
-                <div className="flex items-center" style={{ gap: 10 }}>
-                  <button
-                    onClick={() => setSettingsOpen(false)}
-                    className="text-xs text-(--color-text-muted) hover:text-white transition-colors"
-                    style={{ padding: '8px 16px' }}
-                  >
-                    Cancel
-                  </button>
-
-                  {connected ? (
-                    <button
-                      onClick={handleDisconnect}
-                      disabled={loading}
-                      className="text-xs font-medium rounded-lg bg-(--color-error)/20 text-(--color-error) hover:bg-(--color-error)/30 transition-all disabled:opacity-50"
-                      style={{ padding: '8px 24px' }}
-                    >
-                      {loading ? 'Disconnecting...' : 'Disconnect'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleConnect}
-                      disabled={loading || !userName || !apiKey}
-                      className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
-                      style={{ padding: '8px 24px' }}
-                    >
-                      {loading ? 'Connecting...' : 'Connect'}
-                    </button>
-                  )}
-                </div>
+            {tab !== 'datafeed' && (
+              <div style={{ maxWidth: 720, padding: '24px 32px' }}>
+                {tab === 'database' && <DatabaseTab />}
+                {tab === 'sound' && <SoundTab />}
+                {tab === 'shortcuts' && <ShortcutsTab />}
+                {tab === 'recording' && <RecordingTab />}
+                {tab === 'copytrading' && <CopyTradingTab />}
+                {tab === 'trading' && <TradingTab />}
               </div>
-            </>
+            )}
+          </div>
+
+          {/* Footer — only for datafeed tab */}
+          {tab === 'datafeed' && (
+            <div className="flex justify-end items-center border-t border-(--color-border)/30 shrink-0" style={{ padding: '14px 32px', gap: 10 }}>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="text-sm text-(--color-text-muted) hover:text-white transition-colors"
+                style={{ padding: '8px 16px' }}
+              >
+                Cancel
+              </button>
+              {connected ? (
+                <button
+                  onClick={handleDisconnect}
+                  disabled={loading}
+                  className="text-sm font-medium rounded-lg bg-(--color-error)/20 text-(--color-error) hover:bg-(--color-error)/30 transition-all disabled:opacity-50"
+                  style={{ padding: '8px 24px' }}
+                >
+                  {loading ? 'Disconnecting...' : 'Disconnect'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleConnect}
+                  disabled={loading || !userName || !apiKey}
+                  className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+                  style={{ padding: '8px 24px' }}
+                >
+                  {loading ? 'Connecting...' : 'Connect'}
+                </button>
+              )}
+            </div>
           )}
-
-          {tab === 'database' && <DatabaseTab />}
-          {tab === 'sound' && <SoundTab />}
-          {tab === 'shortcuts' && <ShortcutsTab />}
-          {tab === 'recording' && <RecordingTab />}
-          {tab === 'copytrading' && <CopyTradingTab />}
         </div>
+      </div>
     </Modal>
   );
 }

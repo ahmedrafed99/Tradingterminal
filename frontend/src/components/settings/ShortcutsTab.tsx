@@ -9,7 +9,7 @@ import {
   type KeyCombo,
 } from '../../constants/shortcuts';
 
-const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider';
+const SECTION_TITLE = 'text-xs font-medium text-(--color-text) uppercase tracking-wider';
 
 /** Group shortcut defs by category */
 function groupByCategory() {
@@ -39,7 +39,7 @@ function KeyBadge({
       style={{
         padding: '2px 8px',
         borderRadius: RADIUS.LG,
-        fontSize: 11,
+        fontSize: 13,
         fontFamily: FONT_FAMILY,
         background: 'var(--color-input)',
         border: active
@@ -100,7 +100,7 @@ function RecordingBadge({ onRecord, onCancel }: { onRecord: (combo: KeyCombo) =>
       style={{
         padding: '2px 8px',
         borderRadius: RADIUS.LG,
-        fontSize: 11,
+        fontSize: 13,
         fontFamily: FONT_FAMILY,
         background: 'var(--color-input)',
         border: '1px solid var(--color-accent)',
@@ -192,7 +192,7 @@ export function ShortcutsTab() {
                       {/* Label */}
                       <div className="flex items-center" style={{ gap: 8 }}>
                         <span
-                          className="text-xs"
+                          className="text-sm"
                           style={{
                             color: def.rebindable ? 'var(--color-text)' : 'var(--color-text-muted)',
                           }}
@@ -202,7 +202,7 @@ export function ShortcutsTab() {
                         {isCustomized(def.id) && def.rebindable && (
                           <button
                             onClick={() => resetShortcut(def.id)}
-                            className="text-[10px] hover:text-(--color-accent-text) transition-colors"
+                            className="text-[11px] hover:text-(--color-accent-text) transition-colors"
                             style={{
                               color: 'var(--color-text-dim)',
                               background: 'none',
@@ -240,7 +240,7 @@ export function ShortcutsTab() {
                     {/* Conflict warning */}
                     {conflict?.id === def.id && (
                       <div
-                        className="text-[10px] transition-opacity"
+                        className="text-[11px] transition-opacity"
                         style={{
                           color: 'var(--color-warning)',
                           padding: '0 8px 4px',
@@ -261,10 +261,10 @@ export function ShortcutsTab() {
           <button
             onClick={resetAllShortcuts}
             disabled={!hasCustom}
-            className="text-[11px] rounded transition-colors hover:text-(--color-text)"
+            className="text-xs rounded transition-colors hover:text-(--color-text)"
             style={{
               padding: '5px 14px',
-              color: 'var(--color-text-muted)',
+              color: 'var(--color-text)',
               background: 'none',
               border: '1px solid var(--color-border)',
               cursor: hasCustom ? 'pointer' : 'default',

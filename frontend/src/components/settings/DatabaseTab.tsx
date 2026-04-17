@@ -6,8 +6,8 @@ import {
 } from '../../services/databaseService';
 
 const POLL_INTERVAL = 1500;
-const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider';
-const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
+const SECTION_TITLE = 'text-xs font-medium text-(--color-text) uppercase tracking-wider';
+const INPUT_CLS = 'w-full bg-(--color-input) border border-(--color-border) rounded-lg text-sm text-(--color-text-bright) placeholder-(--color-text-dim) focus:outline-none focus:border-(--color-accent)/50 transition-all disabled:opacity-50';
 
 export function DatabaseTab() {
   const [status, setStatus] = useState<DatabaseStatus | null>(null);
@@ -158,7 +158,7 @@ export function DatabaseTab() {
         <div>
           <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
             <span className={SECTION_TITLE}>Stored Data</span>
-            <span className="text-[10px] text-(--color-text-dim)">
+            <span className="text-[11px] text-(--color-text-muted)">
               {formatBytes(status?.dbSizeBytes ?? 0)}
             </span>
           </div>
@@ -175,19 +175,19 @@ export function DatabaseTab() {
                   }}
                 >
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="text-xs text-white" style={{ marginBottom: 2 }}>
+                    <div className="text-sm text-white" style={{ marginBottom: 2 }}>
                       {c.contractId}
                     </div>
-                    <div className="text-[10px] text-(--color-text-muted)">
+                    <div className="text-[11px] text-(--color-text-muted)">
                       {formatDate(c.oldestBar)} — {formatDate(c.newestBar)}
-                      <span className="text-(--color-text-dim)"> · </span>
+                      <span className="text-(--color-text-muted)"> · </span>
                       {formatNumber(c.totalBars)} bars
                     </div>
                   </div>
                   <button
                     onClick={() => handleDelete(c.contractId)}
                     disabled={isFetching}
-                    className="opacity-0 group-hover/row:opacity-100 text-(--color-text-dim) hover:text-(--color-error) transition-all disabled:opacity-50 shrink-0"
+                    className="opacity-0 group-hover/row:opacity-100 text-(--color-text-muted) hover:text-(--color-error) transition-all disabled:opacity-50 shrink-0"
                     style={{ padding: 4 }}
                     title="Delete"
                   >
@@ -201,7 +201,7 @@ export function DatabaseTab() {
             </div>
           ) : (
             <div
-              className="text-xs text-center rounded-lg border border-(--color-border)/30 text-(--color-text-dim)"
+              className="text-sm text-center rounded-lg border border-(--color-border)/30 text-(--color-text-muted)"
               style={{ padding: '16px 12px' }}
             >
               No data stored yet
@@ -213,21 +213,21 @@ export function DatabaseTab() {
         <div>
           <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
             <span className={SECTION_TITLE}>Sync</span>
-            <span className="text-[10px] text-(--color-text-dim)">Auto-sync every 30 min</span>
+            <span className="text-[11px] text-(--color-text-muted)">Auto-sync every 30 min</span>
           </div>
 
           <div className="flex items-center" style={{ gap: 10 }}>
             <button
               onClick={handleSync}
               disabled={isFetching || loading || !hasData}
-              className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+              className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
               style={{ padding: '7px 18px' }}
             >
               {isFetching ? 'Syncing...' : 'Sync Now'}
             </button>
 
             {!hasData && (
-              <span className="text-[10px] text-(--color-text-dim)">No data to sync</span>
+              <span className="text-[11px] text-(--color-text-muted)">No data to sync</span>
             )}
           </div>
         </div>
@@ -237,9 +237,9 @@ export function DatabaseTab() {
           <div>
             <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
               <span className={SECTION_TITLE}>Progress</span>
-              <span className="text-[10px]">
+              <span className="text-[11px]">
                 {progress.status === 'running' && (
-                  <span className="text-(--color-text-muted)">Syncing...</span>
+                  <span className="text-(--color-text)">Syncing...</span>
                 )}
                 {progress.status === 'completed' && (
                   <span className="text-(--color-buy)">Completed</span>
@@ -269,18 +269,18 @@ export function DatabaseTab() {
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-(--color-text-muted)">
+              <span className="text-[11px] text-(--color-text)">
                 {progress.pagesCompleted} / {progress.pagesTotal} pages
               </span>
               {progress.barsInserted > 0 && (
-                <span className="text-[10px] text-(--color-text-muted)">
+                <span className="text-[11px] text-(--color-text)">
                   {formatNumber(progress.barsInserted)} bars inserted
                 </span>
               )}
             </div>
 
             {progress.status === 'failed' && progress.errorMessage && (
-              <div className="text-[10px] text-(--color-sell)" style={{ marginTop: 6 }}>
+              <div className="text-[11px] text-(--color-sell)" style={{ marginTop: 6 }}>
                 {progress.errorMessage}
               </div>
             )}
@@ -288,7 +288,7 @@ export function DatabaseTab() {
             {progress.status === 'running' && (
               <button
                 onClick={handleCancel}
-                className="text-[10px] text-(--color-text-muted) hover:text-(--color-error) transition-colors"
+                className="text-[11px] text-(--color-text-muted) hover:text-(--color-error) transition-colors"
                 style={{ marginTop: 8 }}
               >
                 Cancel
@@ -301,11 +301,11 @@ export function DatabaseTab() {
         <div>
           <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
             <span className={SECTION_TITLE}>Backup</span>
-            <span className="text-[10px] text-(--color-text-dim)">Auto-backup daily · last 7 kept</span>
+            <span className="text-[11px] text-(--color-text-muted)">Auto-backup daily · last 7 kept</span>
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: 6 }}>
+            <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>
               Save to directory (leave empty for default)
             </span>
             <div className="flex items-center" style={{ gap: 8 }}>
@@ -320,7 +320,7 @@ export function DatabaseTab() {
               <button
                 onClick={handleBackup}
                 disabled={backupLoading || !hasData}
-                className="text-[11px] font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
+                className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
                 style={{ padding: '7px 18px', whiteSpace: 'nowrap' }}
               >
                 {backupLoading ? 'Saving...' : 'Save Backup'}
@@ -331,14 +331,14 @@ export function DatabaseTab() {
           <button
             onClick={handleDownload}
             disabled={!hasData}
-            className="text-[11px] text-(--color-text-muted) hover:text-white transition-colors disabled:opacity-50"
+            className="text-xs text-(--color-text) hover:text-white transition-colors disabled:opacity-50"
           >
             Or download to browser →
           </button>
 
           {backupMsg && (
             <div
-              className={`text-[10px] rounded-lg ${
+              className={`text-[11px] rounded-lg ${
                 backupMsg.startsWith('Saved')
                   ? 'bg-(--color-buy)/10 text-(--color-buy)'
                   : 'bg-(--color-error)/10 text-(--color-error)'

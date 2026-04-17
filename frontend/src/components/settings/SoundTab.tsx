@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { audioService, type SoundName } from '../../services/audioService';
 
-const SECTION_TITLE = 'text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider';
+const SECTION_TITLE = 'text-xs font-medium text-(--color-text) uppercase tracking-wider';
 
 const SOUNDS: { name: SoundName; label: string }[] = [
   { name: 'order_filled', label: 'Entry Filled' },
@@ -40,7 +40,7 @@ export function SoundTab() {
         <div className="flex items-center justify-between">
           <span className={SECTION_TITLE}>Voice Notifications</span>
           <label className="flex items-center gap-2 cursor-pointer select-none">
-            <span className={`text-[11px] ${enabled ? 'text-(--color-buy)' : 'text-(--color-text-dim)'}`}>
+            <span className={`text-xs ${enabled ? 'text-(--color-buy)' : 'text-(--color-text-muted)'}`}>
               {enabled ? 'On' : 'Off'}
             </span>
             <button
@@ -71,8 +71,8 @@ export function SoundTab() {
         {/* VOLUME */}
         <div style={{ opacity: enabled ? 1 : 0.4, transition: 'opacity var(--transition-normal)' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
-            <span className="text-[11px] text-(--color-text-muted)">Volume</span>
-            <span className="text-[10px] text-(--color-text-dim)">
+            <span className="text-xs text-(--color-text)">Volume</span>
+            <span className="text-[11px] text-(--color-text-muted)">
               {Math.round(volume * 100)}%
             </span>
           </div>
@@ -164,7 +164,7 @@ function SoundCategory({
       >
         <div className="text-left">
           <div className="text-xs text-white">{label}</div>
-          <div className="text-[11px] text-(--color-text-muted)">
+          <div className="text-xs text-(--color-text)">
             {count} voice line{count !== 1 ? 's' : ''}
           </div>
         </div>
@@ -191,7 +191,7 @@ function SoundCategory({
           {/* Rotate toggle */}
           {count > 1 && (
             <div className="flex items-center justify-between" style={{ marginBottom: 8, padding: '4px 8px' }}>
-              <span className="text-[11px] text-(--color-text-muted)">Rotate clips</span>
+              <span className="text-xs text-(--color-text)">Rotate clips</span>
               <button
                 type="button"
                 role="switch"
@@ -271,7 +271,7 @@ function SoundCategory({
                     <circle cx="6" cy="10" r="1" fill="currentColor" />
                   </svg>
                 )}
-                <span className="text-[11px] text-(--color-text-muted) truncate" style={{ maxWidth: 200, flex: 1 }}>
+                <span className="text-xs text-(--color-text) truncate" style={{ maxWidth: 200, flex: 1 }}>
                   {clip.name}
                 </span>
                 <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity" style={{ gap: 4 }}>
@@ -338,7 +338,7 @@ function SoundCategory({
                 <path d="M8 3V11M4 7L8 3L12 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M3 13H13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
-              <span className="text-[10px] text-(--color-text-dim)">
+              <span className="text-[11px] text-(--color-text-muted)">
                 Drop audio files or <span className="text-(--color-accent) hover:underline">click to upload</span>
               </span>
             </div>
