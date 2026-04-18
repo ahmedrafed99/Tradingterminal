@@ -47,6 +47,7 @@ docs/
 │   ├── news-display/          — Economic calendar + chart markers
 │   ├── settings-persistence/  — File-based settings backup (survives cache clears)
 │   ├── video-recording/       — Chart video recording for journaling
+│   ├── system-monitor/        — Live data-flow monitor + session logs
 │   ├── voice-notifications/   — Audible voice clips on order/TP/SL fills
 │   ├── frontend/              — Full index: all components, services, store slices, types
 │   └── refactor/              — Known architectural issues and cleanup priorities
@@ -107,6 +108,7 @@ docs/
 | Conditional orders (candle-close triggers)  | `docs/shared/conditional-orders/` |
 | Voice notifications on fills                | `docs/shared/voice-notifications/` |
 | Chart video recording                       | `docs/shared/video-recording/` |
+| Live data-flow monitor + session logs       | `docs/shared/system-monitor/` |
 | News / economic calendar markers            | `docs/shared/news-display/` |
 | Trade journal (screenshots, notes)          | `docs/shared/journal/` |
 | AI chat panel                               | `docs/shared/chat-bot/` |
