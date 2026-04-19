@@ -922,6 +922,28 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     return pMin <= pMax ? { pMin, pMax } : null;
   }
 
+  /** Build a volume map from bars in [t1, t2] by distributing each bar's volume
+   *  uniformly across tick-aligned price levels between bar.l and bar.h. */
+  private _buildRangeVolumeMap(t1: number, t2: number): Map<number, number> {
+    const tMin = Math.min(t1, t2);
+    const tMax = Math.max(t1, t2);
+    const tickSize = this._tickSize > 0 ? this._tickSize : 0.01;
+    const map = new Map<number, number>();
+    for (const bar of this._barsRef) {
+      const barTime = Math.floor(new Date(bar.t).getTime() / 1000);
+      if (barTime < tMin || barTime > tMax) continue;
+      const loTick = Math.round(bar.l / tickSize);
+      const hiTick = Math.round(bar.h / tickSize);
+      const numTicks = hiTick - loTick + 1;
+      const volPerTick = bar.v / numTicks;
+      for (let tick = loTick; tick <= hiTick; tick++) {
+        const price = Math.round(tick * tickSize * 1e10) / 1e10;
+        map.set(price, (map.get(price) ?? 0) + volPerTick);
+      }
+    }
+    return map;
+  }
+
   /** Show a diagonal line preview during range-mode FRVP drag creation */
   setFRVPRangePreview(x1: number, y1: number, x2: number, y2: number, color: string): void {
     this._frvpRangePreview = new FRVPRangePreviewPaneView(x1, y1, x2, y2, color);
@@ -1069,9 +1091,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
               queueMicrotask(() => cb(id, pMin, pMax));
             }
           }
-          // Use shared volume map (real trade ticks) — same data source as anchor mode.
-          // Renderer clips bars to [pMin, pMax] so only prices within the dragged range show.
-          return new FRVPPaneView(effectiveFrvp, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
+          // Build volume map from bars in [t1, t2] only — not the full-session shared map.
+          const rangeMap = this._buildRangeVolumeMap(frvp.anchorTime, effectiveT2);
+          return new FRVPPaneView(effectiveFrvp, selected, this._series!, this._chart!, { current: rangeMap }, this._tickSize, this._requestUpdate);
         }
         return new FRVPPaneView(d as FRVPDrawing, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
       } else {
