@@ -265,8 +265,8 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
             {/* Category row */}
             <button
               onClick={() => toggle(cat.name)}
-              style={{ width: '100%', border: 'none', padding: '10px 16px', display: 'flex', alignItems: 'center', cursor: 'pointer', background: 'var(--color-surface)' }}
-              className="row-hover active:opacity-75"
+              style={{ width: '100%', border: 'none', padding: '10px 16px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+              className="row-hover bg-(--color-surface) active:opacity-75"
             >
               <div style={{ ...colStyle(COL.name, 'left'), display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: FONT_SIZE.SM, color: 'var(--color-text-muted)', width: 10, flexShrink: 0 }}>{isOpen ? '▼' : '▶'}</span>
@@ -281,7 +281,7 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
 
             {/* Endpoint rows */}
             {isOpen && cat.endpoints.map((ep) => (
-              <div key={`${ep.method}:${ep.path}`} className="row-hover" style={{ display: 'flex', alignItems: 'center', padding: '8px 16px' }}>
+              <div key={`${ep.method}:${ep.path}`} className="row-hover bg-(--color-panel)" style={{ display: 'flex', alignItems: 'center', padding: '8px 16px' }}>
                 <div style={{ ...colStyle(COL.name, 'left'), display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', paddingLeft: 16, borderLeft: '2px solid var(--color-border)' }}>
                   <span style={{ fontSize: FONT_SIZE.SM, fontWeight: 700, color: 'var(--color-text-muted)', width: 34, flexShrink: 0 }}>{ep.method}</span>
                   <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ep.path}</span>
