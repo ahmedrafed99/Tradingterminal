@@ -140,10 +140,12 @@ export function useChartBars(
           refs.drawingsPrimitive.current?.setTickSize(contract?.tickSize ?? 0.01);
           refs.drawingsPrimitive.current?.setBarsRef(sorted);
 
-          // Build trade volume map from current-session bars only for anchor-mode FRVP drawings.
+          // Build trade volume map for anchor-mode FRVP drawings.
+          // When market is open: restrict to current session. When closed: use all loaded bars.
           // Distributes each bar's volume evenly across its price range (low→high).
           const ts = contract?.tickSize ?? 0.01;
-          const sessionStart = contract?.marketType === 'futures' ? getCurrentSessionStartSec() : 0;
+          const marketOpen = getSchedule(contract?.marketType).isOpen();
+          const sessionStart = (contract?.marketType === 'futures' && marketOpen) ? getCurrentSessionStartSec() : 0;
           const tradeMap = new Map<number, number>();
           for (const bar of sorted) {
             if (sessionStart > 0 && Math.floor(new Date(bar.t).getTime() / 1000) < sessionStart) continue;
