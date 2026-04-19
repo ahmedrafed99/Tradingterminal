@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { NodeMetrics, NodeState, HubConnectionState, ApiCategoryMetrics } from '../../services/monitor/types';
 import { COLOR_BUY, COLOR_WARNING, COLOR_SELL, COLOR_BORDER } from '../../constants/colors';
 import { FONT_SIZE, RADIUS } from '../../constants/layout';
@@ -133,7 +133,7 @@ function NodeCard({ node, compact }: { node: NodeMetrics; compact?: boolean }) {
 
       {/* Hub nodes: connection state + sub-event rates */}
       {isHub && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
             <span style={{
               fontSize: FONT_SIZE.BASE,
@@ -149,7 +149,7 @@ function NodeCard({ node, compact }: { node: NodeMetrics; compact?: boolean }) {
           </div>
           {node.tickRate > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>events</span>
+              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>events</span>
               <span style={{ fontSize: FONT_SIZE.BASE, fontWeight: 600, color: 'var(--color-text)' }}>
                 {node.tickRate}/min
               </span>
@@ -158,20 +158,20 @@ function NodeCard({ node, compact }: { node: NodeMetrics; compact?: boolean }) {
           {node.subRates && node.subRates.map((sr) => (
             sr.rate > 0 && (
               <div key={sr.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>{sr.label.toLowerCase()}</span>
-                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>{sr.rate}/min</span>
+                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>{sr.label.toLowerCase()}</span>
+                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>{sr.rate}/min</span>
               </div>
             )
           ))}
           {node.lastTickAgo > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>last</span>
+              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>last</span>
               <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{formatLastSeen(node.lastTickAgo)}</span>
             </div>
           )}
           {node.hubRttMs > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>rtt</span>
+              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>rtt</span>
               <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: node.hubRttMs > 200 ? 'var(--color-warning)' : 'var(--color-text)' }}>
                 {node.hubRttMs}ms
               </span>
@@ -182,13 +182,13 @@ function NodeCard({ node, compact }: { node: NodeMetrics; compact?: boolean }) {
 
       {/* Adapter node */}
       {node.id === 'adapter' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>rate</span>
+            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>rate</span>
             <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{node.tickRate} tck</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>last</span>
+            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>last</span>
             <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{formatLastSeen(node.lastTickAgo)}</span>
           </div>
         </div>
@@ -196,13 +196,13 @@ function NodeCard({ node, compact }: { node: NodeMetrics; compact?: boolean }) {
 
       {/* Chart node */}
       {isChart && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>RAF lag</span>
+            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>RAF lag</span>
             <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{node.rafLagMs}ms</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>frm/min</span>
+            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>frm/min</span>
             <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{node.tickRate}</span>
           </div>
         </div>
@@ -217,6 +217,15 @@ function formatAgo(ms: number): string {
   return `${Math.floor(ms / 60_000)}m ago`;
 }
 
+const COL = { name: 260, calls: 50, last: 90, avg: 110, age: 80, status: 16 };
+
+function latencyColor(ms: number): string {
+  if (ms <= 0) return 'var(--color-text)';
+  if (ms < 300) return 'var(--color-buy)';
+  if (ms < 700) return 'var(--color-warning)';
+  return 'var(--color-sell)';
+}
+
 function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (name: string) => setExpanded((prev) => {
@@ -229,47 +238,65 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
     return <div style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-dim)' }}>No API calls yet</div>;
   }
 
+  const colStyle = (w: number, align: 'left' | 'right' = 'right'): React.CSSProperties => ({
+    width: w, minWidth: w, maxWidth: w, textAlign: align, flexShrink: 0,
+  });
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <div style={{
+      border: '1px solid var(--color-border)',
+      borderRadius: RADIUS.XL,
+      overflow: 'hidden',
+    }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', background: 'var(--color-panel)' }}>
+        <span style={{ ...colStyle(COL.name, 'left'), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>ENDPOINT</span>
+        <span style={{ ...colStyle(COL.calls), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>CALLS</span>
+        <span style={{ ...colStyle(COL.last), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>LATENCY</span>
+        <span style={{ ...colStyle(COL.avg), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>AVG LATENCY</span>
+        <span style={{ ...colStyle(COL.age), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>CALLED</span>
+        <span style={{ ...colStyle(COL.status) }}></span>
+      </div>
+
       {categories.map((cat) => {
         const isOpen = expanded.has(cat.name);
         return (
           <div key={cat.name}>
+            {/* Category row */}
             <button
               onClick={() => toggle(cat.name)}
-              style={{ width: '100%', background: 'none', border: 'none', padding: '5px 4px', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', textAlign: 'left', borderRadius: RADIUS.LG, transition: `background var(--transition-fast)` }}
-              className="hover:bg-(--color-hover-row) active:opacity-75"
+              style={{ width: '100%', border: 'none', padding: '10px 16px', display: 'flex', alignItems: 'center', cursor: 'pointer', background: 'var(--color-surface)' }}
+              className="row-hover active:opacity-75"
             >
-              <span style={{ fontSize: FONT_SIZE.SM, color: 'var(--color-text-muted)', width: 10 }}>{isOpen ? '▼' : '▶'}</span>
-              <span style={{ fontSize: FONT_SIZE.BASE, fontWeight: 600, color: 'var(--color-text-bright)', flex: 1 }}>{cat.name}</span>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', marginRight: 6 }}>{cat.totalCalls}×</span>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', marginRight: 6 }}>{cat.avgLatencyMs > 0 ? `${cat.avgLatencyMs}ms` : '—'}</span>
-              <span style={{ fontSize: FONT_SIZE.SM, color: cat.lastOk ? 'var(--color-buy)' : 'var(--color-sell)' }}>●</span>
-            </button>
-            {isOpen && (
-              <div style={{ paddingLeft: 16, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: 3, borderLeft: '1px solid var(--color-border)', marginLeft: 4 }}>
-                {cat.endpoints.map((ep) => (
-                  <div key={`${ep.method}:${ep.path}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0' }}>
-                    <span style={{ fontSize: FONT_SIZE.SM, fontWeight: 700, color: 'var(--color-text-muted)', width: 30, flexShrink: 0 }}>{ep.method}</span>
-                    <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ep.path}</span>
-                    <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', flexShrink: 0 }}>×{ep.callCount}</span>
-                    {ep.lastLatencyMs > 0 && (
-                      <span style={{ fontSize: FONT_SIZE.BASE, flexShrink: 0, color: ep.avgLatencyMs > 0 && ep.lastLatencyMs > ep.avgLatencyMs * 1.5 ? 'var(--color-warning)' : 'var(--color-text)' }}>
-                        {ep.lastLatencyMs}ms
-                      </span>
-                    )}
-                    {ep.avgLatencyMs > 0 && ep.callCount > 1 && (
-                      <span style={{ fontSize: FONT_SIZE.SM, color: 'var(--color-text-dim)', flexShrink: 0 }}>avg {ep.avgLatencyMs}ms</span>
-                    )}
-                    {ep.p95LatencyMs > ep.avgLatencyMs * 1.5 && (
-                      <span style={{ fontSize: FONT_SIZE.SM, color: 'var(--color-warning)', flexShrink: 0 }}>p95:{ep.p95LatencyMs}ms</span>
-                    )}
-                    <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', flexShrink: 0 }}>{formatAgo(ep.lastCallAgo)}</span>
-                    <span style={{ fontSize: FONT_SIZE.SM, color: ep.lastOk ? 'var(--color-buy)' : 'var(--color-sell)', flexShrink: 0 }}>●</span>
-                  </div>
-                ))}
+              <div style={{ ...colStyle(COL.name, 'left'), display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: FONT_SIZE.SM, color: 'var(--color-text-muted)', width: 10, flexShrink: 0 }}>{isOpen ? '▼' : '▶'}</span>
+                <span style={{ fontSize: FONT_SIZE.BASE, fontWeight: 600, color: 'var(--color-text-bright)' }}>{cat.name}</span>
               </div>
-            )}
+              <span style={{ ...colStyle(COL.calls), fontSize: FONT_SIZE.BASE, color: 'var(--color-text)' }}>{cat.totalCalls}</span>
+              <span style={{ ...colStyle(COL.last), fontSize: FONT_SIZE.BASE, color: 'var(--color-text)' }}>—</span>
+              <span style={{ ...colStyle(COL.avg), fontSize: FONT_SIZE.BASE, color: latencyColor(cat.avgLatencyMs) }}>{cat.avgLatencyMs > 0 ? `${cat.avgLatencyMs}ms` : '—'}</span>
+              <span style={{ ...colStyle(COL.age), fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>—</span>
+              <span style={{ ...colStyle(COL.status), fontSize: FONT_SIZE.SM, color: cat.lastOk ? 'var(--color-buy)' : 'var(--color-sell)' }}>●</span>
+            </button>
+
+            {/* Endpoint rows */}
+            {isOpen && cat.endpoints.map((ep) => (
+              <div key={`${ep.method}:${ep.path}`} className="row-hover" style={{ display: 'flex', alignItems: 'center', padding: '8px 16px' }}>
+                <div style={{ ...colStyle(COL.name, 'left'), display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', paddingLeft: 16, borderLeft: '2px solid var(--color-border)' }}>
+                  <span style={{ fontSize: FONT_SIZE.SM, fontWeight: 700, color: 'var(--color-text-muted)', width: 34, flexShrink: 0 }}>{ep.method}</span>
+                  <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ep.path}</span>
+                </div>
+                <span style={{ ...colStyle(COL.calls), fontSize: FONT_SIZE.BASE, color: 'var(--color-text)' }}>{ep.callCount}</span>
+                <span style={{ ...colStyle(COL.last), fontSize: FONT_SIZE.BASE, color: latencyColor(ep.lastLatencyMs) }}>
+                  {ep.lastLatencyMs > 0 ? `${ep.lastLatencyMs}ms` : '—'}
+                </span>
+                <span style={{ ...colStyle(COL.avg), fontSize: FONT_SIZE.BASE, color: latencyColor(ep.avgLatencyMs) }}>
+                  {ep.avgLatencyMs > 0 && ep.callCount > 1 ? `${ep.avgLatencyMs}ms` : '—'}
+                </span>
+                <span style={{ ...colStyle(COL.age), fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>{formatAgo(ep.lastCallAgo)}</span>
+                <span style={{ ...colStyle(COL.status), fontSize: FONT_SIZE.SM, color: ep.lastOk ? 'var(--color-buy)' : 'var(--color-sell)' }}>●</span>
+              </div>
+            ))}
           </div>
         );
       })}
@@ -289,7 +316,7 @@ export function FlowDiagram({ nodes, marketOpen, apiCategories }: Props) {
   return (
     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* LIVE DATA row label */}
-      <div style={{ fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>
+      <div style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text-bright)', letterSpacing: '0.06em' }}>
         LIVE DATA
       </div>
 
@@ -318,8 +345,8 @@ export function FlowDiagram({ nodes, marketOpen, apiCategories }: Props) {
       )}
 
       {/* REST API */}
-      <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
-        <div style={{ fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em', marginBottom: 8 }}>
+      <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 20 }}>
+        <div style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text-bright)', letterSpacing: '0.06em', marginBottom: 16 }}>
           REST API
         </div>
         <ApiSection categories={apiCategories} />
