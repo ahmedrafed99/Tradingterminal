@@ -72,18 +72,28 @@ function ColorSwatchButton({
       <button
         ref={swatchRef}
         onClick={() => !disabled && setOpen((v) => !v)}
+        className="focus:outline-none focus:ring-0"
         style={{
-          width: 28,
-          height: 28,
-          borderRadius: RADIUS.LG,
-          background: color,
-          border: '1px solid var(--color-border)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 4,
+          borderRadius: RADIUS.XL,
+          border: '1px solid var(--color-text-muted)',
+          background: 'transparent',
           cursor: disabled ? 'default' : 'pointer',
           opacity: disabled ? 0.4 : 1,
           transition: 'opacity var(--transition-fast)',
-          boxSizing: 'border-box',
         }}
-      />
+      >
+        <span style={{
+          display: 'block',
+          width: 18,
+          height: 18,
+          borderRadius: RADIUS.LG,
+          background: color,
+        }} />
+      </button>
       {open && !disabled && pos && (
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: Z.TOAST }}>
           <ColorPopover

@@ -158,13 +158,11 @@ function TextPopover({
   // Snapshot original text so we can restore on cancel
   const originalText = useRef(drawing.text ? { ...drawing.text } : null);
 
-  // Live-preview: push changes to drawing whenever any field changes
+  // Live-preview: push changes to drawing whenever any field changes.
+  // Always save styling so color/font persists even when content is empty.
+  // Renderers guard with `if (text?.content)` so empty content = no render.
   useEffect(() => {
-    if (content.trim()) {
-      onUpdate({ text: { content: content.trim(), color, fontSize, bold, italic, hAlign, vAlign } });
-    } else {
-      onUpdate({ text: null });
-    }
+    onUpdate({ text: { content: content.trim(), color, fontSize, bold, italic, hAlign, vAlign } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content, color, fontSize, bold, italic, hAlign, vAlign]);
 
@@ -190,7 +188,8 @@ function TextPopover({
     width: 28,
     height: 28,
     borderRadius: RADIUS.LG,
-    border: active ? '1px solid var(--color-text-dim)' : '1px solid transparent',
+    border: '1px solid var(--color-text-muted)',
+    outline: 'none',
     cursor: 'pointer',
     background: active ? 'var(--color-input)' : 'transparent',
     color: active ? 'var(--color-warning)' : 'var(--color-text-muted)',
@@ -226,26 +225,40 @@ function TextPopover({
         {/* Color swatch */}
         <button
           onClick={() => setShowColorGrid(!showColorGrid)}
+          title="Text color"
+          className="focus:outline-none focus:ring-0"
           style={{
-            width: 22,
-            height: 22,
-            background: color,
-            borderRadius: RADIUS.LG,
-            border: showColorGrid ? '2px solid #fff' : '1px solid var(--color-border)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 4,
+            borderRadius: RADIUS.XL,
+            border: '1px solid var(--color-text-muted)',
+            outline: 'none',
+            background: 'transparent',
             cursor: 'pointer',
             flexShrink: 0,
             transition: 'border-color var(--transition-fast)',
           }}
-          title="Text color"
-        />
+        >
+          <span style={{
+            display: 'block',
+            width: 18,
+            height: 18,
+            background: color,
+            borderRadius: RADIUS.LG,
+          }} />
+        </button>
         {/* Font size — custom dropdown */}
         <div ref={fontSizeRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setShowFontSizes((o) => !o)}
+            className="focus:outline-none focus:ring-0"
             style={{
               background: 'var(--color-input)',
               color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
+              border: '1px solid var(--color-text-muted)',
+              outline: 'none',
               borderRadius: RADIUS.LG,
               padding: '4px 6px',
               fontSize: 12,
@@ -303,6 +316,7 @@ function TextPopover({
         <button
           onClick={() => setBold(!bold)}
           style={{ ...toggleBtn(bold), fontSize: 14, fontWeight: 700 }}
+          className="focus:outline-none focus:ring-0"
           title="Bold"
           {...toggleHover(bold)}
         >
@@ -312,6 +326,7 @@ function TextPopover({
         <button
           onClick={() => setItalic(!italic)}
           style={{ ...toggleBtn(italic), fontSize: 14, fontStyle: 'italic' }}
+          className="focus:outline-none focus:ring-0"
           title="Italic"
           {...toggleHover(italic)}
         >
@@ -1039,13 +1054,17 @@ export function DrawingEditToolbar({
                       <span style={{ fontSize: 13, color: 'var(--color-text)' }}>Color</span>
                       <button
                         onClick={() => { const v = !showFrvpBarColor; setShowFrvpPocColor(false); setShowFrvpBarColor(v); }}
+                        className="focus:outline-none focus:ring-0"
                         style={{
-                          width: 24, height: 24, borderRadius: RADIUS.MD,
-                          background: frvp.color,
-                          border: showFrvpBarColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                          cursor: 'pointer', flexShrink: 0, transition: 'border var(--transition-fast)',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          padding: 4, borderRadius: RADIUS.XL,
+                          border: '1px solid var(--color-text-muted)',
+                          background: 'transparent', cursor: 'pointer', flexShrink: 0,
+                          transition: 'border-color var(--transition-fast)',
                         }}
-                      />
+                      >
+                        <span style={{ display: 'block', width: 18, height: 18, borderRadius: RADIUS.LG, background: frvp.color }} />
+                      </button>
                       {showFrvpBarColor && (
                         <ColorPopover
                           current={frvp.color}
@@ -1137,14 +1156,18 @@ export function DrawingEditToolbar({
                       </label>
                       <button
                         onClick={() => { const v = !showFrvpPocColor; setShowFrvpBarColor(false); setShowFrvpPocColor(v); }}
+                        className="focus:outline-none focus:ring-0"
                         style={{
-                          width: 24, height: 24, borderRadius: RADIUS.MD,
-                          background: frvp.pocColor ?? COLOR_ACCENT,
-                          border: showFrvpPocColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                          cursor: 'pointer', flexShrink: 0, transition: 'border var(--transition-fast)',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          padding: 4, borderRadius: RADIUS.XL,
+                          border: '1px solid var(--color-text-muted)',
+                          background: 'transparent', cursor: 'pointer', flexShrink: 0,
+                          transition: 'border-color var(--transition-fast)',
                           opacity: pocVisible ? 1 : 0.35,
                         }}
-                      />
+                      >
+                        <span style={{ display: 'block', width: 18, height: 18, borderRadius: RADIUS.LG, background: frvp.pocColor ?? COLOR_ACCENT }} />
+                      </button>
                       {showFrvpPocColor && (
                         <ColorPopover
                           current={frvp.pocColor ?? COLOR_ACCENT}

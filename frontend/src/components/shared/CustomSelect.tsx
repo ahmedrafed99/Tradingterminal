@@ -78,7 +78,7 @@ export function CustomSelect({
           width: '100%',
           background: bg,
           color: 'var(--color-text)',
-          border: '1px solid var(--color-border)',
+          border: '1px solid var(--color-text-muted)',
           borderRadius: RADIUS.XL,
           padding: btnPadding,
           fontSize: btnFontSize,

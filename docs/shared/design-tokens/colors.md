@@ -141,13 +141,48 @@ ctx.strokeStyle = COLOR_TEXT_MUTED;
 
 ---
 
+## Color Swatch Pattern
+
+All color swatches (drawing toolbar, FRVP style panel, chart settings) follow a two-layer pattern:
+
+```tsx
+<button
+  className="focus:outline-none focus:ring-0"
+  style={{
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    padding: 4,
+    borderRadius: RADIUS.XL,           // 8px — outer container
+    border: '1px solid var(--color-text-muted)',
+    background: 'transparent',
+    cursor: 'pointer',
+    transition: 'border-color var(--transition-fast)',
+  }}
+>
+  <span style={{
+    display: 'block',
+    width: 18, height: 18,
+    borderRadius: RADIUS.LG,           // 4px — inner swatch
+    background: color,
+  }} />
+</button>
+```
+
+- **Outer button** — the clickable container: border + padding, transparent background
+- **Inner span** — the colored fill: no border, smaller radius
+- `focus:outline-none focus:ring-0` — suppresses Tailwind's default focus ring glow
+- Inner swatch size is always `18×18`. Outer total = `18 + 4*2 + 2 = 28px` (matches button height of B/I toggles)
+
+---
+
 ## Rules for Developers
 
 ### 1. No new hex values
 If you need a color, check the token table above. If nothing fits, propose a new token in `tokens.css` with a semantic name and get it reviewed. Do not add one-off `#hex` values.
 
-### 2. Borders are always `--color-border`
-One border color. No `#222`, no `#333`, no `#4a4a4a`. Use `--color-border` with optional opacity modifier (`/60`, `/50`).
+### 2. Borders
+- **Structural borders** (modal edges, dividers, table borders, panel outlines): `--color-border`
+- **Interactive control borders** (buttons, inputs, selects, color swatches): `1px solid var(--color-text-muted)` — visibly stronger so controls read as tappable against dark backgrounds
+- No `#222`, no `#333`, no `#4a4a4a`
 
 ### 3. Disabled state is always `opacity-50`
 Not 30, not 40. `disabled:opacity-50`.
