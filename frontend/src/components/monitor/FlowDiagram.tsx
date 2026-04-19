@@ -7,6 +7,7 @@ interface Props {
   nodes: NodeMetrics[];
   marketOpen: boolean;
   apiCategories: ApiCategoryMetrics[];
+  onHubClick?: (hubId: 'market-hub' | 'user-hub') => void;
 }
 
 const STATE_COLOR_CSS: Record<NodeState, string> = {
@@ -120,22 +121,29 @@ function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: bo
   );
 }
 
-function NodeCard({ node, compact }: { node: NodeMetrics; compact?: boolean }) {
+function NodeCard({ node, compact, onClick }: { node: NodeMetrics; compact?: boolean; onClick?: () => void }) {
   const stateColor = STATE_COLOR_CSS[node.state];
   const isHub = node.id === 'market-hub' || node.id === 'user-hub';
   const isChart = node.id === 'chart';
+  const clickable = !!onClick;
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderLeft: `3px solid ${stateColor}`,
-      borderRadius: RADIUS.XL,
-      padding: compact ? '10px 14px' : '12px 18px',
-      minWidth: compact ? 148 : 170,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderLeft: `3px solid ${stateColor}`,
+        borderRadius: RADIUS.XL,
+        padding: compact ? '10px 14px' : '12px 18px',
+        minWidth: compact ? 148 : 170,
+        cursor: clickable ? 'pointer' : 'default',
+        transition: clickable ? 'background var(--transition-fast)' : undefined,
+      }}
+      className={clickable ? 'hover:bg-(--color-hover-row) active:opacity-75' : undefined}
+    >
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <span style={{ color: stateColor, fontSize: FONT_SIZE.XS, lineHeight: 1 }}>●</span>
@@ -317,7 +325,7 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
   );
 }
 
-export function FlowDiagram({ nodes, marketOpen, apiCategories }: Props) {
+export function FlowDiagram({ nodes, marketOpen, apiCategories, onHubClick }: Props) {
   const marketHub = nodes.find((n) => n.id === 'market-hub');
   const userHub   = nodes.find((n) => n.id === 'user-hub');
   const adapter   = nodes.find((n) => n.id === 'adapter');
@@ -337,7 +345,10 @@ export function FlowDiagram({ nodes, marketOpen, apiCategories }: Props) {
       <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0 }}>
         {pipeline.map((node, i) => (
           <div key={node.id} style={{ display: 'flex', alignItems: 'center' }}>
-            <NodeCard node={node} />
+            <NodeCard
+              node={node}
+              onClick={node.id === 'market-hub' ? () => onHubClick?.('market-hub') : undefined}
+            />
             {i < pipeline.length - 1 && (
               <div style={{ padding: '0 10px' }}>
                 <ParticleTrack state={node.state} marketOpen={marketOpen} />
@@ -350,7 +361,7 @@ export function FlowDiagram({ nodes, marketOpen, apiCategories }: Props) {
       {/* User Hub — standalone (not part of market data pipeline) */}
       {userHub && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NodeCard node={userHub} compact />
+          <NodeCard node={userHub} compact onClick={() => onHubClick?.('user-hub')} />
           <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', marginLeft: 4 }}>
             orders · positions · trades
           </span>

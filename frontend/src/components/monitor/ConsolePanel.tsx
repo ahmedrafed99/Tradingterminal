@@ -5,11 +5,13 @@ import { FONT_SIZE, RADIUS } from '../../constants/layout';
 
 interface Props {
   onClose: () => void;
+  activeTab: ConsoleTab;
+  onTabChange: (tab: ConsoleTab) => void;
 }
 
 const TABS: { id: ConsoleTab; label: string }[] = [
-  { id: 'market-hub', label: 'Mkt Hub' },
-  { id: 'user-hub',   label: 'Usr Hub' },
+  { id: 'market-hub', label: 'Market Hub' },
+  { id: 'user-hub',   label: 'User Hub' },
   { id: 'api',        label: 'API' },
 ];
 
@@ -52,8 +54,7 @@ function EntryRow({ entry }: { entry: ConsoleEntry }) {
   );
 }
 
-export function ConsolePanel({ onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<ConsoleTab>('market-hub');
+export function ConsolePanel({ onClose, activeTab, onTabChange }: Props) {
   const [entries, setEntries] = useState<ConsoleEntry[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
@@ -99,7 +100,7 @@ export function ConsolePanel({ onClose }: Props) {
         {TABS.map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => onTabChange(tab.id)}
             style={{
               background: 'none',
               border: 'none',

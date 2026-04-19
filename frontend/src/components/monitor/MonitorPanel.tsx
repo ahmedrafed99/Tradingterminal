@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, useCallback } from 'react';
 import { metricCollector } from '../../services/monitor/metricCollector';
+import type { ConsoleTab } from '../../services/monitor/types';
 import { useMarketStatus } from '../../utils/marketHours';
 import { FlowDiagram } from './FlowDiagram';
 import { IncidentLog } from './IncidentLog';
@@ -22,9 +23,11 @@ function useMonitorSnapshot() {
 export function MonitorPanel({ anchorRef: _anchorRef, onClose }: Props) {
   const snapshot = useMonitorSnapshot();
   const backdropRef = useRef<HTMLDivElement>(null);
+  const consoleRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [showConsole, setShowConsole] = useState(false);
+  const [consoleTab, setConsoleTab] = useState<ConsoleTab>('market-hub');
   const { open: marketOpen, reopenLabel } = useMarketStatus('futures');
 
   // Animate in
@@ -43,6 +46,22 @@ export function MonitorPanel({ anchorRef: _anchorRef, onClose }: Props) {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  const handleHubClick = useCallback((hubId: 'market-hub' | 'user-hub') => {
+    const tab = hubId === 'market-hub' ? 'market-hub' : 'user-hub';
+    if (showConsole && consoleTab === tab) {
+      setShowConsole(false);
+    } else {
+      setConsoleTab(tab);
+      setShowConsole(true);
+    }
+  }, [showConsole, consoleTab]);
+
+  useEffect(() => {
+    if (showConsole) {
+      consoleRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [showConsole]);
 
   const sessionDurationMin = Math.floor((Date.now() - snapshot.sessionStartTime) / 60_000);
 
@@ -176,12 +195,12 @@ export function MonitorPanel({ anchorRef: _anchorRef, onClose }: Props) {
 
           {/* Content */}
           <div style={{ padding: '24px 28px 48px', maxWidth: 1280, margin: '0 auto' }}>
-            <FlowDiagram nodes={snapshot.nodes} marketOpen={marketOpen} apiCategories={snapshot.apiCategories} />
+            <FlowDiagram nodes={snapshot.nodes} marketOpen={marketOpen} apiCategories={snapshot.apiCategories} onHubClick={handleHubClick} />
 
             {/* Console */}
             {showConsole && (
-              <div style={{ marginTop: 20 }}>
-                <ConsolePanel onClose={() => setShowConsole(false)} />
+              <div ref={consoleRef} style={{ marginTop: 20 }}>
+                <ConsolePanel onClose={() => setShowConsole(false)} activeTab={consoleTab} onTabChange={setConsoleTab} />
               </div>
             )}
 
