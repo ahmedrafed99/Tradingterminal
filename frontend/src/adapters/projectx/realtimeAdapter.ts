@@ -4,7 +4,7 @@ import type {
   RealtimeAdapter, Quote, DepthEntry,
   RealtimeOrder, RealtimePosition, RealtimeAccount, RealtimeTrade,
   QuoteHandler, DepthHandler, OrderHandler, PositionHandler,
-  AccountHandler, TradeHandler, MarketTick, MarketTickHandler,
+  AccountHandler, TradeHandler, MarketTick, MarketTickHandler, HubStateHandler,
 } from '../types';
 
 // ── SignalR-specific helpers (not part of the public adapter API) ──────────
@@ -43,6 +43,8 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   private connectingPromise: Promise<void> | null = null;
   private userReconnectHandlers: (() => void)[] = [];
   private marketReconnectHandlers: (() => void)[] = [];
+  private marketHubStateHandlers: HubStateHandler[] = [];
+  private userHubStateHandlers: HubStateHandler[] = [];
 
   async connect() {
     if (this.isConnected()) return;
@@ -166,6 +168,9 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
     });
 
     // Resubscribe on reconnect
+    this.marketHub.onreconnecting(() => {
+      this.marketHubStateHandlers.forEach((h) => h('reconnecting'));
+    });
     this.marketHub.onreconnected(() => {
       for (const contractId of this.subscribedQuotes) {
         this.marketHub?.invoke('SubscribeContractQuotes', contractId).catch(console.error);
@@ -175,16 +180,30 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
         this.marketHub?.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
       }
       this.marketReconnectHandlers.forEach((h) => h());
+      this.marketHubStateHandlers.forEach((h) => h('connected'));
+    });
+    this.marketHub.onclose(() => {
+      this.marketHubStateHandlers.forEach((h) => h('disconnected'));
+    });
+
+    this.userHub.onreconnecting(() => {
+      this.userHubStateHandlers.forEach((h) => h('reconnecting'));
     });
     this.userHub.onreconnected(() => {
       for (const accountId of this.subscribedOrderAccounts) {
         this.flushUserSubscriptions(accountId);
       }
       this.userReconnectHandlers.forEach((h) => h());
+      this.userHubStateHandlers.forEach((h) => h('connected'));
+    });
+    this.userHub.onclose(() => {
+      this.userHubStateHandlers.forEach((h) => h('disconnected'));
     });
 
     await this.marketHub.start();
     await this.userHub.start();
+    this.marketHubStateHandlers.forEach((h) => h('connected'));
+    this.userHubStateHandlers.forEach((h) => h('connected'));
 
     // Flush any subscriptions that were requested before connection was ready
     for (const contractId of this.subscribedQuotes) {
@@ -289,6 +308,11 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   onMarketReconnect(handler: () => void)  { this.marketReconnectHandlers.push(handler); }
   offMarketReconnect(handler: () => void) { this.marketReconnectHandlers = this.marketReconnectHandlers.filter((h) => h !== handler); }
 
+  onMarketHubState(handler: HubStateHandler)  { this.marketHubStateHandlers.push(handler); }
+  offMarketHubState(handler: HubStateHandler) { this.marketHubStateHandlers = this.marketHubStateHandlers.filter((h) => h !== handler); }
+  onUserHubState(handler: HubStateHandler)    { this.userHubStateHandlers.push(handler); }
+  offUserHubState(handler: HubStateHandler)   { this.userHubStateHandlers = this.userHubStateHandlers.filter((h) => h !== handler); }
+
   /** Measure WebSocket round-trip latency in ms. Returns -1 if not connected. */
   async ping(): Promise<number> {
     if (!this.marketHub || this.marketHub.state !== signalR.HubConnectionState.Connected) return -1;
@@ -297,6 +321,17 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
       await this.marketHub.invoke('Ping');
     } catch {
       // Server may not support Ping, but the error still travels the WebSocket round-trip
+    }
+    return Math.round(performance.now() - start);
+  }
+
+  async pingUserHub(): Promise<number> {
+    if (!this.userHub || this.userHub.state !== signalR.HubConnectionState.Connected) return -1;
+    const start = performance.now();
+    try {
+      await this.userHub.invoke('Ping');
+    } catch {
+      // Same pattern — error round-trips the WebSocket
     }
     return Math.round(performance.now() - start);
   }

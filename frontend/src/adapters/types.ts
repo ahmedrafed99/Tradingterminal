@@ -91,6 +91,7 @@ export interface MarketTick {
 }
 
 export type MarketTickHandler = (contractId: string, ticks: MarketTick[]) => void;
+export type HubStateHandler  = (state: 'connected' | 'reconnecting' | 'disconnected') => void;
 
 // ── Adapter interface ─────────────────────────────────────────────────────
 
@@ -129,6 +130,13 @@ export interface RealtimeAdapter {
   onMarketReconnect(handler: () => void): void;
   offMarketReconnect(handler: () => void): void;
 
+  // Hub connection state
+  onMarketHubState(handler: HubStateHandler): void;
+  offMarketHubState(handler: HubStateHandler): void;
+  onUserHubState(handler: HubStateHandler): void;
+  offUserHubState(handler: HubStateHandler): void;
+
   // Utility
   ping(): Promise<number>;
+  pingUserHub(): Promise<number>;
 }

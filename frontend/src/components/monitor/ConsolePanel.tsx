@@ -1,0 +1,172 @@
+import { useState, useEffect, useRef } from 'react';
+import { consoleBuffer } from '../../services/monitor/consoleBuffer';
+import type { ConsoleEntry, ConsoleTab } from '../../services/monitor/types';
+
+interface Props {
+  onClose: () => void;
+}
+
+const TABS: { id: ConsoleTab; label: string }[] = [
+  { id: 'market-hub', label: 'Mkt Hub' },
+  { id: 'user-hub',   label: 'Usr Hub' },
+  { id: 'api',        label: 'API' },
+];
+
+const KIND_COLOR: Record<string, string> = {
+  QUOTE: 'var(--color-text-dim)',
+  TRADE: 'var(--color-buy)',
+  ORDER: 'var(--color-warning)',
+  POS:   'var(--color-text-muted)',
+  STATE: 'var(--color-text-bright)',
+  POST:  'var(--color-text)',
+  GET:   'var(--color-text)',
+  PATCH: 'var(--color-text)',
+  DELETE:'var(--color-sell)',
+  PUT:   'var(--color-text)',
+};
+
+function pad2(n: number) { return n.toString().padStart(2, '0'); }
+function pad3(n: number) { return n.toString().padStart(3, '0'); }
+
+function formatTs(ts: number): string {
+  const d = new Date(ts);
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${pad3(d.getMilliseconds())}`;
+}
+
+function EntryRow({ entry }: { entry: ConsoleEntry }) {
+  const kindColor = KIND_COLOR[entry.kind] ?? 'var(--color-text-muted)';
+  const textColor = entry.ok === false ? 'var(--color-sell)' : 'var(--color-text-muted)';
+  return (
+    <div style={{ display: 'flex', gap: 10, padding: '1px 0', lineHeight: 1.6 }}>
+      <span style={{ color: 'var(--color-text-dim)', flexShrink: 0, userSelect: 'none' }}>
+        {formatTs(entry.ts)}
+      </span>
+      <span style={{ color: kindColor, width: 46, flexShrink: 0, fontWeight: 600 }}>
+        {entry.kind}
+      </span>
+      <span style={{ color: textColor, wordBreak: 'break-all' }}>
+        {entry.text}
+      </span>
+    </div>
+  );
+}
+
+export function ConsolePanel({ onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<ConsoleTab>('market-hub');
+  const [entries, setEntries] = useState<ConsoleEntry[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const atBottomRef = useRef(true);
+
+  useEffect(() => {
+    setEntries(consoleBuffer.getEntries(activeTab));
+    return consoleBuffer.subscribe(() => {
+      setEntries([...consoleBuffer.getEntries(activeTab)]);
+    });
+  }, [activeTab]);
+
+  // Auto-scroll only when already at bottom
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (atBottomRef.current) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [entries]);
+
+  function onScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }
+
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 8,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        borderBottom: '1px solid var(--color-border)',
+        padding: '0 8px',
+        gap: 2,
+      }}>
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '7px 10px',
+              fontSize: 12,
+              fontWeight: activeTab === tab.id ? 600 : 400,
+              color: activeTab === tab.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
+              cursor: 'pointer',
+              borderBottom: activeTab === tab.id ? '2px solid var(--color-buy)' : '2px solid transparent',
+              transition: 'color var(--transition-fast), border-color var(--transition-fast)',
+            }}
+          >
+            {tab.label}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
+        <button
+          onClick={() => consoleBuffer.clear(activeTab)}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: 11,
+            color: 'var(--color-text-dim)',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            transition: 'color var(--transition-fast)',
+          }}
+          className="hover:text-(--color-text-muted)"
+        >
+          Clear
+        </button>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            fontSize: 14,
+            color: 'var(--color-text-dim)',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            lineHeight: 1,
+            transition: 'color var(--transition-fast)',
+          }}
+          className="hover:text-(--color-text)"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Log output */}
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        style={{
+          height: 220,
+          overflowY: 'auto',
+          padding: '6px 12px',
+          fontFamily: 'var(--font-family-mono, monospace)',
+          fontSize: 11,
+        }}
+      >
+        {entries.length === 0 ? (
+          <div style={{ color: 'var(--color-text-dim)', padding: '8px 0' }}>No events yet.</div>
+        ) : (
+          entries.map(e => <EntryRow key={e.id} entry={e} />)
+        )}
+      </div>
+    </div>
+  );
+}
