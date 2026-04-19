@@ -108,7 +108,7 @@ export function MonitorPanel({ anchorRef: _anchorRef, onClose }: Props) {
                 style={{
                   background: showConsole ? 'var(--color-surface)' : 'none',
                   border: '1px solid var(--color-border)',
-                  borderRadius: 4,
+                  borderRadius: RADIUS.LG,
                   color: showConsole ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
                   fontSize: FONT_SIZE.BASE,
                   padding: '5px 12px',
@@ -124,7 +124,7 @@ export function MonitorPanel({ anchorRef: _anchorRef, onClose }: Props) {
                 style={{
                   background: 'none',
                   border: '1px solid var(--color-border)',
-                  borderRadius: 4,
+                  borderRadius: RADIUS.LG,
                   color: 'var(--color-text-muted)',
                   fontSize: FONT_SIZE.BASE,
                   padding: '5px 12px',

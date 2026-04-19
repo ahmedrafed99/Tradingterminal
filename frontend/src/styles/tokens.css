@@ -48,6 +48,9 @@
   /* ── Trade Direction ── */
   --color-buy: #26a69a;
   --color-sell: #ef5350;
+  --color-buy-tint:    rgba(38, 166, 154, 0.15);
+  --color-sell-tint:   rgba(239, 83, 80, 0.12);
+  --color-sell-subtle: rgba(239, 83, 80, 0.07);
 
   /* ── Buy / Sell Buttons ── */
   --color-btn-buy: #1b6b4a;
@@ -75,6 +78,7 @@
 
   /* ── Typography ── */
   --font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  --font-family-mono: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
   --font-size-xxxs: 8px;
   --font-size-xxs: 9px;
   --font-size-xs: 10px;
@@ -85,9 +89,22 @@
   --font-size-xl: 16px;
   --font-size-xxl: 18px;
 
+  /* ── Backdrop ── */
+  --color-backdrop: rgba(0, 0, 0, 0.65);
+
   /* ── Transitions ── */
   --transition-fast: 0.15s;
   --transition-normal: 0.2s;
   --transition-slow: 0.25s;
   --disabled-opacity: 0.5;
+}
+
+/* ── Reusable interaction utilities ── */
+
+.row-hover {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.row-hover:hover {
+  background-color: var(--color-hover-row);
 }

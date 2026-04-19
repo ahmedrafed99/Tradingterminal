@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { consoleBuffer } from '../../services/monitor/consoleBuffer';
 import type { ConsoleEntry, ConsoleTab } from '../../services/monitor/types';
+import { FONT_SIZE, RADIUS } from '../../constants/layout';
 
 interface Props {
   onClose: () => void;
@@ -35,10 +36,10 @@ function formatTs(ts: number): string {
 
 function EntryRow({ entry }: { entry: ConsoleEntry }) {
   const kindColor = KIND_COLOR[entry.kind] ?? 'var(--color-text-muted)';
-  const textColor = entry.ok === false ? 'var(--color-sell)' : 'var(--color-text-muted)';
+  const textColor = entry.ok === false ? 'var(--color-sell)' : 'var(--color-text)';
   return (
     <div style={{ display: 'flex', gap: 10, padding: '1px 0', lineHeight: 1.6 }}>
-      <span style={{ color: 'var(--color-text-dim)', flexShrink: 0, userSelect: 'none' }}>
+      <span style={{ color: 'var(--color-text-muted)', flexShrink: 0, userSelect: 'none' }}>
         {formatTs(entry.ts)}
       </span>
       <span style={{ color: kindColor, width: 46, flexShrink: 0, fontWeight: 600 }}>
@@ -64,7 +65,6 @@ export function ConsolePanel({ onClose }: Props) {
     });
   }, [activeTab]);
 
-  // Auto-scroll only when already at bottom
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -83,7 +83,7 @@ export function ConsolePanel({ onClose }: Props) {
     <div style={{
       background: 'var(--color-surface)',
       border: '1px solid var(--color-border)',
-      borderRadius: 8,
+      borderRadius: RADIUS.XL,
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -104,13 +104,14 @@ export function ConsolePanel({ onClose }: Props) {
               background: 'none',
               border: 'none',
               padding: '7px 10px',
-              fontSize: 12,
+              fontSize: FONT_SIZE.BASE,
               fontWeight: activeTab === tab.id ? 600 : 400,
               color: activeTab === tab.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
               cursor: 'pointer',
               borderBottom: activeTab === tab.id ? '2px solid var(--color-buy)' : '2px solid transparent',
               transition: 'color var(--transition-fast), border-color var(--transition-fast)',
             }}
+            className={activeTab !== tab.id ? 'hover:text-(--color-text)' : ''}
           >
             {tab.label}
           </button>
@@ -118,32 +119,26 @@ export function ConsolePanel({ onClose }: Props) {
         <div style={{ flex: 1 }} />
         <button
           onClick={() => consoleBuffer.clear(activeTab)}
+          className="text-(--color-text-dim) hover:text-(--color-text-muted) transition-colors cursor-pointer"
           style={{
             background: 'none',
             border: 'none',
-            fontSize: 11,
-            color: 'var(--color-text-dim)',
-            cursor: 'pointer',
+            fontSize: FONT_SIZE.SM,
             padding: '4px 8px',
-            transition: 'color var(--transition-fast)',
           }}
-          className="hover:text-(--color-text-muted)"
         >
           Clear
         </button>
         <button
           onClick={onClose}
+          className="text-(--color-text-dim) hover:text-(--color-text) transition-colors cursor-pointer"
           style={{
             background: 'none',
             border: 'none',
-            fontSize: 14,
-            color: 'var(--color-text-dim)',
-            cursor: 'pointer',
+            fontSize: FONT_SIZE.LG,
             padding: '4px 8px',
             lineHeight: 1,
-            transition: 'color var(--transition-fast)',
           }}
-          className="hover:text-(--color-text)"
         >
           ✕
         </button>
@@ -157,8 +152,8 @@ export function ConsolePanel({ onClose }: Props) {
           height: 220,
           overflowY: 'auto',
           padding: '6px 12px',
-          fontFamily: 'var(--font-family-mono, monospace)',
-          fontSize: 11,
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: FONT_SIZE.SM,
         }}
       >
         {entries.length === 0 ? (

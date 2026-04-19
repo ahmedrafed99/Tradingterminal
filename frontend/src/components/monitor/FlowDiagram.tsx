@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { NodeMetrics, NodeState, HubConnectionState, ApiCategoryMetrics } from '../../services/monitor/types';
 import { COLOR_BUY, COLOR_WARNING, COLOR_SELL, COLOR_BORDER } from '../../constants/colors';
 import { FONT_SIZE, RADIUS } from '../../constants/layout';
@@ -94,7 +94,20 @@ function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: bo
     };
 
     rafRef.current = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(rafRef.current);
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        cancelAnimationFrame(rafRef.current);
+      } else {
+        rafRef.current = requestAnimationFrame(draw);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [state, marketOpen]);
 
   return (
@@ -238,7 +251,7 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
     return <div style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-dim)' }}>No API calls yet</div>;
   }
 
-  const colStyle = (w: number, align: 'left' | 'right' = 'right'): React.CSSProperties => ({
+  const colStyle = (w: number, align: 'left' | 'right' = 'right') => ({
     width: w, minWidth: w, maxWidth: w, textAlign: align, flexShrink: 0,
   });
 
@@ -281,7 +294,7 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
 
             {/* Endpoint rows */}
             {isOpen && cat.endpoints.map((ep) => (
-              <div key={`${ep.method}:${ep.path}`} className="row-hover bg-(--color-panel)" style={{ display: 'flex', alignItems: 'center', padding: '8px 16px' }}>
+              <div key={`${ep.method}:${ep.path}`} className="bg-(--color-panel)" style={{ display: 'flex', alignItems: 'center', padding: '8px 16px' }}>
                 <div style={{ ...colStyle(COL.name, 'left'), display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', paddingLeft: 16, borderLeft: '2px solid var(--color-border)' }}>
                   <span style={{ fontSize: FONT_SIZE.SM, fontWeight: 700, color: 'var(--color-text-muted)', width: 34, flexShrink: 0 }}>{ep.method}</span>
                   <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ep.path}</span>
