@@ -165,6 +165,7 @@ export function useChartBars(
           refs.crosshairLabel.current?.setTickSize(contract?.tickSize ?? 0);
           if (refs.lastBar.current) {
             cd.updatePrice(refs.lastBar.current.close, false);
+            cd.setOpen(refs.lastBar.current.open);
             refs.drawingsPrimitive.current?.setCountdownPrice(refs.lastBar.current.close);
           }
         }
@@ -240,6 +241,7 @@ export function useChartBars(
       }
       if (pendingPrice != null) {
         refs.countdown.current?.updatePrice(pendingPrice, true);
+        if (pendingBar) refs.countdown.current?.setOpen(pendingBar.open);
         refs.drawingsPrimitive.current?.setCountdownPrice(pendingPrice);
       }
       pendingBar = null;

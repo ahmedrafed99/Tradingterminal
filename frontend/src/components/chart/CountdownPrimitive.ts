@@ -44,6 +44,9 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   private _requestUpdate: (() => void) | null = null;
 
   private _price = 0;
+  private _open = 0;
+  private _upColor = '#26a69a';
+  private _downColor = '#ef5350';
   private _priceText = '';
   private _countdownText = '';
   private _isLive = false;
@@ -117,6 +120,19 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._periodSec = periodSec;
   }
 
+  /** Update candle up/down colors (call when chart settings change) */
+  setColors(upColor: string, downColor: string): void {
+    this._upColor = upColor;
+    this._downColor = downColor;
+    this._syncHtml();
+  }
+
+  /** Update the open price of the current bar (determines bull/bear color) */
+  setOpen(open: number): void {
+    this._open = open;
+    this._syncHtml();
+  }
+
   /** Update decimal places (call when contract changes) */
   setDecimals(decimals: number): void {
     this._decimals = decimals;
@@ -164,7 +180,7 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     el.style.cssText =
       `position:absolute;right:0;text-align:center;pointer-events:none;` +
       `transform:translateY(-50%);box-sizing:border-box;z-index:25;` +
-      `font-family:${FONT_FAMILY};display:none;background:#fff;`;
+      `font-family:${FONT_FAMILY};display:none;background:${this._upColor};`;
     this._overlay.appendChild(el);
     this._htmlEl = el;
 
@@ -208,9 +224,11 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
 
     const psWidth = this._getPsWidth();
 
+    const candleColor = (this._open === 0 || this._price >= this._open) ? this._upColor : this._downColor;
     this._htmlEl.style.display = '';
     this._htmlEl.style.top = `${y}px`;
     this._htmlEl.style.width = `${psWidth}px`;
+    this._htmlEl.style.background = candleColor;
     this._priceEl!.textContent = this._priceText;
 
     if (this._countdownText) {

@@ -293,6 +293,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     if (!chart || !series) return;
 
     // Candle colors
+    countdownRef.current?.setColors(chartSettings.upColor, chartSettings.downColor);
     series.applyOptions({
       upColor: chartSettings.bodyVisible ? chartSettings.upColor : 'transparent',
       downColor: chartSettings.bodyVisible ? chartSettings.downColor : 'transparent',
