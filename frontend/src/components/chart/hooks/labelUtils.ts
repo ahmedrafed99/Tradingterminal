@@ -253,6 +253,40 @@ export function updateSizeCellCount(cells: HTMLDivElement[], cellIdx: number, si
   else cell.textContent = String(size);
 }
 
+/**
+ * Return '#fff' or dark text color for maximum contrast against a hex background.
+ * Uses WCAG relative luminance — correctly handles saturated colors like lime green.
+ */
+/**
+ * Return '#fff' or darkColor for maximum contrast against a CSS color string.
+ * Accepts hex (#rgb, #rrggbb) or rgba/rgb(...) format.
+ * Uses WCAG relative luminance.
+ */
+export function contrastText(color: string, darkColor = '#000000'): string {
+  let r: number, g: number, b: number;
+
+  const rgba = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgba) {
+    r = parseInt(rgba[1]); g = parseInt(rgba[2]); b = parseInt(rgba[3]);
+  } else {
+    let h = color.replace('#', '');
+    if (h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    if (h.length < 6) return '#fff';
+    r = parseInt(h.slice(0, 2), 16);
+    g = parseInt(h.slice(2, 4), 16);
+    b = parseInt(h.slice(4, 6), 16);
+  }
+
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return '#fff';
+
+  const toLinear = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const L = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  return L > 0.179 ? darkColor : '#fff';
+}
+
 /** Darken a hex color by a factor (0–1, where 0.82 = 18% darker). */
 export function darken(hex: string, factor = 0.82): string {
   const h = hex.replace('#', '');

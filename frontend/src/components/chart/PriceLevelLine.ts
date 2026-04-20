@@ -1,6 +1,7 @@
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { COLOR_BG, COLOR_TEXT_MUTED, COLOR_LABEL_TEXT } from '../../constants/colors';
 import { FONT_FAMILY } from '../../constants/layout';
+import { contrastText } from './hooks/labelUtils';
 
 // ── Types ────────────────────────────────────────────────
 
@@ -48,16 +49,6 @@ function getLayoutMetrics(overlay: HTMLDivElement, chart: IChartApi): { psWidth:
   _cachedPsWidth = psWidth;
   _cachedPlotWidth = overlay.clientWidth - psWidth;
   return { psWidth: _cachedPsWidth, plotWidth: _cachedPlotWidth };
-}
-
-/** Contrast text color for axis labels (white on dark, dark on light). */
-function contrastText(hex: string): string {
-  const h = hex.replace('#', '').slice(0, 6);
-  if (h.length < 6) return '#fff';
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? COLOR_BG : '#fff';
 }
 
 /** Number of decimals needed to display tick-aligned prices. */
@@ -332,7 +323,7 @@ export class PriceLevelLine {
       const axH = 18;
       ctx.fillStyle = this._color;
       ctx.fillRect(plotWidth, y - axH / 2, psWidth, axH);
-      ctx.fillStyle = contrastText(this._color);
+      ctx.fillStyle = contrastText(this._color, COLOR_BG);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(priceText, plotWidth + psWidth / 2, y);
@@ -393,7 +384,7 @@ export class PriceLevelLine {
 
   private _syncAxis(): void {
     this._axisEl.style.background = this._color;
-    this._axisEl.style.color = contrastText(this._color);
+    this._axisEl.style.color = contrastText(this._color, COLOR_BG);
     this._axisEl.textContent = this._price.toFixed(this._decimals);
   }
 }

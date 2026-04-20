@@ -15,6 +15,7 @@ import type { Drawing, FRVPDrawing, RulerMetrics } from '../../../types/drawing'
 import type { Bar } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
+import { contrastText } from '../hooks/labelUtils';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
@@ -702,13 +703,7 @@ class SelectionRectPaneView implements IPrimitivePaneView {
 // ---------------------------------------------------------------------------
 // Price axis label for drawings (shows price on the right Y-axis scale)
 // ---------------------------------------------------------------------------
-function contrastTextColor(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  // Perceived brightness (ITU-R BT.709)
-  return (r * 0.299 + g * 0.587 + b * 0.114) > 150 ? COLOR_LABEL_TEXT : '#ffffff';
-}
+const contrastTextColor = (hex: string) => contrastText(hex, COLOR_LABEL_TEXT);
 
 class DrawingPriceAxisView implements ISeriesPrimitiveAxisView {
   _coordinate = 0;
