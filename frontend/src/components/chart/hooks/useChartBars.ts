@@ -213,8 +213,8 @@ export function useChartBars(
     let pendingPrice: number | null = null;
     let quoteRafId = 0;
 
-    // Volume tracking: cumulative quote volume → per-bar volume for FRVP range mode
-    let prevCumulativeVolume: number | null = null;
+    // Per-bar volume for FRVP range mode — accumulated from trade ticks, not quote volume.
+    // Quote volume fields are unreliable (may include historical backfill batches on subscribe).
     let pendingBarVolume = 0;
 
     function flushQuote() {
@@ -270,15 +270,8 @@ export function useChartBars(
       const price = data.lastPrice;
       if (price == null || !isFinite(price)) return;
 
-      // Compute per-tick volume delta from cumulative quote volume
-      const tickVol = prevCumulativeVolume !== null && data.volume > prevCumulativeVolume
-        ? data.volume - prevCumulativeVolume
-        : 0;
-      prevCumulativeVolume = data.volume;
-
       if (lastBar.time === candleTime) {
         // Update existing bar
-        pendingBarVolume += tickVol;
         const updated: CandlestickData<UTCTimestamp> = {
           time: candleTime,
           open: lastBar.open,
@@ -295,7 +288,7 @@ export function useChartBars(
           refs.series.current.update(pendingBar);
           refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
         }
-        pendingBarVolume = tickVol; // reset accumulator for the new bar
+        pendingBarVolume = 0; // reset accumulator for the new bar
         const newBar: CandlestickData<UTCTimestamp> = {
           time: candleTime,
           open: price,
@@ -319,13 +312,20 @@ export function useChartBars(
 
     realtimeService.onQuote(handleQuote);
 
-    // Accumulate live GatewayTrade ticks into the anchor-mode FRVP volume map
+    // Accumulate live GatewayTrade ticks into the anchor-mode FRVP volume map.
+    // Also drives per-bar volume for range-mode FRVP — uses timestampMs to exclude
+    // historical backfill batches that ProjectX sends on subscribe.
     function handleMarketTick(tickContractId: string, ticks: MarketTick[]) {
       if (tickContractId !== contractId) return;
       const ts = contract?.tickSize ?? 0.01;
+      const lastBar = refs.lastBar.current;
+      const barStartMs = lastBar ? (lastBar.time as number) * 1000 : null;
       for (const tick of ticks) {
         const key = Math.round(Math.round(tick.price / ts) * ts * 1e10) / 1e10;
         tradeAnchorMapRef.current.set(key, (tradeAnchorMapRef.current.get(key) ?? 0) + tick.size);
+        if (barStartMs !== null && tick.timestampMs >= barStartMs) {
+          pendingBarVolume += tick.size;
+        }
       }
     }
     realtimeService.onMarketTick(handleMarketTick);
