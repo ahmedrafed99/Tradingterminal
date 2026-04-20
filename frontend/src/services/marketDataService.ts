@@ -1,4 +1,5 @@
 import api from './api';
+import { metricCollector } from './monitor/metricCollector';
 
 export interface Bar {
   t: string;  // ISO timestamp
@@ -109,13 +110,19 @@ export const marketDataService = {
     if (existing) return existing;
 
     // 4. Network fetch
+    const fetchStart = performance.now();
     const promise = api
       .post<{ bars: Bar[]; success: boolean }>('/market/bars', params)
       .then((res) => {
+        metricCollector.onApiCall('POST', '/market/bars', performance.now() - fetchStart, true);
         const bars = res.data.bars ?? [];
         barsCache.set(key, { bars, ts: Date.now() });
         ssSet(key, bars);
         return bars;
+      })
+      .catch((err) => {
+        metricCollector.onApiCall('POST', '/market/bars', performance.now() - fetchStart, false);
+        throw err;
       })
       .finally(() => {
         inflight.delete(key);
@@ -137,14 +144,20 @@ export const marketDataService = {
     if (existing) return existing;
 
     // 3. Network fetch
+    const searchStart = performance.now();
     const promise = api
       .get<{ contracts: Contract[]; success: boolean }>(
         `/market/contracts/search?q=${encodeURIComponent(query)}&live=${live}`,
       )
       .then((res) => {
+        metricCollector.onApiCall('GET', '/market/contracts/search', performance.now() - searchStart, true);
         const contracts = (res.data.contracts ?? []).map(normalizeContract);
         searchCache.set(key, { contracts, ts: Date.now() });
         return contracts;
+      })
+      .catch((err) => {
+        metricCollector.onApiCall('GET', '/market/contracts/search', performance.now() - searchStart, false);
+        throw err;
       })
       .finally(() => {
         searchInflight.delete(key);
@@ -155,9 +168,12 @@ export const marketDataService = {
   },
 
   async listAvailableContracts(): Promise<Contract[]> {
-    const res = await api.get<{ contracts: Contract[]; success: boolean }>(
-      '/market/contracts/available',
-    );
-    return (res.data.contracts ?? []).map(normalizeContract);
+    const t = performance.now();
+    let ok = true;
+    try {
+      const res = await api.get<{ contracts: Contract[]; success: boolean }>('/market/contracts/available');
+      return (res.data.contracts ?? []).map(normalizeContract);
+    } catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('GET', '/market/contracts/available', performance.now() - t, ok); }
   },
 };

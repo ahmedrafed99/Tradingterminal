@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import type { Incident } from '../../services/monitor/types';
-import { FONT_SIZE, RADIUS } from '../../constants/layout';
+import { FONT_SIZE, RADIUS } from '../../constants/layout'; // RADIUS still used by incident rows
 
 interface Props {
   incidents: Incident[];
-  sessionStartTime: number;
 }
 
 function timeStr(wallMs: number): string {
@@ -22,8 +21,11 @@ function duration(inc: Incident): string {
   return ((inc.endTime - inc.startTime) / 1000).toFixed(1) + 's';
 }
 
-export function IncidentLog({ incidents, sessionStartTime }: Props) {
+type SortOrder = 'newest' | 'oldest';
+
+export function IncidentLog({ incidents }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -33,7 +35,6 @@ export function IncidentLog({ incidents, sessionStartTime }: Props) {
     });
   };
 
-  // Convert performance.now() offsets to wall clock
   const perfNow = performance.now();
   const wallOffset = Date.now() - perfNow;
 
@@ -43,18 +44,27 @@ export function IncidentLog({ incidents, sessionStartTime }: Props) {
         <div style={{ fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em', marginBottom: 10 }}>
           INCIDENTS
         </div>
-        <div style={{ fontSize: FONT_SIZE.MD, color: 'var(--color-text-muted)' }}>No incidents this session</div>
+        <div style={{ fontSize: FONT_SIZE.MD, color: 'var(--color-text)' }}>No incidents this session</div>
       </div>
     );
   }
 
+  const sorted = sortOrder === 'newest'
+    ? [...incidents].reverse()
+    : incidents;
+
   return (
     <div style={{ padding: '20px 0', borderTop: '1px solid var(--color-border)', marginTop: 8 }}>
-      <div style={{ fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em', marginBottom: 10 }}>
+      <div
+        className="cursor-pointer select-none hover:text-(--color-text) transition-colors"
+        style={{ fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        onClick={() => setSortOrder(sortOrder === 'newest' ? 'oldest' : 'newest')}
+      >
         INCIDENTS ({incidents.length})
+        <span style={{ fontSize: 10 }}>{sortOrder === 'newest' ? '\u25BC' : '\u25B2'}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {incidents.map((inc) => {
+        {sorted.map((inc) => {
           const isOpen = expanded.has(inc.id);
           const color = inc.type === 'freeze' ? 'var(--color-sell)' : 'var(--color-warning)';
           const icon = inc.type === 'freeze' ? '✗' : '⚠';
@@ -83,10 +93,10 @@ export function IncidentLog({ incidents, sessionStartTime }: Props) {
                 }}
                 className="hover:bg-(--color-hover-row) active:opacity-75"
               >
-                <span style={{ color: 'var(--color-text-muted)', fontSize: FONT_SIZE.SM }}>
+                <span style={{ color: 'var(--color-text)', fontSize: FONT_SIZE.SM }}>
                   {isOpen ? '▼' : '▶'}
                 </span>
-                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)' }}>
+                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)' }}>
                   {timeStr(startWall)}
                 </span>
                 <span style={{ color, fontSize: FONT_SIZE.BASE, fontWeight: 600 }}>
@@ -95,7 +105,7 @@ export function IncidentLog({ incidents, sessionStartTime }: Props) {
                 <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)' }}>
                   {dur}
                 </span>
-                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)', marginLeft: 'auto' }}>
                   [{inc.nodeId}]
                 </span>
               </button>
@@ -108,17 +118,19 @@ export function IncidentLog({ incidents, sessionStartTime }: Props) {
                   padding: '10px 14px',
                   background: 'var(--color-panel)',
                   fontSize: FONT_SIZE.BASE,
-                  color: 'var(--color-text-muted)',
+                  color: 'var(--color-text)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 4,
                   fontFamily: 'var(--font-family)',
                 }}>
-                  <div><span style={{ color: 'var(--color-text-dim)' }}>trigger</span>  {inc.trigger}</div>
-                  {inc.worstLagMs > 0 && (
-                    <div><span style={{ color: 'var(--color-text-dim)' }}>worst  </span>  RAF lag {inc.worstLagMs.toFixed(0)}ms</div>
-                  )}
-                  <div><span style={{ color: 'var(--color-text-dim)' }}>prices </span>  prices_{new Date(sessionStartTime).toISOString().slice(0, 10)}.bin@offset={inc.priceOffset}</div>
+                  <div>{inc.trigger}</div>
+                  {inc.worstLagMs > 0 && (() => {
+                    const triggerLag = parseFloat(inc.trigger.match(/(\d+(?:\.\d+)?)ms/)?.[1] ?? '0');
+                    return inc.worstLagMs > triggerLag * 1.05 ? (
+                      <div><span style={{ color: 'var(--color-text)' }}>worst  </span>  RAF lag {inc.worstLagMs.toFixed(0)}ms</div>
+                    ) : null;
+                  })()}
                   {!inc.endTime && (
                     <div style={{ color }}> still active</div>
                   )}

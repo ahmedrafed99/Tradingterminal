@@ -2,6 +2,7 @@ import api from './api';
 import { retryAsync } from '../utils/retry';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
 import * as copyTracker from './copyTracker';
+import { metricCollector } from './monitor/metricCollector';
 
 export interface Order {
   id: string;
@@ -55,38 +56,56 @@ function assertSuccess(data: GatewayResponse) {
 
 export const orderService = {
   async placeOrder(params: PlaceOrderParams): Promise<{ orderId: string }> {
-    const result = await retryAsync(async () => {
-      const res = await api.post<GatewayResponse & { orderId: number | string }>('/orders/place', params);
-      assertSuccess(res.data);
-      return { orderId: String(res.data.orderId) };
-    });
-    copyTracker.onPlaceOrder(params.accountId, params, result.orderId);
-    return result;
+    const t = performance.now();
+    let ok = true;
+    try {
+      const result = await retryAsync(async () => {
+        const res = await api.post<GatewayResponse & { orderId: number | string }>('/orders/place', params);
+        assertSuccess(res.data);
+        return { orderId: String(res.data.orderId) };
+      });
+      copyTracker.onPlaceOrder(params.accountId, params, result.orderId);
+      return result;
+    } catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('POST', '/orders/place', performance.now() - t, ok); }
   },
 
   async cancelOrder(accountId: string, orderId: string): Promise<void> {
-    await retryAsync(async () => {
-      const res = await api.post<GatewayResponse>('/orders/cancel', { accountId, orderId });
-      assertSuccess(res.data);
-    });
-    copyTracker.onCancelOrder(accountId, orderId);
+    const t = performance.now();
+    let ok = true;
+    try {
+      await retryAsync(async () => {
+        const res = await api.post<GatewayResponse>('/orders/cancel', { accountId, orderId });
+        assertSuccess(res.data);
+      });
+      copyTracker.onCancelOrder(accountId, orderId);
+    } catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('POST', '/orders/cancel', performance.now() - t, ok); }
   },
 
   async modifyOrder(params: ModifyOrderParams): Promise<void> {
-    await retryAsync(async () => {
-      const res = await api.patch<GatewayResponse>('/orders/modify', params);
-      assertSuccess(res.data);
-    });
-    copyTracker.onModifyOrder(params.accountId, params.orderId, params);
+    const t = performance.now();
+    let ok = true;
+    try {
+      await retryAsync(async () => {
+        const res = await api.patch<GatewayResponse>('/orders/modify', params);
+        assertSuccess(res.data);
+      });
+      copyTracker.onModifyOrder(params.accountId, params.orderId, params);
+    } catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('PATCH', '/orders/modify', performance.now() - t, ok); }
   },
 
   async searchOpenOrders(accountId: string): Promise<Order[]> {
-    const res = await retryAsync(() =>
-      api.get<GatewayResponse & { orders: Order[] }>(
-        `/orders/open?accountId=${accountId}`,
-      ),
-    );
-    assertSuccess(res.data);
-    return (res.data.orders ?? []).map((o) => ({ ...o, id: String(o.id) }));
+    const t = performance.now();
+    let ok = true;
+    try {
+      const res = await retryAsync(() =>
+        api.get<GatewayResponse & { orders: Order[] }>(`/orders/open?accountId=${accountId}`),
+      );
+      assertSuccess(res.data);
+      return (res.data.orders ?? []).map((o) => ({ ...o, id: String(o.id) }));
+    } catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('GET', '/orders/open', performance.now() - t, ok); }
   },
 };

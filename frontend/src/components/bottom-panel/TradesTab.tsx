@@ -369,7 +369,7 @@ export function TradesTab() {
           return (
             <div
               key={trade.id}
-              className={`${stripe} ${selected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
+              className={`${stripe} ${selected} row-hover`}
               style={{ contentVisibility: 'auto', containIntrinsicSize: '0 28px' }}
               onClick={() => toggleTradeVisibility(trade.id)}
             >
@@ -422,7 +422,7 @@ export function TradesTab() {
           <div key={`group-${group.entryId}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 28px' }}>
             {/* Parent row */}
             <div
-              className={`${parentStripe} ${parentSelected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
+              className={`${parentStripe} ${parentSelected} row-hover`}
               onClick={() => toggleTradeVisibilityBulk(exitIds)}
             >
               <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
@@ -481,7 +481,7 @@ export function TradesTab() {
               return (
                 <div
                   key={trade.id}
-                  className={`${subStripe} ${subSelected} hover:bg-(--color-surface)/50 transition-colors cursor-pointer`}
+                  className={`${subStripe} ${subSelected} row-hover`}
                   onClick={(e) => { e.stopPropagation(); toggleTradeVisibility(trade.id); }}
                 >
                   <div className={`grid ${cols} items-center h-7`} style={{ width: '70%', paddingLeft: 'calc(1rem + 20px)' }}>

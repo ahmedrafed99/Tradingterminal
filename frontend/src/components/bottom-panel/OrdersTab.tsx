@@ -30,7 +30,7 @@ const OrderRow = memo(function OrderRow({ order, index, cancelling, onCancel }: 
   const stripe = index % 2 === 1 ? TABLE_ROW_STRIPE : '';
 
   return (
-    <div className={`${stripe} hover:bg-(--color-surface)/50 transition-colors`}>
+    <div className={`${stripe} row-hover`}>
       <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
         <div className="px-3 text-center whitespace-nowrap">
           <span className={`font-medium ${isBuy ? 'text-(--color-buy)' : 'text-(--color-sell)'}`}>

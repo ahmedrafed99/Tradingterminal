@@ -3,6 +3,8 @@ import { consoleBuffer } from '../../services/monitor/consoleBuffer';
 import type { ConsoleEntry, ConsoleTab } from '../../services/monitor/types';
 import { FONT_SIZE, RADIUS } from '../../constants/layout';
 
+type MarketSubTab = 'all' | 'quotes' | 'trades' | 'depth';
+
 interface Props {
   onClose: () => void;
   activeTab: ConsoleTab;
@@ -15,9 +17,17 @@ const TABS: { id: ConsoleTab; label: string }[] = [
   { id: 'api',        label: 'API' },
 ];
 
+const MARKET_SUB_TABS: { id: MarketSubTab; label: string; kinds?: string[] }[] = [
+  { id: 'all',    label: 'All' },
+  { id: 'quotes', label: 'Quotes', kinds: ['QUOTE'] },
+  { id: 'trades', label: 'Trades', kinds: ['TRADE'] },
+  { id: 'depth',  label: 'Depth',  kinds: ['DEPTH'] },
+];
+
 const KIND_COLOR: Record<string, string> = {
   QUOTE: 'var(--color-text-dim)',
   TRADE: 'var(--color-buy)',
+  DEPTH: 'var(--color-warning)',
   ORDER: 'var(--color-warning)',
   POS:   'var(--color-text-muted)',
   STATE: 'var(--color-text-bright)',
@@ -55,16 +65,22 @@ function EntryRow({ entry }: { entry: ConsoleEntry }) {
 }
 
 export function ConsolePanel({ onClose, activeTab, onTabChange }: Props) {
-  const [entries, setEntries] = useState<ConsoleEntry[]>([]);
+  const [allEntries, setAllEntries] = useState<ConsoleEntry[]>([]);
+  const [marketSubTab, setMarketSubTab] = useState<MarketSubTab>('all');
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottomRef = useRef(true);
 
   useEffect(() => {
-    setEntries(consoleBuffer.getEntries(activeTab));
+    setAllEntries(consoleBuffer.getEntries(activeTab));
     return consoleBuffer.subscribe(() => {
-      setEntries([...consoleBuffer.getEntries(activeTab)]);
+      setAllEntries([...consoleBuffer.getEntries(activeTab)]);
     });
   }, [activeTab]);
+
+  const subTabDef = MARKET_SUB_TABS.find(s => s.id === marketSubTab);
+  const entries = activeTab === 'market-hub' && subTabDef?.kinds
+    ? allEntries.filter(e => subTabDef.kinds!.includes(e.kind))
+    : allEntries;
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -144,6 +160,40 @@ export function ConsolePanel({ onClose, activeTab, onTabChange }: Props) {
           ✕
         </button>
       </div>
+
+      {/* Market Hub sub-tabs */}
+      {activeTab === 'market-hub' && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '4px 10px',
+          borderBottom: '1px solid var(--color-border)',
+          background: 'var(--color-surface)',
+        }}>
+          {MARKET_SUB_TABS.map(sub => (
+            <button
+              key={sub.id}
+              onClick={() => setMarketSubTab(sub.id)}
+              style={{
+                background: marketSubTab === sub.id ? 'var(--color-hover-row)' : 'none',
+                border: '1px solid',
+                borderColor: marketSubTab === sub.id ? 'var(--color-border)' : 'transparent',
+                borderRadius: RADIUS.LG,
+                padding: '2px 8px',
+                fontSize: FONT_SIZE.SM,
+                fontWeight: marketSubTab === sub.id ? 600 : 400,
+                color: marketSubTab === sub.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
+                cursor: 'pointer',
+                transition: 'color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast)',
+              }}
+              className={marketSubTab !== sub.id ? 'hover:text-(--color-text)' : ''}
+            >
+              {sub.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Log output */}
       <div

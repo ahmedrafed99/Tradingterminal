@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { NodeMetrics, NodeState, HubConnectionState, ApiCategoryMetrics } from '../../services/monitor/types';
+import { metricCollector } from '../../services/monitor/metricCollector';
 import { COLOR_BUY, COLOR_WARNING, COLOR_SELL, COLOR_BORDER } from '../../constants/colors';
 import { FONT_SIZE, RADIUS } from '../../constants/layout';
 
@@ -34,14 +35,44 @@ function formatLastSeen(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: boolean }) {
+// ---------------------------------------------------------------------------
+// ParticleTrack — animated dots flowing along a line
+// ---------------------------------------------------------------------------
+
+interface LeafBurst {
+  t: number;        // progress 0→1
+  arrived: boolean;
+  price: string;
+}
+
+function ParticleTrack({
+  state,
+  marketOpen,
+  triggerPulse = 0,
+  pulsePrice = '',
+  onPulseArrival,
+}: {
+  state: NodeState;
+  marketOpen: boolean;
+  triggerPulse?: number;
+  pulsePrice?: string;
+  onPulseArrival?: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef(0);
-  const particlesRef = useRef<{ x: number }[]>([
-    { x: 0 },
-    { x: 0.38 },
-    { x: 0.72 },
-  ]);
+  const particlesRef = useRef<{ x: number }[]>([{ x: 0 }, { x: 0.38 }, { x: 0.72 }]);
+  const burstsRef = useRef<LeafBurst[]>([]);
+  const lastPulseRef = useRef(triggerPulse);
+  const onArrivalRef = useRef(onPulseArrival);
+
+  useEffect(() => { onArrivalRef.current = onPulseArrival; }, [onPulseArrival]);
+
+  useEffect(() => {
+    if (triggerPulse !== lastPulseRef.current && pulsePrice) {
+      lastPulseRef.current = triggerPulse;
+      burstsRef.current.push({ t: 0, arrived: false, price: pulsePrice });
+    }
+  }, [triggerPulse, pulsePrice]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -56,6 +87,7 @@ function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: bo
       const color = STATE_COLOR_CANVAS[state];
       const speed = !marketOpen ? 0 : state === 'normal' ? 0.8 : state === 'degraded' ? 0.25 : 0;
 
+      // Track line
       ctx.strokeStyle = color;
       ctx.globalAlpha = state === 'frozen' ? 0.12 : 0.22;
       ctx.lineWidth = 1.5;
@@ -78,6 +110,7 @@ function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: bo
         ctx.globalAlpha = 1;
       }
 
+      // Ambient dots
       if (marketOpen) {
         for (const p of particlesRef.current) {
           p.x = (p.x + speed * 0.005) % 1;
@@ -91,17 +124,52 @@ function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: bo
         }
       }
 
+      // Thrown price text: ease-out x, parabolic arc y, decaying tilt
+      const T_STEP = 0.022;
+      const easeOut = (t: number) => t * (2 - t);
+      const alive: LeafBurst[] = [];
+      for (const b of burstsRef.current) {
+        b.t += T_STEP;
+
+        const progress = Math.min(b.t, 1);
+        const xPos     = easeOut(progress);
+
+        if (!b.arrived && xPos >= 0.85) {
+          b.arrived = true;
+          onArrivalRef.current?.();
+        }
+
+        if (b.t < 1.0) {
+          alive.push(b);
+
+          const arc      = -Math.sin(progress * Math.PI) * 7;        // gentle upward arc
+          const rotation = 0.25 * (1 - progress) * (1 - progress);   // initial tilt, decays to 0
+          const alpha    = progress < 0.07 ? progress / 0.07 : progress > 0.86 ? Math.max(0, (1 - progress) / 0.14) : 1;
+
+          ctx.save();
+          ctx.translate(xPos * w, h / 2 + arc);
+          ctx.rotate(rotation);
+          ctx.font = '600 10px monospace';
+          ctx.fillStyle = color;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 7;
+          ctx.globalAlpha = alpha;
+          const tw = ctx.measureText(b.price).width;
+          ctx.fillText(b.price, -tw / 2, 3.5);
+          ctx.restore();
+          ctx.globalAlpha = 1;
+        }
+      }
+      burstsRef.current = alive;
+
       rafRef.current = requestAnimationFrame(draw);
     };
 
     rafRef.current = requestAnimationFrame(draw);
 
     const onVisibility = () => {
-      if (document.hidden) {
-        cancelAnimationFrame(rafRef.current);
-      } else {
-        rafRef.current = requestAnimationFrame(draw);
-      }
+      if (document.hidden) cancelAnimationFrame(rafRef.current);
+      else rafRef.current = requestAnimationFrame(draw);
     };
     document.addEventListener('visibilitychange', onVisibility);
 
@@ -115,122 +183,298 @@ function ParticleTrack({ state, marketOpen }: { state: NodeState; marketOpen: bo
     <canvas
       ref={canvasRef}
       width={100}
-      height={20}
+      height={28}
       style={{ display: 'block' }}
     />
   );
 }
 
-function NodeCard({ node, compact, onClick }: { node: NodeMetrics; compact?: boolean; onClick?: () => void }) {
+// ---------------------------------------------------------------------------
+// Shared card shell — top accent + tint + glow
+// ---------------------------------------------------------------------------
+
+function cardShell(stateColor: string, minWidth: number, clickable: boolean) {
+  return {
+    position: 'relative' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    background: `linear-gradient(160deg, color-mix(in srgb, ${stateColor} 8%, var(--color-surface)) 0%, var(--color-surface) 60%)`,
+    border: '1px solid var(--color-border)',
+    borderTop: `2px solid ${stateColor}`,
+    borderRadius: RADIUS.XL,
+    boxShadow: `0 4px 20px color-mix(in srgb, ${stateColor} 12%, transparent)`,
+    minWidth,
+    cursor: clickable ? 'pointer' : 'default',
+    transition: 'box-shadow var(--transition-fast), background var(--transition-fast)',
+    overflow: 'hidden',
+  };
+}
+
+function Row({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14 }}>
+      <span style={{ fontSize: FONT_SIZE.XS, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>
+        {label}
+      </span>
+      <span style={{ fontSize: FONT_SIZE.MD, fontWeight: 700, color: valueColor ?? 'var(--color-text-bright)', fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HubSourceCard
+// ---------------------------------------------------------------------------
+
+function HubSourceCard({ node, onClick }: { node: NodeMetrics; onClick?: () => void }) {
   const stateColor = STATE_COLOR_CSS[node.state];
-  const isHub = node.id === 'market-hub' || node.id === 'user-hub';
-  const isChart = node.id === 'chart';
   const clickable = !!onClick;
+  const hubColor = node.hubState === 'connected'
+    ? 'var(--color-buy)'
+    : node.hubState === 'reconnecting'
+      ? 'var(--color-warning)'
+      : 'var(--color-sell)';
 
   return (
     <div
       onClick={onClick}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderLeft: `3px solid ${stateColor}`,
-        borderRadius: RADIUS.XL,
-        padding: compact ? '10px 14px' : '12px 18px',
-        minWidth: compact ? 148 : 170,
-        cursor: clickable ? 'pointer' : 'default',
-        transition: clickable ? 'background var(--transition-fast)' : undefined,
-      }}
-      className={clickable ? 'hover:bg-(--color-hover-row) active:opacity-75' : undefined}
+      style={cardShell(stateColor, 156, clickable)}
+      className={clickable ? 'hover:brightness-110 active:opacity-75' : undefined}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <span style={{ color: stateColor, fontSize: FONT_SIZE.XS, lineHeight: 1 }}>●</span>
-        <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 700, color: 'var(--color-text-bright)', flex: 1 }}>
-          {node.label}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px 8px' }}>
+        <span style={{ color: stateColor, fontSize: 8, lineHeight: 1 }}>◆</span>
+        <span style={{ fontSize: FONT_SIZE.SM, fontWeight: 700, color: 'var(--color-text-bright)', letterSpacing: '0.1em' }}>
+          {node.label.toUpperCase()}
         </span>
       </div>
 
-      {/* Hub nodes: connection state + sub-event rates */}
-      {isHub && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div>
-            <span style={{
-              fontSize: FONT_SIZE.BASE,
-              fontWeight: 600,
-              color: node.hubState === 'connected'
-                ? 'var(--color-buy)'
-                : node.hubState === 'reconnecting'
-                  ? 'var(--color-warning)'
-                  : 'var(--color-sell)',
-            }}>
-              {node.hubState ? HUB_STATE_LABEL[node.hubState] : '—'}
-            </span>
-          </div>
-          {node.tickRate > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>events</span>
-              <span style={{ fontSize: FONT_SIZE.BASE, fontWeight: 600, color: 'var(--color-text)' }}>
-                {node.tickRate}/min
-              </span>
-            </div>
-          )}
-          {node.subRates && node.subRates.map((sr) => (
-            sr.rate > 0 && (
-              <div key={sr.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>{sr.label.toLowerCase()}</span>
-                <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>{sr.rate}/min</span>
-              </div>
-            )
-          ))}
-          {node.lastTickAgo > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>last</span>
-              <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{formatLastSeen(node.lastTickAgo)}</span>
-            </div>
-          )}
-          {node.hubRttMs > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>rtt</span>
-              <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: node.hubRttMs > 200 ? 'var(--color-warning)' : 'var(--color-text)' }}>
-                {node.hubRttMs}ms
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Divider */}
+      <div style={{ height: 1, background: 'var(--color-border)', margin: '0 14px' }} />
 
-      {/* Adapter node */}
-      {node.id === 'adapter' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>rate</span>
-            <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{node.tickRate} tck</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>last</span>
-            <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{formatLastSeen(node.lastTickAgo)}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Chart node */}
-      {isChart && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>RAF lag</span>
-            <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{node.rafLagMs}ms</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-            <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-medium)' }}>frm/min</span>
-            <span style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text)' }}>{node.tickRate}</span>
-          </div>
-        </div>
-      )}
+      {/* Metrics */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 14px 12px' }}>
+        <span style={{ fontSize: FONT_SIZE.MD, fontWeight: 700, color: hubColor }}>
+          {node.hubState ? HUB_STATE_LABEL[node.hubState] : '—'}
+        </span>
+        <Row label="RTT" value={node.hubRttMs > 0 ? `${node.hubRttMs}ms` : '—'} valueColor={node.hubRttMs > 200 ? 'var(--color-warning)' : 'var(--color-text-bright)'} />
+        <Row label="LAST" value={formatLastSeen(node.lastTickAgo)} />
+      </div>
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// NodeCard — Adapter / Chart
+// ---------------------------------------------------------------------------
+
+function NodeCard({ node }: { node: NodeMetrics }) {
+  const stateColor = STATE_COLOR_CSS[node.state];
+  const isChart = node.id === 'chart';
+
+  return (
+    <div style={cardShell(stateColor, 148, false)}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px 8px' }}>
+        <span style={{ color: stateColor, fontSize: 8, lineHeight: 1 }}>◆</span>
+        <span style={{ fontSize: FONT_SIZE.SM, fontWeight: 700, color: 'var(--color-text-bright)', letterSpacing: '0.1em' }}>
+          {node.label.toUpperCase()}
+        </span>
+      </div>
+
+      <div style={{ height: 1, background: 'var(--color-border)', margin: '0 14px' }} />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 14px 12px' }}>
+        {node.id === 'adapter' && (
+          <>
+            <Row label="RATE" value={node.tickRate > 0 ? `${node.tickRate}/m` : node.lastTickAgo > 0 && node.lastTickAgo < 2000 ? '<1/m' : '0/m'} />
+            <Row label="LAST" value={formatLastSeen(node.lastTickAgo)} />
+          </>
+        )}
+        {isChart && (
+          <>
+            <Row label="RAF LAG" value={`${node.rafLagMs}ms`} valueColor={node.rafLagMs > 50 ? 'var(--color-warning)' : 'var(--color-text-bright)'} />
+            <Row label="FRM/MIN" value={`${node.tickRate}`} />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SubLane — one subscription channel row (label + rate + track/line + destination)
+// ---------------------------------------------------------------------------
+
+const LANE_LABEL_W = 136;
+
+function SubLane({
+  label,
+  rate,
+  state,
+  marketOpen,
+  noTrack = false,
+  triggerPulse,
+  pulsePrice,
+  onPulseArrival,
+  children,
+}: {
+  label: string;
+  rate: number;
+  state: NodeState;
+  marketOpen: boolean;
+  noTrack?: boolean;
+  triggerPulse?: number;
+  pulsePrice?: string;
+  onPulseArrival?: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      {/* Fixed-width label + rate so all lanes align */}
+      <div style={{ width: LANE_LABEL_W, display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingRight: 10 }}>
+        <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text)' }}>
+          {label}
+        </span>
+        <span style={{
+          fontSize: FONT_SIZE.BASE,
+          fontWeight: 600,
+          color: 'var(--color-text-bright)',
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          {rate > 0 ? `${rate}/s` : '—'}
+        </span>
+      </div>
+
+      {/* Track: animated particles or static dashed line */}
+      {noTrack ? (
+        <div style={{ width: 100, height: 20, display: 'flex', alignItems: 'center' }}>
+          <div style={{ flex: 1, borderTop: '1px dashed var(--color-border)' }} />
+        </div>
+      ) : (
+        <ParticleTrack
+          state={state}
+          marketOpen={marketOpen}
+          triggerPulse={triggerPulse}
+          pulsePrice={pulsePrice}
+          onPulseArrival={onPulseArrival}
+        />
+      )}
+
+      {/* Arrow */}
+      <span style={{ fontSize: 11, color: 'var(--color-text)', padding: '0 6px', lineHeight: 1 }}>→</span>
+
+      {/* Destination */}
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DestLabel — simple pill for lanes without a full node card
+// ---------------------------------------------------------------------------
+
+function DestLabel({ text }: { text: string }) {
+  return (
+    <div style={{
+      padding: '4px 10px',
+      border: '1px solid var(--color-border)',
+      borderRadius: RADIUS.LG,
+      fontSize: FONT_SIZE.BASE,
+      color: 'var(--color-text)',
+    }}>
+      {text}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DestCard — destination card with icon (for Book / FRVP)
+// ---------------------------------------------------------------------------
+
+function BookIcon() {
+  return (
+    <svg viewBox="0 0 28 28" width="16" height="16" fill="currentColor">
+      <rect x="4"  y="7"  width="9"  height="2" rx="0.5" />
+      <rect x="4"  y="12" width="13" height="2" rx="0.5" />
+      <rect x="4"  y="17" width="6"  height="2" rx="0.5" />
+      <rect x="15" y="7"  width="9"  height="2" rx="0.5" />
+      <rect x="15" y="12" width="5"  height="2" rx="0.5" />
+      <rect x="15" y="17" width="8"  height="2" rx="0.5" />
+      <rect x="13.5" y="5" width="1" height="16" opacity="0.25" />
+    </svg>
+  );
+}
+
+function FRVPIconSmall() {
+  return (
+    <svg viewBox="0 0 28 28" width="16" height="16" fill="none">
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M5 21.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM3.5 24a2.5 2.5 0 0 0 .5-4.95V3H3v16.05A2.5 2.5 0 0 0 3.5 24zM25 5.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0zM23.5 3a2.5 2.5 0 0 1 .5 4.95V24h-1V7.95A2.5 2.5 0 0 1 23.5 3z" />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M9 7H4v2h5V7zM3 6v4h7V6H3z" />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M12 10H4v2h8v-2zM3 9v4h10V9H3z" />
+      <path fill="currentColor" fillRule="evenodd" clipRule="evenodd" d="M7 13H4v2h3v-2zm-4-1v4h5v-4H3z" />
+    </svg>
+  );
+}
+
+function DestCard({ label, icon, state }: { label: string; icon: React.ReactNode; state: NodeState }) {
+  const stateColor = STATE_COLOR_CSS[state];
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      padding: '8px 12px',
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderLeft: `3px solid ${stateColor}`,
+      borderRadius: RADIUS.XL,
+      minWidth: 88,
+    }}>
+      {icon}
+      <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-bright)', fontWeight: 600 }}>{label}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// HubSection — hub source card + fan-out lanes
+// ---------------------------------------------------------------------------
+
+function HubSection({
+  hub,
+  onClick,
+  children,
+}: {
+  hub: NodeMetrics;
+  onClick?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <HubSourceCard node={hub} onClick={onClick} />
+      {/* horizontal connector to branch bar */}
+      <div style={{ width: 12, height: 1, background: 'var(--color-border)', flexShrink: 0 }} />
+      {/* vertical bar + lanes */}
+      <div style={{
+        borderLeft: '1px solid var(--color-border)',
+        paddingLeft: 18,
+        paddingTop: 6,
+        paddingBottom: 6,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 16,
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ApiSection — REST endpoint table
+// ---------------------------------------------------------------------------
 
 function formatAgo(ms: number): string {
   if (ms <= 0) return '—';
@@ -269,7 +513,6 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
       borderRadius: RADIUS.XL,
       overflow: 'hidden',
     }}>
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px', background: 'var(--color-panel)' }}>
         <span style={{ ...colStyle(COL.name, 'left'), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>ENDPOINT</span>
         <span style={{ ...colStyle(COL.calls), fontSize: FONT_SIZE.SM, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.08em' }}>CALLS</span>
@@ -283,7 +526,6 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
         const isOpen = expanded.has(cat.name);
         return (
           <div key={cat.name}>
-            {/* Category row */}
             <button
               onClick={() => toggle(cat.name)}
               style={{ width: '100%', border: 'none', padding: '10px 16px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
@@ -300,7 +542,6 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
               <span style={{ ...colStyle(COL.status), fontSize: FONT_SIZE.SM, color: cat.lastOk ? 'var(--color-buy)' : 'var(--color-sell)' }}>●</span>
             </button>
 
-            {/* Endpoint rows */}
             {isOpen && cat.endpoints.map((ep) => (
               <div key={`${ep.method}:${ep.path}`} className="bg-(--color-panel)" style={{ display: 'flex', alignItems: 'center', padding: '8px 16px' }}>
                 <div style={{ ...colStyle(COL.name, 'left'), display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden', paddingLeft: 16, borderLeft: '2px solid var(--color-border)' }}>
@@ -325,47 +566,125 @@ function ApiSection({ categories }: { categories: ApiCategoryMetrics[] }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// FlowDiagram — main export
+// ---------------------------------------------------------------------------
+
+function getSubRate(node: NodeMetrics | undefined, label: string): number {
+  return node?.subRates?.find((r) => r.label === label)?.rate ?? 0;
+}
+
 export function FlowDiagram({ nodes, marketOpen, apiCategories, onHubClick }: Props) {
   const marketHub = nodes.find((n) => n.id === 'market-hub');
   const userHub   = nodes.find((n) => n.id === 'user-hub');
   const adapter   = nodes.find((n) => n.id === 'adapter');
   const chart     = nodes.find((n) => n.id === 'chart');
 
-  // Pipeline: Market Hub → Adapter → Chart
-  const pipeline = [marketHub, adapter, chart].filter(Boolean) as NodeMetrics[];
+  // Leaf burst: real quote ticks throttled to ~1 per 350ms
+  const [seg1Pulse, setSeg1Pulse] = useState(0);
+  const [seg2Pulse, setSeg2Pulse] = useState(0);
+  const [pulsePrice, setPulsePrice] = useState('');
+
+  useEffect(() => {
+    const handler = (price: number) => {
+      setPulsePrice(price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+      setSeg1Pulse((p) => p + 1);
+    };
+    metricCollector.onTickPulse(handler);
+    return () => metricCollector.offTickPulse(handler);
+  }, []);
 
   return (
-    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {/* LIVE DATA row label */}
+    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 32 }}>
       <div style={{ fontSize: FONT_SIZE.LG, fontWeight: 600, color: 'var(--color-text-bright)', letterSpacing: '0.06em' }}>
         LIVE DATA
       </div>
 
-      {/* Market data pipeline */}
-      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0 }}>
-        {pipeline.map((node, i) => (
-          <div key={node.id} style={{ display: 'flex', alignItems: 'center' }}>
-            <NodeCard
-              node={node}
-              onClick={node.id === 'market-hub' ? () => onHubClick?.('market-hub') : undefined}
-            />
-            {i < pipeline.length - 1 && (
-              <div style={{ padding: '0 10px' }}>
-                <ParticleTrack state={node.state} marketOpen={marketOpen} />
-              </div>
+      {/* Market Hub — 3 subscription lanes fanning out to their consumers */}
+      {marketHub && (
+        <HubSection hub={marketHub} onClick={() => onHubClick?.('market-hub')}>
+          {/* quotes → Adapter → Chart (full pipeline with particle tracks) */}
+          <SubLane
+            label="quotes"
+            rate={getSubRate(marketHub, 'Quotes')}
+            state={marketHub.state}
+            marketOpen={marketOpen}
+            triggerPulse={seg1Pulse}
+            pulsePrice={pulsePrice}
+            onPulseArrival={() => setSeg2Pulse((p) => p + 1)}
+          >
+            {adapter && (
+              <>
+                <NodeCard node={adapter} />
+                <div style={{ padding: '0 4px' }}>
+                  <ParticleTrack
+                    state={adapter.state}
+                    marketOpen={marketOpen}
+                    triggerPulse={seg2Pulse}
+                    pulsePrice={pulsePrice}
+                  />
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--color-text)', padding: '0 6px', lineHeight: 1 }}>→</span>
+              </>
             )}
-          </div>
-        ))}
-      </div>
+            {chart && <NodeCard node={chart} />}
+          </SubLane>
 
-      {/* User Hub — standalone (not part of market data pipeline) */}
+          {/* depth → Book (dim — not piped through adapter) */}
+          <SubLane
+            label="depth"
+            rate={getSubRate(marketHub, 'Depth')}
+            state={marketHub.state}
+            marketOpen={marketOpen}
+
+          >
+            <DestCard label="Book" icon={<BookIcon />} state={marketHub.state} />
+          </SubLane>
+
+          {/* trades → FRVP (dim — not piped through adapter) */}
+          <SubLane
+            label="trades"
+            rate={getSubRate(marketHub, 'Trades')}
+            state={marketHub.state}
+            marketOpen={marketOpen}
+
+          >
+            <DestCard label="FRVP" icon={<FRVPIconSmall />} state={marketHub.state} />
+          </SubLane>
+        </HubSection>
+      )}
+
+      {/* User Hub — event-driven lanes (no particle track, dashed line) */}
       {userHub && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NodeCard node={userHub} compact onClick={() => onHubClick?.('user-hub')} />
-          <span style={{ fontSize: FONT_SIZE.BASE, color: 'var(--color-text-muted)', marginLeft: 4 }}>
-            orders · positions · trades
-          </span>
-        </div>
+        <HubSection hub={userHub} onClick={() => onHubClick?.('user-hub')}>
+          <SubLane
+            label="orders"
+            rate={getSubRate(userHub, 'Orders')}
+            state={userHub.state}
+            marketOpen={marketOpen}
+            noTrack
+          >
+            <DestLabel text="Orders" />
+          </SubLane>
+          <SubLane
+            label="positions"
+            rate={getSubRate(userHub, 'Positions')}
+            state={userHub.state}
+            marketOpen={marketOpen}
+            noTrack
+          >
+            <DestLabel text="Positions" />
+          </SubLane>
+          <SubLane
+            label="trades"
+            rate={getSubRate(userHub, 'Trades')}
+            state={userHub.state}
+            marketOpen={marketOpen}
+            noTrack
+          >
+            <DestLabel text="Fills" />
+          </SubLane>
+        </HubSection>
       )}
 
       {/* REST API */}

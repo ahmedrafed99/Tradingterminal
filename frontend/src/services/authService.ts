@@ -1,5 +1,6 @@
 import api from './api';
 import { dedup } from '../utils/dedup';
+import { metricCollector } from './monitor/metricCollector';
 
 export interface AuthStatus {
   connected: boolean;
@@ -10,11 +11,19 @@ export interface AuthStatus {
 
 export const authService = {
   async connect(userName: string, apiKey: string, baseUrl?: string, exchange = 'projectx'): Promise<void> {
-    await api.post('/auth/connect', { exchange, userName, apiKey, baseUrl });
+    const t = performance.now();
+    let ok = true;
+    try { await api.post('/auth/connect', { exchange, userName, apiKey, baseUrl }); }
+    catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('POST', '/auth/connect', performance.now() - t, ok); }
   },
 
   async disconnect(exchange?: string): Promise<void> {
-    await api.post('/auth/disconnect', exchange ? { exchange } : {});
+    const t = performance.now();
+    let ok = true;
+    try { await api.post('/auth/disconnect', exchange ? { exchange } : {}); }
+    catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('POST', '/auth/disconnect', performance.now() - t, ok); }
   },
 
   getStatus: dedup(async (): Promise<AuthStatus> => {

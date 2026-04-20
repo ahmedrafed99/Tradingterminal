@@ -313,7 +313,7 @@ export function ConditionsTab() {
         const orderLabel = `${isBuy ? 'Buy' : 'Sell'} ${c.orderSize} ${c.orderType === 'market' ? 'MKT' : `LMT ${c.orderPrice?.toFixed(2) ?? ''}`}`;
 
         return (
-          <div key={c.id} className={`${stripe} hover:bg-(--color-surface)/50 transition-colors`}>
+          <div key={c.id} className={`${stripe} row-hover`}>
             <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '85%' }}>
               {/* Status */}
               <div className={`px-3 text-center font-medium ${STATUS_COLORS[c.status] ?? 'text-(--color-text-muted)'}`}>

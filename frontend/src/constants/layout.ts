@@ -41,6 +41,7 @@ export const Z = {
   TOOLBAR: 30,     // drawing toolbar, quick-order, scroll buttons
   TOOLBAR_EDIT: 40,// drawing edit toolbar (above toolbar)
   DROPDOWN: 50,    // dropdowns, popovers, modals, selects
+  MODAL: 60,       // full-screen modal overlays (above dropdowns, below toasts)
   TOAST: 100,      // toasts, top-level color popovers
 } as const;
 

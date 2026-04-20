@@ -13,6 +13,7 @@ import { paintOverlays } from './screenshot/paintOverlays';
 import { useRecording } from './recording/useRecording';
 import { RecordingIndicator } from './recording/RecordingIndicator';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
+import { SpinnerInput } from '../SpinnerInput';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -436,7 +437,7 @@ export function ChartToolbar() {
   });
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [customNumber, setCustomNumber] = useState('1');
+  const [customNumber, setCustomNumber] = useState(1);
   const [customUnit, setCustomUnit] = useState<number>(2); // default: Minutes
   const dropdownRef = useRef<HTMLDivElement>(null);
   const marketType = useStore((s) => s.contract?.marketType ?? 'futures') as MarketType;
@@ -575,7 +576,7 @@ export function ChartToolbar() {
   }
 
   function handleApplyCustom() {
-    const num = parseInt(customNumber, 10);
+    const num = customNumber;
     if (!num || num < 1) return;
     const unitOpt = UNIT_OPTIONS.find((u) => u.value === customUnit);
     if (!unitOpt) return;
@@ -664,14 +665,13 @@ export function ChartToolbar() {
             <div style={{ padding: '4px 14px 8px' }}>
               <div className={SECTION_LABEL} style={{ marginBottom: '8px' }}>Custom</div>
               <div className="flex items-center gap-1.5">
-                <input
-                  type="number"
-                  min="1"
+                <SpinnerInput
                   value={customNumber}
-                  onChange={(e) => setCustomNumber(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleApplyCustom(); }}
-                  className="w-10 bg-(--color-panel) border border-(--color-border) rounded-md text-xs text-(--color-text) text-center focus:outline-none focus:border-(--color-text-dim)"
-                  style={{ padding: '5px 4px' }}
+                  onChange={setCustomNumber}
+                  min={1}
+                  step={1}
+                  inputWidth={40}
+                  height={28}
                 />
                 <UnitDropdown value={customUnit} onChange={setCustomUnit} />
                 <button

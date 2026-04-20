@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown } from './icons/ChevronDown';
 import { realtimeService } from '../services/realtimeService';
@@ -10,6 +10,9 @@ import { useClickOutside } from '../hooks/useClickOutside';
 import type { Trade } from '../services/tradeService';
 import { useStore } from '../store/useStore';
 import { SHADOW, Z } from '../constants/layout';
+import { metricCollector } from '../services/monitor/metricCollector';
+import { MonitorPanel } from './monitor/MonitorPanel';
+import type { NodeState } from '../services/monitor/types';
 
 function EyeIcon() {
   return (
@@ -183,6 +186,28 @@ export function TopBar() {
     return () => { cancelled = true; clearInterval(id); };
   }, [connected]);
 
+  // Monitor collector — start when connected, stop on disconnect
+  useEffect(() => {
+    if (connected) {
+      metricCollector.start();
+    } else {
+      metricCollector.stop();
+    }
+    return () => { metricCollector.stop(); };
+  }, [connected]);
+
+  // Monitor panel
+  const [monitorOpen, setMonitorOpen] = useState(false);
+  const latencyRef = useRef<HTMLDivElement>(null);
+
+  const monitorSnapshot = useSyncExternalStore(
+    (cb) => metricCollector.subscribe(cb),
+    () => metricCollector.getSnapshot(),
+  );
+
+  const worstState: NodeState = monitorSnapshot.worstState ?? 'normal';
+  const monitorDotColor = worstState === 'frozen' ? 'var(--color-sell)' : worstState === 'degraded' ? 'var(--color-warning)' : 'var(--color-buy)';
+
   // Compute unrealized P&L from open positions (sticky ref — retains last valid value)
   const upnlRef = useRef(0);
   if (activeAccountId != null && orderContract && lastPrice != null) {
@@ -337,17 +362,34 @@ export function TopBar() {
           <span className="text-xs text-(--color-text-muted)">{connected ? 'Connected' : 'Disconnected'}</span>
         </div>
 
-        {/* Latency */}
+        {/* Latency + monitor entry point */}
         {connected && latency !== null && (
-          <div className="flex items-center gap-1">
+          <div
+            ref={latencyRef}
+            onClick={() => setMonitorOpen((o) => !o)}
+            className="flex items-center gap-1 cursor-pointer rounded"
+            style={{ padding: '3px 5px', transition: 'background var(--transition-fast)' }}
+            title="Open system monitor"
+          >
             <span
               className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: latency < 50 ? 'var(--color-buy)' : latency < 150 ? 'var(--color-warning)' : 'var(--color-sell)' }}
+              style={{ backgroundColor: monitorDotColor, transition: 'background-color 0.5s' }}
             />
-            <span className="text-xs" style={{ color: latency < 50 ? 'var(--color-buy)' : latency < 150 ? 'var(--color-warning)' : 'var(--color-sell)' }}>
+            <span className="text-xs" style={{
+              color: latency < 50 ? 'var(--color-buy)' : latency < 150 ? 'var(--color-warning)' : 'var(--color-sell)',
+            }}>
               {latency}ms
             </span>
+            {worstState !== 'normal' && (
+              <span style={{ fontSize: 10, color: 'var(--color-warning)', marginLeft: 1 }}>⚠</span>
+            )}
           </div>
+        )}
+        {monitorOpen && connected && (
+          <MonitorPanel
+            anchorRef={latencyRef}
+            onClose={() => setMonitorOpen(false)}
+          />
         )}
 
         {/* Settings icon */}

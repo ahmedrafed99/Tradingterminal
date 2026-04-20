@@ -205,10 +205,7 @@ export function MonitorPanel({ anchorRef: _anchorRef, onClose }: Props) {
             )}
 
             {/* Incident log */}
-            <IncidentLog
-              incidents={snapshot.incidents}
-              sessionStartTime={snapshot.sessionStartTime}
-            />
+            <IncidentLog incidents={snapshot.incidents} />
 
             {/* Diagnosis hint (market open + degraded/frozen only) */}
             {marketOpen && snapshot.worstState !== 'normal' && (

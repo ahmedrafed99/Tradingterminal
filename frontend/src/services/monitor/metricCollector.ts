@@ -1,4 +1,5 @@
 import { realtimeService } from '../realtimeService';
+import type { Quote } from '../../adapters/types';
 import type { NodeId, NodeMetrics, NodeState, HubConnectionState, Incident, MonitorSnapshot, ApiCategoryMetrics, ApiEndpointMetrics } from './types';
 import { isFuturesMarketOpen } from '../../utils/marketHours';
 import { consoleBuffer } from './consoleBuffer';
@@ -105,7 +106,8 @@ class MetricCollector {
 
   private incidents: Incident[] = [];
   private openIncidents = new Map<NodeId, Incident>();
-  private sessionStartTime = 0;
+  private sessionStartTime = 0;     // Date.now() — wall clock, for display/reporting
+  private sessionStartPerf = 0;     // performance.now() — for window calculations
   private priceByteOffset = 0;
 
   private rafId = 0;
@@ -116,6 +118,9 @@ class MetricCollector {
   private userHubRttMs = 0;
   private running = false;
   private stopConsole: (() => void) | null = null;
+
+  private lastPulseAt = 0;
+  private pulseListeners = new Set<(price: number) => void>();
 
   private listeners = new Set<() => void>();
 
@@ -138,10 +143,13 @@ class MetricCollector {
     if (this.running) return;
     this.running = true;
     this.sessionStartTime = Date.now();
+    this.sessionStartPerf = performance.now();
     this.lastSampleAt = performance.now();
     this.lastRafAt = performance.now();
 
     realtimeService.onQuote(this.onQuote);
+    realtimeService.onDepth(this.onDepth);
+    realtimeService.onMarketTick(this.onMarketTick);
     realtimeService.onOrder(this.onUserHubEvent);
     realtimeService.onTrade(this.onUserHubTrade);
     realtimeService.onPosition(this.onUserHubPosition);
@@ -158,6 +166,8 @@ class MetricCollector {
     this.stopConsole?.();
     this.stopConsole = null;
     realtimeService.offQuote(this.onQuote);
+    realtimeService.offDepth(this.onDepth);
+    realtimeService.offMarketTick(this.onMarketTick);
     realtimeService.offOrder(this.onUserHubEvent);
     realtimeService.offTrade(this.onUserHubTrade);
     realtimeService.offPosition(this.onUserHubPosition);
@@ -174,6 +184,9 @@ class MetricCollector {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
+
+  onTickPulse(cb: (price: number) => void)  { this.pulseListeners.add(cb); }
+  offTickPulse(cb: (price: number) => void) { this.pulseListeners.delete(cb); }
 
   /** Called by API service layers after each real network request. */
   onApiCall(method: string, path: string, latencyMs: number, success: boolean) {
@@ -208,11 +221,27 @@ class MetricCollector {
   // Hot-path handlers
   // ---------------------------------------------------------------------------
 
-  private onQuote = () => {
+  private onQuote = (_cid: string, q: Quote) => {
     const now = performance.now();
     this.recordTick(this.nodes['market-hub'], now);
     this.recordSubEvent(this.nodes['market-hub'], 'Quotes', now);
     this.recordTick(this.nodes.adapter, now);
+    if (this.pulseListeners.size > 0 && now - this.lastPulseAt >= 350) {
+      this.lastPulseAt = now;
+      for (const cb of this.pulseListeners) cb(q.lastPrice);
+    }
+  };
+
+  private onDepth = () => {
+    const now = performance.now();
+    this.recordTick(this.nodes['market-hub'], now);
+    this.recordSubEvent(this.nodes['market-hub'], 'Depth', now);
+  };
+
+  private onMarketTick = () => {
+    const now = performance.now();
+    this.recordTick(this.nodes['market-hub'], now);
+    this.recordSubEvent(this.nodes['market-hub'], 'Trades', now);
   };
 
   private onUserHubEvent = () => {
@@ -341,7 +370,7 @@ class MetricCollector {
   };
 
   private evaluateNode(node: NodeCounters, now: number, rafLag: number) {
-    const windowMs = Math.min(WINDOW_MS, now - this.sessionStartTime + 1);
+    const windowMs = Math.min(WINDOW_MS, now - this.sessionStartPerf + 1);
     const ratePerMin = node.id === 'chart'
       ? (node.rafFrameTimes.length / (WINDOW_MS / 1000)) * 60
       : (node.tickTimestamps.length / (windowMs / 1000)) * 60;
@@ -362,6 +391,12 @@ class MetricCollector {
 
     const prevState = node.state;
     let nextState: NodeState = prevState;
+
+    // Don't flag degraded until we've seen at least one tick (avoids false positive at startup)
+    if (node.id !== 'chart' && node.lastTickAt === 0) {
+      node.ticksInWindow = 0;
+      return;
+    }
 
     switch (prevState) {
       case 'normal':
@@ -385,6 +420,9 @@ class MetricCollector {
 
     if (nextState !== prevState) {
       this.onStateTransition(node, prevState, nextState, now, ratePerMin, rafLag);
+    } else if (rafLag > 0) {
+      const open = this.openIncidents.get(node.id);
+      if (open && rafLag > open.worstLagMs) open.worstLagMs = rafLag;
     }
   }
 
@@ -411,7 +449,9 @@ class MetricCollector {
             ? `No tick for ${(FROZEN_SILENCE_MS / 1000).toFixed(0)}s`
             : node.id === 'chart'
               ? `RAF lag ${rafLag.toFixed(0)}ms`
-              : `Tick rate ${ratePerMin.toFixed(0)}/min (dropped from ${node.baselineRate.toFixed(0)}/min)`,
+              : node.baselineRate > 0
+                ? `Tick rate ${ratePerMin.toFixed(0)}/min (baseline ${node.baselineRate.toFixed(0)}/min)`
+                : `Tick rate dropped to 0/min (no baseline established)`,
           worstLagMs: rafLag,
           priceOffset: this.priceByteOffset,
         };
@@ -436,7 +476,7 @@ class MetricCollector {
 
   private rebuildSnapshot(now: number, marketOpen: boolean) {
     const nodes: NodeMetrics[] = Object.values(this.nodes).map((n) => {
-      const windowMs = Math.min(WINDOW_MS, now - this.sessionStartTime + 1);
+      const windowMs = Math.min(WINDOW_MS, now - this.sessionStartPerf + 1);
       const rate = n.id === 'chart'
         ? (n.rafFrameTimes.length / (WINDOW_MS / 1000)) * 60
         : (n.tickTimestamps.length / (windowMs / 1000)) * 60;
@@ -447,7 +487,7 @@ class MetricCollector {
       const subRates = n.subEventTimestamps
         ? Object.entries(n.subEventTimestamps).map(([label, ts]) => ({
             label,
-            rate: Math.round((ts.length / (windowMs / 1000)) * 60),
+            rate: Math.round(ts.length / (windowMs / 1000)),
           }))
         : undefined;
 
