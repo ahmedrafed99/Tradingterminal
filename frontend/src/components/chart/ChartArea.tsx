@@ -22,6 +22,8 @@ export function ChartArea() {
   const leftRef = useRef<CandlestickChartHandle>(null);
   const rightRef = useRef<CandlestickChartHandle>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
+  const rightPanelRef = useRef<HTMLDivElement>(null);
 
 
   // Defer right chart mount by one frame so flex layout settles first.
@@ -60,6 +62,27 @@ export function ChartArea() {
     let retryId = 0;
     let unsub: (() => void) | null = null;
 
+    // Hoisted so resetMaster (mouseleave) can cancel pending timers, preventing
+    // ghost clears that fire after master has been reset to null.
+    let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
+    let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
+    let master: 'left' | 'right' | null = null;
+
+    // These flags are set before calling clearCrosshairPosition and cleared
+    // *inside* the resulting callback (not after the call-site), because
+    // LWC fires subscribeCrosshairMove asynchronously on the next rAF.
+    // Clearing the flag at the call-site would always be too early.
+    let clearingRight = false;
+    let clearingLeft = false;
+
+    const resetMaster = () => {
+      master = null;
+      if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
+      if (leftClearTimer) { clearTimeout(leftClearTimer); leftClearTimer = null; }
+    };
+    leftPanelRef.current?.addEventListener('mouseleave', resetMaster);
+    rightPanelRef.current?.addEventListener('mouseleave', resetMaster);
+
     function trySubscribe() {
       if (cancelled) return;
 
@@ -73,58 +96,61 @@ export function ChartArea() {
         return;
       }
 
-      let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
-      let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
-      // The chart currently driving the crosshair. While a master is set,
-      // crosshair-move events from the *other* chart are ignored entirely,
-      // preventing any async bounce-back from the library.
-      let master: 'left' | 'right' | null = null;
-
       const onLeftMove = (param: MouseEventParams) => {
+        // Ignore echo from our own programmatic clear of the left chart.
+        if (clearingLeft) { clearingLeft = false; return; }
         if (master === 'right') return;
         master = 'left';
         if (!param.time || !param.point) {
           if (rightClearTimer) clearTimeout(rightClearTimer);
           rightClearTimer = setTimeout(() => {
+            rightClearTimer = null;
             if (!leftRef.current?.isQoHovered()) {
+              clearingRight = true;
               rightChart.clearCrosshairPosition();
               rightRef.current?.setCrosshairPrice(null);
             }
-            master = null;
+            // Do NOT reset master here — price scale is inside the panel so
+            // mouseleave won't fire; resetting master here opens a race where
+            // the right chart's clear-echo sets master='right' and blocks the
+            // left chart from syncing. Only resetMaster (mouseleave) clears master.
           }, 16);
           return;
         }
         if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
         const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
-          // Clamp time to the right chart's visible range so the target chart
-          // just sticks to its boundary when the source goes past it.
           const rightRange = rightChart.timeScale().getVisibleRange();
-          let syncTime = param.time;
-          if (rightRange) {
-            const t = param.time as number;
-            if (t < (rightRange.from as number)) syncTime = rightRange.from;
-            else if (t > (rightRange.to as number)) syncTime = rightRange.to;
+          const t = param.time as number;
+          if (rightRange && (t < (rightRange.from as number) || t > (rightRange.to as number))) {
+            clearingRight = true;
+            rightChart.clearCrosshairPosition();
+            rightRef.current?.setCrosshairPrice(null);
+          } else {
+            rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
+            rightRef.current?.setCrosshairPrice(sourcePrice);
           }
-          rightChart.setCrosshairPosition(sourcePrice, syncTime, rightSeries);
-          rightRef.current?.setCrosshairPrice(sourcePrice);
         } else {
+          clearingRight = true;
           rightChart.clearCrosshairPosition();
           rightRef.current?.setCrosshairPrice(null);
         }
       };
 
       const onRightMove = (param: MouseEventParams) => {
+        if (clearingRight) { clearingRight = false; return; }
         if (master === 'left') return;
         master = 'right';
         if (!param.time || !param.point) {
           if (leftClearTimer) clearTimeout(leftClearTimer);
           leftClearTimer = setTimeout(() => {
+            leftClearTimer = null;
             if (!rightRef.current?.isQoHovered()) {
+              clearingLeft = true;
               leftChart.clearCrosshairPosition();
               leftRef.current?.setCrosshairPrice(null);
             }
-            master = null;
+            // Same reasoning as rightClearTimer — don't reset master here.
           }, 16);
           return;
         }
@@ -132,15 +158,17 @@ export function ChartArea() {
         const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
           const leftRange = leftChart.timeScale().getVisibleRange();
-          let syncTime = param.time;
-          if (leftRange) {
-            const t = param.time as number;
-            if (t < (leftRange.from as number)) syncTime = leftRange.from;
-            else if (t > (leftRange.to as number)) syncTime = leftRange.to;
+          const t = param.time as number;
+          if (leftRange && (t < (leftRange.from as number) || t > (leftRange.to as number))) {
+            clearingLeft = true;
+            leftChart.clearCrosshairPosition();
+            leftRef.current?.setCrosshairPrice(null);
+          } else {
+            leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
+            leftRef.current?.setCrosshairPrice(sourcePrice);
           }
-          leftChart.setCrosshairPosition(sourcePrice, syncTime, leftSeries);
-          leftRef.current?.setCrosshairPrice(sourcePrice);
         } else {
+          clearingLeft = true;
           leftChart.clearCrosshairPosition();
           leftRef.current?.setCrosshairPrice(null);
         }
@@ -163,8 +191,6 @@ export function ChartArea() {
       });
 
       unsub = () => {
-        if (rightClearTimer) clearTimeout(rightClearTimer);
-        if (leftClearTimer) clearTimeout(leftClearTimer);
         leftChart.unsubscribeCrosshairMove(onLeftMove);
         rightChart.unsubscribeCrosshairMove(onRightMove);
         leftRef.current?.setPeerSync(null);
@@ -177,7 +203,11 @@ export function ChartArea() {
     return () => {
       cancelled = true;
       cancelAnimationFrame(retryId);
+      if (rightClearTimer) clearTimeout(rightClearTimer);
+      if (leftClearTimer) clearTimeout(leftClearTimer);
       unsub?.();
+      leftPanelRef.current?.removeEventListener('mouseleave', resetMaster);
+      rightPanelRef.current?.removeEventListener('mouseleave', resetMaster);
     };
   }, [dualChart, contract, secondContract]);
 
@@ -204,6 +234,7 @@ export function ChartArea() {
       <DrawingToolbar />
       {/* Left chart panel */}
       <div
+        ref={leftPanelRef}
         style={{ flex: dualChart ? splitRatio : 1, pointerEvents: separatorDragging ? 'none' : undefined }}
         className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
       >
@@ -235,6 +266,7 @@ export function ChartArea() {
 
       {/* Right chart panel — always mounted to avoid remount cost on toggle */}
       <div
+        ref={rightPanelRef}
         style={{ flex: 1 - splitRatio, display: dualChart ? undefined : 'none', pointerEvents: separatorDragging ? 'none' : undefined }}
         className="flex flex-col min-h-0 min-w-0 overflow-hidden relative"
       >
