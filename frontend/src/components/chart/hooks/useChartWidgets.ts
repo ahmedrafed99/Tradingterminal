@@ -141,27 +141,26 @@ export function useChartWidgets(
     const cl = refs.crosshairLabel.current;
     if (!chart || !series || !cl) return;
 
-    let clearTimer: ReturnType<typeof setTimeout> | null = null;
-
+    // Null crosshair (price scale hover) is ignored here — label holds its last
+    // position during price scale hover, and the wrapper mouseleave handles the
+    // full clear. This eliminates the 16ms race when the mouse re-enters the
+    // canvas by crossing the price scale from outside.
     const onMove = (param: { point?: { x: number; y: number } }) => {
-      if (!param.point) {
-        // Delay the clear by one frame so that if the mouse is transitioning
-        // to the quick-order button overlay, onEnter has time to set the flag.
-        if (clearTimer) clearTimeout(clearTimer);
-        clearTimer = setTimeout(() => {
-          if (!refs.qoHovered.current) cl.updateCrosshairPrice(null);
-        }, 16);
-        return;
-      }
-      if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
+      if (!param.point) return;
       const price = series.coordinateToPrice(param.point.y);
       cl.updateCrosshairPrice(price as number | null);
     };
 
+    // Clear only when mouse fully leaves the chart wrapper (not during
+    // price-scale→canvas transitions or canvas→QO-overlay transitions).
+    const wrapper = refs.container.current?.parentElement;
+    const onLeave = () => cl.updateCrosshairPrice(null);
+
     chart.subscribeCrosshairMove(onMove);
+    wrapper?.addEventListener('mouseleave', onLeave);
     return () => {
-      if (clearTimer) clearTimeout(clearTimer);
       chart.unsubscribeCrosshairMove(onMove);
+      wrapper?.removeEventListener('mouseleave', onLeave);
     };
   }, []);
 

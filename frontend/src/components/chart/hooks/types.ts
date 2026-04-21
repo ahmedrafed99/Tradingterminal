@@ -122,4 +122,6 @@ export interface ChartRefs {
 
   // Peer-chart crosshair sync (set by ChartArea in dual-chart mode)
   peerSync: React.MutableRefObject<((price: number, time: unknown) => void) | null>;
+  // True when the peer chart is the active hovered chart (suppresses QO in dual mode)
+  peerHovered: React.MutableRefObject<boolean>;
 }

@@ -68,6 +68,15 @@ export function ChartArea() {
     let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
     let master: 'left' | 'right' | null = null;
 
+    // physicalFocus tracks which panel the mouse is PHYSICALLY inside, set by
+    // mouseenter/mouseleave DOM events. This is the authoritative gate for the
+    // crosshair sync callbacks — it prevents a phantom master scenario where the
+    // mouse crosses the right panel in transit from the price scale to the orders
+    // panel and back, which would set master='right' and block the left chart.
+    let physicalFocus: 'left' | 'right' | null = null;
+    const onLeftEnter = () => { physicalFocus = 'left'; };
+    const onRightEnter = () => { physicalFocus = 'right'; };
+
     // These flags are set before calling clearCrosshairPosition and cleared
     // *inside* the resulting callback (not after the call-site), because
     // LWC fires subscribeCrosshairMove asynchronously on the next rAF.
@@ -77,9 +86,14 @@ export function ChartArea() {
 
     const resetMaster = () => {
       master = null;
+      physicalFocus = null;
+      leftRef.current?.setPeerHovered(false);
+      rightRef.current?.setPeerHovered(false);
       if (rightClearTimer) { clearTimeout(rightClearTimer); rightClearTimer = null; }
       if (leftClearTimer) { clearTimeout(leftClearTimer); leftClearTimer = null; }
     };
+    leftPanelRef.current?.addEventListener('mouseenter', onLeftEnter);
+    rightPanelRef.current?.addEventListener('mouseenter', onRightEnter);
     leftPanelRef.current?.addEventListener('mouseleave', resetMaster);
     rightPanelRef.current?.addEventListener('mouseleave', resetMaster);
 
@@ -99,8 +113,11 @@ export function ChartArea() {
       const onLeftMove = (param: MouseEventParams) => {
         // Ignore echo from our own programmatic clear of the left chart.
         if (clearingLeft) { clearingLeft = false; return; }
-        if (master === 'right') return;
+        // Block if mouse is physically on the right panel (echo from setCrosshairPosition).
+        if (physicalFocus === 'right') return;
         master = 'left';
+        rightRef.current?.setPeerHovered(true);
+        leftRef.current?.setPeerHovered(false);
         if (!param.time || !param.point) {
           if (rightClearTimer) clearTimeout(rightClearTimer);
           rightClearTimer = setTimeout(() => {
@@ -109,6 +126,7 @@ export function ChartArea() {
               clearingRight = true;
               rightChart.clearCrosshairPosition();
               rightRef.current?.setCrosshairPrice(null);
+              rightRef.current?.setPeerHovered(false);
             }
             // Do NOT reset master here — price scale is inside the panel so
             // mouseleave won't fire; resetting master here opens a race where
@@ -126,6 +144,7 @@ export function ChartArea() {
             clearingRight = true;
             rightChart.clearCrosshairPosition();
             rightRef.current?.setCrosshairPrice(null);
+            rightRef.current?.setPeerHovered(false);
           } else {
             rightChart.setCrosshairPosition(sourcePrice, param.time, rightSeries);
             rightRef.current?.setCrosshairPrice(sourcePrice);
@@ -134,13 +153,17 @@ export function ChartArea() {
           clearingRight = true;
           rightChart.clearCrosshairPosition();
           rightRef.current?.setCrosshairPrice(null);
+          rightRef.current?.setPeerHovered(false);
         }
       };
 
       const onRightMove = (param: MouseEventParams) => {
         if (clearingRight) { clearingRight = false; return; }
-        if (master === 'left') return;
+        // Block if mouse is physically on the left panel (echo from setCrosshairPosition).
+        if (physicalFocus === 'left') return;
         master = 'right';
+        leftRef.current?.setPeerHovered(true);
+        rightRef.current?.setPeerHovered(false);
         if (!param.time || !param.point) {
           if (leftClearTimer) clearTimeout(leftClearTimer);
           leftClearTimer = setTimeout(() => {
@@ -149,6 +172,7 @@ export function ChartArea() {
               clearingLeft = true;
               leftChart.clearCrosshairPosition();
               leftRef.current?.setCrosshairPrice(null);
+              leftRef.current?.setPeerHovered(false);
             }
             // Same reasoning as rightClearTimer — don't reset master here.
           }, 16);
@@ -163,6 +187,7 @@ export function ChartArea() {
             clearingLeft = true;
             leftChart.clearCrosshairPosition();
             leftRef.current?.setCrosshairPrice(null);
+            leftRef.current?.setPeerHovered(false);
           } else {
             leftChart.setCrosshairPosition(sourcePrice, param.time, leftSeries);
             leftRef.current?.setCrosshairPrice(sourcePrice);
@@ -171,6 +196,7 @@ export function ChartArea() {
           clearingLeft = true;
           leftChart.clearCrosshairPosition();
           leftRef.current?.setCrosshairPrice(null);
+          leftRef.current?.setPeerHovered(false);
         }
       };
 
@@ -206,6 +232,8 @@ export function ChartArea() {
       if (rightClearTimer) clearTimeout(rightClearTimer);
       if (leftClearTimer) clearTimeout(leftClearTimer);
       unsub?.();
+      leftPanelRef.current?.removeEventListener('mouseenter', onLeftEnter);
+      rightPanelRef.current?.removeEventListener('mouseenter', onRightEnter);
       leftPanelRef.current?.removeEventListener('mouseleave', resetMaster);
       rightPanelRef.current?.removeEventListener('mouseleave', resetMaster);
     };

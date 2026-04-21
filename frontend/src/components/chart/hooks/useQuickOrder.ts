@@ -309,7 +309,8 @@ export function useQuickOrder(
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
 
       // Suppress the + button while the cursor is over an overlay label
-      if (refs.labelHovered.current) {
+      // or while the peer chart is the one being actively hovered (dual mode).
+      if (refs.labelHovered.current || refs.peerHovered.current) {
         el.style.display = 'none';
         return;
       }

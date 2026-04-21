@@ -41,3 +41,6 @@ See `docs/shared/design-tokens/` for the full rule set (borders, disabled state,
 ## Tailwind Gotcha
 
 Tailwind JIT sometimes fails to generate utility classes (especially spacing like `px-*`, `py-*`, `gap-*`) when they haven't been used elsewhere in the project. If a Tailwind class doesn't take effect, **use inline `style={{ ... }}` instead**. This has been confirmed multiple times in this codebase.
+
+## Code Style/Architecture principles
+Prefer reusing existing components over creating new abstractions. For order lines, SL/TP markers, and toolbars, check for existing implementations first.
