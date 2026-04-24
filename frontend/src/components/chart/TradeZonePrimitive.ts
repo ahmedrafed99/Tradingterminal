@@ -23,21 +23,32 @@ export interface TradeZone {
 
 // ── Trade Matching ─────────────────────────────────────────────────────────
 
+const _nyDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+const _nyHour = new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: false, timeZone: 'America/New_York' });
+
+/** CME session day: trades from 6 PM–midnight ET belong to the next calendar day's session. */
+function cmeSessionDay(isoStr: string): string {
+  const d = new Date(isoStr);
+  if (parseInt(_nyHour.format(d), 10) >= 18)
+    return _nyDate.format(new Date(d.getTime() + 86_400_000));
+  return _nyDate.format(d);
+}
+
 /**
- * Build a map of closing-trade-ID → matched opening trade for all trades
- * in the session. Uses FIFO matching across ALL round-trips so that
- * opening trades from earlier completed round-trips are properly consumed.
+ * Build a map of closing-trade-ID → matched opening trade.
+ * FIFO matching is scoped per (contractId × CME session day) so entries
+ * from one session never absorb exits from a different session.
  */
 export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
   const map = new Map<number, Trade>();
 
-  // Group by contractId
+  // Group by contractId × session day
   const byContract = new Map<string, { opens: Trade[]; closes: Trade[] }>();
   for (const t of sessionTrades) {
     if (t.voided) continue;
-    const cid = String(t.contractId);
-    if (!byContract.has(cid)) byContract.set(cid, { opens: [], closes: [] });
-    const group = byContract.get(cid)!;
+    const key = `${t.contractId}:${cmeSessionDay(t.creationTimestamp)}`;
+    if (!byContract.has(key)) byContract.set(key, { opens: [], closes: [] });
+    const group = byContract.get(key)!;
     if (t.profitAndLoss === null) group.opens.push(t);
     else group.closes.push(t);
   }

@@ -258,15 +258,46 @@ const fmtNYHour = new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: fa
 
 // ── Calendar ─────────────────────────────────────────────────────────────────
 
-/** Group trades by calendar day (New York time). */
+/**
+ * CME session day for a timestamp.
+ * Session name = the calendar day on which it CLOSES (4 PM ET).
+ * Trades from 6 PM–midnight ET open the next session, so advance to next day.
+ */
+function getCmeSessionDay(isoStr: string): string {
+  const d = new Date(isoStr);
+  const nyHour = parseInt(fmtNYHour.format(d), 10);
+  if (nyHour >= 18) {
+    return fmtNYDate.format(new Date(d.getTime() + 24 * 60 * 60 * 1000));
+  }
+  return fmtNYDate.format(d);
+}
+
+/** Group trades by CME session day (6 PM ET open → 4 PM ET close next day).
+ *
+ * Each exit's P&L is credited to the session day it occurred so partial-exit
+ * trades spanning midnight are distributed correctly. Entry fees go to the
+ * entry's session day. Trade count goes to the last-exit session day.
+ */
 export function buildCalendarData(grouped: GroupedTrade[]): DayPnl[] {
   const byDay = new Map<string, { net: number; count: number }>();
 
-  for (const t of grouped) {
-    const d = new Date(t.exitTime);
-    const ny = fmtNYDate.format(d); // YYYY-MM-DD
+  const add = (isoStr: string, net: number, count = 0) => {
+    const ny = getCmeSessionDay(isoStr);
     const prev = byDay.get(ny) ?? { net: 0, count: 0 };
-    byDay.set(ny, { net: prev.net + t.totalNet, count: prev.count + 1 });
+    byDay.set(ny, { net: prev.net + net, count: prev.count + count });
+  };
+
+  for (const t of grouped) {
+    // Each exit: credit its own P&L minus its own fees to its day
+    for (const exit of t.exits) {
+      add(exit.creationTimestamp, exit.profitAndLoss! - exit.fees - exit.commissions);
+    }
+    // Entry fees: credit to entry day
+    if (t.entry) {
+      add(t.entryTime, -(t.entry.fees + t.entry.commissions));
+    }
+    // Trade count: one trade closed on the last-exit day
+    add(t.exitTime, 0, 1);
   }
 
   const result: DayPnl[] = [];

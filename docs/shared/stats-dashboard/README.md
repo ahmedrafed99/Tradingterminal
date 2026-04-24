@@ -79,6 +79,7 @@ Table-based calendar heatmap showing daily performance.
 - Cell background uses desaturated heatmap tones (`--color-heat-green` / `--color-heat-red`) with sqrt intensity scaling so small values are still visible.
 - Weekly total column on the right.
 - Native `title` tooltip on each cell with date, trade count, and exact P&L.
+- **CME session day grouping**: each trade's P&L is credited to the session day it occurred in (6 PM ET open → 4 PM ET close). Trades from 6 PM–midnight ET are advanced to the next calendar day (the session's closing day). Partial-exit trades distribute P&L across session days per individual exit, not all lumped to the last exit. Implemented via `getCmeSessionDay()` in `utils/tradeStats.ts`.
 
 **Day drill-down:** Clicking a calendar cell opens a **day detail view** that replaces the dashboard content:
 - **Header**: "← Back" button, full date (e.g. "Monday, March 18, 2026"), net P&L, trade count + W/L.
