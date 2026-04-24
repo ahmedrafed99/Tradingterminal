@@ -73,11 +73,9 @@ export function PositionDisplay() {
           <div className="flex items-center justify-center">
             <div className="flex items-center" style={{ gap: 6 }}>
               <span
-                className="rounded text-[9px] font-bold uppercase"
+                className="text-xs font-bold uppercase"
                 style={{
-                  background: isLong ? dirColor : 'var(--color-btn-sell)',
-                  color: 'var(--color-text-bright)',
-                  padding: '1px 5px',
+                  color: dirColor,
                   letterSpacing: '0.04em',
                 }}
               >

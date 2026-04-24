@@ -38,7 +38,7 @@ function formatCountdown(expiryMs: number): string {
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  if (h > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
   if (m > 0) return `${m}m ${s}s`;
   return `${s}s`;
 }
@@ -173,7 +173,7 @@ export function LockoutButton() {
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          color: 'var(--color-error)',
+          color: 'var(--color-warning)',
           cursor: 'default',
           userSelect: 'none',
           lineHeight: 1,
@@ -197,7 +197,7 @@ export function LockoutButton() {
       <button
         ref={buttonRef}
         onClick={() => { setOpen((o) => !o); setStep('menu'); }}
-        className="flex items-center gap-1 rounded text-(--color-text-muted) hover:text-(--color-error) hover:bg-red-500/10 transition-colors"
+        className="flex items-center gap-1 rounded text-(--color-text) hover:text-(--color-error) hover:bg-red-500/10 transition-colors"
         style={{ padding: '3px 6px', transition: 'color var(--transition-fast), background var(--transition-fast)' }}
         title="Lock account"
       >

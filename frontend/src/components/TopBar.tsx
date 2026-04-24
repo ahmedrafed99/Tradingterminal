@@ -248,9 +248,9 @@ export function TopBar() {
   const unrealizedPnl = upnlRef.current;
 
   return (
-    <header className="flex items-center h-10 bg-(--color-panel) border-b border-(--color-border) shrink-0">
+    <header className="h-10 bg-(--color-panel) border-b border-(--color-border) shrink-0" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
       {/* Left — account selector + privacy toggle */}
-      <div className="flex items-center gap-2 shrink-0" style={{ marginLeft: '16px' }}>
+      <div className="flex items-center gap-2" style={{ marginLeft: '16px' }}>
         {accounts.length > 0 ? (
           <div ref={acctRef} className="relative">
             <button
@@ -329,18 +329,14 @@ export function TopBar() {
         </button>
       </div>
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Centre — balance + UP&L */}
-      {activeAccount && (
-        <div className="flex items-center gap-3">
+      {/* Centre — balance + PnL (no LockoutButton — keeps metrics pinned to center) */}
+      {activeAccount ? (
+        <div className="flex items-center gap-3 justify-center">
           <span
             className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
             onClick={() => setHideBalance(!hideBalance)}
             title={hideBalance ? 'Show balance' : 'Hide balance'}
           >
-
             Balance: <span style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
               ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
@@ -350,7 +346,6 @@ export function TopBar() {
             onClick={() => setHideRpnl(!hideRpnl)}
             title={hideRpnl ? 'Show RP&L' : 'Hide RP&L'}
           >
-
             RP&L: {(() => { const net = realizedPnl - realizedFees; return (
               <span className={getPnlColorClass(net)} style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideRpnl ? 0.4 : 1, filter: hideRpnl ? 'blur(5px)' : 'none', userSelect: hideRpnl ? 'none' : 'auto' }}>
                 {net > 0 ? '+' : ''}{net.toFixed(2)} $
@@ -362,20 +357,18 @@ export function TopBar() {
             onClick={() => setHideUpnl(!hideUpnl)}
             title={hideUpnl ? 'Show UP&L' : 'Hide UP&L'}
           >
-
             UP&L: <span className={getPnlColorClass(unrealizedPnl)} style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideUpnl ? 0.4 : 1, filter: hideUpnl ? 'blur(5px)' : 'none', userSelect: hideUpnl ? 'none' : 'auto' }}>
               {unrealizedPnl > 0 ? '+' : ''}{unrealizedPnl.toFixed(2)} $
             </span>
           </span>
-          <LockoutButton />
         </div>
-      )}
+      ) : <div />}
 
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Right — status + settings */}
-      <div className="flex items-center justify-end gap-3 w-48 shrink-0" style={{ marginRight: '16px' }}>
+      {/* Right — lockout (left-anchored) + status + settings (right-anchored) */}
+      <div className="flex items-center" style={{ marginRight: '16px', paddingLeft: 12 }}>
+        {activeAccount && <div style={{ marginRight: 12 }}><LockoutButton /></div>}
+        <div className="flex-1" />
+        <div className="flex items-center gap-3">
         {/* Connection status pill */}
         <div className="flex items-center gap-1.5">
           <span
@@ -422,6 +415,7 @@ export function TopBar() {
         >
           <SettingsIcon />
         </button>
+        </div>
       </div>
     </header>
   );
