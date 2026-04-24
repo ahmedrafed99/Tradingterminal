@@ -420,8 +420,10 @@ function NewsDropdown() {
 
 export function ChartToolbar() {
   const pinnedTimeframes = useStore((s) => s.pinnedTimeframes);
+  const customTimeframes = useStore((s) => s.customTimeframes);
   const pinTimeframe = useStore((s) => s.pinTimeframe);
   const unpinTimeframe = useStore((s) => s.unpinTimeframe);
+  const addCustomTimeframe = useStore((s) => s.addCustomTimeframe);
   const dualChart = useStore((s) => s.dualChart);
   const setDualChart = useStore((s) => s.setDualChart);
   const setSelectedChart = useStore((s) => s.setSelectedChart);
@@ -582,8 +584,7 @@ export function ChartToolbar() {
     if (!unitOpt) return;
     const label = `${num}${unitOpt.suffix}`;
     const tf: Timeframe = { unit: customUnit as Timeframe['unit'], unitNumber: num, label };
-    setTimeframe(tf);
-    setDropdownOpen(false);
+    addCustomTimeframe(tf);
   }
 
   return (
@@ -658,10 +659,40 @@ export function ChartToolbar() {
               );
             })}
 
+            {/* Custom timeframes — same row style as presets, with extra X button */}
+            {customTimeframes.map((tf) => {
+              const pinned = isPinned(tf);
+              const active = timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber;
+              return (
+                <div
+                  key={tf.label}
+                  className={`flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
+                    active ? 'bg-(--color-surface)' : ''
+                  }`}
+                  style={{ padding: '8px 10px' }}
+                >
+                  <button
+                    onClick={() => handleSelectMore(tf)}
+                    className={`text-xs flex-1 text-center font-medium ${
+                      active ? 'text-(--color-warning)' : 'text-(--color-text)'
+                    }`}
+                  >
+                    {tf.label}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); pinned ? unpinTimeframe(tf) : pinTimeframe(tf); }}
+                    className="ml-2 p-0.5 hover:opacity-80 transition-opacity"
+                  >
+                    <StarIcon filled={pinned} />
+                  </button>
+                </div>
+              );
+            })}
+
             {/* Divider */}
             <div className="border-t border-(--color-border) my-2 mx-3" />
 
-            {/* Custom timeframe */}
+            {/* Custom timeframe input */}
             <div style={{ padding: '4px 14px 8px' }}>
               <div className={SECTION_LABEL} style={{ marginBottom: '8px' }}>Custom</div>
               <div className="flex items-center gap-1.5">
@@ -676,13 +707,10 @@ export function ChartToolbar() {
                 <UnitDropdown value={customUnit} onChange={setCustomUnit} />
                 <button
                   onClick={handleApplyCustom}
-                  className="flex items-center justify-center rounded-md bg-(--color-surface) hover:bg-(--color-border) text-(--color-text-muted) hover:text-white transition-colors shrink-0"
-                  style={{ width: '24px', height: '24px' }}
-                  title="Add custom timeframe"
+                  className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all shrink-0"
+                  style={{ padding: '6px 12px' }}
                 >
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M6 2v8M2 6h8" />
-                  </svg>
+                  Add
                 </button>
               </div>
             </div>

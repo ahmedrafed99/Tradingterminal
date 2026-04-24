@@ -26,11 +26,14 @@ export interface InstrumentSlice {
   contract: Contract | null;
   timeframe: Timeframe;
   pinnedTimeframes: Timeframe[];
+  customTimeframes: Timeframe[];
   pinnedInstruments: string[];
   setContract: (contract: Contract) => void;
   setTimeframe: (tf: Timeframe) => void;
   pinTimeframe: (tf: Timeframe) => void;
   unpinTimeframe: (tf: Timeframe) => void;
+  addCustomTimeframe: (tf: Timeframe) => void;
+  removeCustomTimeframe: (label: string) => void;
   pinInstrument: (symbol: string) => void;
   unpinInstrument: (symbol: string) => void;
 }
@@ -44,6 +47,7 @@ export const createInstrumentSlice = (set: Set): InstrumentSlice => ({
   contract: null,
   timeframe: DEFAULT_PINNED[0],
   pinnedTimeframes: DEFAULT_PINNED,
+  customTimeframes: [],
   pinnedInstruments: ['NQ', 'MNQ'],
   setContract: (contract) => set({ contract }),
   setTimeframe: (timeframe) => set({ timeframe }),
@@ -57,6 +61,17 @@ export const createInstrumentSlice = (set: Set): InstrumentSlice => ({
   unpinTimeframe: (tf) =>
     set((s) => ({
       pinnedTimeframes: s.pinnedTimeframes.filter((p) => p.label !== tf.label),
+    })),
+  addCustomTimeframe: (tf) =>
+    set((s) => {
+      if (s.customTimeframes.some((c) => c.label === tf.label)) return s;
+      const tfWeight = (t: Timeframe) => t.unit * 100000 + t.unitNumber;
+      return { customTimeframes: [...s.customTimeframes, tf].sort((a, b) => tfWeight(a) - tfWeight(b)) };
+    }),
+  removeCustomTimeframe: (label) =>
+    set((s) => ({
+      customTimeframes: s.customTimeframes.filter((c) => c.label !== label),
+      pinnedTimeframes: s.pinnedTimeframes.filter((p) => p.label !== label),
     })),
   pinInstrument: (symbol) =>
     set((s) => {
