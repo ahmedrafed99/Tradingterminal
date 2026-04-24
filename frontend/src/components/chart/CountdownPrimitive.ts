@@ -10,6 +10,7 @@ import type {
 } from 'lightweight-charts';
 import { COLOR_BG } from '../../constants/colors';
 import { FONT_FAMILY } from '../../constants/layout';
+import { contrastText } from './hooks/labelUtils';
 
 // ---------------------------------------------------------------------------
 // Axis view — tells LWC about our label position for overlap avoidance
@@ -185,12 +186,12 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._htmlEl = el;
 
     const priceEl = document.createElement('div');
-    priceEl.style.cssText = `font-size:12px;font-weight:bold;color:${COLOR_BG};line-height:1;padding:3px 0 0;`;
+    priceEl.style.cssText = `font-size:12px;font-weight:bold;line-height:1;padding:3px 0 0;`;
     el.appendChild(priceEl);
     this._priceEl = priceEl;
 
     const countdownEl = document.createElement('div');
-    countdownEl.style.cssText = `font-size:12px;color:${COLOR_BG};line-height:1;padding:1px 0 3px;`;
+    countdownEl.style.cssText = `font-size:12px;line-height:1;padding:1px 0 3px;`;
     el.appendChild(countdownEl);
     this._countdownEl = countdownEl;
   }
@@ -225,10 +226,13 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     const psWidth = this._getPsWidth();
 
     const candleColor = (this._open === 0 || this._price >= this._open) ? this._upColor : this._downColor;
+    const textColor = contrastText(candleColor, COLOR_BG);
     this._htmlEl.style.display = '';
     this._htmlEl.style.top = `${y}px`;
     this._htmlEl.style.width = `${psWidth}px`;
     this._htmlEl.style.background = candleColor;
+    this._priceEl!.style.color = textColor;
+    this._countdownEl!.style.color = textColor;
     this._priceEl!.textContent = this._priceText;
 
     if (this._countdownText) {

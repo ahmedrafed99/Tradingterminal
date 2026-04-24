@@ -284,7 +284,7 @@ export function contrastText(color: string, darkColor = '#000000'): string {
     return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   };
   const L = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-  return L > 0.179 ? darkColor : '#fff';
+  return L > 0.3 ? darkColor : '#fff';
 }
 
 /** Darken a hex color by a factor (0–1, where 0.82 = 18% darker). */
