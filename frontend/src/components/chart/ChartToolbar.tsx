@@ -25,6 +25,14 @@ const UNIT_OPTIONS = [
 ] as const;
 
 
+function TrashIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
+      <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
+    </svg>
+  );
+}
+
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
@@ -424,6 +432,7 @@ export function ChartToolbar() {
   const pinTimeframe = useStore((s) => s.pinTimeframe);
   const unpinTimeframe = useStore((s) => s.unpinTimeframe);
   const addCustomTimeframe = useStore((s) => s.addCustomTimeframe);
+  const removeCustomTimeframe = useStore((s) => s.removeCustomTimeframe);
   const dualChart = useStore((s) => s.dualChart);
   const setDualChart = useStore((s) => s.setDualChart);
   const setSelectedChart = useStore((s) => s.setSelectedChart);
@@ -659,18 +668,25 @@ export function ChartToolbar() {
               );
             })}
 
-            {/* Custom timeframes — same row style as presets, with extra X button */}
+            {/* Custom timeframes — same row style as presets */}
             {customTimeframes.map((tf) => {
               const pinned = isPinned(tf);
               const active = timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber;
               return (
                 <div
                   key={tf.label}
-                  className={`flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
+                  className={`group relative flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
                     active ? 'bg-(--color-surface)' : ''
                   }`}
                   style={{ padding: '8px 10px' }}
                 >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); removeCustomTimeframe(tf.label); }}
+                    className="absolute left-1.5 p-0.5 text-(--color-text-muted) opacity-0 group-hover:opacity-100 hover:!text-red-400 hover:!bg-(--color-border)/50 rounded transition-colors"
+                    title="Remove"
+                  >
+                    <TrashIcon />
+                  </button>
                   <button
                     onClick={() => handleSelectMore(tf)}
                     className={`text-xs flex-1 text-center font-medium ${
