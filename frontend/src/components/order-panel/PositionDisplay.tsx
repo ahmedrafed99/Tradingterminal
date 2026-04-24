@@ -37,11 +37,11 @@ export function PositionDisplay() {
   const sign = isLong ? '+' : '-';
 
   if (lastPrice != null) {
-    const diff = isLong
+    const rawDiff = isLong
       ? lastPrice - pos.averagePrice
       : pos.averagePrice - lastPrice;
-    priceDiffRef.current = diff;
-    pnlRef.current = calcPnl(diff, orderContract, pos.size);
+    priceDiffRef.current = roundToTick(rawDiff, orderContract.tickSize);
+    pnlRef.current = calcPnl(rawDiff, orderContract, pos.size);
   }
   const pnl = pnlRef.current;
   const priceDiff = priceDiffRef.current;
