@@ -6,6 +6,7 @@ const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 const store = {
   token: null as string | null,
   baseUrl: DEFAULT_BASE_URL,
+  userId: null as number | null,
 };
 
 // ---------------------------------------------------------------------------
@@ -37,12 +38,19 @@ export function authHeaders() {
   };
 }
 
+export function getUserId(): number | null {
+  return store.userId;
+}
+
+export function getUserApiBaseUrl(): string {
+  return getUserApiBaseUrlInternal();
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Derive userapi base URL from api base URL (api.topstepx.com → userapi.topstepx.com) */
-function getUserApiBaseUrl(): string {
+function getUserApiBaseUrlInternal(): string {
   try {
     const url = new URL(store.baseUrl);
     url.hostname = url.hostname.replace(/^api\./, 'userapi.');
@@ -52,6 +60,22 @@ function getUserApiBaseUrl(): string {
   }
 }
 
+function extractUserIdFromJwt(token: string): number | null {
+  try {
+    const payloadB64 = token.split('.')[1];
+    if (!payloadB64) return null;
+    const padded = payloadB64.replace(/-/g, '+').replace(/_/g, '/');
+    const json = Buffer.from(padded, 'base64').toString('utf-8');
+    const payload = JSON.parse(json) as Record<string, unknown>;
+    console.log('[auth] JWT claims:', JSON.stringify(payload));
+    const raw = payload['userId'] ?? payload['uid'] ?? payload['nameid'] ?? payload['sub']
+      ?? payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string') { const n = parseInt(raw, 10); return isNaN(n) ? null : n; }
+    return null;
+  } catch { return null; }
+}
+
 async function enableOcoOnAllAccounts(): Promise<void> {
   const accountsRes = await axios.post(
     `${store.baseUrl}/api/Account/search`,
@@ -59,7 +83,7 @@ async function enableOcoOnAllAccounts(): Promise<void> {
     { headers: authHeaders() },
   );
   const accounts: { id: number }[] = accountsRes.data?.accounts ?? accountsRes.data ?? [];
-  const userApiBase = getUserApiBaseUrl();
+  const userApiBase = getUserApiBaseUrlInternal();
 
   await Promise.all(
     accounts.map((acct) =>
@@ -113,7 +137,8 @@ export const projectXAuth: ExchangeAuth = {
     }
 
     store.token = response.data.token as string;
-    console.log(`[auth] ✓ connected`);
+    store.userId = (response.data.userId as number | undefined) ?? extractUserIdFromJwt(store.token);
+    console.log(`[auth] ✓ connected, userId=${store.userId}`);
 
     // Auto-enable OCO brackets on all accounts (fire-and-forget)
     enableOcoOnAllAccounts().catch((err) => {
@@ -123,6 +148,7 @@ export const projectXAuth: ExchangeAuth = {
 
   disconnect() {
     store.token = null;
+    store.userId = null;
   },
 
   isConnected() {

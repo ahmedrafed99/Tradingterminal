@@ -226,6 +226,27 @@ export function getNextOpenLabel(): string {
   return 'reopens Sun 18:00 ET';
 }
 
+/**
+ * Returns the UTC ms timestamp for the START of the NEXT CME session (18:00 ET),
+ * i.e. the session after the one currently active. DST-safe via Intl.
+ */
+export function getNextSessionStartMs(): number {
+  const currentStartMs = getCurrentSessionStartSec() * 1000;
+  // Look ~20 hours into the future from the current session start to land in the next calendar day
+  const searchMs = currentStartMs + 20 * 3600 * 1000;
+  const parts = fmtNYWithMin.formatToParts(new Date(searchMs));
+  const get = (type: string) => Number(parts.find(p => p.type === type)!.value);
+  const year = get('year'), month = get('month'), day = get('day');
+  const dayUtc = Date.UTC(year, month - 1, day);
+  for (const utcH of [22, 23]) {
+    const candidateMs = dayUtc + utcH * 3600 * 1000;
+    const cParts = fmtNYWithMin.formatToParts(new Date(candidateMs));
+    const cHour = Number(cParts.find(p => p.type === 'hour')!.value) % 24;
+    if (cHour === 18) return candidateMs;
+  }
+  return currentStartMs + 24 * 3600 * 1000;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Market schedule abstraction — dispatches by instrument market type */
 /* ------------------------------------------------------------------ */

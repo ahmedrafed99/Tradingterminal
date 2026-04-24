@@ -59,6 +59,7 @@ export default defineConfig({
       '/database':{ target: BACKEND, changeOrigin: true },
       '/drawings':  { target: BACKEND, changeOrigin: true },
       '/blacklist': { target: BACKEND, changeOrigin: true },
+      '/lockout':  { target: BACKEND, changeOrigin: true },
       '/hubs':    { target: BACKEND, changeOrigin: true, ws: true },
     },
   },

@@ -35,6 +35,7 @@ export function BuySellButtons() {
   const [error, setError] = useState<string | null>(null);
 
   const isBlacklisted = useStore((s) => s.isBlacklisted);
+  const isLockedOut = useStore((s) => s.isLockedOut);
   const contractSym = orderContract?.name.replace(/[A-Z]\d+$/i, '') ?? null;
 
   const { open: marketOpen } = useMarketStatus(marketType);
@@ -43,10 +44,15 @@ export function BuySellButtons() {
     orderContract != null &&
     marketOpen &&
     !isBlacklisted(contractSym) &&
+    !isLockedOut(activeAccountId) &&
     (orderType === 'market' || (orderType === 'limit' && limitPrice != null));
 
   async function handlePlace(side: OrderSide) {
     if (!canPlace || !activeAccountId || !orderContract) return;
+    if (isLockedOut(activeAccountId)) {
+      showToast('error', 'Account locked', 'Account is locked. Wait for the lockout to expire.');
+      return;
+    }
     if (!getSchedule(marketType).isOpen()) {
       showToast('warning', 'Market closed', 'Market is closed. Orders cannot be placed.');
       return;

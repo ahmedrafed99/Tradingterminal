@@ -22,6 +22,8 @@ frontend/src/services/
 ├── credentialService.ts    ← load / save / clear encrypted credentials
 ├── conditionService.ts     ← conditional orders CRUD + SSE events
 ├── databaseService.ts      ← local SQLite candle storage, backfill, backup
+│
+│   (lockout calls are made inline in TopBar + LockoutButton via the base api instance)
 ├── newsService.ts          ← economic calendar events (cached)
 ├── audioService.ts         ← voice notification playback on fills
 ├── bracketEngine.ts        ← client-side SL/TP management after fill
@@ -46,7 +48,7 @@ backend/src/
 │   ├── factory.ts          ← createAdapter(exchange) — routes to correct factory
 │   └── projectx/           ← ProjectX implementation of ExchangeAdapter
 │       ├── index.ts        ← createProjectXAdapter() factory
-│       ├── auth.ts         ← JWT token store + /api/Auth/loginKey
+│       ├── auth.ts         ← JWT token store + /api/Auth/loginKey; extracts userId from login response or JWT claims
 │       ├── accounts.ts     ← /api/Account/search
 │       ├── marketData.ts   ← bars + contract search/available/byId
 │       ├── orders.ts       ← place / cancel / modify / searchOpen (converts string IDs → numeric)
@@ -65,7 +67,8 @@ backend/src/
 │   ├── credentialRoutes.ts ← encrypted credential storage (GET/PUT/DELETE, AES-256-GCM)
 │   ├── databaseRoutes.ts   ← SQLite backfill, sync, candles, backup (10 endpoints)
 │   ├── drawingRoutes.ts    ← inter-client drawing queue (add/pending/clear)
-│   └── conditionRoutes.ts  ← condition CRUD + SSE events + pause/resume
+│   ├── conditionRoutes.ts  ← condition CRUD + SSE events + pause/resume
+│   └── lockoutRoutes.ts    ← PersonalLockout proxy (ProjectX-specific): add + active check
 ├── services/
 │   ├── backfillService.ts  ← bar history fetching with progress tracking + rollover mapping
 │   └── conditionEngine.ts  ← condition evaluation and order placement
@@ -403,6 +406,51 @@ Encryption uses `scrypt(hostname + homedir + 'trading-terminal')` as key. Format
 `placement: "below"` anchors the arrow to the candle's low; `"above"` anchors to the high.
 
 Returns `{ "success": true, "id": "<uuid>" }`. The `id` is auto-generated if not provided and can be used with `DELETE /drawings/remove/:id`.
+
+### Lockout (ProjectX-specific)
+
+Proxies TopstepX `userapi.topstepx.com/PersonalLockout/*`. Requires an active ProjectX connection. `userId` is extracted from the JWT on login and injected into the add payload server-side (the frontend never needs to supply it).
+
+| Method | Path | Body / Params | Description |
+|--------|------|---------------|-------------|
+| POST | /lockout/add | `{ tradingAccountId, expiresAt }` | Create a personal lockout on the exchange. `tradingAccountId` is the numeric account ID; `expiresAt` is an ISO 8601 timestamp. Returns exchange response. |
+| GET | /lockout/active/:accountId | — | Fetch active personal lockouts for an account from `PersonalLockout/active/{accountId}`. Returns `{ success, expiryMs: number \| null }` — `expiryMs` is the latest future expiry in milliseconds, or `null` if no active lockout. |
+
+**Add payload sent to TopstepX:**
+```json
+[{
+  "tradingAccountId": 20130833,
+  "userId": 93360,
+  "createdAt": "2026-04-24T14:20:23.604Z",
+  "startsAt":  "2026-04-24T14:20:23.604Z",
+  "expiresAt": "2026-04-24T16:20:23.604Z"
+}]
+```
+
+**Active lockout response shape from TopstepX** (array):
+```json
+[{
+  "id": 10447794,
+  "tradingAccountId": 20292418,
+  "userId": 93360,
+  "reason": "Personal",
+  "shouldLiquidate": true,
+  "createdAt": "2026-04-24T14:15:22.351302+00:00",
+  "startsAt":  "2026-04-24T14:15:22.293+00:00",
+  "expiresAt": "2026-04-24T21:40:00+00:00",
+  "type": 0
+}]
+```
+
+**Frontend sync:** `TopBar` calls `GET /lockout/active/:accountId` on every connect and account switch. If `expiryMs` is in the future, `setLockout(accountId, expiryMs)` is called — so accounts locked directly on TopstepX are reflected in the UI automatically. The lockout state is stored in `lockoutSlice` (Zustand, persisted to localStorage).
+
+**UI enforcement:** `BuySellButtons` adds `!isLockedOut(activeAccountId)` to the `canPlace` gate and a secondary guard in `handlePlace`. `LockoutButton` in the TopBar center section shows a red lock icon + countdown when locked, or an unlocked icon (hover = red tint) when not.
+
+**Duration options:** 1 hour, 4 hours, End of session (next 6 PM ET via `getNextSessionStartMs()` in `marketHours.ts`), Custom (hours + minutes via `SpinnerInput`). Two-step UI: pick duration → confirm with exact unlock time shown. Optimistic local update before the API call.
+
+**Irreversibility:** There is no unlock endpoint. Once locked on the exchange, the lockout cannot be removed — only expires at `expiresAt`.
+
+---
 
 ### Conditions (Conditional Orders Engine)
 

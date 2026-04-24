@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { LockoutButton } from './LockoutButton';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown } from './icons/ChevronDown';
 import { realtimeService } from '../services/realtimeService';
@@ -9,6 +10,7 @@ import { getPnlColorClass } from '../utils/formatters';
 import { useClickOutside } from '../hooks/useClickOutside';
 import type { Trade } from '../services/tradeService';
 import { useStore } from '../store/useStore';
+import api from '../services/api';
 import { SHADOW, Z } from '../constants/layout';
 import { metricCollector } from '../services/monitor/metricCollector';
 import { MonitorPanel } from './monitor/MonitorPanel';
@@ -91,6 +93,8 @@ export function TopBar() {
     setActiveAccountId,
     setSettingsOpen,
     updateAccount,
+    setLockout,
+    clearLockout,
     positions,
     lastPrice,
     orderContract,
@@ -114,6 +118,8 @@ export function TopBar() {
     setActiveAccountId: s.setActiveAccountId,
     setSettingsOpen: s.setSettingsOpen,
     updateAccount: s.updateAccount,
+    setLockout: s.setLockout,
+    clearLockout: s.clearLockout,
     positions: s.positions,
     lastPrice: s.lastPrice,
     orderContract: s.orderContract,
@@ -195,6 +201,21 @@ export function TopBar() {
     }
     return () => { metricCollector.stop(); };
   }, [connected]);
+
+  // Sync lockout state from exchange on connect / account switch
+  useEffect(() => {
+    if (!connected || !activeAccountId) return;
+    api.get(`/lockout/active/${activeAccountId}`)
+      .then((res) => {
+        const { expiryMs } = res.data as { expiryMs: number | null };
+        if (expiryMs && expiryMs > Date.now()) {
+          setLockout(activeAccountId, expiryMs);
+        } else {
+          clearLockout(activeAccountId);
+        }
+      })
+      .catch(() => { /* non-fatal — exchange may not be ProjectX */ });
+  }, [connected, activeAccountId, setLockout, clearLockout]);
 
   // Monitor panel
   const [monitorOpen, setMonitorOpen] = useState(false);
@@ -346,6 +367,7 @@ export function TopBar() {
               {unrealizedPnl > 0 ? '+' : ''}{unrealizedPnl.toFixed(2)} $
             </span>
           </span>
+          <LockoutButton />
         </div>
       )}
 

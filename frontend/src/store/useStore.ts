@@ -12,6 +12,7 @@ import { createToastSlice } from './slices/toastSlice';
 import { createChartSettingsSlice } from './slices/chartSettingsSlice';
 import { createShortcutsSlice } from './slices/shortcutsSlice';
 import { createBlacklistSlice } from './slices/blacklistSlice';
+import { createLockoutSlice } from './slices/lockoutSlice';
 
 // Slice types
 import type { ConnectionSlice } from './slices/connectionSlice';
@@ -24,6 +25,7 @@ import type { ToastSlice } from './slices/toastSlice';
 import type { ChartSettingsSlice } from './slices/chartSettingsSlice';
 import type { ShortcutsSlice } from './slices/shortcutsSlice';
 import type { BlacklistSlice } from './slices/blacklistSlice';
+import type { LockoutSlice } from './slices/lockoutSlice';
 
 // Re-export commonly used types so consumers don't need to change imports
 export type { Timeframe } from './slices/instrumentSlice';
@@ -34,7 +36,7 @@ export type { ToastItem } from './slices/toastSlice';
 // Combined store
 // ---------------------------------------------------------------------------
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
-  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice;
+  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice;
 
 export const useStore = create<Store>()(
   persist(
@@ -49,6 +51,7 @@ export const useStore = create<Store>()(
       ...createChartSettingsSlice(set as any),
       ...createShortcutsSlice(set as any),
       ...createBlacklistSlice(set as any, get as any),
+      ...createLockoutSlice(set as any, get as any),
     }),
     {
       name: 'chart-store',
@@ -117,6 +120,7 @@ export const useStore = create<Store>()(
         copyMasterAccountId: s.copyMasterAccountId,
         copyFollowerIds: s.copyFollowerIds,
         blacklist: s.blacklist,
+        lockouts: s.lockouts,
       }),
     },
   ),
