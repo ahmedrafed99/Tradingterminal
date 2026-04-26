@@ -2,38 +2,39 @@
 
 # Resolved Issues
 
-## Draft SL/TP Persists After Bracket Order Cancel — Next Order Uses Edited Positions
+## Draft SL/TP Persists After Bracket Order Cancel — Next Order Uses Edited Positions / Preview Lines Flash Then Persist on Cancel
 
 **Date resolved**: 2026-04-27
 
-**Severity**: Medium (wrong bracket prices on re-entry after cancel)
+**Severity**: Medium (wrong bracket prices on re-entry after cancel; visual flash on cancel)
 
-### Symptom
+### Symptoms
 
-1. Place limit bracket order (preset active)
-2. Drag SL/TP preview line to new position — `draftSlPoints`/`draftTpPoints` set on mouseUp
-3. Cancel entry limit order
-4. Place another bracket order (same preset)
-5. New order's SL/TP appear at dragged positions, not preset defaults
+1. Place limit bracket order (preset active), drag SL/TP to new position, cancel, place again → new order's SL/TP appear at dragged positions not preset defaults (`draftSlPoints`/`draftTpPoints` persisting)
+2. On cancel: SL/TP preview lines briefly flash to preset values before disappearing
+3. (Regression during fix attempts) On cancel: preview SL/TP lines persist on screen and require hard reload to clear
 
 ### Root Cause
 
-Broader cancel cleanup in `OrderPanel.tsx` (lines ~430-438) called `clearAdHocBrackets()` (clears ad-hoc SL) but never `clearDraftOverrides()` (clears preset-based drafts). `draftSlPoints`/`draftTpPoints` survived across cancel, and `resolvePreviewConfig()` returned stale edited values on next placement.
+**Persistence (symptom 1):** Broader cancel cleanup in `OrderPanel.tsx` called `clearAdHocBrackets()` but never `clearDraftOverrides()`. `draftSlPoints`/`draftTpPoints` survived across cancel and fill, causing `resolvePreviewConfig()` to return stale edited values on next placement. `pendingEntryOrderId: null` for chart-label placements means the gated block at line ~291 never fires — the broader cancel path at line ~430 is the only reliable cleanup site.
 
-Confirmed via console log: `pendingEntryOrderId: null` — chart-label placements never set it, so the `pendingEntryOrderId`-gated cancel block at line ~291 never fires. The broader cancel path at line ~430 is the only reliable cleanup site for both placement paths.
+**Flash (symptom 2):** The broader cancel cleanup made three separate Zustand `set()` calls (`clearAdHocBrackets()`, `clearDraftOverrides()`, `setState({previewEnabled, previewHideEntry})`). Each `set()` triggers a synchronous Zustand notification. After `clearDraftOverrides()` fires but before `previewHideEntry=false`, `usePreviewLines` Effect 2 runs `doUpdate()` → `resolvePreviewConfig()` returns preset defaults → preview lines snap to preset positions for one frame.
 
-Also missing from fill paths (lines 379, 382 in the post-fill `setTimeout`) — same stale drafts would persist after a fill.
+**Lines persist regression (symptom 3):** Attempting to fix the flash by deferring `setPendingBracketInfo(null)` to the broader cancel cleanup caused persistence: if the broader cancel cleanup didn't fire for any reason (e.g. contract mismatch, wrong order event ordering), `previewHideEntry` stayed `true` and preview lines never cleared.
+
+### Key Insight
+
+`useOrderLines` uses a **side-based skip** (`previewHideEntry && order.side === oppositeSide → skip`) that does NOT depend on `pendingBracketInfo`. So `setPendingBracketInfo(null)` firing in the gate is safe — the Suspended bracket legs remain hidden because `previewHideEntry` is still `true` and `previewSide` hasn't changed. The flash is exclusively from preview lines (not order lines).
 
 ### Fix
 
-Added `st.clearDraftOverrides()` to three sites in `OrderPanel.tsx`:
-- Broader cancel cleanup (`~line 436`) — covers all placement paths
-- Post-fill `setTimeout` (`line 379`) — clears on successful fill
-- Post-fill fallback (`line 382`) — clears when no correction needed
+- `OrderPanel.tsx` gate (line ~294): restore `setPendingBracketInfo(null)` for both Filled and Cancelled — gate handles it reliably
+- `OrderPanel.tsx` broader cancel cleanup: merge `clearAdHocBrackets()`, `clearDraftOverrides()`, and `setState({previewEnabled, previewHideEntry})` into **one atomic `useStore.setState({...})`** call — single Zustand `set()` = single notification = no intermediate render where preview lines flash to preset positions
+- `OrderPanel.tsx` fill paths (lines ~379, ~382): same atomic merge — `draftSlPoints: null, draftTpPoints: []` included in the same `setState` call
 
 ### Key Files
 
-- `frontend/src/components/order-panel/OrderPanel.tsx` — all three cleanup sites
+- `frontend/src/components/order-panel/OrderPanel.tsx` — gate restore, atomic setState at all three cleanup sites
 
 ---
 
