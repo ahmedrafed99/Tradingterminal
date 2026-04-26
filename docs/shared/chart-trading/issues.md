@@ -1,4 +1,41 @@
-# Chart Trading: Resolved Issues
+# Chart Trading: Issues
+
+# Resolved Issues
+
+## Draft SL/TP Persists After Bracket Order Cancel — Next Order Uses Edited Positions
+
+**Date resolved**: 2026-04-27
+
+**Severity**: Medium (wrong bracket prices on re-entry after cancel)
+
+### Symptom
+
+1. Place limit bracket order (preset active)
+2. Drag SL/TP preview line to new position — `draftSlPoints`/`draftTpPoints` set on mouseUp
+3. Cancel entry limit order
+4. Place another bracket order (same preset)
+5. New order's SL/TP appear at dragged positions, not preset defaults
+
+### Root Cause
+
+Broader cancel cleanup in `OrderPanel.tsx` (lines ~430-438) called `clearAdHocBrackets()` (clears ad-hoc SL) but never `clearDraftOverrides()` (clears preset-based drafts). `draftSlPoints`/`draftTpPoints` survived across cancel, and `resolvePreviewConfig()` returned stale edited values on next placement.
+
+Confirmed via console log: `pendingEntryOrderId: null` — chart-label placements never set it, so the `pendingEntryOrderId`-gated cancel block at line ~291 never fires. The broader cancel path at line ~430 is the only reliable cleanup site for both placement paths.
+
+Also missing from fill paths (lines 379, 382 in the post-fill `setTimeout`) — same stale drafts would persist after a fill.
+
+### Fix
+
+Added `st.clearDraftOverrides()` to three sites in `OrderPanel.tsx`:
+- Broader cancel cleanup (`~line 436`) — covers all placement paths
+- Post-fill `setTimeout` (`line 379`) — clears on successful fill
+- Post-fill fallback (`line 382`) — clears when no correction needed
+
+### Key Files
+
+- `frontend/src/components/order-panel/OrderPanel.tsx` — all three cleanup sites
+
+---
 
 ## Bracket SL/TP Snap Back to Preset Values After Limit Order Fill
 
@@ -147,3 +184,141 @@ Clear `openOrders` and `pendingBracketInfo` immediately on account switch, befor
 ### Key Files
 
 - `frontend/src/components/order-panel/OrderPanel.tsx` — account-change effect: clear stale state before hydration
+
+---
+
+# Open / Known Issues
+
+## 1 — SL/TP Preview Line Snap-Back on Drag
+
+**Severity**: High (line jumps back to original position when released)
+
+### Symptom
+
+Dragging an SL or TP preview line and releasing causes the line to snap back to its pre-drag position for one frame before settling at the dropped price.
+
+### Root Cause
+
+`usePreviewDrag.onMouseMove` writes `setAdHocSlPoints` / `setDraftSlPoints` / `updateAdHocTpPoints` on every frame during drag. These values are dependencies of `usePreviewLines` Effect 1 (structural teardown+recreate). Every frame the store update fires Effect 1, which destroys and recreates all preview lines at the *new config* position — but Effect 1 reads `snap.limitPrice` as the entry, not the dragged position. So lines flash at the "default" computed price each frame.
+
+### Required Fix
+
+Move ALL store writes for SL/TP points out of `onMouseMove` and into `onMouseUp` only. During `onMouseMove`, only update the line's visual position via `pvLine.setPrice(snapped)` + `pvLine.syncPosition()` + write `drag.draggedPrice = snapped`. Commit to Zustand on mouseup using `drag.draggedPrice`. Also add a guard in `doUpdate` (Effect 2) that skips overwriting the dragged line's position while `refs.previewDragState.current` is set.
+
+### Key Files
+
+- `frontend/src/components/chart/hooks/usePreviewDrag.ts` — move store writes from mousemove to mouseup
+- `frontend/src/components/chart/hooks/usePreviewLines.ts` — add `draggingIdx` guard in `doUpdate`
+- `frontend/src/components/chart/hooks/types.ts` — add `draggedPrice: number` to `previewDragState` type
+
+---
+
+## 2 — Multiple Bracket Orders: First Bracket Lines Disappear / Wrong Labels
+
+**Severity**: High (lines vanish, wrong P&L labels)
+
+### Symptom A — Lines disappear
+
+Place bracket order 1 (works fine). Place bracket order 2. Order 1's SL/TP preview lines disappear.
+
+### Symptom B — Wrong labels after cancel
+
+Cancel order 2. Order 1's SL/TP lines reappear but show "SL" / "Sell Limit" instead of projected P&L. The entry label also shifts left.
+
+### Root Cause
+
+The store holds a single `pendingBracketInfo` and `pendingEntryOrderId` tracking only the *current* (latest) pending entry. When order 2 is placed:
+
+- `pendingBracketInfo` is overwritten with order 2's bracket data
+- `pendingEntryOrderId` changes to order 2's ID
+- `useOrderLines` guards against showing Suspended legs that match `pendingBracketInfo` — but now `pendingBracketInfo` is order 2's data, so order 1's Suspended legs are no longer guarded and appear as raw order lines
+- Meanwhile `usePreviewLines` still shows preview lines based on the *current* config (order 2), so order 1's preview lines move to order 2's prices or disappear
+
+When order 2 is cancelled and `pendingBracketInfo` is cleared, `buildOrderLabels` finds order 1's Suspended legs but has no bracket info to identify them → labels fall back to generic "SL" / "Sell Limit".
+
+**Label shift**: `isEntryOrder` in `buildOrderLabels` does not account for the second bracket side, so the entry label logic breaks after cancel.
+
+### Required Fix
+
+Maintain a `pendingBracketInfos: PendingBracketEntry[]` array (each entry: `BracketInfo & { entryOrderId: string | null }`) alongside the existing `pendingBracketInfo` singleton (kept for backward compat / sessionStorage). Key changes:
+
+- `setPendingBracketInfo(info)`: push to array (staging slot, `entryOrderId: null`); if null, only remove staging entry
+- `setPendingEntryOrderId(id)`: if non-null, confirm staging slot with real ID; if null, remove that ID's entry from the array
+- `updatePendingBracketInfoEntry(entryOrderId, patch)`: patch specific array entry
+- `useOrderLines`: replace `pendingBracketInfo`-based color/guard with per-price lookup across full `pendingBracketInfos` array
+- `buildOrderLabels`: add `findBracketInfoForPrice(price)` that searches full `pendingBracketInfos` array; fix `isEntryOrder` to check all entries' sides
+- `usePreviewLines` Effect 1: `pendingEntryOrderId` must be in deps so lines are destroyed/recreated when a new entry takes over as the "current" preview entry (see Issue 3 for the complication this introduces)
+
+### Key Files
+
+- `frontend/src/store/slices/tradingSlice.ts` — add `pendingBracketInfos` array + CRUD actions
+- `frontend/src/components/chart/hooks/useOrderLines.ts` — multi-bracket guard + color logic
+- `frontend/src/components/chart/hooks/buildOrderLabels.ts` — `findBracketInfoForPrice`, `isEntryOrder` fix
+- `frontend/src/components/order-panel/OrderPanel.tsx` — account-switch clear
+
+---
+
+## 3 — Preview Lines Lose X Button / Become Non-Draggable After Second Bracket
+
+**Severity**: High (TP line unresponsive after second bracket placed)
+
+### Symptom
+
+After placing a second bracket order, the TP preview line of the new (current) entry loses its X button and cannot be dragged.
+
+### Root Cause
+
+Adding `pendingEntryOrderId` to `usePreviewLines` Effect 1 deps (required for Issue 2 fix) causes Effect 1 to re-run when a second bracket is placed. Effect 1 creates new preview lines but does **not** call `refs.updateOverlay.current()`. Effect 2 only re-runs if one of its own deps changed in the same render. If `pendingEntryOrderId` arrives in a separate render from `limitPrice`/`previewHideEntry` (which is possible — `setPendingEntryOrderId` is a separate Zustand `set` call from `useStore.setState({previewHideEntry, limitPrice})`), Effect 2 does not re-run, so `updateOverlay` is never called for the new lines. Labels are only built when the next `lastPrice` tick triggers the subscription's `doUpdate`.
+
+### Required Fix
+
+Call `refs.updateOverlay.current()` at the end of Effect 1 body in `usePreviewLines`, after the last preview line is pushed. This ensures the overlay always rebuilds labels immediately whenever Effect 1 creates new lines, regardless of whether Effect 2 also runs.
+
+### Key Files
+
+- `frontend/src/components/chart/hooks/usePreviewLines.ts` — add `refs.updateOverlay.current()` at end of Effect 1
+
+---
+
+## 4 — Dragging One Bracket's Entry Moves Another Bracket's Preview Lines
+
+**Severity**: High (wrong lines move during drag)
+
+### Symptom
+
+With two bracket orders pending, dragging the first bracket's entry line causes the *second* bracket's SL/TP preview lines to move alongside it.
+
+### Root Cause
+
+`useOrderDrag.onMouseMove` shifts Suspended bracket legs and preview lines whenever an entry order is dragged. The Suspended leg shift uses `findSuspendedBracketIndices()` which returns ALL Suspended orders for the contract (not scoped to the dragged entry's bracket). The preview line shift is guarded by `st.previewHideEntry && draggedOrderId === st.pendingEntryOrderId` but `pendingEntryOrderId` points to the *second* order — so dragging the first also shifts the second's preview lines.
+
+### Required Fix
+
+- `findSuspendedBracketIndices()`: accept optional `bracketPrices` filter and only return legs whose price is within `tickSize` of one of those prices. On call site, pass `matchedBracket.slPrice + tpPrices` so only the dragged entry's legs move.
+- Preview line shift guard: require `draggedOrderId === pendingEntryOrderId` AND that the preview lines were created for that specific entry (see Issue 3 / `previewCreatedForOrderId` ref).
+
+### Key Files
+
+- `frontend/src/components/chart/hooks/useOrderDrag.ts` — scope `findSuspendedBracketIndices` + guard preview shift
+
+---
+
+## 5 — Brief P&L Drift on Entry Line Drag (Two Brackets)
+
+**Severity**: Low (cosmetic, settles correctly on mouseup)
+
+### Symptom
+
+While dragging a bracket entry line, the projected P&L label on the order label changes continuously (based on the dragging price), instead of staying at the last committed P&L. On mouseup it corrects.
+
+### Root Cause
+
+`buildOrderLabels` computes P&L using `ep = pendingBracketInfo.entryPrice` directly. During drag, `pendingBracketInfo.entryPrice` is updated optimistically from `orderLinePrices`, but that lookup uses `pendingEntryOrderId`-scoped data which may not match the dragged order.
+
+### Required Fix
+
+In `buildOrderLabels`, use `getOrderLinePrice(entryOrderId)` (look up from `refs.orderLinePrices.current`) as `liveEp` if the entry order ID is known, falling back to `pendingBracketInfo.entryPrice`. This keeps P&L stable (anchored to the live line position) during drag.
+
+### Key Files
+
+- `frontend/src/components/chart/hooks/buildOrderLabels.ts` — `getOrderLinePrice` fallback in P&L closure

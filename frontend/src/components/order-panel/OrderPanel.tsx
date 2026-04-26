@@ -376,10 +376,10 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
                   for (const id of correctionIds) bracketCorrectionIds.current.delete(id);
                 }, 2000);
 
-                useStore.setState({ previewEnabled: false, previewHideEntry: false });
+                useStore.setState({ previewEnabled: false, previewHideEntry: false, draftSlPoints: null, draftTpPoints: [] });
               }, 500);
             } else {
-              useStore.setState({ previewEnabled: false, previewHideEntry: false });
+              useStore.setState({ previewEnabled: false, previewHideEntry: false, draftSlPoints: null, draftTpPoints: [] });
             }
           }
         }
@@ -432,8 +432,11 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
           if (st.previewHideEntry && st.orderContract
               && String(order.contractId) === String(st.orderContract.id)) {
             bracketEngine.clearSession();
-            st.clearAdHocBrackets();
-            useStore.setState({ previewEnabled: false, previewHideEntry: false });
+            useStore.setState({
+              previewEnabled: false, previewHideEntry: false,
+              draftSlPoints: null, draftTpPoints: [],
+              adHocSlPoints: null, adHocTpLevels: [],
+            });
           }
         }
 
