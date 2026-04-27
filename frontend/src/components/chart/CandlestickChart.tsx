@@ -28,7 +28,7 @@ import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
 import { MarketStatusBadge } from './MarketStatusBadge';
-import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineMeta, OrderDragState, PosDragState } from './hooks/types';
+import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, OrderDragState, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
   chartId: 'left' | 'right';
@@ -86,9 +86,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const previewDragStateRef = useRef<{ role: PreviewLineRole; lineIdx: number } | null>(null);
 
   // Order line refs
-  const orderLinesRef = useRef<PriceLevelLine[]>([]);
-  const orderLineMetaRef = useRef<OrderLineMeta[]>([]);
-  const orderLinePricesRef = useRef<number[]>([]);
+  const orderEntriesRef = useRef<OrderLineEntry[]>([]);
   const orderDragStateRef = useRef<OrderDragState | null>(null);
   const activeDragRowRef = useRef<HTMLDivElement | null>(null);
 
@@ -151,9 +149,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     previewRoles: previewRolesRef,
     previewPrices: previewPricesRef,
     previewDragState: previewDragStateRef,
-    orderLines: orderLinesRef,
-    orderLineMeta: orderLineMetaRef,
-    orderLinePrices: orderLinePricesRef,
+    orderEntries: orderEntriesRef,
     orderDragState: orderDragStateRef,
     posDrag: posDragRef,
     posDragLine: posDragLineRef,
@@ -259,8 +255,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       instrumentEl: instrumentLabelRef.current,
       ohlcEl: ohlcRef.current,
       containerEl: containerRef.current,
-      orderLinesRef,
-      orderLineMetaRef,
+      orderEntriesRef,
       previewLinesRef,
       crosshairLabelEl: crosshairLabel.el,
     });

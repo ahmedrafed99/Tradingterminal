@@ -1,8 +1,7 @@
 import type { IChartApi } from 'lightweight-charts';
 import type { DrawingsPrimitive } from '../drawings/DrawingsPrimitive';
 import type { TradeZonePrimitive } from '../TradeZonePrimitive';
-import type { PriceLevelLine } from '../PriceLevelLine';
-import type { OrderLineMeta } from '../hooks/types';
+import type { OrderLineEntry } from '../hooks/types';
 
 export interface ScreenshotOptions {
   showDrawings: boolean;
@@ -19,10 +18,8 @@ export interface ChartEntry {
   ohlcEl: HTMLElement | null;
   /** Container div — used by recording to access the live canvas */
   containerEl: HTMLElement | null;
-  /** Mutable ref to live order/position price lines (SL, TP, entry) */
-  orderLinesRef: { current: PriceLevelLine[] };
-  /** Mutable ref to parallel metadata for each order line */
-  orderLineMetaRef: { current: OrderLineMeta[] };
+  /** Mutable ref to live order/position line entries (SL, TP, entry) */
+  orderEntriesRef: { current: OrderLineEntry[] };
   /** Mutable ref to preview bracket price lines */
   previewLinesRef: { current: PriceLevelLine[] };
   /** The crosshair price label HTML element — painted onto canvas in screenshots */

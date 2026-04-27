@@ -4,7 +4,7 @@ import type { Contract } from './marketDataService';
 import { useStore } from '../store/useStore';
 import type { BracketConfig, ConditionAction } from '../types/bracket';
 import { OrderType, OrderSide, OrderStatus } from '../types/enums';
-import { pointsToPrice, priceToPoints, roundToTick } from '../utils/instrument';
+import { pointsToPrice, priceToPoints, roundToTick, getTicksPerPoint } from '../utils/instrument';
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 import { audioService } from './audioService';
@@ -162,6 +162,61 @@ class BracketEngine {
   /** Returns true if this order was already handled (sound played) by the bracket engine. */
   wasHandled(orderId: string): boolean {
     return this.handledFillIds.has(orderId);
+  }
+
+  /**
+   * Called when the user cancels a Suspended bracket leg from the chart.
+   * Updates bracketEngine armed config + pendingBracketInfo in store.
+   */
+  handleLegCancel(isSl: boolean, tpIndex: number | null): void {
+    const st = useStore.getState();
+    const bi = st.pendingBracketInfo;
+    if (isSl) {
+      this.updateArmedConfig((cfg) => ({ ...cfg, stopLoss: { ...cfg.stopLoss, points: 0 } }));
+      if (bi) st.setPendingBracketInfo({ ...bi, slPrice: null });
+    } else if (tpIndex != null && tpIndex >= 0) {
+      this.updateArmedConfig((cfg) => ({
+        ...cfg,
+        takeProfits: cfg.takeProfits.filter((_, i) => i !== tpIndex),
+      }));
+      if (bi) {
+        st.setPendingBracketInfo({
+          ...bi,
+          tpPrices: bi.tpPrices.filter((_, i) => i !== tpIndex),
+          tpSizes: bi.tpSizes.filter((_, i) => i !== tpIndex),
+        });
+      }
+    }
+  }
+
+  /**
+   * Called when the user drags a Suspended bracket leg to a new price.
+   * Updates bracketEngine armed config + pendingBracketInfo in store.
+   */
+  handleLegModify(newPrice: number, isSl: boolean, tpIndex: number | null, contract: Contract): void {
+    const st = useStore.getState();
+    const bi = st.pendingBracketInfo;
+    if (!bi) return;
+    const tpp = getTicksPerPoint(contract);
+    if (isSl) {
+      st.setPendingBracketInfo({ ...bi, slPrice: newPrice });
+      const slPoints = Math.round(priceToPoints(Math.abs(bi.entryPrice - newPrice), contract) * tpp) / tpp;
+      this.updateArmedConfig((cfg) => ({
+        ...cfg,
+        stopLoss: { ...cfg.stopLoss, points: Math.max(1 / tpp, slPoints) },
+      }));
+    } else if (tpIndex != null && tpIndex >= 0) {
+      const newTpPrices = [...bi.tpPrices];
+      newTpPrices[tpIndex] = newPrice;
+      st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
+      const tpPoints = Math.round(priceToPoints(Math.abs(newPrice - bi.entryPrice), contract) * tpp) / tpp;
+      this.updateArmedConfig((cfg) => ({
+        ...cfg,
+        takeProfits: cfg.takeProfits.map((tp, i) =>
+          i === tpIndex ? { ...tp, points: Math.max(1 / tpp, tpPoints) } : tp,
+        ),
+      }));
+    }
   }
 
   /** Update a TP's tracked size after external modification (e.g. +/- overlay buttons) */

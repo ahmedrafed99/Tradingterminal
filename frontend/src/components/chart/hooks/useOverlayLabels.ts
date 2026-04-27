@@ -57,7 +57,7 @@ export function useOverlayLabels(
 
     // Clear previous labels + hit targets
     for (const line of refs.previewLines.current) line.setLabel(null);
-    for (const line of refs.orderLines.current) line.setLabel(null);
+    for (const e of refs.orderEntries.current) e.line.setLabel(null);
     refs.hitTargets.current = [];
 
     const pnlUpdaters: (() => void)[] = [];
@@ -86,7 +86,7 @@ export function useOverlayLabels(
     // --- Sync function (repositions all lines + updates P&L) ---
     function updatePositions() {
       for (const line of refs.previewLines.current) line.syncPosition();
-      for (const line of refs.orderLines.current) line.syncPosition();
+      for (const e of refs.orderEntries.current) e.line.syncPosition();
       if (refs.posDragLine.current) refs.posDragLine.current.syncPosition();
 
       if (refs.posDragLabel.current && refs.posDrag.current && refs.series.current) {
@@ -119,7 +119,7 @@ export function useOverlayLabels(
       unsub();
       orderLabelsCleanup?.();
       for (const line of refs.previewLines.current) line.setLabel(null);
-      for (const line of refs.orderLines.current) line.setLabel(null);
+      for (const e of refs.orderEntries.current) e.line.setLabel(null);
       refs.hitTargets.current = [];
       refs.updateOverlay.current = () => {};
     };

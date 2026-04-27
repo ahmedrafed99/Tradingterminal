@@ -4,10 +4,10 @@ import { orderService } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { useStore } from '../../../store/useStore';
 import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/enums';
-import { pointsToPrice, priceToPoints, getTicksPerPoint } from '../../../utils/instrument';
+import { pointsToPrice } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
-import { computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
+import { classifyOrderLine, BUY_COLOR, SELL_COLOR } from './labelUtils';
 import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR } from './drawingInteraction';
 
@@ -36,17 +36,15 @@ export function useOrderDrag(
       return Math.round(price / ts) * ts;
     }
 
-    /** Find all order line indices for Suspended bracket legs of the current contract. */
+    /** Find all entry indices for Suspended bracket legs of the current contract. */
     function findSuspendedBracketIndices(): number[] {
-      const indices: number[] = [];
-      for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
-        const m = refs.orderLineMeta.current[k];
-        if (m.kind === 'order' && m.order.status === OrderStatus.Suspended
-            && String(m.order.contractId) === String(contract!.id)) {
-          indices.push(k);
+      return refs.orderEntries.current.reduce<number[]>((acc, e, k) => {
+        if (e.meta.kind === 'order' && e.meta.order.status === OrderStatus.Suspended
+            && String(e.meta.order.contractId) === String(contract!.id)) {
+          acc.push(k);
         }
-      }
-      return indices;
+        return acc;
+      }, []);
     }
 
     function onMouseMove(e: MouseEvent) {
@@ -68,16 +66,16 @@ export function useOrderDrag(
       const pos = positions.find(
         (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract!.id) && p.size > 0,
       );
-      const line = refs.orderLines.current[drag.idx];
-      if (line) {
-        line.setPrice(snapped);
+      const dragEntry = refs.orderEntries.current.find((e) => e.key === drag.key);
+      if (dragEntry) {
+        dragEntry.line.setPrice(snapped);
         if (pos) {
           const isL = pos.type === PositionType.Long;
-          line.setLineColor((isL ? snapped >= pos.averagePrice : snapped <= pos.averagePrice) ? BUY_COLOR : SELL_COLOR);
+          dragEntry.line.setLineColor((isL ? snapped >= pos.averagePrice : snapped <= pos.averagePrice) ? BUY_COLOR : SELL_COLOR);
         }
-        line.syncPosition();
+        dragEntry.line.syncPosition();
+        dragEntry.price = snapped;
       }
-      refs.orderLinePrices.current[drag.idx] = snapped;
       drag.draggedPrice = snapped;
 
       // Shift Suspended bracket legs to follow the dragged entry order
@@ -87,22 +85,15 @@ export function useOrderDrag(
         const st = useStore.getState();
 
         // Shift Suspended bracket order lines
-        const bi = st.pendingBracketInfo;
-        if (bi) {
-          const bracketIndices = findSuspendedBracketIndices();
-          for (const idx of bracketIndices) {
-            const origPrice = refs.orderLinePrices.current[idx];
-            // Compute delta from the original entry price to maintain relative offsets
-            const bracketLine = refs.orderLines.current[idx];
-            if (bracketLine) {
-              const m = refs.orderLineMeta.current[idx];
-              if (m.kind !== 'order') continue;
-              const origBracketPrice = m.order.stopPrice ?? m.order.limitPrice ?? 0;
-              const newBracketPrice = origBracketPrice + delta;
-              bracketLine.setPrice(newBracketPrice);
-              bracketLine.syncPosition();
-              refs.orderLinePrices.current[idx] = newBracketPrice;
-            }
+        if (st.pendingBracketInfo) {
+          for (const idx of findSuspendedBracketIndices()) {
+            const bracketEntry = refs.orderEntries.current[idx];
+            if (!bracketEntry || bracketEntry.meta.kind !== 'order') continue;
+            const origBracketPrice = bracketEntry.meta.order.stopPrice ?? bracketEntry.meta.order.limitPrice ?? 0;
+            const newBracketPrice = origBracketPrice + delta;
+            bracketEntry.line.setPrice(newBracketPrice);
+            bracketEntry.line.syncPosition();
+            bracketEntry.price = newBracketPrice;
           }
         }
 
@@ -140,8 +131,9 @@ export function useOrderDrag(
       if (!drag) return;
 
       cachedRect = null;
-      const { meta, originalPrice, draggedPrice: newPrice } = drag;
-      refs.orderDragState.current = null;
+      const { meta, key: dragKey, originalPrice, draggedPrice: newPrice } = drag;
+      // NOTE: refs.orderDragState.current is cleared AFTER store updates below so the
+      // reconciler triggered by those updates still has dragKey and won't snap the line back.
       if (refs.activeDragRow.current) {
         refs.activeDragRow.current.style.cursor = 'pointer';
         refs.activeDragRow.current = null;
@@ -150,10 +142,12 @@ export function useOrderDrag(
       // Re-enable LWC scroll/scale after drag
       if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
 
-      if (meta.kind !== 'order' || newPrice === originalPrice) return;
+      if (meta.kind !== 'order' || newPrice === originalPrice) {
+        refs.orderDragState.current = null;
+        return;
+      }
 
       const { order } = meta;
-      const dragIdx = drag.idx;
       const accountId = useStore.getState().activeAccountId;
       if (!accountId) return;
 
@@ -166,12 +160,13 @@ export function useOrderDrag(
           if (invalid) {
             // Stop dragged past market — close the position instead
             showToast('info', 'Stop above market — closing position');
-            const line = refs.orderLines.current[dragIdx];
-            if (line) {
-              line.setPrice(originalPrice);
-              line.setLineColor(SELL_COLOR);
-              line.syncPosition();
-              refs.orderLinePrices.current[dragIdx] = originalPrice;
+            refs.orderDragState.current = null;
+            const revertEntry = refs.orderEntries.current.find((e) => e.key === dragKey);
+            if (revertEntry) {
+              revertEntry.line.setPrice(originalPrice);
+              revertEntry.line.setLineColor(SELL_COLOR);
+              revertEntry.line.syncPosition();
+              revertEntry.price = originalPrice;
               refs.updateOverlay.current();
             }
             const posToClose = useStore.getState().positions.find(
@@ -226,55 +221,46 @@ export function useOrderDrag(
         useStore.getState().setLimitPrice(newPrice);
       }
 
-      // For Suspended bracket legs, also update bracketEngine + pendingBracketInfo
+      // For Suspended bracket legs, update bracketEngine + pendingBracketInfo.
+      // Also optimistically upsert the order with the new price so coveredBracketPrices
+      // stays consistent and the reconciler doesn't create a ghost phantom line.
       if (order.status === OrderStatus.Suspended) {
         const st = useStore.getState();
+        const isSl = order.type === OrderType.Stop || order.type === OrderType.TrailingStop;
+        st.upsertOrder(isSl ? { ...order, stopPrice: newPrice } : { ...order, limitPrice: newPrice });
         const bi = st.pendingBracketInfo;
-        if (bi) {
-          const isSl = order.customTag?.endsWith('-SL') ?? (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
-          if (isSl) {
-            st.setPendingBracketInfo({ ...bi, slPrice: newPrice });
-            const slDiff = Math.abs(bi.entryPrice - newPrice);
-            const tpp = getTicksPerPoint(contract!);
-            const slPoints = Math.round(priceToPoints(slDiff, contract!) * tpp) / tpp;
-            bracketEngine.updateArmedConfig((cfg) => ({
-              ...cfg,
-              stopLoss: { ...cfg.stopLoss, points: Math.max(1 / tpp, slPoints) },
-            }));
-          } else {
-            // Find which TP index this order corresponds to
-            const tpIdx = order.customTag?.endsWith('-TP')
-              ? 0
-              : (bi.tpPrices.findIndex((p) => Math.abs(p - originalPrice) < 0.001));
-            if (tpIdx >= 0) {
-              const newTpPrices = [...bi.tpPrices];
-              newTpPrices[tpIdx] = newPrice;
-              st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
-              const tpDiff = Math.abs(newPrice - bi.entryPrice);
-              const tpp2 = getTicksPerPoint(contract!);
-              const tpPoints = Math.round(priceToPoints(tpDiff, contract!) * tpp2) / tpp2;
-              bracketEngine.updateArmedConfig((cfg) => ({
-                ...cfg,
-                takeProfits: cfg.takeProfits.map((tp, i) =>
-                  i === tpIdx ? { ...tp, points: Math.max(1 / tpp2, tpPoints) } : tp),
-              }));
-            }
-          }
-        }
+        const cls = classifyOrderLine(order, {
+          price: originalPrice,
+          pos: positions.find((p) => p.accountId === activeAccountId && String(p.contractId) === String(contract!.id) && p.size > 0),
+          pendingBracketInfo: bi,
+          previewHideEntry: st.previewHideEntry,
+          previewSide: st.previewSide,
+        });
+        bracketEngine.handleLegModify(newPrice, cls.isSl, cls.tpIndex, contract!);
       }
+
+      // Clear drag state after all store updates so the reconciler triggered above
+      // sees dragKey and preserves the dragged position instead of snapping back.
+      refs.orderDragState.current = null;
 
       orderService.modifyOrder(params).catch((err) => {
         showToast('error', 'Order modification failed', errorMessage(err));
         // Revert line back to original price
-        const line = refs.orderLines.current[dragIdx];
-        if (line) {
+        const revertEntry = refs.orderEntries.current.find((e) => e.key === dragKey);
+        if (revertEntry) {
           const pos = positions.find(
             (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract!.id) && p.size > 0,
           );
-          line.setPrice(originalPrice);
-          line.setLineColor(computeOrderLineColor(order, originalPrice, pos ?? undefined));
-          line.syncPosition();
-          refs.orderLinePrices.current[dragIdx] = originalPrice;
+          revertEntry.line.setPrice(originalPrice);
+          revertEntry.line.setLineColor(classifyOrderLine(order, {
+            price: originalPrice,
+            pos: pos ?? undefined,
+            pendingBracketInfo: useStore.getState().pendingBracketInfo,
+            previewHideEntry: useStore.getState().previewHideEntry,
+            previewSide: useStore.getState().previewSide,
+          }).color);
+          revertEntry.line.syncPosition();
+          revertEntry.price = originalPrice;
           refs.updateOverlay.current();
         }
         // Revert bracket preview positions

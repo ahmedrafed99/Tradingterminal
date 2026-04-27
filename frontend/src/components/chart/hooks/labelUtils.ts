@@ -1,6 +1,6 @@
 import type { Contract } from '../../../services/marketDataService';
 import type { Order } from '../../../services/orderService';
-import { OrderType, OrderSide, PositionType } from '../../../types/enums';
+import { OrderType, OrderSide, OrderStatus, PositionType } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import {
   COLOR_LABEL_BG, COLOR_LABEL_TEXT, COLOR_LABEL_CLOSE, COLOR_LABEL_CLOSE_HOVER,
@@ -62,6 +62,68 @@ export function computeOrderLineColor(
     return SELL_COLOR;
   }
   return order.side === OrderSide.Sell ? SELL_COLOR : BUY_COLOR;
+}
+
+// ── Order line classification ─────────────────────────
+
+export interface OrderLineClassification {
+  isSuspendedBracketLeg: boolean;
+  isSl: boolean;
+  tpIndex: number | null;
+  color: string;
+  sizeBg: string;
+  isEntry: boolean;
+}
+
+export interface OrderLineCtx {
+  price: number;
+  pos: PositionRef | undefined;
+  pendingBracketInfo: { slPrice: number | null; tpPrices: number[]; side: number; orderSize: number; tpSizes: number[]; entryPrice: number } | null;
+  previewHideEntry: boolean;
+  previewSide: number;
+}
+
+/**
+ * Single authoritative classification for a live order line.
+ * Determines role, color, sizeBg, and entry/bracket-leg status.
+ * customTag wins over type inference for SL/TP role detection.
+ */
+export function classifyOrderLine(order: Order, ctx: OrderLineCtx): OrderLineClassification {
+  const { price, pos, pendingBracketInfo, previewHideEntry, previewSide } = ctx;
+  const isSuspendedBracketLeg = order.status === OrderStatus.Suspended && pendingBracketInfo != null;
+
+  const isSl = isSuspendedBracketLeg
+    ? (order.customTag?.endsWith('-SL') ?? (order.type === OrderType.Stop || order.type === OrderType.TrailingStop))
+    : false;
+
+  let tpIndex: number | null = null;
+  if (isSuspendedBracketLeg && !isSl && pendingBracketInfo) {
+    if (order.customTag?.endsWith('-TP')) {
+      tpIndex = 0;
+    } else {
+      const idx = pendingBracketInfo.tpPrices.findIndex(
+        (p) => Math.abs(p - (order.limitPrice ?? 0)) < 0.001,
+      );
+      tpIndex = idx >= 0 ? idx : null;
+    }
+  }
+
+  const color = isSuspendedBracketLeg
+    ? (isSl ? SELL_COLOR : BUY_COLOR)
+    : computeOrderLineColor(order, price, pos);
+
+  const sizeBg = isSuspendedBracketLeg
+    ? (isSl ? SELL_COLOR : BUY_COLOR)
+    : (order.side === OrderSide.Sell ? SELL_COLOR : BUY_COLOR);
+
+  const isEntry = order.type === OrderType.Limit
+    && order.status !== OrderStatus.Suspended
+    && (
+      (pendingBracketInfo != null && order.side === pendingBracketInfo.side) ||
+      (previewHideEntry && order.side === previewSide)
+    );
+
+  return { isSuspendedBracketLeg, isSl, tpIndex, color, sizeBg, isEntry };
 }
 
 // ── PnL formatting ────────────────────────────────────

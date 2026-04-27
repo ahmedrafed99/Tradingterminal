@@ -6,8 +6,7 @@ import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/
 import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { darken, LABEL_TEXT, LABEL_BG, CLOSE_BG, computeOrderLineColor, BUY_COLOR, SELL_COLOR } from './labelUtils';
-import { COLOR_SELL } from '../../../constants/colors';
+import { darken, LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, classifyOrderLine } from './labelUtils';
 
 interface Position {
   accountId: string;
@@ -48,11 +47,10 @@ export function buildOrderLabels(
 
   // Redistribution handler
   async function handleRedistribute(
-    clickedOrderId: number,
+    clickedOrderId: string,
     clickedSize: number,
     delta: 1 | -1,
     allTps: Order[],
-    isLong: boolean,
   ) {
     if (refs.tpRedistInFlight.current) return;
     refs.tpRedistInFlight.current = true;
@@ -68,14 +66,6 @@ export function buildOrderLabels(
     );
     const totalTpSize = allTps.reduce((sum, o) => sum + o.size, 0);
     const unallocated = (curPos?.size ?? 0) - totalTpSize;
-
-    const otherTps = allTps
-      .filter(o => o.id !== clickedOrderId)
-      .sort((a, b) => {
-        const aP = a.limitPrice ?? 0;
-        const bP = b.limitPrice ?? 0;
-        return isLong ? bP - aP : aP - bP;
-      });
 
     // Block increase when all contracts are allocated
     if (delta === 1 && unallocated <= 0) {
@@ -113,25 +103,18 @@ export function buildOrderLabels(
     const oType = order.type;
     const isSuspended = order.status === OrderStatus.Suspended;
 
-    // Determine if this is a bracket leg — color by role (SL=red, TP=green) not by side
-    const isBracketLeg = isSuspended && pendingBracketInfo != null;
-    const isBracketSl = isBracketLeg && (oType === OrderType.Stop || oType === OrderType.TrailingStop);
-    const bracketRoleColor = isBracketLeg ? (isBracketSl ? SELL_COLOR : BUY_COLOR) : null;
+    const cls = classifyOrderLine(order, { price, pos, pendingBracketInfo, previewHideEntry, previewSide });
 
     function profitColor(p: number): string {
-      if (bracketRoleColor) return bracketRoleColor;
-      return computeOrderLineColor(order, p, pos);
+      return classifyOrderLine(order, { price: p, pos, pendingBracketInfo, previewHideEntry, previewSide }).color;
     }
-    const sizeBg = bracketRoleColor ?? (oSide === OrderSide.Sell ? SELL_COLOR : BUY_COLOR);
+    const { sizeBg } = cls;
 
     function getOrderRefPrice(): number {
-      for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
-        const m = refs.orderLineMeta.current[k];
-        if (m.kind === 'order' && m.order.id === orderId) {
-          return refs.orderLinePrices.current[k];
-        }
-      }
-      return price!;
+      const entry = refs.orderEntries.current.find(
+        (e) => e.meta.kind === 'order' && e.meta.order.id === orderId,
+      );
+      return entry?.price ?? price!;
     }
 
     let initPnlText: string;
@@ -146,7 +129,7 @@ export function buildOrderLabels(
     if (isSuspended && pendingBracketInfo) {
       // Suspended bracket leg — show P&L relative to entry price from pendingBracketInfo
       const ep = pendingBracketInfo.entryPrice;
-      const isSl = oType === OrderType.Stop || oType === OrderType.TrailingStop;
+      const isSl = cls.isSl;
       const diff = isSl
         ? (pendingBracketInfo.side === OrderSide.Buy ? ep - price : price - ep)
         : (pendingBracketInfo.side === OrderSide.Buy ? price - ep : ep - price);
@@ -181,29 +164,20 @@ export function buildOrderLabels(
       if (oType === OrderType.Stop || oType === OrderType.TrailingStop) {
         // SL bracket on an unfilled entry — show label + cancel button so the user can remove it
         initPnlText = 'SL';
-        initPnlBg = COLOR_SELL;
+        initPnlBg = SELL_COLOR;
       } else {
         initPnlText = oSide === OrderSide.Buy ? 'Buy Limit' : 'Sell Limit';
         initPnlBg = LABEL_BG;
       }
     }
 
-    let orderLineIdx = -1;
-    for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
-      const m = refs.orderLineMeta.current[k];
-      if (m.kind === 'order' && m.order.id === orderId) {
-        orderLineIdx = k;
-        break;
-      }
-    }
-    const orderLine = orderLineIdx >= 0 ? refs.orderLines.current[orderLineIdx] : null;
+    const orderLineIdx = refs.orderEntries.current.findIndex(
+      (e) => e.meta.kind === 'order' && e.meta.order.id === orderId,
+    );
+    const orderLine = orderLineIdx >= 0 ? refs.orderEntries.current[orderLineIdx].line : null;
     if (!orderLine) continue;
 
-    const isEntryOrder = oType === OrderType.Limit && !isSuspended && (
-      (pendingBracketInfo != null && oSide === pendingBracketInfo.side) ||
-      (previewHideEntry && oSide === previewSide)
-    );
-    if (isEntryOrder) orderLine.setLabelLeft(0.65);
+    if (cls.isEntry) orderLine.setLabelLeft(0.65);
 
     orderLine.setLabel([
       { text: initPnlText, bg: initPnlBg, color: LABEL_TEXT },
@@ -231,7 +205,6 @@ export function buildOrderLabels(
       const unallocated = pos.size - totalTpSize;
       const minusDisabled = oSize <= 1;
       const plusDisabled = unallocated <= 0;
-      const isLong = pos.type === PositionType.Long;
 
       const sizeCell = cells[1];
       sizeCell.style.display = 'flex';
@@ -272,13 +245,13 @@ export function buildOrderLabels(
       if (!minusDisabled) {
         refs.hitTargets.current.push({
           el: minusEl, priority: 0,
-          handler: () => handleRedistribute(orderId, oSize, -1, allTps, isLong),
+          handler: () => handleRedistribute(orderId, oSize, -1, allTps),
         });
       }
       if (!plusDisabled) {
         refs.hitTargets.current.push({
           el: plusEl, priority: 0,
-          handler: () => handleRedistribute(orderId, oSize, 1, allTps, isLong),
+          handler: () => handleRedistribute(orderId, oSize, 1, allTps),
         });
       }
     }
@@ -299,28 +272,21 @@ export function buildOrderLabels(
           showToast('error', 'Failed to cancel order', errorMessage(err));
         });
 
-        // For Suspended bracket legs, also update bracketEngine + pendingBracketInfo
         if (cancelOrder.status === OrderStatus.Suspended) {
+          bracketEngine.handleLegCancel(cls.isSl, cls.tpIndex);
+        } else if (cls.isEntry && useStore.getState().pendingBracketInfo) {
           const st = useStore.getState();
-          const bi = st.pendingBracketInfo;
-          const isSl = cancelOrder.customTag?.endsWith('-SL') ?? (cancelOrder.type === OrderType.Stop || cancelOrder.type === OrderType.TrailingStop);
-          if (isSl) {
-            bracketEngine.updateArmedConfig((cfg) => ({ ...cfg, stopLoss: { ...cfg.stopLoss, points: 0 } }));
-            if (bi) st.setPendingBracketInfo({ ...bi, slPrice: null });
-          } else {
-            const tpIdx = cancelOrder.customTag?.endsWith('-TP')
-              ? 0
-              : (bi?.tpPrices.findIndex((p) => Math.abs(p - (cancelOrder.limitPrice ?? 0)) < 0.001) ?? -1);
-            if (tpIdx >= 0) {
-              bracketEngine.updateArmedConfig((cfg) => ({ ...cfg, takeProfits: cfg.takeProfits.filter((_, i) => i !== tpIdx) }));
-              if (bi) {
-                st.setPendingBracketInfo({
-                  ...bi,
-                  tpPrices: bi.tpPrices.filter((_, i) => i !== tpIdx),
-                  tpSizes: bi.tpSizes.filter((_, i) => i !== tpIdx),
-                });
-              }
-            }
+          const bracketLegs = st.openOrders.filter(
+            (o) => o.status === OrderStatus.Suspended
+              && String(o.contractId) === String(cancelOrder.contractId),
+          );
+          st.setPendingBracketInfo(null);
+          bracketEngine.clearSession();
+          for (const leg of bracketLegs) {
+            st.removeOrder(leg.id);
+            orderService.cancelOrder(acct, leg.id).catch(() => {
+              st.upsertOrder(leg);
+            });
           }
         }
       },
@@ -333,17 +299,14 @@ export function buildOrderLabels(
         el: labelEl,
         priority: 1,
         handler: () => {
-          let idx = -1;
-          for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
-            const m = refs.orderLineMeta.current[k];
-            if (m.kind === 'order' && m.order.id === dragOrder.id) { idx = k; break; }
-          }
-          if (idx === -1) return;
+          const dragKey = `o:${dragOrder.id}`;
+          const entry = refs.orderEntries.current.find((e) => e.key === dragKey);
+          if (!entry) return;
           refs.orderDragState.current = {
             meta: { kind: 'order', order: dragOrder },
-            idx,
-            originalPrice: refs.orderLinePrices.current[idx],
-            draggedPrice: refs.orderLinePrices.current[idx],
+            key: dragKey,
+            originalPrice: entry.price,
+            draggedPrice: entry.price,
           };
           refs.activeDragRow.current = labelEl;
           labelEl.style.cursor = 'grabbing';
@@ -364,15 +327,13 @@ export function buildOrderLabels(
   }
 
   // Phantom bracket labels (lines rendered from pendingBracketInfo with no real order)
-  for (let k = 0; k < refs.orderLineMeta.current.length; k++) {
-    const meta = refs.orderLineMeta.current[k];
+  for (const entry of refs.orderEntries.current) {
+    const meta = entry.meta;
     if (meta.kind !== 'phantom-bracket') continue;
 
-    const phantomLine = refs.orderLines.current[k];
-    if (!phantomLine) continue;
-
+    const phantomLine = entry.line;
     const bi = meta.bracketInfo;
-    const phantomPrice = refs.orderLinePrices.current[k];
+    const phantomPrice = entry.price;
     const isSl = meta.bracketType === 'sl';
     const phantomSize = isSl ? bi.orderSize : (bi.tpSizes[meta.tpIndex ?? 0] ?? bi.orderSize);
 
@@ -389,14 +350,13 @@ export function buildOrderLabels(
       { text: String(phantomSize), bg: pnlBg, color: LABEL_TEXT },
     ]);
 
-    // P&L updater (tracks price if dragged)
-    const capturedK = k;
+    // P&L updater — entry.price is the live price (mutated during drag on the same object)
+    const capturedEntry = entry;
     const capturedIsSl = isSl;
     const capturedSize = phantomSize;
     const capturedBi = bi;
     pnlUpdaters.push(() => {
-      const curPrice = refs.orderLinePrices.current[capturedK];
-      if (curPrice == null) return;
+      const curPrice = capturedEntry.price;
       const d = capturedIsSl
         ? (capturedBi.side === OrderSide.Buy ? capturedBi.entryPrice - curPrice : curPrice - capturedBi.entryPrice)
         : (capturedBi.side === OrderSide.Buy ? curPrice - capturedBi.entryPrice : capturedBi.entryPrice - curPrice);

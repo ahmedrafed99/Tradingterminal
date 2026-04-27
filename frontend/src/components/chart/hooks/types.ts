@@ -10,6 +10,14 @@ import type { NewsEventsPrimitive } from '../primitives/NewsEventsPrimitive';
 import type { BidAskPrimitive } from '../BidAskPrimitive';
 import type { PriceLevelLine } from '../PriceLevelLine';
 
+// ── Single order/position line entry (replaces 3 parallel arrays) ──
+export type OrderLineEntry = {
+  key: string;
+  line: PriceLevelLine;
+  meta: OrderLineMeta;
+  price: number;
+};
+
 // ── Preview line role (entry, SL, TP, or quick-order variants) ──
 export type PreviewLineRole =
   | { kind: 'entry' }
@@ -51,7 +59,7 @@ export type PosDragState = {
 // ── Order drag state ──
 export type OrderDragState = {
   meta: OrderLineMeta;
-  idx: number;
+  key: string;
   originalPrice: number;
   draggedPrice: number;
 };
@@ -103,9 +111,7 @@ export interface ChartRefs {
   previewDragState: React.MutableRefObject<{ role: PreviewLineRole; lineIdx: number } | null>;
 
   // Order lines
-  orderLines: React.MutableRefObject<PriceLevelLine[]>;
-  orderLineMeta: React.MutableRefObject<OrderLineMeta[]>;
-  orderLinePrices: React.MutableRefObject<number[]>;
+  orderEntries: React.MutableRefObject<OrderLineEntry[]>;
   orderDragState: React.MutableRefObject<OrderDragState | null>;
 
   // Position drag-to-create SL/TP

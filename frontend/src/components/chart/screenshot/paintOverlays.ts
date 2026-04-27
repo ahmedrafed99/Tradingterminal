@@ -46,9 +46,8 @@ export function paintOverlays(
 
   // Paint position entry + associated orders (SL/TP)
   if (options.showPositions) {
-    const lines = entry.orderLinesRef.current;
-    for (const line of lines) {
-      line.paintToCanvas(ctx, plotWidth, totalWidth);
+    for (const e of entry.orderEntriesRef.current) {
+      e.line.paintToCanvas(ctx, plotWidth, totalWidth);
     }
   }
 

@@ -56,8 +56,8 @@ export function buildPositionLabel(
     initBg = COLOR_TEXT_MUTED;
   }
 
-  const posIdx = refs.orderLineMeta.current.findIndex((m) => m.kind === 'position');
-  const posLine = posIdx >= 0 ? refs.orderLines.current[posIdx] : null;
+  const posIdx = refs.orderEntries.current.findIndex((e) => e.meta.kind === 'position');
+  const posLine = posIdx >= 0 ? refs.orderEntries.current[posIdx].line : null;
   if (!posLine) return pnlUpdaters;
 
   posLine.setLabelLeft(0.65);
