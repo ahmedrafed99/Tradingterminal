@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git UI</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #161920;
+    --bg3: #1e2129;
+    --border: #2a2d38;
+    --text: #c9cdd8;
+    --muted: #5a5f72;
+    --accent: #4d8aff;
+    --green: #3dba6f;
+    --red: #e05c5c;
+    --yellow: #d4a843;
+    --purple: #9d72ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font: 13px/1.5 'JetBrains Mono', 'Fira Code', monospace; height: 100vh; display: flex; flex-direction: column; }
+
+  header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 14px; color: var(--accent); letter-spacing: 1px; }
+  #branch-badge { background: var(--bg3); border: 1px solid var(--border); padding: 2px 10px; border-radius: 20px; font-size: 11px; color: var(--purple); }
+  .header-right { margin-left: auto; display: flex; gap: 8px; }
+
+  .main { display: grid; grid-template-columns: 320px 1fr; flex: 1; overflow: hidden; }
+
+  .panel { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 8px 12px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: space-between; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 8px; }
+  .right-panel { display: flex; flex-direction: column; overflow: hidden; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .file-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; cursor: pointer; transition: background 0.1s; }
+  .file-item:hover { background: var(--bg3); }
+  .file-item.selected { background: rgba(77,138,255,0.1); }
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  .file-dir { color: var(--muted); font-size: 11px; }
+  .status-badge { font-size: 10px; font-weight: bold; padding: 1px 5px; border-radius: 3px; min-width: 18px; text-align: center; }
+  .s-M { background: rgba(212,168,67,0.15); color: var(--yellow); }
+  .s-A { background: rgba(61,186,111,0.15); color: var(--green); }
+  .s-D { background: rgba(224,92,92,0.15); color: var(--red); }
+  .s-u { background: rgba(157,114,255,0.15); color: var(--purple); }
+  .s-q { background: rgba(90,95,114,0.2); color: var(--muted); }
+
+  .section-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; padding: 8px 8px 4px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg3); color: var(--text); font: inherit; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: rgba(77,138,255,0.15); border-color: var(--accent); color: var(--accent); }
+  .btn-primary:hover { background: rgba(77,138,255,0.25); }
+  .btn-danger { background: rgba(224,92,92,0.1); border-color: var(--red); color: var(--red); }
+  .btn-danger:hover { background: rgba(224,92,92,0.2); }
+  .btn-success { background: rgba(61,186,111,0.1); border-color: var(--green); color: var(--green); }
+  .btn-success:hover { background: rgba(61,186,111,0.2); }
+  .btn-sm { padding: 3px 8px; font-size: 10px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .commit-area { padding: 12px; border-bottom: 1px solid var(--border); }
+  textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); font: inherit; font-size: 12px; padding: 8px; border-radius: 4px; resize: vertical; min-height: 64px; outline: none; transition: border-color 0.15s; }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+  .commit-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  .log-entry { padding: 8px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; }
+  .log-entry:hover { background: var(--bg2); }
+  .log-hash { color: var(--accent); font-size: 11px; min-width: 52px; }
+  .log-subject { flex: 1; font-size: 12px; }
+  .log-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .log-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+  .log-entry:hover .log-actions { opacity: 1; }
+
+  #toast { position: fixed; bottom: 20px; right: 20px; padding: 10px 16px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 999; max-width: 400px; }
+  #toast.show { opacity: 1; }
+  #toast.ok { background: rgba(61,186,111,0.9); color: #000; }
+  #toast.err { background: rgba(224,92,92,0.9); color: #fff; }
+
+  .remote-bar { padding: 10px 12px; border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center; }
+  .remote-bar .label { font-size: 11px; color: var(--muted); margin-right: 4px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg2); }
+  .tab { padding: 8px 16px; font-size: 11px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted); transition: all 0.15s; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-content { display: none; flex: 1; overflow-y: auto; }
+  .tab-content.active { display: flex; flex-direction: column; }
+
+  .empty-state { padding: 24px; text-align: center; color: var(--muted); font-size: 12px; }
+
+  .spinner { display: inline-block; width: 10px; height: 10px; border: 1.5px solid var(--muted); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .diff-view { font-size: 11px; padding: 12px; overflow-x: auto; }
+  .diff-view pre { white-space: pre; }
+  .diff-add { color: var(--green); }
+  .diff-del { color: var(--red); }
+  .diff-hunk { color: var(--purple); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#8943; GIT UI</h1>
+  <span id="branch-badge">loading...</span>
+  <span id="status-summary" style="font-size:11px;color:var(--muted)"></span>
+  <div class="header-right">
+    <button class="btn btn-sm" onclick="refresh()"><span id="refresh-icon">&#8635;</span> Refresh</button>
+  </div>
+</header>
+
+<div class="main">
+  <div class="panel">
+    <div class="panel-header">
+      Changes
+      <div style="display:flex;gap:4px">
+        <button class="btn btn-sm" onclick="stageAll()">Stage All</button>
+        <button class="btn btn-sm btn-danger" onclick="discardAll()">Discard All</button>
+      </div>
+    </div>
+    <div class="panel-body" id="file-list">
+      <div class="empty-state"><span class="spinner"></span></div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="remote-bar">
+      <span class="label">Remote:</span>
+      <button class="btn btn-sm btn-success" onclick="gitPull()">&#8595; Pull</button>
+      <button class="btn btn-sm btn-primary" onclick="gitPush()">&#8593; Push</button>
+      <button class="btn btn-sm" onclick="gitFetch()">&#8635; Fetch</button>
+      <span id="remote-status" style="margin-left:8px;font-size:11px;color:var(--muted)"></span>
+    </div>
+
+    <div class="commit-area">
+      <textarea id="commit-msg" placeholder="Commit message&#8230;" rows="3"></textarea>
+      <div class="commit-actions">
+        <button class="btn btn-primary" onclick="doCommit()">&#10003; Commit Staged</button>
+        <button class="btn" onclick="doCommitAll()">&#10003; Commit All</button>
+        <button class="btn btn-success" onclick="doCommitPush()">&#10003;&#8593; Commit &amp; Push</button>
+        <button class="btn btn-sm" onclick="doAmend()">Amend</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('log')">Log</div>
+      <div class="tab" onclick="switchTab('diff')">Diff</div>
+    </div>
+
+    <div class="tab-content active" id="tab-log">
+      <div id="log-list">
+        <div class="empty-state"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-diff">
+      <div class="diff-view" id="diff-content">
+        <div class="empty-state">Click a file to see diff</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function() {
+  var files = [];
+
+  function switchTab(name) {
+    var tabs = document.querySelectorAll('.tab');
+    var names = ['log', 'diff'];
+    tabs.forEach(function(t, i) { t.classList.toggle('active', names[i] === name); });
+    document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+  window.switchTab = switchTab;
+
+  function toast(msg, ok) {
+    if (ok === undefined) ok = true;
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (ok ? 'ok' : 'err');
+    clearTimeout(el._t);
+    el._t = setTimeout(function() { el.classList.remove('show'); }, 3500);
+  }
+
+  function api(path, body) {
+    var opts = body ? {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    } : {};
+    return fetch(path, opts).then(function(r) {
+      return r.json().then(function(j) {
+        if (!r.ok) throw new Error(j.error || 'Request failed');
+        return j;
+      });
+    });
+  }
+
+  function escAttr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;');
+  }
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function statusClass(ch) {
+    if (ch === '?') return 's-q';
+    if (ch === 'A') return 's-A';
+    if (ch === 'D') return 's-D';
+    return 's-M';
+  }
+
+  function renderFiles(data) {
+    var el = document.getElementById('file-list');
+    if (!data.length) { el.innerHTML = '<div class="empty-state">No changes</div>'; return; }
+
+    var staged = data.filter(function(f) { return f.staged; });
+    var unstaged = data.filter(function(f) { return !f.staged; });
+    var html = '';
+
+    if (staged.length) {
+      html += '<div class="section-label">Staged (' + staged.length + ')</div>';
+      staged.forEach(function(f) {
+        var parts = f.file.split('/');
+        var name = parts.pop();
+        var dir = parts.join('/');
+        var sc = statusClass(f.status[0]);
+        html += '<div class="file-item" onclick="selectFile(\'' + escAttr(f.file) + '\')" data-file="' + escAttr(f.file) + '">'
+          + '<span class="status-badge ' + sc + '">' + escHtml(f.status[0]) + '</span>'
+          + '<span class="file-name">' + escHtml(name) + (dir ? ' <span class="file-dir">' + escHtml(dir) + '</span>' : '') + '</span>'
+          + '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();unstage(\'' + escAttr(f.file) + '\')">&#8722;</button>'
+          + '</div>';
+      });
+    }
+
+    if (unstaged.length) {
+      html += '<div class="section-label">Unstaged (' + unstaged.length + ')</div>';
+      unstaged.forEach(function(f) {
+        var parts = f.file.split('/');
+        var name = parts.pop();
+        var dir = parts.join('/');
+        var label = f.untracked ? '?' : f.status[1];
+        var sc = f.untracked ? 's-q' : statusClass(f.status[1]);
+        html += '<div class="file-item" onclick="selectFile(\'' + escAttr(f.file) + '\')" data-file="' + escAttr(f.file) + '">'
+          + '<span class="status-badge ' + sc + '">' + escHtml(label) + '</span>'
+          + '<span class="file-name">' + escHtml(name) + (dir ? ' <span class="file-dir">' + escHtml(dir) + '</span>' : '') + '</span>'
+          + '<button class="btn btn-sm btn-primary" onclick="event.stopPropagation();stage(\'' + escAttr(f.file) + '\')">+</button>'
+          + (!f.untracked ? '<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();discard(\'' + escAttr(f.file) + '\')">&#10005;</button>' : '')
+          + '</div>';
+      });
+    }
+
+    el.innerHTML = html;
+  }
+
+  function renderLog(data) {
+    var el = document.getElementById('log-list');
+    if (!data.length) { el.innerHTML = '<div class="empty-state">No commits</div>'; return; }
+    el.innerHTML = data.map(function(c) {
+      return '<div class="log-entry">'
+        + '<span class="log-hash">' + escHtml(c.short) + '</span>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="log-subject">' + escHtml(c.subject) + '</div>'
+        + '<div class="log-meta">' + escHtml(c.author) + ' &middot; ' + escHtml(c.date) + '</div>'
+        + '</div>'
+        + '<div class="log-actions">'
+        + '<button class="btn btn-sm" onclick="showCommitDiff(\'' + escAttr(c.hash) + '\')">diff</button>'
+        + '<button class="btn btn-sm btn-danger" onclick="confirmRevert(\'' + escAttr(c.hash) + '\',\'' + escAttr(c.subject) + '\')">revert</button>'
+        + '</div></div>';
+    }).join('');
+  }
+
+  function refresh() {
+    var icon = document.getElementById('refresh-icon');
+    icon.innerHTML = '<span class="spinner"></span>';
+    Promise.all([api('/api/status'), api('/api/log'), api('/api/branch')])
+      .then(function(results) {
+        files = results[0].files;
+        renderFiles(files);
+        renderLog(results[1].commits);
+        document.getElementById('branch-badge').textContent = results[2].name;
+        var staged = files.filter(function(f) { return f.staged; }).length;
+        var unstaged = files.filter(function(f) { return !f.staged; }).length;
+        document.getElementById('status-summary').textContent =
+          staged ? staged + ' staged, ' + unstaged + ' unstaged' :
+          unstaged ? unstaged + ' unstaged' : 'clean';
+      })
+      .catch(function(e) { toast('Refresh failed: ' + e.message, false); })
+      .finally(function() { icon.textContent = '↻'; });
+  }
+  window.refresh = refresh;
+
+  function selectFile(file) {
+    document.querySelectorAll('.file-item').forEach(function(el) {
+      el.classList.toggle('selected', el.dataset.file === file);
+    });
+    switchTab('diff');
+    document.getElementById('diff-content').innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+    api('/api/diff?file=' + encodeURIComponent(file))
+      .then(function(r) { renderDiff(r.diff, file); })
+      .catch(function() { document.getElementById('diff-content').innerHTML = '<div class="empty-state">No diff available</div>'; });
+  }
+  window.selectFile = selectFile;
+
+  function renderDiff(diff, file) {
+    if (!diff) { document.getElementById('diff-content').innerHTML = '<div class="empty-state">No diff</div>'; return; }
+    var lines = diff.split('\n').map(function(line) {
+      var safe = escHtml(line);
+      if (line.startsWith('+') && !line.startsWith('+++')) return '<span class="diff-add">' + safe + '</span>';
+      if (line.startsWith('-') && !line.startsWith('---')) return '<span class="diff-del">' + safe + '</span>';
+      if (line.startsWith('@@')) return '<span class="diff-hunk">' + safe + '</span>';
+      return safe;
+    });
+    document.getElementById('diff-content').innerHTML =
+      '<div style="color:var(--muted);margin-bottom:8px;font-size:11px">' + escHtml(file) + '</div><pre>' + lines.join('\n') + '</pre>';
+  }
+
+  function showCommitDiff(hash) {
+    switchTab('diff');
+    document.getElementById('diff-content').innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+    api('/api/show?hash=' + encodeURIComponent(hash))
+      .then(function(r) { renderDiff(r.diff, hash); })
+      .catch(function() { document.getElementById('diff-content').innerHTML = '<div class="empty-state">Failed to load</div>'; });
+  }
+  window.showCommitDiff = showCommitDiff;
+
+  function stage(file) {
+    api('/api/stage', { file: file }).then(function() { toast('Staged: ' + file); refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.stage = stage;
+
+  function unstage(file) {
+    api('/api/unstage', { file: file }).then(function() { toast('Unstaged: ' + file); refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.unstage = unstage;
+
+  function discard(file) {
+    if (!confirm('Discard changes to ' + file + '?')) return;
+    api('/api/discard', { file: file }).then(function() { toast('Discarded: ' + file); refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.discard = discard;
+
+  function stageAll() {
+    api('/api/stage-all').then(function() { toast('All staged'); refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.stageAll = stageAll;
+
+  function discardAll() {
+    if (!confirm('Discard ALL unstaged changes? This cannot be undone.')) return;
+    api('/api/discard-all').then(function() { toast('Discarded all'); refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.discardAll = discardAll;
+
+  function doCommit() {
+    var msg = document.getElementById('commit-msg').value.trim();
+    if (!msg) { toast('Enter commit message', false); return; }
+    api('/api/commit', { message: msg }).then(function() { toast('Committed'); document.getElementById('commit-msg').value = ''; refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.doCommit = doCommit;
+
+  function doCommitAll() {
+    var msg = document.getElementById('commit-msg').value.trim();
+    if (!msg) { toast('Enter commit message', false); return; }
+    api('/api/commit-all', { message: msg }).then(function() { toast('Committed all'); document.getElementById('commit-msg').value = ''; refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.doCommitAll = doCommitAll;
+
+  function doCommitPush() {
+    var msg = document.getElementById('commit-msg').value.trim();
+    if (!msg) { toast('Enter commit message', false); return; }
+    api('/api/commit', { message: msg })
+      .then(function() { return api('/api/push'); })
+      .then(function() { toast('Committed & pushed'); document.getElementById('commit-msg').value = ''; refresh(); })
+      .catch(function(e) { toast(e.message, false); });
+  }
+  window.doCommitPush = doCommitPush;
+
+  function doAmend() {
+    var msg = document.getElementById('commit-msg').value.trim();
+    if (!confirm('Amend last commit?' + (msg ? ' New message: ' + msg : ' Keep current message?'))) return;
+    api('/api/amend', { message: msg || null }).then(function() { toast('Amended'); document.getElementById('commit-msg').value = ''; refresh(); }).catch(function(e) { toast(e.message, false); });
+  }
+  window.doAmend = doAmend;
+
+  function gitPush() {
+    var el = document.getElementById('remote-status');
+    el.textContent = 'Pushing…';
+    api('/api/push').then(function() { toast('Pushed'); el.textContent = ''; refresh(); }).catch(function(e) { toast('Push failed: ' + e.message, false); el.textContent = ''; });
+  }
+  window.gitPush = gitPush;
+
+  function gitPull() {
+    var el = document.getElementById('remote-status');
+    el.textContent = 'Pulling…';
+    api('/api/pull').then(function() { toast('Pulled'); el.textContent = ''; refresh(); }).catch(function(e) { toast('Pull failed: ' + e.message, false); el.textContent = ''; });
+  }
+  window.gitPull = gitPull;
+
+  function gitFetch() {
+    var el = document.getElementById('remote-status');
+    el.textContent = 'Fetching…';
+    api('/api/fetch').then(function() { toast('Fetched'); el.textContent = ''; }).catch(function(e) { toast('Fetch failed: ' + e.message, false); el.textContent = ''; });
+  }
+  window.gitFetch = gitFetch;
+
+  function confirmRevert(hash, subject) {
+    if (!confirm('Revert commit: "' + subject + '"?\n\nThis creates a new revert commit.')) return;
+    api('/api/revert', { hash: hash }).then(function() { toast('Reverted: ' + subject); refresh(); }).catch(function(e) { toast('Revert failed: ' + e.message, false); });
+  }
+  window.confirmRevert = confirmRevert;
+
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); doCommit(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r') { e.preventDefault(); refresh(); }
+  });
+
+  refresh();
+  setInterval(refresh, 15000);
+})();
+</script>
+</body>
+</html>
