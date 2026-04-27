@@ -185,6 +185,14 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       if (e.button !== 0) return;
       state.overlayHitCaptured = false;
       const targets = refs.hitTargets.current;
+      const _dl = (window as any).__debugLog;
+      if (_dl) {
+        const rects = targets.map(t => {
+          const r = t.el.getBoundingClientRect();
+          return { p: t.priority, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), text: t.el.textContent?.slice(0,10) };
+        });
+        _dl.log('hitTest:fire', { targetCount: targets.length, click: { x: e.clientX, y: e.clientY }, rects });
+      }
       if (targets.length === 0) return;
       const mx = e.clientX;
       const my = e.clientY;

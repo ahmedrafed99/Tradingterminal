@@ -176,5 +176,6 @@ if (typeof window !== 'undefined') {
   // Expose on window in dev so browser console can call debugLog.pickDirectory()
   if (import.meta.env.DEV) {
     (window as any).debugLog = debugLog;
+    (window as any).__debugLog = debugLog;
   }
 }

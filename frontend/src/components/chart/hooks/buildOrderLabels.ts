@@ -139,9 +139,16 @@ export function buildOrderLabels(
 
       orderPnlCompute = () => {
         const curPrice = getOrderRefPrice();
+        // Use live entry order price so P&L stays constant when entry is dragged
+        const entryOrdEntry = refs.orderEntries.current.find(
+          (e) => e.meta.kind === 'order'
+            && e.meta.order.type === OrderType.Limit
+            && e.meta.order.status !== OrderStatus.Suspended,
+        );
+        const currentEp = entryOrdEntry?.price ?? ep;
         const d = isSl
-          ? (pendingBracketInfo.side === OrderSide.Buy ? ep - curPrice : curPrice - ep)
-          : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - ep : ep - curPrice);
+          ? (pendingBracketInfo.side === OrderSide.Buy ? currentEp - curPrice : curPrice - currentEp)
+          : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - currentEp : currentEp - curPrice);
         const p = calcPnl(d, contract, oSize);
         return { text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`, bg: isSl ? SELL_COLOR : BUY_COLOR, color: LABEL_TEXT };
       };
@@ -348,18 +355,61 @@ export function buildOrderLabels(
     phantomLine.setLabel([
       { text: pnlText, bg: pnlBg, color: LABEL_TEXT },
       { text: String(phantomSize), bg: pnlBg, color: LABEL_TEXT },
+      { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT },
     ]);
 
-    // P&L updater — entry.price is the live price (mutated during drag on the same object)
+    // Cancel-X for phantom (priority 0)
+    const phantomCells = phantomLine.getCells();
+    if (phantomCells[2]) {
+      const phantomMeta = meta;
+      refs.hitTargets.current.push({
+        el: phantomCells[2],
+        priority: 0,
+        handler: () => {
+          bracketEngine.handleLegCancel(phantomMeta.bracketType === 'sl', phantomMeta.tpIndex ?? null);
+        },
+      });
+    }
+
+    // Row drag for phantom lines (priority 1) — updates pendingBracketInfo on release
+    const phantomLabelEl = phantomLine.getLabelEl();
+    const phantomEntry = entry;
+    if (phantomLabelEl) {
+      refs.hitTargets.current.push({
+        el: phantomLabelEl,
+        priority: 1,
+        handler: () => {
+          refs.orderDragState.current = {
+            meta: phantomEntry.meta,
+            key: phantomEntry.key,
+            originalPrice: phantomEntry.price,
+            draggedPrice: phantomEntry.price,
+          };
+          refs.activeDragRow.current = phantomLabelEl;
+          phantomLabelEl.style.cursor = 'grabbing';
+          if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
+          if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
+        },
+      });
+    }
+
+    // P&L updater — uses current entry line price so P&L stays constant when entry is dragged
     const capturedEntry = entry;
     const capturedIsSl = isSl;
     const capturedSize = phantomSize;
     const capturedBi = bi;
     pnlUpdaters.push(() => {
       const curPrice = capturedEntry.price;
+      // Use live entry order price so dragging entry doesn't change phantom P&L
+      const entryEntry = refs.orderEntries.current.find(
+        (e) => e.meta.kind === 'order'
+          && e.meta.order.type === OrderType.Limit
+          && e.meta.order.status !== OrderStatus.Suspended,
+      );
+      const currentEntryPrice = entryEntry?.price ?? capturedBi.entryPrice;
       const d = capturedIsSl
-        ? (capturedBi.side === OrderSide.Buy ? capturedBi.entryPrice - curPrice : curPrice - capturedBi.entryPrice)
-        : (capturedBi.side === OrderSide.Buy ? curPrice - capturedBi.entryPrice : capturedBi.entryPrice - curPrice);
+        ? (capturedBi.side === OrderSide.Buy ? currentEntryPrice - curPrice : curPrice - currentEntryPrice)
+        : (capturedBi.side === OrderSide.Buy ? curPrice - currentEntryPrice : currentEntryPrice - curPrice);
       const p = calcPnl(d, contract, capturedSize);
       phantomLine.updateSection(0, `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`, pnlBg);
     });

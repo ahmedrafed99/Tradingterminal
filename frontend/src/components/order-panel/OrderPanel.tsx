@@ -12,6 +12,8 @@ import { bracketEngine } from '../../services/bracketEngine';
 import { resolvePreviewConfig } from '../chart/hooks/resolvePreviewConfig';
 import { pointsToPrice } from '../../utils/instrument';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
+import { debugLog } from '../../utils/debugLog';
+if (import.meta.env.DEV) debugLog.enable();
 import { showToast, errorMessage } from '../../utils/toast';
 import { audioService } from '../../services/audioService';
 import { consumeManualClose } from '../../services/manualCloseTracker';
@@ -126,8 +128,17 @@ async function inferPositionsFromOrders(accountId: string, orders: Order[]) {
   }
 }
 
+type SavedBracketInfo = NonNullable<ReturnType<typeof useStore.getState>['pendingBracketInfo']>;
+type AccountSnapshot = {
+  bracketInfo: SavedBracketInfo;
+  suspendedOrders: ReturnType<typeof useStore.getState>['openOrders'];
+};
+
 /** Fetch open orders + positions and merge into store. */
-function hydratePositionsAndOrders(accountId: string) {
+function hydratePositionsAndOrders(
+  accountId: string,
+  savedSnapshot?: AccountSnapshot,
+) {
   // Try REST position endpoint first (may not exist on all gateways)
   positionService.searchOpenPositions(accountId).then((positions) => {
     // Replace all positions for this account — removes stale ones closed while offline
@@ -138,11 +149,37 @@ function hydratePositionsAndOrders(accountId: string) {
 
   // Fetch orders, then infer positions if needed
   orderService.searchOpenOrders(accountId).then(async (orders) => {
-    useStore.getState().setOpenOrders(orders);
+    const st = useStore.getState();
+    st.setOpenOrders(orders);
+
+    // searchOpenOrders never returns Suspended bracket legs — they only arrive via WebSocket.
+    // When switching back to an account with an active bracket session, re-inject them from
+    // the saved snapshot so the chart shows the correct SL/TP lines immediately.
+    if (savedSnapshot) {
+      const bi = savedSnapshot.bracketInfo;
+      st.setPendingBracketInfo(bi);
+      let tpIdx = 0;
+      for (const o of savedSnapshot.suspendedOrders) {
+        // Use bracketInfo prices — suspendedOrders may have pre-drag prices if the user
+        // dragged via preview lines (Buy/Sell flow) which updates bracketInfo but not openOrders.
+        const isSl = o.customTag?.endsWith('-SL')
+          ?? (o.type === OrderType.Stop || o.type === OrderType.TrailingStop);
+        const enriched = isSl
+          ? { ...o, stopPrice: bi.slPrice ?? o.stopPrice }
+          : { ...o, limitPrice: bi.tpPrices[tpIdx++] ?? o.limitPrice };
+        st.upsertOrder(enriched);
+      }
+      debugLog.log('snapshot:restore', {
+        bracketInfo: bi,
+        suspended: savedSnapshot.suspendedOrders.map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
+        storeAfter: useStore.getState().openOrders
+          .filter(o => o.status === OrderStatus.Suspended)
+          .map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
+      });
+    }
 
     // If no positions loaded yet, infer from orders + trades
-    const st = useStore.getState();
-    const hasAnyPosition = st.positions.some(
+    const hasAnyPosition = useStore.getState().positions.some(
       (p) => p.accountId === accountId && p.size > 0,
     );
     if (!hasAnyPosition && orders.length > 0) {
@@ -187,8 +224,9 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
 
   const subscribedAccountRef = useRef<string | null>(null);
   const bracketRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Order IDs being corrected post-fill — suppress incoming SignalR updates for these
   const bracketCorrectionIds = useRef<Set<string>>(new Set());
+  // Saves bracket state per account so it can be restored on switch-back
+  const savedSnapshotRef = useRef<Map<string, AccountSnapshot>>(new Map());
 
   // Reset subscription guard when connection state changes (disconnect → reconnect)
   const connected = useStore((s) => s.connected);
@@ -202,18 +240,38 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
     if (!connected || activeAccountId == null) return;
     if (subscribedAccountRef.current === activeAccountId) return;
 
+    const prevAccountId = subscribedAccountRef.current;
     subscribedAccountRef.current = activeAccountId;
 
-    // Clear stale data from previous account before fetching new data.
-    // Prevents old bracket lines from rendering with wrong account context.
     const st = useStore.getState();
+
+    // Save bracket state (info + Suspended orders) for the account we're leaving
+    if (prevAccountId && st.pendingBracketInfo) {
+      const suspendedOrders = st.openOrders.filter((o) => o.status === OrderStatus.Suspended);
+      savedSnapshotRef.current.set(prevAccountId, {
+        bracketInfo: st.pendingBracketInfo,
+        suspendedOrders,
+      });
+      debugLog.log('snapshot:save', {
+        account: prevAccountId,
+        bracketInfo: st.pendingBracketInfo,
+        suspended: suspendedOrders.map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
+      });
+    }
+
+    // Clear stale data from previous account
     st.setOpenOrders([]);
     st.setPendingBracketInfo(null);
+    useStore.setState({
+      previewEnabled: false, previewHideEntry: false,
+      draftSlPoints: null, draftTpPoints: [],
+      adHocSlPoints: null, adHocTpLevels: [],
+    });
 
     realtimeService.subscribeUserEvents(activeAccountId);
 
-    // Hydrate positions + orders from REST so we don't depend on SignalR initial batch
-    hydratePositionsAndOrders(activeAccountId);
+    // Hydrate positions + orders, restoring snapshot if switching back to this account
+    hydratePositionsAndOrders(activeAccountId, savedSnapshotRef.current.get(activeAccountId));
   }, [connected, activeAccountId]);
 
   // Re-fetch open orders + positions on user hub reconnect (events may have been missed)
@@ -230,11 +288,14 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
   // Handle realtime order events
   useEffect(() => {
     const handler = (order: RealtimeOrder, _action: number) => {
+      // Gateway sometimes strips customTag from Working events — fall back to stored value.
+      const storedOrder = useStore.getState().openOrders.find((o) => o.id === order.id);
+      const effectiveCustomTag = order.customTag ?? storedOrder?.customTag ?? null;
+
       // When a non-bracket order becomes Working, schedule a REST refresh to load any
       // orders placed externally that we haven't received via SignalR yet.
-      // Skip bracket legs (customTag present) — they don't appear in searchOpenOrders while
-      // Suspended, and post-fill we handle their prices via the correction logic below.
-      if (order.status === OrderStatus.Working && !order.customTag && !useStore.getState().previewHideEntry) {
+      // Skip bracket legs — they don't appear in searchOpenOrders while Suspended.
+      if (order.status === OrderStatus.Working && !effectiveCustomTag && !useStore.getState().previewHideEntry) {
         const acctId = useStore.getState().activeAccountId;
         if (acctId) {
           if (bracketRefreshTimerRef.current) clearTimeout(bracketRefreshTimerRef.current);
@@ -258,25 +319,25 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
       // the gateway always activates it at the original bracket tick offset — ignoring any
       // modifyOrder calls we made while it was Suspended. Correct the price now by
       // modifying the Working order to the user's desired price from pendingBracketInfo.
-      if (order.status === OrderStatus.Working && order.customTag) {
+      // Note: gateway may strip customTag on Working events — effectiveCustomTag covers that.
+      if (order.status === OrderStatus.Working && effectiveCustomTag) {
         const st = useStore.getState();
         const bi = st.pendingBracketInfo;
         const acctId = st.activeAccountId;
         if (bi && acctId) {
-          if (order.customTag.endsWith('-SL') && order.stopPrice != null && bi.slPrice != null
+          if (effectiveCustomTag.endsWith('-SL') && order.stopPrice != null && bi.slPrice != null
               && Math.abs(bi.slPrice - order.stopPrice) > 0.001) {
             orderService.modifyOrder({ accountId: acctId, orderId: order.id, stopPrice: bi.slPrice }).catch((err) => {
               console.error('[OrderPanel] SL bracket correction failed:', err instanceof Error ? err.message : err);
             });
-            // Use the desired price in the store immediately so chart doesn't flicker
             upsertOrder({
               id: order.id, contractId: order.contractId, type: order.type,
               side: order.side, size: order.size, status: order.status,
-              stopPrice: bi.slPrice, customTag: order.customTag,
+              stopPrice: bi.slPrice, customTag: effectiveCustomTag,
             });
             return;
           }
-          if (order.customTag.endsWith('-TP') && order.limitPrice != null && bi.tpPrices[0] != null
+          if (effectiveCustomTag.endsWith('-TP') && order.limitPrice != null && bi.tpPrices[0] != null
               && Math.abs(bi.tpPrices[0] - order.limitPrice) > 0.001) {
             orderService.modifyOrder({ accountId: acctId, orderId: order.id, limitPrice: bi.tpPrices[0] }).catch((err) => {
               console.error('[OrderPanel] TP bracket correction failed:', err instanceof Error ? err.message : err);
@@ -284,7 +345,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
             upsertOrder({
               id: order.id, contractId: order.contractId, type: order.type,
               side: order.side, size: order.size, status: order.status,
-              limitPrice: bi.tpPrices[0], customTag: order.customTag,
+              limitPrice: bi.tpPrices[0], customTag: effectiveCustomTag,
             });
             return;
           }
@@ -448,16 +509,34 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
       } else {
         // Suppress gateway updates for orders being corrected post-fill
         if (bracketCorrectionIds.current.has(order.id)) return;
+
+        // Gateway recomputes Suspended bracket prices after modifyOrder and sends back
+        // its own value — keep pendingBracketInfo as the source of truth instead.
+        const bi = useStore.getState().pendingBracketInfo;
+        let effectiveLimitPrice = order.limitPrice;
+        let effectiveStopPrice = order.stopPrice;
+        if (order.status === OrderStatus.Suspended && bi && effectiveCustomTag) {
+          if (effectiveCustomTag.endsWith('-TP') && bi.tpPrices[0] != null) {
+            debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.limitPrice, keepPrice: bi.tpPrices[0] });
+            effectiveLimitPrice = bi.tpPrices[0];
+          } else if (effectiveCustomTag.endsWith('-SL') && bi.slPrice != null) {
+            debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.stopPrice, keepPrice: bi.slPrice });
+            effectiveStopPrice = bi.slPrice;
+          }
+        } else if (order.status === OrderStatus.Suspended) {
+          debugLog.log('ws:suspended-no-override', { id: order.id, effectiveCustomTag, bi: !!bi, limitPrice: order.limitPrice, stopPrice: order.stopPrice });
+        }
+
         upsertOrder({
           id: order.id,
           contractId: order.contractId,
           type: order.type,
           side: order.side,
           size: order.size,
-          limitPrice: order.limitPrice,
-          stopPrice: order.stopPrice,
+          limitPrice: effectiveLimitPrice,
+          stopPrice: effectiveStopPrice,
           status: order.status,
-          customTag: order.customTag,
+          customTag: effectiveCustomTag,
         });
       }
     };

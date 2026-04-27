@@ -8,6 +8,7 @@ import { pointsToPrice } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import { classifyOrderLine, BUY_COLOR, SELL_COLOR } from './labelUtils';
+import { debugLog } from '../../../utils/debugLog';
 import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR } from './drawingInteraction';
 
@@ -84,16 +85,27 @@ export function useOrderDrag(
         const delta = snapped - drag.originalPrice;
         const st = useStore.getState();
 
-        // Shift Suspended bracket order lines
+        // Shift Suspended bracket order lines and phantom bracket lines
         if (st.pendingBracketInfo) {
-          for (const idx of findSuspendedBracketIndices()) {
+          for (let idx = 0; idx < refs.orderEntries.current.length; idx++) {
             const bracketEntry = refs.orderEntries.current[idx];
-            if (!bracketEntry || bracketEntry.meta.kind !== 'order') continue;
-            const origBracketPrice = bracketEntry.meta.order.stopPrice ?? bracketEntry.meta.order.limitPrice ?? 0;
-            const newBracketPrice = origBracketPrice + delta;
-            bracketEntry.line.setPrice(newBracketPrice);
-            bracketEntry.line.syncPosition();
-            bracketEntry.price = newBracketPrice;
+            if (bracketEntry.meta.kind === 'order') {
+              if (bracketEntry.meta.order.status !== OrderStatus.Suspended) continue;
+              if (String(bracketEntry.meta.order.contractId) !== String(contract!.id)) continue;
+              const origPrice = bracketEntry.meta.order.stopPrice ?? bracketEntry.meta.order.limitPrice ?? 0;
+              const newPrice = origPrice + delta;
+              bracketEntry.line.setPrice(newPrice);
+              bracketEntry.line.syncPosition();
+              bracketEntry.price = newPrice;
+            } else if (bracketEntry.meta.kind === 'phantom-bracket') {
+              const origPrice = bracketEntry.meta.bracketType === 'sl'
+                ? (bracketEntry.meta.bracketInfo.slPrice ?? 0)
+                : (bracketEntry.meta.bracketInfo.tpPrices[bracketEntry.meta.tpIndex ?? 0] ?? 0);
+              const newPrice = origPrice + delta;
+              bracketEntry.line.setPrice(newPrice);
+              bracketEntry.line.syncPosition();
+              bracketEntry.price = newPrice;
+            }
           }
         }
 
@@ -132,6 +144,12 @@ export function useOrderDrag(
 
       cachedRect = null;
       const { meta, key: dragKey, originalPrice, draggedPrice: newPrice } = drag;
+      debugLog.log('drag:mouseup-raw', {
+        dragKey, originalPrice, newPrice,
+        metaKind: meta.kind,
+        status: meta.kind === 'order' ? meta.order.status : null,
+        samePrice: newPrice === originalPrice,
+      });
       // NOTE: refs.orderDragState.current is cleared AFTER store updates below so the
       // reconciler triggered by those updates still has dragKey and won't snap the line back.
       if (refs.activeDragRow.current) {
@@ -142,7 +160,22 @@ export function useOrderDrag(
       // Re-enable LWC scroll/scale after drag
       if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
 
-      if (meta.kind !== 'order' || newPrice === originalPrice) {
+      if (newPrice === originalPrice) {
+        refs.orderDragState.current = null;
+        return;
+      }
+
+      // Phantom bracket drag — update pendingBracketInfo directly
+      if (meta.kind === 'phantom-bracket') {
+        refs.orderDragState.current = null;
+        if (refs.activeDragRow.current) { refs.activeDragRow.current.style.cursor = 'pointer'; refs.activeDragRow.current = null; }
+        if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
+        if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
+        bracketEngine.handleLegModify(newPrice, meta.bracketType === 'sl', meta.tpIndex ?? null, contract!);
+        return;
+      }
+
+      if (meta.kind !== 'order') {
         refs.orderDragState.current = null;
         return;
       }
@@ -216,6 +249,17 @@ export function useOrderDrag(
           slPrice: prevBi.slPrice != null ? prevBi.slPrice + d : null,
           tpPrices: prevBi.tpPrices.map((p) => p + d),
         });
+        const st = useStore.getState();
+        // Optimistically update the entry order so the reconciler doesn't snap it back
+        st.upsertOrder({ ...order, limitPrice: newPrice });
+        // Shift Suspended leg prices to keep coveredBracketPrices consistent
+        for (const leg of st.openOrders) {
+          if (leg.status !== OrderStatus.Suspended || String(leg.contractId) !== String(contract!.id)) continue;
+          const isSl = leg.type === OrderType.Stop || leg.type === OrderType.TrailingStop;
+          st.upsertOrder(isSl
+            ? { ...leg, stopPrice: (leg.stopPrice ?? 0) + d }
+            : { ...leg, limitPrice: (leg.limitPrice ?? 0) + d });
+        }
       }
       if (wasHideEntry) {
         useStore.getState().setLimitPrice(newPrice);
@@ -241,6 +285,12 @@ export function useOrderDrag(
 
       // Clear drag state after all store updates so the reconciler triggered above
       // sees dragKey and preserves the dragged position instead of snapping back.
+      debugLog.log('drag:complete', {
+        dragKey,
+        finalPrice: newPrice,
+        bi: useStore.getState().pendingBracketInfo,
+        storeOrder: useStore.getState().openOrders.find(o => meta.kind === 'order' && o.id === meta.order.id),
+      });
       refs.orderDragState.current = null;
 
       orderService.modifyOrder(params).catch((err) => {
@@ -263,9 +313,10 @@ export function useOrderDrag(
           revertEntry.price = originalPrice;
           refs.updateOverlay.current();
         }
-        // Revert bracket preview positions
+        // Revert bracket preview positions and entry order price
         if (prevBi) {
           useStore.getState().setPendingBracketInfo(prevBi);
+          useStore.getState().upsertOrder({ ...order, limitPrice: originalPrice });
         }
         if (wasHideEntry) {
           refs.previewPrices.current[0] = originalPrice;

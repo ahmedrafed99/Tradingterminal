@@ -99,6 +99,19 @@ export function usePreviewDrag(
               return draft != null ? { ...tp, points: draft } : tp;
             }),
           }));
+
+          // Keep pendingBracketInfo in sync so account-switch snapshots capture dragged prices
+          const bi = st.pendingBracketInfo;
+          const newPrice = refs.previewPrices.current[drag.lineIdx];
+          if (bi && newPrice != null) {
+            if (drag.role.kind === 'sl') {
+              st.setPendingBracketInfo({ ...bi, slPrice: newPrice });
+            } else if (drag.role.kind === 'tp') {
+              const newTpPrices = [...bi.tpPrices];
+              newTpPrices[drag.role.index] = newPrice;
+              st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
+            }
+          }
         }
 
         cachedRect = null;
