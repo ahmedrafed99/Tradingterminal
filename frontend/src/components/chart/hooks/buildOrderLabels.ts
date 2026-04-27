@@ -284,9 +284,9 @@ export function buildOrderLabels(
           bracketEngine.clearSession();
           for (const leg of bracketLegs) {
             st.removeOrder(leg.id);
-            orderService.cancelOrder(acct, leg.id).catch(() => {
-              st.upsertOrder(leg);
-            });
+            // Don't revert on failure — server cascade-cancels these when the entry
+            // is cancelled, so an "order not found" error is expected and harmless.
+            orderService.cancelOrder(acct, leg.id).catch(() => {});
           }
         }
       },

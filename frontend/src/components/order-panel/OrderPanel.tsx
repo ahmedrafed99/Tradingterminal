@@ -241,7 +241,12 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
           bracketRefreshTimerRef.current = setTimeout(() => {
             orderService.searchOpenOrders(acctId).then((orders) => {
               const st = useStore.getState();
-              for (const o of orders) st.upsertOrder(o);
+              for (const o of orders) {
+                // Skip Suspended bracket legs if their session was already cleared
+                // (e.g. user cancelled the entry before this refresh fired)
+                if (o.status === OrderStatus.Suspended && !st.pendingBracketInfo) continue;
+                st.upsertOrder(o);
+              }
             }).catch((err) => {
               console.error('[OrderPanel] Order refresh failed:', err instanceof Error ? err.message : err);
             });
