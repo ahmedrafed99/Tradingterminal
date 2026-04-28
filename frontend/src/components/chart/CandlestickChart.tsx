@@ -28,7 +28,7 @@ import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
 import { MarketStatusBadge } from './MarketStatusBadge';
-import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, OrderDragState, PosDragState } from './hooks/types';
+import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
   chartId: 'left' | 'right';
@@ -87,7 +87,9 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   // Order line refs
   const orderEntriesRef = useRef<OrderLineEntry[]>([]);
-  const orderDragStateRef = useRef<OrderDragState | null>(null);
+  const isDraggingRef = useRef(false);
+  const draggingKeyRef = useRef<string | null>(null);
+  const labelPosCacheRef = useRef<Map<string, 'right' | 'mid'>>(new Map());
   const activeDragRowRef = useRef<HTMLDivElement | null>(null);
 
   // Hit-target registry (shared between drawings + overlay labels)
@@ -150,7 +152,9 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     previewPrices: previewPricesRef,
     previewDragState: previewDragStateRef,
     orderEntries: orderEntriesRef,
-    orderDragState: orderDragStateRef,
+    isDragging: isDraggingRef,
+    draggingKey: draggingKeyRef,
+    labelPosCache: labelPosCacheRef,
     posDrag: posDragRef,
     posDragLine: posDragLineRef,
     posDragLabel: posDragLabelRef,

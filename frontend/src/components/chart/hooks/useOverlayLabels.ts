@@ -55,10 +55,9 @@ export function useOverlayLabels(
     const series = refs.series.current;
     if (!overlay || !series) return;
 
-    // Clear previous labels + hit targets
-    for (const line of refs.previewLines.current) line.setLabel(null);
-    for (const e of refs.orderEntries.current) e.line.setLabel(null);
+    // Clear previous hit targets and preview labels
     refs.hitTargets.current = [];
+    for (const line of refs.previewLines.current) line.setLabel(null);
 
     const pnlUpdaters: (() => void)[] = [];
     let orderLabelsCleanup: (() => void) | undefined;
@@ -83,10 +82,10 @@ export function useOverlayLabels(
       pnlUpdaters.push(...buildPreviewLabels(refs, contract));
     }
 
-    // --- Sync function (repositions all lines + updates P&L) ---
+    // --- Sync function: reposition DOM-based lines + update P&L cells ---
     function updatePositions() {
       for (const line of refs.previewLines.current) line.syncPosition();
-      for (const e of refs.orderEntries.current) e.line.syncPosition();
+      // order entries are canvas primitives — no syncPosition needed
       if (refs.posDragLine.current) refs.posDragLine.current.syncPosition();
 
       if (refs.posDragLabel.current && refs.posDrag.current && refs.series.current) {
@@ -119,7 +118,6 @@ export function useOverlayLabels(
       unsub();
       orderLabelsCleanup?.();
       for (const line of refs.previewLines.current) line.setLabel(null);
-      for (const e of refs.orderEntries.current) e.line.setLabel(null);
       refs.hitTargets.current = [];
       refs.updateOverlay.current = () => {};
     };

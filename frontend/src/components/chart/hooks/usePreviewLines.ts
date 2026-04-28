@@ -118,7 +118,7 @@ export function usePreviewLines(
     function doUpdate() {
       // Skip while dragging a live order line — the drag handler manages
       // preview positions itself, and store.limitPrice is stale until mouseUp.
-      if (refs.orderDragState.current) return;
+      if (refs.isDragging.current) return;
 
       const snap = useStore.getState();
       const entryPrice = snap.orderType === 'limit' ? snap.limitPrice : snap.lastPrice;

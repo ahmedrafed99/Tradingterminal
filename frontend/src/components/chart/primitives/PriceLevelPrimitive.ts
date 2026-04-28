@@ -25,6 +25,12 @@ export interface PriceLevelCell {
   color: string;
   hoverBg?: string;
   onClick?: () => void;
+  leftText?: string;
+  leftColor?: string;
+  leftClick?: () => void;
+  rightText?: string;
+  rightColor?: string;
+  rightClick?: () => void;
 }
 
 export type PriceLevelCells = Record<string, PriceLevelCell>;
@@ -58,9 +64,12 @@ interface CellRect {
   y: number;
   w: number;
   h: number;
+  leftZoneW: number;
+  rightZoneW: number;
 }
 
 const DRAG_THRESHOLD_PX = 4;
+const SIDE_ZONE_W = 20;
 const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
@@ -78,11 +87,11 @@ function _cursorStyleEl(): HTMLStyleElement {
   }
   return s;
 }
-function applyCursorOverride(cursor: 'grab' | 'grabbing'): void {
+function applyCursorOverride(cursor: 'grab' | 'grabbing' | 'pointer'): void {
   _cursorRefs++;
   _cursorStyleEl().textContent = `.tv-lightweight-charts canvas{cursor:${cursor} !important}`;
 }
-function updateCursorOverride(cursor: 'grab' | 'grabbing'): void {
+function updateCursorOverride(cursor: 'grab' | 'grabbing' | 'pointer'): void {
   if (_cursorRefs > 0) _cursorStyleEl().textContent = `.tv-lightweight-charts canvas{cursor:${cursor} !important}`;
 }
 function removeCursorOverride(): void {
@@ -190,8 +199,27 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
           ctx.fillRect(r.x, r.y, 1, r.h);
         }
 
+        // Left zone (e.g. − button)
+        if (r.leftZoneW > 0) {
+          ctx.fillStyle = COLOR_LABEL_TEXT;
+          ctx.fillRect(r.x + r.leftZoneW, r.y, 1, r.h);
+          ctx.fillStyle = c.leftColor ?? c.color;
+          ctx.fillText(c.leftText!, r.x + r.leftZoneW / 2, r.y + r.h / 2 + 0.5);
+        }
+
+        // Main text centered between zones
+        const mainLeft = r.x + r.leftZoneW;
+        const mainW = r.w - r.leftZoneW - r.rightZoneW;
         ctx.fillStyle = c.color;
-        ctx.fillText(c.text, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
+        ctx.fillText(c.text, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+
+        // Right zone (e.g. + button)
+        if (r.rightZoneW > 0) {
+          ctx.fillStyle = COLOR_LABEL_TEXT;
+          ctx.fillRect(r.x + r.w - r.rightZoneW, r.y, 1, r.h);
+          ctx.fillStyle = c.rightColor ?? c.color;
+          ctx.fillText(c.rightText!, r.x + r.w - r.rightZoneW / 2, r.y + r.h / 2 + 0.5);
+        }
       }
 
       ctx.restore();
@@ -380,6 +408,11 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  setCellOrder(order: string[]): void {
+    this._cellOrder = order;
+    this._requestUpdate?.();
+  }
+
   // ── ISeriesPrimitive ──
   paneViews(): readonly IPrimitivePaneView[] {
     if (!this._series || !this._chart) return [];
@@ -417,20 +450,26 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _computeCellRects(y: number, plotWidth: number): CellRect[] {
     const ctx = _measureCtx();
     ctx.font = FONT;
-    const widths = this._cellOrder.map((key) => Math.ceil(ctx.measureText(this._cells[key].text).width) + CELL_PAD_H * 2);
-    const totalW = widths.reduce((a, b) => a + b, 0);
+    const items = this._cellOrder.map((key) => {
+      const cell = this._cells[key];
+      const mainW = Math.ceil(ctx.measureText(cell.text).width) + CELL_PAD_H * 2;
+      const leftZoneW = cell.leftText != null ? SIDE_ZONE_W : 0;
+      const rightZoneW = cell.rightText != null ? SIDE_ZONE_W : 0;
+      return { key, w: mainW + leftZoneW + rightZoneW, leftZoneW, rightZoneW };
+    });
+    const totalW = items.reduce((a, b) => a + b.w, 0);
 
     let startX: number;
     if (this._labelPos === 'left') startX = 4;
-    else if (this._labelPos === 'right') startX = plotWidth - totalW - 4;
+    else if (this._labelPos === 'right') startX = Math.max(4, plotWidth * 0.88 - totalW);
     else startX = (plotWidth - totalW) / 2;
 
     const top = y - CELL_HEIGHT / 2;
     const rects: CellRect[] = [];
     let x = startX;
-    for (let i = 0; i < this._cellOrder.length; i++) {
-      rects.push({ key: this._cellOrder[i], x, y: top, w: widths[i], h: CELL_HEIGHT });
-      x += widths[i];
+    for (const item of items) {
+      rects.push({ key: item.key, x, y: top, w: item.w, h: CELL_HEIGHT, leftZoneW: item.leftZoneW, rightZoneW: item.rightZoneW });
+      x += item.w;
     }
     return rects;
   }
@@ -455,8 +494,16 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     const hit = this._hitTest(x, y);
     if (hit !== this._hoveredKey) {
       this._hoveredKey = hit;
-      if (hit && !this._cursorActive) { applyCursorOverride('grab'); this._cursorActive = true; }
-      else if (!hit && this._cursorActive) { removeCursorOverride(); this._cursorActive = false; }
+      if (hit) {
+        const cell = this._cells[hit];
+        const isClickable = !!(cell.onClick || cell.leftClick || cell.rightClick || cell.leftText || cell.rightText);
+        const cursor = isClickable ? 'pointer' : 'grab';
+        if (!this._cursorActive) { applyCursorOverride(cursor); this._cursorActive = true; }
+        else { updateCursorOverride(cursor); }
+      } else if (this._cursorActive) {
+        removeCursorOverride();
+        this._cursorActive = false;
+      }
       this._requestUpdate?.();
     }
   };
@@ -483,8 +530,8 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    this._onDragStart?.(this._price);
     this._chart?.applyOptions({ handleScroll: false, handleScale: false });
+    // onDragStart is deferred to _onWindowMove so it only fires when drag is confirmed.
     if (this._cursorActive) updateCursorOverride('grabbing');
     this._dragArmed = true;
     this._dragActive = false;
@@ -502,6 +549,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     if (!this._dragActive) {
       if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
       this._dragActive = true;
+      this._onDragStart?.(this._price);
     }
     if (!this._cachedRect) this._cachedRect = this._chartEl.getBoundingClientRect();
     const localY = e.clientY - this._cachedRect.top;
@@ -514,7 +562,11 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   private _onWindowUp = (_e: MouseEvent): void => {
     this._chart?.applyOptions({ handleScroll: true, handleScale: true });
-    if (this._cursorActive) updateCursorOverride('grab');
+    if (this._cursorActive) {
+      const cell = this._hoveredKey ? this._cells[this._hoveredKey] : null;
+      const isClickable = cell && !!(cell.onClick || cell.leftClick || cell.rightClick || cell.leftText || cell.rightText);
+      updateCursorOverride(isClickable ? 'pointer' : 'grab');
+    }
     const wasActive = this._dragActive;
     const cellKey = this._dragCellKey;
     this._dragArmed = false;
@@ -524,7 +576,16 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     if (wasActive) {
       this._onDragEnd?.(this._price);
     } else if (cellKey) {
-      this._cells[cellKey].onClick?.();
+      const cell = this._cells[cellKey];
+      const rect = this._cellRects.find((r) => r.key === cellKey);
+      const clickX = this._dragDownX - (this._cachedRect?.left ?? 0);
+      if (rect && rect.leftZoneW > 0 && clickX < rect.x + rect.leftZoneW) {
+        cell.leftClick?.();
+      } else if (rect && rect.rightZoneW > 0 && clickX > rect.x + rect.w - rect.rightZoneW) {
+        cell.rightClick?.();
+      } else {
+        cell.onClick?.();
+      }
     }
   };
 
