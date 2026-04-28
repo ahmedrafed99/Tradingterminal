@@ -426,10 +426,9 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
       clearCloseHover();
     }
 
-    // Hide quick-order button while hovering a label
+    // Signal quick-order primitive to hide while hovering a label
+    // (primitive's crosshairMove handler checks this flag)
     refs.labelHovered.current = overLabel;
-    const qoEl = refs.quickOrder.current;
-    if (qoEl) qoEl.style.display = overLabel ? 'none' : '';
 
     if (overLabel) return;
 

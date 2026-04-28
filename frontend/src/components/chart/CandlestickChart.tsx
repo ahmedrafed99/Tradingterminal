@@ -16,7 +16,6 @@ import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { MarketDepthPrimitive } from './MarketDepthPrimitive';
 import { BidAskPrimitive } from './BidAskPrimitive';
 import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
-import type { PriceLevelLine } from './PriceLevelLine';
 import type { PriceLevelPrimitive } from './primitives/PriceLevelPrimitive';
 import { getPriceScaleWidth } from './barUtils';
 import { useChartWidgets } from './hooks/useChartWidgets';
@@ -72,7 +71,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const newsEventsPrimitiveRef = useRef<NewsEventsPrimitive | null>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
   const instrumentLabelRef = useRef<HTMLDivElement>(null);
-  const quickOrderRef = useRef<HTMLDivElement>(null);
   // Shared flag: true while the quick-order (+) button is hovered so the
   // crosshair label primitive doesn't clear itself during the transition.
   const qoHoveredRef = useRef(false);
@@ -96,7 +94,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   // Position drag-to-create SL/TP refs
   const posDragRef = useRef<PosDragState | null>(null);
-  const posDragLineRef = useRef<PriceLevelLine | null>(null);
+  const posDragLineRef = useRef<PriceLevelPrimitive | null>(null);
   const posDragLabelRef = useRef<HTMLDivElement | null>(null);
 
   // Overlay label system
@@ -136,7 +134,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     newsEventsPrimitive: newsEventsPrimitiveRef,
     ohlc: ohlcRef,
     instrumentLabel: instrumentLabelRef,
-    quickOrder: quickOrderRef,
     qoHovered: qoHoveredRef,
     labelHovered: labelHoveredRef,
     lastPnlCache,
@@ -384,51 +381,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
         className="absolute inset-0 pointer-events-none overflow-hidden"
         style={{ zIndex: Z.OVERLAY }}
       />
-      {isOrderChart && (
-        <div
-          ref={quickOrderRef}
-          className="absolute pointer-events-none"
-          style={{ zIndex: Z.TOOLBAR, display: 'none', transform: 'translateY(-50%)' }}
-        >
-          <div data-qo-wrap style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
-            <div
-              data-qo-label
-              style={{
-                display: 'none',
-                fontSize: 11,
-                fontWeight: 'bold',
-                fontFamily: FONT_FAMILY,
-                height: 20,
-                lineHeight: '20px',
-                whiteSpace: 'nowrap',
-                borderRadius: '2px 0 0 2px',
-                overflow: 'hidden',
-              }}
-            >
-              <span data-qo-size style={{ padding: '0 6px' }} />
-              <span data-qo-text style={{ padding: '0 6px', background: 'var(--color-label-bg)', color: 'var(--color-label-text)', borderLeft: '1px solid var(--color-separator)' }} />
-            </div>
-            <div
-              data-qo-plus
-              style={{
-                width: 20,
-                height: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--color-border)',
-                borderRadius: 2,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Scroll-to-latest button — appears when user has scrolled away from latest candle */}
       <button
         onClick={() => {

@@ -1,9 +1,8 @@
 # DOM → Canvas Migration
 
 ## Status
-Phases A–G complete and committed.
+Phases A–H complete and committed.
 Phase F8 (axis label collision avoidance) still pending.
-Phase H pending.
 
 ---
 
@@ -16,7 +15,7 @@ The stacking logic in `DrawingsPrimitive.ts` (`priceAxisViews()`) currently only
 
 ---
 
-## Phase H — Quick Order `+` button → `QuickOrderPrimitive` (pending)
+## Phase H — Quick Order `+` button → `QuickOrderPrimitive` (complete)
 
 **Files:** `primitives/QuickOrderPrimitive.ts` (new), `hooks/useQuickOrder.ts`, `CandlestickChart.tsx`
 

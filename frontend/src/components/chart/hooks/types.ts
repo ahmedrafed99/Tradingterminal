@@ -8,7 +8,6 @@ import type { TradeZonePrimitive } from '../TradeZonePrimitive';
 import type { MarketDepthPrimitive } from '../MarketDepthPrimitive';
 import type { NewsEventsPrimitive } from '../primitives/NewsEventsPrimitive';
 import type { BidAskPrimitive } from '../BidAskPrimitive';
-import type { PriceLevelLine } from '../PriceLevelLine';
 import type { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 
 // ── Single order/position line entry ──────────────────────────────────────────
@@ -83,7 +82,6 @@ export interface ChartRefs {
   // DOM elements
   ohlc: React.RefObject<HTMLDivElement | null>;
   instrumentLabel: React.RefObject<HTMLDivElement | null>;
-  quickOrder: React.RefObject<HTMLDivElement | null>;
 
   // Shared flags
   qoHovered: React.MutableRefObject<boolean>;
@@ -108,8 +106,7 @@ export interface ChartRefs {
 
   // Position drag-to-create SL/TP
   posDrag: React.MutableRefObject<PosDragState | null>;
-  posDragLine: React.MutableRefObject<PriceLevelLine | null>;
-  posDragLabel: React.MutableRefObject<HTMLDivElement | null>;
+  posDragLine: React.MutableRefObject<PriceLevelPrimitive | null>;
 
   // TP size +/- redistribution
   hoveredTpOrderId: React.MutableRefObject<string | null>;
