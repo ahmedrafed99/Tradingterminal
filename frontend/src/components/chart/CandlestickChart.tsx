@@ -206,7 +206,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     // DrawingsPrimitive's priceAxisPaneViews renders on top of it
     const countdown = new CountdownPrimitive();
     series.attachPrimitive(countdown);
-    countdown.setOverlay(overlayRef.current!, chart);
     countdownRef.current = countdown;
 
     // Attach market depth primitive — renders behind everything else
@@ -235,8 +234,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     series.attachPrimitive(drawingsPrimitive);
     drawingsPrimitiveRef.current = drawingsPrimitive;
 
-    // Create crosshair label as HTML in overlay — z-index:30 above PriceLevelLine axis labels
-    const crosshairLabel = new CrosshairLabelPrimitive(overlayRef.current!, series, chart);
+    const crosshairLabel = new CrosshairLabelPrimitive();
+    series.attachPrimitive(crosshairLabel);
     crosshairLabelRef.current = crosshairLabel;
 
     // Selection click — mark this chart as selected in dual-chart mode
@@ -256,12 +255,10 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       containerEl: containerRef.current,
       orderEntriesRef,
       previewLinesRef,
-      crosshairLabelEl: crosshairLabel.el,
     });
 
     return () => {
       unregisterChart(chartId);
-      crosshairLabel.destroy();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;

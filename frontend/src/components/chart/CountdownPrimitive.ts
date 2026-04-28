@@ -2,18 +2,20 @@ import type {
   ISeriesPrimitive,
   SeriesAttachedParameter,
   IPrimitivePaneView,
+  IPrimitivePaneRenderer,
   ISeriesPrimitiveAxisView,
-  IChartApi,
+  PrimitivePaneViewZOrder,
   SeriesType,
   Time,
   ISeriesApi,
 } from 'lightweight-charts';
+import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { COLOR_BG } from '../../constants/colors';
 import { FONT_FAMILY } from '../../constants/layout';
 import { contrastText } from './hooks/labelUtils';
 
 // ---------------------------------------------------------------------------
-// Axis view — tells LWC about our label position for overlap avoidance
+// Invisible axis view — tells LWC about our label position for overlap avoidance
 // ---------------------------------------------------------------------------
 class PriceLabelAxisView implements ISeriesPrimitiveAxisView {
   _coordinate = 0;
@@ -34,11 +36,78 @@ class PriceLabelAxisView implements ISeriesPrimitiveAxisView {
 }
 
 // ---------------------------------------------------------------------------
+// Canvas renderer — draws the price + optional countdown badge on the price
+// axis pane canvas at zOrder 'normal' (crosshair label paints over it at 'top')
+// ---------------------------------------------------------------------------
+const FONT_BOLD = `bold 12px ${FONT_FAMILY}`;
+const FONT_NORMAL = `12px ${FONT_FAMILY}`;
+const PRICE_ROW_H = 20;
+const TIMER_ROW_H = 16;
+
+class CountdownAxisRenderer implements IPrimitivePaneRenderer {
+  private _y: number;
+  private _priceText: string;
+  private _countdownText: string;
+  private _bgColor: string;
+  private _textColor: string;
+
+  constructor(y: number, priceText: string, countdownText: string, bgColor: string, textColor: string) {
+    this._y = y;
+    this._priceText = priceText;
+    this._countdownText = countdownText;
+    this._bgColor = bgColor;
+    this._textColor = textColor;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
+      const hasTimer = this._countdownText !== '';
+      const totalH = hasTimer ? PRICE_ROW_H + TIMER_ROW_H : PRICE_ROW_H;
+      const top = this._y - totalH / 2;
+
+      ctx.fillStyle = this._bgColor;
+      ctx.fillRect(0, top, mediaSize.width, totalH);
+
+      ctx.fillStyle = this._textColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = mediaSize.width / 2;
+
+      ctx.font = FONT_BOLD;
+      ctx.fillText(this._priceText, cx, top + PRICE_ROW_H / 2);
+
+      if (hasTimer) {
+        ctx.font = FONT_NORMAL;
+        ctx.fillText(this._countdownText, cx, top + PRICE_ROW_H + TIMER_ROW_H / 2);
+      }
+    });
+  }
+}
+
+class CountdownAxisPaneView implements IPrimitivePaneView {
+  private _y = 0;
+  private _priceText = '';
+  private _countdownText = '';
+  private _bgColor = '#26a69a';
+  private _textColor = '#000000';
+
+  update(y: number, priceText: string, countdownText: string, bgColor: string, textColor: string): void {
+    this._y = y;
+    this._priceText = priceText;
+    this._countdownText = countdownText;
+    this._bgColor = bgColor;
+    this._textColor = textColor;
+  }
+
+  renderer(): IPrimitivePaneRenderer {
+    return new CountdownAxisRenderer(this._y, this._priceText, this._countdownText, this._bgColor, this._textColor);
+  }
+
+  zOrder(): PrimitivePaneViewZOrder { return 'normal'; }
+}
+
+// ---------------------------------------------------------------------------
 // CountdownPrimitive — attach to the candlestick series
-//
-// Renders the current-price + bar-countdown label as an HTML overlay element
-// (z-index:25) so it stacks above PriceLevelLine axis labels (z-index:20)
-// but below the crosshair label (z-index:30).
 // ---------------------------------------------------------------------------
 export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   private _series: ISeriesApi<SeriesType, Time> | null = null;
@@ -52,21 +121,15 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   private _countdownText = '';
   private _isLive = false;
   private _periodSec = 60;
-  private _decimals = 2;
   private _formatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
   private _axisView = new PriceLabelAxisView();
   private _axisViewsArr: readonly ISeriesPrimitiveAxisView[] = [this._axisView];
-  private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
   private _emptyAxisViews: readonly ISeriesPrimitiveAxisView[] = [];
-
-  // HTML overlay elements
-  private _overlay: HTMLDivElement | null = null;
-  private _chartApi: IChartApi | null = null;
-  private _htmlEl: HTMLDivElement | null = null;
-  private _priceEl: HTMLDivElement | null = null;
-  private _countdownEl: HTMLDivElement | null = null;
+  private _axisPaneView = new CountdownAxisPaneView();
+  private _axisPaneViewArr: readonly IPrimitivePaneView[] = [this._axisPaneView];
+  private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
 
   // -- Lifecycle --
 
@@ -80,83 +143,61 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._stopTimer();
     this._series = null;
     this._requestUpdate = null;
-    if (this._htmlEl) {
-      this._htmlEl.remove();
-      this._htmlEl = null;
-    }
   }
 
   // -- Public API --
 
-  /** Provide the overlay div and chart API so we render as HTML above order labels. */
-  setOverlay(overlay: HTMLDivElement, chart: IChartApi): void {
-    if (this._overlay === overlay && this._chartApi === chart) return;
-    // Clean up previous HTML if re-initialized
-    if (this._htmlEl) {
-      this._htmlEl.remove();
-      this._htmlEl = null;
-    }
-    this._overlay = overlay;
-    this._chartApi = chart;
-    this._buildHtml();
-  }
-
-  /** Update the displayed price (called on each quote OR after loading bars) */
   updatePrice(price: number, live: boolean): void {
     const priceChanged = this._price !== price;
     this._price = price;
     this._isLive = live;
     if (live) this._updateCountdown();
     else this._countdownText = '';
-    // Only reformat + repaint when price actually changes
     if (priceChanged) {
       this._priceText = this._formatPrice(price);
-      this._syncHtml();
       this._requestUpdate?.();
     }
   }
 
-  /** Update candle period (call when timeframe changes) */
   setPeriod(periodSec: number): void {
     this._periodSec = periodSec;
   }
 
-  /** Update candle up/down colors (call when chart settings change) */
   setColors(upColor: string, downColor: string): void {
     this._upColor = upColor;
     this._downColor = downColor;
-    this._syncHtml();
+    this._requestUpdate?.();
   }
 
-  /** Update the open price of the current bar (determines bull/bear color) */
   setOpen(open: number): void {
     this._open = open;
-    this._syncHtml();
+    this._requestUpdate?.();
   }
 
-  /** Update decimal places (call when contract changes) */
   setDecimals(decimals: number): void {
-    this._decimals = decimals;
     this._formatter = new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
   }
 
-  /** Mark feed as disconnected (hides countdown, keeps price label) */
   setLive(live: boolean): void {
     this._isLive = live;
     if (!live) this._countdownText = '';
-    this._syncHtml();
     this._requestUpdate?.();
   }
 
   // -- ISeriesPrimitive rendering --
 
   priceAxisPaneViews(): readonly IPrimitivePaneView[] {
-    // Sync HTML position on every LWC render (scroll/zoom/resize)
-    this._syncHtml();
-    return this._emptyPaneViews;
+    if (!this._series || this._price === 0) return this._emptyPaneViews;
+    const y = this._series.priceToCoordinate(this._price);
+    if (y === null) return this._emptyPaneViews;
+
+    const candleColor = (this._open === 0 || this._price >= this._open) ? this._upColor : this._downColor;
+    const textColor = contrastText(candleColor, COLOR_BG);
+    this._axisPaneView.update(y as number, this._priceText, this._countdownText, candleColor, textColor);
+    return this._axisPaneViewArr;
   }
 
   priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
@@ -164,93 +205,19 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     const y = this._series.priceToCoordinate(this._price);
     if (y === null) return this._emptyAxisViews;
 
-    this._axisView.update(y, this._priceText);
+    this._axisView.update(y as number, this._priceText);
     return this._axisViewsArr;
   }
 
-  updateAllViews(): void {
-    // Coordinates recalculated in priceAxisPaneViews / priceAxisViews
-  }
+  updateAllViews(): void {}
 
   // -- Internals --
-
-  private _buildHtml(): void {
-    if (!this._overlay) return;
-
-    const el = document.createElement('div');
-    el.style.cssText =
-      `position:absolute;right:0;text-align:center;pointer-events:none;` +
-      `transform:translateY(-50%);box-sizing:border-box;z-index:25;` +
-      `font-family:${FONT_FAMILY};display:none;background:${this._upColor};`;
-    this._overlay.appendChild(el);
-    this._htmlEl = el;
-
-    const priceEl = document.createElement('div');
-    priceEl.style.cssText = `font-size:12px;font-weight:bold;line-height:1;padding:3px 0 0;`;
-    el.appendChild(priceEl);
-    this._priceEl = priceEl;
-
-    const countdownEl = document.createElement('div');
-    countdownEl.style.cssText = `font-size:12px;line-height:1;padding:1px 0 3px;`;
-    el.appendChild(countdownEl);
-    this._countdownEl = countdownEl;
-  }
-
-  // Per-frame cache for priceScale width (avoids reflow when syncHtml runs
-  // multiple times in the same frame, e.g. from quote tick + LWC render)
-  private _psCacheFrame = 0;
-  private _psCachedWidth = 56;
-
-  private _getPsWidth(): number {
-    const now = performance.now();
-    if (now - this._psCacheFrame < 2) return this._psCachedWidth;
-    this._psCacheFrame = now;
-    try { this._psCachedWidth = this._chartApi!.priceScale('right').width(); } catch { /* */ }
-    return this._psCachedWidth;
-  }
-
-  private _syncHtml(): void {
-    if (!this._htmlEl || !this._series || !this._chartApi) return;
-
-    if (this._price === 0) {
-      this._htmlEl.style.display = 'none';
-      return;
-    }
-
-    const y = this._series.priceToCoordinate(this._price);
-    if (y === null) {
-      this._htmlEl.style.display = 'none';
-      return;
-    }
-
-    const psWidth = this._getPsWidth();
-
-    const candleColor = (this._open === 0 || this._price >= this._open) ? this._upColor : this._downColor;
-    const textColor = contrastText(candleColor, COLOR_BG);
-    this._htmlEl.style.display = '';
-    this._htmlEl.style.top = `${y}px`;
-    this._htmlEl.style.width = `${psWidth}px`;
-    this._htmlEl.style.background = candleColor;
-    this._priceEl!.style.color = textColor;
-    this._countdownEl!.style.color = textColor;
-    this._priceEl!.textContent = this._priceText;
-
-    if (this._countdownText) {
-      this._countdownEl!.style.display = '';
-      this._countdownEl!.textContent = this._countdownText;
-      this._priceEl!.style.padding = '3px 0 0';
-    } else {
-      this._countdownEl!.style.display = 'none';
-      this._priceEl!.style.padding = '3px 0 3px';
-    }
-  }
 
   private _formatPrice(price: number): string {
     return this._formatter.format(price);
   }
 
   private _updateCountdown(): void {
-    // Only show countdown for intraday timeframes (< 1 day)
     if (!this._isLive || this._periodSec >= 86400) {
       this._countdownText = '';
       return;
@@ -278,7 +245,6 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._intervalId = setInterval(() => {
       if (!this._isLive) return;
       this._updateCountdown();
-      this._syncHtml();
       this._requestUpdate?.();
     }, 1000);
   }

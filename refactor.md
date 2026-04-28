@@ -3,7 +3,8 @@
 ## Status
 Phases A–E complete and committed.
 Phase F complete and committed (F8 / axis label collision avoidance still pending).
-Phases G, H pending.
+Phase G complete (pending user test).
+Phase H pending.
 
 ---
 
@@ -50,35 +51,35 @@ Phases G, H pending.
 
 ---
 
-## Phase G — CrosshairLabelPrimitive → pure LWC (pending)
+## Phase G — CountdownPrimitive + CrosshairLabelPrimitive → pure canvas (complete, pending user test)
 
-**Files:** `CrosshairLabelPrimitive.ts`, `CandlestickChart.tsx`, `screenshot/chartRegistry.ts`, `screenshot/paintOverlays.ts`
+**Files:** `CountdownPrimitive.ts`, `CrosshairLabelPrimitive.ts`, `CandlestickChart.tsx`, `screenshot/chartRegistry.ts`, `screenshot/paintOverlays.ts`
 
-The DOM-based crosshair price badge is replaced with an `ISeriesPrimitive` that renders via `priceAxisViews()` — the same mechanism used by `PriceLevelPrimitive` for order/position axis badges. The lag between the LWC crosshair paint and the DOM update is eliminated because the primitive is painted in the same LWC frame.
+Both primitives now draw directly on the price axis canvas via `priceAxisPaneViews()`, eliminating HTML/canvas competition and the 1-frame lag. `CountdownPrimitive` uses `zOrder: 'normal'`; `CrosshairLabelPrimitive` uses `zOrder: 'top'`, so the crosshair badge always paints over the countdown badge at the same price.
 
-#### G1 — Rewrite `CrosshairLabelPrimitive.ts`
-- Implement `ISeriesPrimitive` (remove all DOM creation).
-- State: `_price: number | null`, `_suppressed: boolean`, `_decimals: number`, `_tickSize: number`.
-- `attached()` captures `_series` and `_requestUpdate`; `detached()` clears them.
-- `priceAxisViews()` returns a single `ISeriesPrimitiveAxisView` when `_price != null && !_suppressed`:
-  - `coordinate()` → `_series.priceToCoordinate(snapped)` (tick-snapped price).
-  - `text()` → formatted price string (same locale format as current).
-  - `backColor()` / `textColor()` → same constants as current DOM version.
-- `updateCrosshairPrice(price)`, `suppress(bool)`, `setDecimals()`, `setTickSize()` — same public API; each calls `_requestUpdate()`.
-- Remove the `el` getter entirely.
+#### G1 — `CountdownPrimitive.ts`
+- Removed `_htmlEl / _priceEl / _countdownEl / _overlay / _chartApi` and all DOM methods (`_buildHtml`, `_syncHtml`, `setOverlay`, `_getPsWidth`).
+- Added `CountdownAxisPaneView` / `CountdownAxisRenderer` — draws the two-row (price + timer) or single-row badge on the price axis canvas.
+- `priceAxisPaneViews()` returns the badge view at `zOrder: 'normal'`.
+- All state update methods call `_requestUpdate()` instead of `_syncHtml()`.
+- `priceAxisViews()` keeps the invisible `PriceLabelAxisView` for LWC coordinate tracking.
 
-All callers (`useChartWidgets`, `useChartBars`, `drawingHandlers`, `useQuickOrder`) are unchanged — they call the same methods.
+#### G2 — `CrosshairLabelPrimitive.ts`
+- Full rewrite as `ISeriesPrimitive<Time>` (removed all DOM creation and constructor params).
+- `priceAxisPaneViews()` returns a single-row badge at `zOrder: 'top'`.
+- Same public API: `updateCrosshairPrice()`, `suppress()`, `setDecimals()`, `setTickSize()`.
+- `attached()` / `detached()` manage `_series` and `_requestUpdate`.
 
-#### G2 — `CandlestickChart.tsx`
-- Replace `new CrosshairLabelPrimitive(overlay, series, chart)` with `new CrosshairLabelPrimitive()` + `series.attachPrimitive(crosshairLabel)`.
-- Cleanup: `series.detachPrimitive` instead of `crosshairLabel.destroy()`.
-- Remove `crosshairLabelEl: crosshairLabel.el` from the registry entry.
+#### G3 — `CandlestickChart.tsx`
+- Removed `countdown.setOverlay(...)` call.
+- `new CrosshairLabelPrimitive()` + `series.attachPrimitive(crosshairLabel)`; cleanup via `chart.remove()`.
+- Removed `crosshairLabelEl: crosshairLabel.el` from the `registerChart` call.
 
-#### G3 — `screenshot/chartRegistry.ts`
-- Remove `crosshairLabelEl: HTMLDivElement | null` field.
+#### G4 — `screenshot/chartRegistry.ts`
+- Removed `crosshairLabelEl: HTMLDivElement | null` from `ChartEntry`.
 
-#### G4 — `screenshot/paintOverlays.ts`
-- Delete the crosshair label painting block (~15 lines). The `priceAxisViews()` badge lives on LWC's price scale canvas; if it needs to appear in screenshots that can be revisited separately.
+#### G5 — `screenshot/paintOverlays.ts`
+- Deleted the crosshair label HTML-painting block. The canvas badge lives on LWC's price scale canvas and does not need manual painting in screenshots.
 
 ---
 
