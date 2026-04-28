@@ -2,6 +2,7 @@
 
 ## Status
 Phase A complete and committed (`8002073`).
+Phase B + C complete and committed (`2444caf`).
 
 ## What was done
 `PriceLevelPrimitive` (`frontend/src/components/chart/primitives/PriceLevelPrimitive.ts`) is built, tested, and committed. It is a generic `ISeriesPrimitive` that renders a horizontal price line + draggable label cells directly on LWC's canvas. No DOM involved.
@@ -10,9 +11,11 @@ Key API:
 - `cellOrder: string[]` + `cells: Record<string, PriceLevelCell>` — variable cell count, any keys
 - `onDragStart(originalPrice)` / `onDrag(price)` / `onDragEnd(price)` callbacks
 - `allowPriceMove?: boolean` — when false, drag fires callbacks but line stays fixed (used for position line)
-- `grab` / `grabbing` cursor management built-in
-- `setCell(key, patch)` for live cell updates (text, color, onClick)
+- `grab` / `grabbing` / `pointer` cursor management built-in (pointer for clickable cells)
+- `setCell(key, patch)` for live cell updates (text, color, onClick, leftText/leftClick, rightText/rightClick)
+- `setCellOrder(order)` for runtime layout changes
 - `setChartElement(el)` must be called after `series.attachPrimitive(primitive)`
+- Inline left/right zones within a cell (e.g. TP size redistribution − / + within the size cell)
 
 `OrderLinePrimitive.ts` is now a re-export shim pointing to `PriceLevelPrimitive`.
 
@@ -38,7 +41,9 @@ The attempted migration produced several cascading bugs. The root causes and req
 - **Effect 1** (deps: `positions`) — manages the position line only. When `pos` becomes null, immediately call `detachPositionDependentLines()` to remove Stop, Suspended, and phantom-bracket primitives. This makes TP/SL disappear instantly, before `openOrders` catches up.
 - **Effect 2** (deps: `openOrders`, no `positions`) — manages order lines. Reads pos synchronously from `useStore.getState()` at run time (not from React state), so it does not rerun — and does not flash `'---'` — when only `positions` changes.
 
-`detachPositionDependentLines` removes entries where `kind === 'phantom-bracket'`, or `kind === 'order'` with `status === Suspended` or `type === Stop/TrailingStop`.
+`detachPositionDependentLines` removes entries where `kind === 'phantom-bracket'`, or `kind === 'order'` with `status === Suspended`, `type === Stop/TrailingStop`, or `type === Limit` where `labelPosCache.get(id) === 'mid'` (active TP orders).
+
+Additionally, `computeOrderDesired` skips Stop/TrailingStop and Limit-'mid' orders when `pos` is null — this prevents Effect 2 re-runs (triggered by `pendingBracketInfo` clearing in the same batch) from re-creating those primitives and flashing stale labels.
 
 ---
 
@@ -76,29 +81,6 @@ The attempted migration produced several cascading bugs. The root causes and req
 
 ## What's next
 
-### Phase B — Live order + position lines
-**File:** `hooks/useOrderLines.ts`
-
-- Replace `new PriceLevelLine(...)` with `new PriceLevelPrimitive(...)`
-- Attach: `series.attachPrimitive(p)` then `p.setChartElement(refs.container.current)`
-- Destroy: `series.detachPrimitive(p)` (no more `l.destroy()`)
-- **Split into two effects** (see lessons above)
-- **Add `refs.isDragging` ref** to `ChartRefs` / `types.ts`; set it in `onDragStart` / `onDragEnd` for every order primitive
-- Pass `onDrag` / `onDragEnd` closures containing:
-  - **Sibling-follow logic** (currently `useOrderDrag.ts` lines 83–132): always move all Suspended bracket primitives by the same delta; no `pendingBracketInfo` guard
-  - **Order modification + bracketEngine logic** (currently `useOrderDrag.ts` lines 138–288): stop-above-market validation, `setPendingBracketInfo`, `bracketEngine.updateArmedConfig`, `orderService.modifyOrder`, revert on failure
-- Update `hooks/types.ts`: `orderLines` ref → `PriceLevelPrimitive[]`, `posDragLine` ref → `PriceLevelPrimitive | null`
-- **Delete `useOrderDrag.ts`** once its logic is fully moved into callbacks
-
-### Phase C — Label configuration
-**Files:** `hooks/buildOrderLabels.ts`, `hooks/buildPositionLabel.ts`, `hooks/buildPreviewLabels.ts`
-
-- Replace `line.setLabel([...])` / `line.getCells()` / `line.getLabelEl()` with `primitive.setCell(key, { text, bg, color, onClick })`
-- All cancel-X, TP redistribution, execute-entry handlers move into cell `onClick` — no more `refs.hitTargets` entries for order/preview lines
-- P&L updaters must check `if (refs.isDragging.current) return` before calling `setCell` — prevents the blink-during-drag race
-- P&L updaters call `primitive.setCell('pnl', { text, bg })` instead of `line.updateSection(0, ...)`
-- Preview entry line: variable cells — `['pnl', 'qty', 'addsl', 'addtp', 'close']` (addsl/addtp only when no preset active)
-
 ### Phase D — Preview lines
 **Files:** `hooks/usePreviewLines.ts`, `hooks/usePreviewDrag.ts`
 
@@ -122,15 +104,15 @@ The attempted migration produced several cascading bugs. The root causes and req
 
 ```
 frontend/src/components/chart/
-  primitives/PriceLevelPrimitive.ts   ← done (Phase A)
+  primitives/PriceLevelPrimitive.ts   ← done (Phase A + B/C fixes)
   primitives/OrderLinePrimitive.ts    ← re-export shim, delete eventually
   PriceLevelLine.ts                   ← delete in Phase E
-  hooks/types.ts                      ← update PriceLevelLine refs throughout
-  hooks/useOrderLines.ts              ← Phase B
-  hooks/useOrderDrag.ts               ← delete in Phase B
-  hooks/buildOrderLabels.ts           ← Phase C
-  hooks/buildPositionLabel.ts         ← Phase C
-  hooks/buildPreviewLabels.ts         ← Phase C
+  hooks/types.ts                      ← done (Phase B)
+  hooks/useOrderLines.ts              ← done (Phase B)
+  hooks/useOrderDrag.ts               ← deleted (Phase B)
+  hooks/buildOrderLabels.ts           ← done (Phase C)
+  hooks/buildPositionLabel.ts         ← done (Phase C)
+  hooks/buildPreviewLabels.ts         ← Phase D
   hooks/usePreviewLines.ts            ← Phase D
   hooks/usePreviewDrag.ts             ← delete in Phase D
   hooks/usePositionDrag.ts            ← Phase E (ghost line swap)
