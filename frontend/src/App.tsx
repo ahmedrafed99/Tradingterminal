@@ -118,6 +118,22 @@ export default function App() {
       });
   }, []);
 
+  // Listen for backend-pushed events (e.g. remote disconnect via Telegram)
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:3001/ws/events');
+    ws.onmessage = async (e) => {
+      try {
+        const event = JSON.parse(e.data as string);
+        if (event.type === 'disconnect') {
+          await realtimeService.disconnect();
+          useStore.getState().setConnected(false);
+          useStore.getState().setAccounts([]);
+        }
+      } catch { /* ignore malformed */ }
+    };
+    return () => ws.close();
+  }, []);
+
   // Auto-load NQ into chart and order panel when connected (single search)
   useEffect(() => {
     if (!connected || !settingsHydrated) return;

@@ -27,6 +27,8 @@ import * as conditionStore from './services/conditionStore';
 import * as databaseService from './services/databaseService';
 import * as backfillService from './services/backfillService';
 import * as tickAggregator from './services/tickAggregator';
+import * as telegramBot from './services/telegramBot';
+import * as eventsService from './services/eventsService';
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3001;
 const app = express();
@@ -120,6 +122,10 @@ const server = http.createServer(app);
 const conditionWss = new WebSocket.Server({ noServer: true });
 conditionWss.on('connection', (ws) => tickAggregator.addClient(ws));
 
+// WebSocket server for backend → frontend event push (disconnect, etc.)
+const eventsWss = new WebSocket.Server({ noServer: true });
+eventsWss.on('connection', (ws) => eventsService.addClient(ws));
+
 server.on('upgrade', (req, socket, head) => {
   const url = req.url ?? '';
 
@@ -127,6 +133,14 @@ server.on('upgrade', (req, socket, head) => {
   if (url.startsWith('/ws/condition-quotes')) {
     conditionWss.handleUpgrade(req, socket, head, (ws) => {
       conditionWss.emit('connection', ws, req);
+    });
+    return;
+  }
+
+  // Backend → frontend event push
+  if (url.startsWith('/ws/events')) {
+    eventsWss.handleUpgrade(req, socket, head, (ws) => {
+      eventsWss.emit('connection', ws, req);
     });
     return;
   }
@@ -228,16 +242,19 @@ server.listen(PORT, async () => {
   await autoConnect();
   conditionEngine.start();
   backfillService.startAutoSync();
+  telegramBot.start();
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
+  telegramBot.stop();
   backfillService.stopAutoSync();
   conditionEngine.stop();
   databaseService.close();
   process.exit(0);
 });
 process.on('SIGTERM', () => {
+  telegramBot.stop();
   backfillService.stopAutoSync();
   conditionEngine.stop();
   databaseService.close();
