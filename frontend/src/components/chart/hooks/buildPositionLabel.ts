@@ -42,6 +42,13 @@ export function buildPositionLabel(
   const posPrimitive = posEntry?.line ?? null;
   if (!posPrimitive) return pnlUpdaters;
 
+  function fmtPnl(diff: number, pnl: number): string {
+    if (useStore.getState().pnlMode === 'points') {
+      return `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} pts`;
+    }
+    return `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+  }
+
   // Compute initial P&L
   const lp = useStore.getState().lastPrice;
   let initText: string;
@@ -49,7 +56,7 @@ export function buildPositionLabel(
   if (lp != null) {
     const diff = isLong ? lp - pos.averagePrice : pos.averagePrice - lp;
     const initPnl = calcPnl(diff, contract, pos.size);
-    initText = `${initPnl >= 0 ? '+' : ''}$${initPnl.toFixed(2)}`;
+    initText = fmtPnl(diff, initPnl);
     initBg = initPnl >= 0 ? BUY_COLOR : SELL_COLOR;
     refs.lastPnlCache.current = { text: initText, bg: initBg };
   } else if (refs.lastPnlCache.current.text) {
@@ -76,7 +83,12 @@ export function buildPositionLabel(
     });
   }
 
-  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: LABEL_TEXT });
+  function togglePnlMode(): void {
+    const next = useStore.getState().pnlMode === '$' ? 'points' : '$';
+    useStore.getState().setPnlMode(next);
+  }
+
+  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: LABEL_TEXT, onClick: togglePnlMode });
   posPrimitive.setCell('size', { text: String(pos.size), bg: sideBg, color: LABEL_TEXT });
   posPrimitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleClose });
   posPrimitive.setCellOrder(['pnl', 'size', 'close']);
@@ -91,6 +103,7 @@ export function buildPositionLabel(
           text: refs.lastPnlCache.current.text,
           bg: refs.lastPnlCache.current.bg,
           color: LABEL_TEXT,
+          onClick: togglePnlMode,
         });
       }
       return;
@@ -98,9 +111,9 @@ export function buildPositionLabel(
     const diff = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
     const pnl = calcPnl(diff, contract, pos.size);
     const bg = pnl >= 0 ? BUY_COLOR : SELL_COLOR;
-    const text = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+    const text = fmtPnl(diff, pnl);
     refs.lastPnlCache.current = { text, bg };
-    posPrimitive.setCell('pnl', { text, bg, color: LABEL_TEXT });
+    posPrimitive.setCell('pnl', { text, bg, color: LABEL_TEXT, onClick: togglePnlMode });
   });
 
   return pnlUpdaters;

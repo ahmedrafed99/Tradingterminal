@@ -41,6 +41,7 @@ function getPersistedState() {
     hideBalance: s.hideBalance,
     hideRpnl: s.hideRpnl,
     hideUpnl: s.hideUpnl,
+    pnlMode: s.pnlMode,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
@@ -11,15 +11,17 @@ import { calcPnl, roundToTick } from '../../utils/instrument';
 import { formatPrice, getPnlColorClass } from '../../utils/formatters';
 
 export function PositionDisplay() {
-  const { positions, orderContract, lastPrice, activeAccountId } = useStore(useShallow((s) => ({
+  const { positions, orderContract, lastPrice, activeAccountId, pnlMode, setPnlMode } = useStore(useShallow((s) => ({
     positions: s.positions,
     orderContract: s.orderContract,
     lastPrice: s.lastPrice,
     activeAccountId: s.activeAccountId,
+    pnlMode: s.pnlMode,
+    setPnlMode: s.setPnlMode,
   })));
   const pnlRef = useRef<number>(0);
   const priceDiffRef = useRef<number>(0);
-  const [pnlMode, setPnlMode] = useState<'$' | 'points'>('$');
+  const togglePnlMode = useCallback(() => setPnlMode(pnlMode === '$' ? 'points' : '$'), [pnlMode, setPnlMode]);
 
   const pos = orderContract ? positions.find((p) => p.accountId === activeAccountId && String(p.contractId) === String(orderContract.id)) : undefined;
   const hasPos = pos != null && pos.size !== 0;
@@ -92,7 +94,7 @@ export function PositionDisplay() {
         <div
           className="transition-colors"
           style={{ background: pnlBg, padding: '8px 12px', textAlign: 'center', cursor: 'pointer' }}
-          onClick={() => setPnlMode(m => m === '$' ? 'points' : '$')}
+          onClick={togglePnlMode}
           title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
         >
           <div
