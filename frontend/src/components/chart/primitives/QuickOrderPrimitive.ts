@@ -20,10 +20,10 @@ const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
 const FONT = `bold ${FONT_PX}px ${FONT_FAMILY}`;
-const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
 const PLUS_CELL_W = 20;
 const DRAG_THRESHOLD_PX = 3;
 const ZONE_PAD = 4;
+const SIZE_ZONE_PAD = 1; // tight padding for the −/+ zones inside the size cell
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface CellRect {
@@ -155,17 +155,19 @@ class QORenderer implements IPrimitivePaneRenderer {
           ctx.stroke();
           ctx.lineWidth = 1;
         } else {
-          // Left zone
-          if (r.leftZoneW > 0) {
-            const zoneHot = isHover && this._hoveredZone === 'left';
-            if (zoneHot) {
-              ctx.fillStyle = brighten(bg, 1.3);
-              ctx.fillRect(r.x, r.y, r.leftZoneW, r.h);
-              ctx.font = FONT_ZONE_HOVER;
-            }
-            ctx.fillStyle = c.leftColor ?? c.color;
-            ctx.fillText(c.leftText!, r.x + r.leftZoneW / 2, r.y + r.h / 2 + 0.5);
-            if (zoneHot) ctx.font = FONT;
+          // Left zone — draw − only when size cell is hovered
+          if (r.leftZoneW > 0 && isHover) {
+            const cx = r.x + r.leftZoneW / 2;
+            const cy = Math.floor(r.y + r.h / 2) + 0.5;
+            const hot = this._hoveredZone === 'left';
+            ctx.strokeStyle = c.leftColor ?? c.color;
+            ctx.lineWidth = hot ? 1.5 : 1;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(cx - 2.5, cy);
+            ctx.lineTo(cx + 2.5, cy);
+            ctx.stroke();
+            ctx.lineWidth = 1;
           }
 
           // Main text
@@ -174,17 +176,21 @@ class QORenderer implements IPrimitivePaneRenderer {
           ctx.fillStyle = c.color;
           ctx.fillText(c.text, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
 
-          // Right zone
-          if (r.rightZoneW > 0) {
-            const zoneHot = isHover && this._hoveredZone === 'right';
-            if (zoneHot) {
-              ctx.fillStyle = brighten(bg, 1.3);
-              ctx.fillRect(r.x + r.w - r.rightZoneW, r.y, r.rightZoneW, r.h);
-              ctx.font = FONT_ZONE_HOVER;
-            }
-            ctx.fillStyle = c.rightColor ?? c.color;
-            ctx.fillText(c.rightText!, r.x + r.w - r.rightZoneW / 2, r.y + r.h / 2 + 0.5);
-            if (zoneHot) ctx.font = FONT;
+          // Right zone — draw + only when size cell is hovered
+          if (r.rightZoneW > 0 && isHover) {
+            const cx = r.x + r.w - r.rightZoneW / 2;
+            const cy = Math.floor(r.y + r.h / 2) + 0.5;
+            const hot = this._hoveredZone === 'right';
+            ctx.strokeStyle = c.rightColor ?? c.color;
+            ctx.lineWidth = hot ? 1.5 : 1;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(cx - 2.5, cy);
+            ctx.lineTo(cx + 2.5, cy);
+            ctx.moveTo(cx, cy - 2.5);
+            ctx.lineTo(cx, cy + 2.5);
+            ctx.stroke();
+            ctx.lineWidth = 1;
           }
         }
       }
@@ -382,10 +388,10 @@ export class QuickOrderPrimitive implements ISeriesPrimitive<Time> {
       color: LABEL_TEXT,
       hoverBg: sizeHoverBg,
       leftText: '−',
-      leftColor: minDisabled ? 'rgba(255,255,255,0.3)' : LABEL_TEXT,
+      leftColor: LABEL_TEXT,
       leftClick: minDisabled ? undefined : () => { this.onSizeChange?.(-1); },
       rightText: '+',
-      rightColor: plusDisabled ? 'rgba(255,255,255,0.3)' : LABEL_TEXT,
+      rightColor: LABEL_TEXT,
       rightClick: plusDisabled ? undefined : () => { this.onSizeChange?.(1); },
     });
     defs.set('plus', {
@@ -412,12 +418,13 @@ export class QuickOrderPrimitive implements ISeriesPrimitive<Time> {
       const cell = this._cellDefs.get(key)!;
       const hasLeft = cell.leftText != null;
       const hasRight = cell.rightText != null;
-      const leftRaw = hasLeft ? Math.ceil(ctx.measureText(cell.leftText!).width) + ZONE_PAD * 2 : 0;
-      const rightRaw = hasRight ? Math.ceil(ctx.measureText(cell.rightText!).width) + ZONE_PAD * 2 : 0;
+      const zp = key === 'size' ? SIZE_ZONE_PAD : ZONE_PAD;
+      const leftRaw = hasLeft ? Math.ceil(ctx.measureText(cell.leftText!).width) + zp * 2 : 0;
+      const rightRaw = hasRight ? Math.ceil(ctx.measureText(cell.rightText!).width) + zp * 2 : 0;
       const symW = (hasLeft && hasRight) ? Math.max(leftRaw, rightRaw) : 0;
       const leftZoneW = hasLeft ? (symW || leftRaw) : 0;
       const rightZoneW = hasRight ? (symW || rightRaw) : 0;
-      const mainPad = (hasLeft || hasRight) ? 4 : CELL_PAD_H;
+      const mainPad = key === 'size' ? 3 : ((hasLeft || hasRight) ? 4 : CELL_PAD_H);
       const mainW = Math.ceil(ctx.measureText(cell.text).width) + mainPad * 2;
       return { key, w: mainW + leftZoneW + rightZoneW, leftZoneW, rightZoneW };
     });

@@ -276,8 +276,8 @@ export function useQuickOrder(
       }
 
       primitive.setCrosshair(snappedPrice, isBuy);
-      // Sync order size in case store changed since last expand
       if (primitive.isExpanded) {
+        updatePreviewPrices(snappedPrice);
         const st = useStore.getState();
         primitive.setOrderSize(st.orderSize, getPresetMaxSize());
       }
