@@ -12,7 +12,6 @@ import { getSchedule } from '../../../utils/marketHours';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import { QuickOrderPrimitive } from '../primitives/QuickOrderPrimitive';
 import type { ChartRefs } from './types';
-import { COLOR_TEXT_MUTED } from '../../../constants/colors';
 import { BUY_COLOR, SELL_COLOR, LABEL_TEXT } from './labelUtils';
 
 export function useQuickOrder(
@@ -67,15 +66,6 @@ export function useQuickOrder(
       const ep = snappedPrice;
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
-      const entryLine = new PriceLevelPrimitive({
-        price: ep,
-        lineColor: COLOR_TEXT_MUTED, lineStyle: 'dashed', lineWidth: 1,
-        priceLabel: { visible: false },
-        cellOrder: [], cells: {},
-      });
-      series!.attachPrimitive(entryLine);
-      hoverPreviewLines.push(entryLine);
-
       if (bc.stopLoss.points > 0) {
         const slPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);
         const slDiff = side === OrderSide.Buy ? ep - slPrice : slPrice - ep;
@@ -122,9 +112,7 @@ export function useQuickOrder(
       const toPrice = (points: number) => pointsToPrice(points, contract!);
       const side = isBuy ? OrderSide.Buy : OrderSide.Sell;
 
-      hoverPreviewLines[0].setPrice(ep);
-
-      let lineIdx = 1;
+      let lineIdx = 0;
       if (bc) {
         if (bc.stopLoss.points > 0 && hoverPreviewLines[lineIdx]) {
           const slPrice = side === OrderSide.Buy ? ep - toPrice(bc.stopLoss.points) : ep + toPrice(bc.stopLoss.points);

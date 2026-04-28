@@ -123,17 +123,6 @@ class QORenderer implements IPrimitivePaneRenderer {
     target.useMediaCoordinateSpace(({ context: ctx }) => {
       const y = this._y!;
 
-      // Dashed horizontal line
-      ctx.save();
-      ctx.strokeStyle = COLOR_BORDER;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(this._plotWidth, y);
-      ctx.stroke();
-      ctx.restore();
-
       // Cells
       ctx.save();
       ctx.font = FONT;
