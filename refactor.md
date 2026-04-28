@@ -1,85 +1,18 @@
 # DOM → Canvas Migration
 
 ## Status
-Phases A–E complete and committed.
-Phase F complete and committed (F8 / axis label collision avoidance still pending).
-Phase G complete (pending user test).
+Phases A–G complete and committed.
+Phase F8 (axis label collision avoidance) still pending.
 Phase H pending.
 
 ---
 
-## Phase F — Condition lines + PriceLevelLine deletion (pending user test)
+## Phase F8 — Axis label collision avoidance for order lines
 
-> **Known open issue:** condition-triggered bracket orders activate at preset prices instead of the custom SL/TP positions set during arming. Root cause and attempted fixes documented in [`issues.md`](issues.md#condition-triggered-bracket-price-bug).
+The stacking logic in `DrawingsPrimitive.ts` (`priceAxisViews()`) currently only de-overlaps `hline` drawing labels and avoids the countdown/current-price zone. `PriceLevelPrimitive` axis labels are not included, so order line price badges overlap freely with each other and with drawings.
 
-#### F1 — conditionLineTypes.ts
-- Replace `PriceLevelLine` type imports with `PriceLevelPrimitive`.
-- Update `PreviewState` and related fields (`condLine`, `orderLine`, `slLine`, `tpLines`) to hold `PriceLevelPrimitive` instances.
-
-#### F2 — useConditionPreview.ts
-- Replace each `new PriceLevelLine({ label: [...] })` with `new PriceLevelPrimitive({ cellOrder, cells })`.
-- After `series.attachPrimitive(primitive)`, call `primitive.setChartElement(refs.container.current)` so hover/click works on ARM/size/close cells.
-- Drag interaction: remove `wireDrag` DOM-listener wiring; drag is now handled by the primitive's built-in `onDrag`/`onDragEnd` callbacks.
-- `syncPosition()` calls in cleanup/update paths removed — canvas handles repositioning.
-- ARM, size, and close buttons become `onClick`/`rightClick` handlers on the relevant cells (or `hoverBg` + `onClick` per-cell).
-
-#### F3 — useArmedConditionLines.ts
-- Same pattern as F2: `new PriceLevelLine(...)` → `new PriceLevelPrimitive(...)` with `series.attachPrimitive` + `setChartElement`.
-- Armed-line drag (`wireDrag` + `wireX`) migrates to `onDrag`/`onDragEnd` callbacks and `onClick` on the close cell.
-- Cleanup: `line.destroy()` → `series.detachPrimitive(line)`.
-
-#### F4 — useConditionLinesSync.ts
-- **Delete the file.** Canvas primitives auto-reposition on scroll/zoom/resize. The lastPrice P&L subscription moves into the individual builder hooks (mirroring how `buildPositionLabel`/`buildOrderLabels` expose `pnlUpdaters`), or into `useConditionLines.ts` as a thin store subscription.
-
-#### F5 — useConditionPreviewDrag.ts + useArmedConditionDrag.ts
-- Remove `syncPosition()` calls — no longer needed.
-- If these hooks become empty after removing sync calls, delete them.
-
-#### F6 — useQuickOrder.ts
-- Replace `new PriceLevelLine(...)` for entry/SL/TP hover lines with `new PriceLevelPrimitive(...)`.
-- Lifecycle: `series.attachPrimitive` on creation, `series.detachPrimitive` on destroy.
-- No `setChartElement` needed — hover lines are non-interactive.
-- Remove any `line.syncPosition()` calls.
-
-#### F7 — Delete PriceLevelLine.ts
-- Grep `frontend/src` for any remaining `PriceLevelLine` import before deleting.
-- Then delete `PriceLevelLine.ts` and `primitives/OrderLinePrimitive.ts` (re-export shim).
-
-#### F8 — Axis label collision avoidance for order lines
-- The stacking logic in `DrawingsPrimitive.ts` (`priceAxisViews()`) currently only de-overlaps `hline` drawing labels and avoids the countdown/current-price zone. `PriceLevelPrimitive` axis labels are not included, so order line price badges overlap freely with each other and with drawings.
-- Extract the de-overlapping pass into a shared utility, then feed order line prices into the same pass so all axis labels (drawings + order lines + current price) are stacked together.
-
----
-
-## Phase G — CountdownPrimitive + CrosshairLabelPrimitive → pure canvas (complete, pending user test)
-
-**Files:** `CountdownPrimitive.ts`, `CrosshairLabelPrimitive.ts`, `CandlestickChart.tsx`, `screenshot/chartRegistry.ts`, `screenshot/paintOverlays.ts`
-
-Both primitives now draw directly on the price axis canvas via `priceAxisPaneViews()`, eliminating HTML/canvas competition and the 1-frame lag. `CountdownPrimitive` uses `zOrder: 'normal'`; `CrosshairLabelPrimitive` uses `zOrder: 'top'`, so the crosshair badge always paints over the countdown badge at the same price.
-
-#### G1 — `CountdownPrimitive.ts`
-- Removed `_htmlEl / _priceEl / _countdownEl / _overlay / _chartApi` and all DOM methods (`_buildHtml`, `_syncHtml`, `setOverlay`, `_getPsWidth`).
-- Added `CountdownAxisPaneView` / `CountdownAxisRenderer` — draws the two-row (price + timer) or single-row badge on the price axis canvas.
-- `priceAxisPaneViews()` returns the badge view at `zOrder: 'normal'`.
-- All state update methods call `_requestUpdate()` instead of `_syncHtml()`.
-- `priceAxisViews()` keeps the invisible `PriceLabelAxisView` for LWC coordinate tracking.
-
-#### G2 — `CrosshairLabelPrimitive.ts`
-- Full rewrite as `ISeriesPrimitive<Time>` (removed all DOM creation and constructor params).
-- `priceAxisPaneViews()` returns a single-row badge at `zOrder: 'top'`.
-- Same public API: `updateCrosshairPrice()`, `suppress()`, `setDecimals()`, `setTickSize()`.
-- `attached()` / `detached()` manage `_series` and `_requestUpdate`.
-
-#### G3 — `CandlestickChart.tsx`
-- Removed `countdown.setOverlay(...)` call.
-- `new CrosshairLabelPrimitive()` + `series.attachPrimitive(crosshairLabel)`; cleanup via `chart.remove()`.
-- Removed `crosshairLabelEl: crosshairLabel.el` from the `registerChart` call.
-
-#### G4 — `screenshot/chartRegistry.ts`
-- Removed `crosshairLabelEl: HTMLDivElement | null` from `ChartEntry`.
-
-#### G5 — `screenshot/paintOverlays.ts`
-- Deleted the crosshair label HTML-painting block. The canvas badge lives on LWC's price scale canvas and does not need manual painting in screenshots.
+- Extract the de-overlapping pass into a shared utility.
+- Feed order line prices into the same pass so all axis labels (drawings + order lines + current price) are stacked together.
 
 ---
 
@@ -116,7 +49,7 @@ New class implementing `ISeriesPrimitive`. Internally reuses the cell + zone ren
 - `size` — order size number; `leftText: '−'` / `rightText: '+'` inline zones (disabled = `transparent`); hover reveals zones (`leftColor`/`rightColor` brighten).
 - `label` — "Buy Limit" / "Sell Limit" text; hover highlight.
 
-**`priceAxisViews()`** — returns an axis badge at `_price` when visible (same style as crosshair badge from Phase G), so the axis price label moves with the `+` button as a unit.
+**`priceAxisViews()`** — returns an axis badge at `_price` when visible (same style as crosshair badge), so the axis price label moves with the `+` button as a unit.
 
 **Drag:** uses the same window-mousemove / mouseup pattern as `PriceLevelPrimitive`, gated on a 3px threshold. `onDrag` calls `_requestUpdate()` + `onDragUpdate`.
 
@@ -125,10 +58,10 @@ New class implementing `ISeriesPrimitive`. Internally reuses the cell + zone ren
 #### H2 — Rewrite `useQuickOrder.ts`
 - Remove all DOM queries (`data-qo-*`), `sizeMinusEl`/`sizePlusEl`/`sizeCountEl` creation, and manual `el.style` updates.
 - Create `QuickOrderPrimitive` once; `series.attachPrimitive` on mount, `series.detachPrimitive` on cleanup.
-- `crosshairMove` handler calls `primitive.setCrosshair(snappedPrice, isBuy)` (and still calls `refs.crosshairLabel.current?.updateCrosshairPrice` for the axis badge until G is done).
+- `crosshairMove` handler calls `primitive.setCrosshair(snappedPrice, isBuy)`.
 - Wire `onExecute` → `placeQuickOrder`, `onDragUpdate` → `updatePreviewPrices`, `onDragEnd` → drag-complete logic, `onSizeChange` → `st.setOrderSize` + `refreshLabel` + `createPreviewLines`.
 - `onEnter`/`onLeave` logic (preview line creation/removal, `refs.qoHovered`) moves into `setExpanded` callback.
-- `suppress` from `drawingHandlers` calls `primitive.setCrosshair(null, isBuy)` — same as hiding the widget today.
+- `suppress` from `drawingHandlers` calls `primitive.setCrosshair(null, isBuy)`.
 
 #### H3 — `CandlestickChart.tsx`
 - Remove the `data-qo-*` JSX block entirely.
@@ -140,18 +73,7 @@ New class implementing `ISeriesPrimitive`. Internally reuses the cell + zone ren
 
 ```
 frontend/src/components/chart/
-  hooks/conditionLineTypes.ts           ← F1
-  hooks/useConditionPreview.ts          ← F2
-  hooks/useArmedConditionLines.ts       ← F3
-  hooks/useConditionLinesSync.ts        ← F4 (delete)
-  hooks/useConditionPreviewDrag.ts      ← F5
-  hooks/useArmedConditionDrag.ts        ← F5
-  hooks/useQuickOrder.ts                ← F6, H2
-  PriceLevelLine.ts                     ← F7 (delete)
-  primitives/OrderLinePrimitive.ts      ← F7 (delete)
-  CrosshairLabelPrimitive.ts            ← G1 (rewrite)
-  screenshot/chartRegistry.ts           ← G3
-  screenshot/paintOverlays.ts           ← G4
   primitives/QuickOrderPrimitive.ts     ← H1 (new)
-  CandlestickChart.tsx                  ← G2, H3
+  hooks/useQuickOrder.ts                ← H2
+  CandlestickChart.tsx                  ← H3
 ```
