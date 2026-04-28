@@ -45,10 +45,6 @@ export function usePositionDrag(
     function abortDrag() {
       cachedRect = null;
       refs.posDrag.current = null;
-      if (refs.activeDragRow.current) {
-        refs.activeDragRow.current.style.cursor = 'pointer';
-        refs.activeDragRow.current = null;
-      }
       if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
       if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
       if (refs.posDragLine.current) {

@@ -3,6 +3,7 @@
 ## Status
 Phase A complete and committed (`8002073`).
 Phase B + C complete and committed (`2444caf`).
+Phase B/C bug-fixes complete and committed (`4a5137e`).
 
 ## What was done
 `PriceLevelPrimitive` (`frontend/src/components/chart/primitives/PriceLevelPrimitive.ts`) is built, tested, and committed. It is a generic `ISeriesPrimitive` that renders a horizontal price line + draggable label cells directly on LWC's canvas. No DOM involved.
@@ -29,7 +30,7 @@ The attempted migration produced several cascading bugs. The root causes and req
 
 **Problem:** `useOverlayLabels` fires `updatePositions()` on every mouse move (via `scheduleSync`). Each pnlUpdater calls `primitive.setCell()`, which calls `requestUpdate()`. This triggers LWC to repaint ALL attached primitives. If the entry's `onDrag` is simultaneously calling `setPrice()` on bracket primitives, the two update paths interleave on the same canvas frame — causing TP/SL to blink during drag.
 
-**Required fix:** Introduce a `refs.isDragging` boolean ref. Set it `true` in `onDragStart`, `false` in `onDragEnd`. Inside each pnlUpdater closure, guard with `if (refs.isDragging.current) return`. This skips P&L repaints while drag is active; the bracket lines repaint only from `setPrice()`.
+**Actual fix (post-Phase B/C):** In `useOrderLines.ts`, the `onDrag` callback calls `refs.updateOverlay.current()` **synchronously** (not `scheduleOverlaySync` which defers via RAF). This puts `setPrice()` and all pnlUpdater `setCell()` calls into the same JS execution → LWC batches into one repaint frame. The `isDragging` guard is therefore NOT needed in order/bracket pnlUpdaters and was removed from `buildOrderLabels.ts`. The position P&L updater in `buildPositionLabel.ts` retains its `isDragging` guard because position P&L is market-price-based (not order-price-based) and should not tick during order drag.
 
 ---
 
@@ -79,16 +80,38 @@ Additionally, `computeOrderDesired` skips Stop/TrailingStop and Limit-'mid' orde
 
 ---
 
+### Important: TP size cell inline zones
+
+**Problem:** Left/right zone buttons for TP size redistribution (`−`/`+`) rendered as visually separate cells due to separator fill-rects and a fixed `SIDE_ZONE_W = 20` constant, making the cell appear wider than needed.
+
+**Fix:** In `PriceLevelPrimitive.ts`: removed separator fill-rects between zones, replaced fixed `SIDE_ZONE_W` with text-measured widths, used symmetric `max(leftRaw, rightRaw)` so the main digit stays centered regardless of which zones are active. Zones with `transparent` color take up reserved space without drawing — so the digit never shifts when `−` appears/disappears. Per-zone hover highlights the hovered zone with a brightened background and 14px font.
+
+In `buildOrderLabels.ts`: always passes `leftText: '−'` and `rightText: '+'` (disabled zones use `transparent` color rather than `undefined` text) to keep the reserved width stable.
+
+---
+
 ## What's next
 
-### Phase D — Preview lines
-**Files:** `hooks/usePreviewLines.ts`, `hooks/usePreviewDrag.ts`
+### Phase D — Preview lines ✓ complete (committed)
+**Files touched:** `hooks/usePreviewLines.ts`, `hooks/buildPreviewLabels.ts`, `hooks/useOrderLines.ts`, `hooks/useOverlayLabels.ts`, `hooks/types.ts`, `CandlestickChart.tsx`, `hooks/drawingInputHandlers.ts`
 
-- Same swap as Phase B but for `refs.previewLines`
-- `onDrag` updates `store.setLimitPrice` / `setDraftSlPoints` / `setDraftTpPoints`
-- `onDragEnd` calls `bracketEngine.updateArmedConfig` (currently `usePreviewDrag.ts` lines 90–101)
-- **Delete `usePreviewDrag.ts`** once logic is in callbacks
-- Remove `refs.previewDragState`, `refs.entryClick`, `refs.activeDragRow` from `types.ts`
+- `refs.previewLines` is now `PriceLevelPrimitive[]` — each line is a canvas primitive with built-in drag
+- `onDrag` moves sibling lines synchronously and calls `refs.updateOverlay.current()` for P&L batching
+- Entry click-vs-drag handled by primitive's 4px threshold: `onClick` on pnl cell fires execute, drag moves the line
+- `onDragEnd` on SL/TP calls `bracketEngine.updateArmedConfig` / `setPendingBracketInfo` when `previewHideEntry`
+- **Deleted `usePreviewDrag.ts`** — all drag logic is in `onDrag`/`onDragEnd` callbacks
+- Removed `refs.previewDragState`, `refs.entryClick`, `refs.activeDragRow` from `types.ts` and `CandlestickChart.tsx`
+- `buildPreviewLabels.ts` rewritten to use `setCell`/`setCellOrder` canvas API; no DOM hit targets
+
+### Phase D post-commit fixes
+
+**SL/TP drag killing mid-drag (ad-hoc mode):** In ad-hoc bracket mode, dragging SL/TP called `setAdHocSlPoints`/`updateAdHocTpPoints`, which changed `adHocSlPoints`/`adHocTpLevels` — both in Effect 1's deps. Effect 1 tore down and recreated all primitives mid-drag, detaching the dragged primitive and killing `_onWindowMove`. Fix: Effect 1 now depends on `adHocSlExists` (`adHocSlPoints != null`) and `adHocTpCount` (`adHocTpLevels.length`) instead of the raw values — structural shape only. Effect 2 keeps the raw values for price updates.
+
+**TP size cell too wide when all buttons disabled:** `buildOrderLabels` always passed `leftText: '−'` and `rightText: '+'` on TP size cells (even when both were transparent/disabled), reserving ~44px for a single digit. Fix: only include zone text when `showZones = !minusDisabled || !plusDisabled` — both-or-none keeps the digit centered; when both are disabled the cell is compact.
+
+**`usePositionDrag.ts` crash on unmount:** `abortDrag` referenced `refs.activeDragRow` which was removed in Phase D. Fixed by removing that cleanup block.
+
+---
 
 ### Phase E — Ghost drag line + cleanup
 **Files:** `hooks/usePositionDrag.ts`, `hooks/useOverlayLabels.ts`, `screenshot/paintOverlays.ts`
@@ -112,9 +135,9 @@ frontend/src/components/chart/
   hooks/useOrderDrag.ts               ← deleted (Phase B)
   hooks/buildOrderLabels.ts           ← done (Phase C)
   hooks/buildPositionLabel.ts         ← done (Phase C)
-  hooks/buildPreviewLabels.ts         ← Phase D
-  hooks/usePreviewLines.ts            ← Phase D
-  hooks/usePreviewDrag.ts             ← delete in Phase D
+  hooks/buildPreviewLabels.ts         ← done (Phase D)
+  hooks/usePreviewLines.ts            ← done (Phase D)
+  hooks/usePreviewDrag.ts             ← deleted (Phase D)
   hooks/usePositionDrag.ts            ← Phase E (ghost line swap)
   hooks/useOverlayLabels.ts           ← Phase E (remove sync loop)
   screenshot/paintOverlays.ts         ← Phase E (remove paintToCanvas loop)

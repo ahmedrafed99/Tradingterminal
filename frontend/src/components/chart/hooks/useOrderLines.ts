@@ -14,7 +14,6 @@ import { bracketEngine } from '../../../services/bracketEngine';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { debugLog } from '../../../utils/debugLog';
 import { usePreviewLines } from './usePreviewLines';
-import { usePreviewDrag } from './usePreviewDrag';
 import { usePositionDrag } from './usePositionDrag';
 import type { ChartRefs, OrderLineEntry, OrderLineMeta } from './types';
 
@@ -169,7 +168,7 @@ function buildDragCallbacks(
             ? snapped - toP(cfg.stopLoss.points)
             : snapped + toP(cfg.stopLoss.points);
           const slLine = refs.previewLines.current[idx];
-          if (slLine) { slLine.setPrice(slPrice); slLine.syncPosition(); }
+          if (slLine) slLine.setPrice(slPrice);
           refs.previewPrices.current[idx] = slPrice;
           idx++;
         }
@@ -178,7 +177,7 @@ function buildDragCallbacks(
             ? snapped + toP(tp.points)
             : snapped - toP(tp.points);
           const tpLine = refs.previewLines.current[idx];
-          if (tpLine) { tpLine.setPrice(tpPrice); tpLine.syncPosition(); }
+          if (tpLine) tpLine.setPrice(tpPrice);
           refs.previewPrices.current[idx] = tpPrice;
           idx++;
         });
@@ -616,7 +615,6 @@ function reconcileOrderEntries(
 
 export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrderChart: boolean): void {
   usePreviewLines(refs, contract, isOrderChart);
-  usePreviewDrag(refs, contract, isOrderChart);
   usePositionDrag(refs, contract, isOrderChart);
 
   const positions = useStore((s) => s.positions);

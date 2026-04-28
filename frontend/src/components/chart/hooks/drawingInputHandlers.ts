@@ -351,7 +351,7 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
   if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.rectCreation || state.freeDrawCreation || state.chartPanning
-      || refs.draggingKey.current || refs.previewDragState.current || refs.posDrag.current) {
+      || refs.draggingKey.current || refs.posDrag.current) {
     setCursor(container, 'grabbing');
     return;
   }

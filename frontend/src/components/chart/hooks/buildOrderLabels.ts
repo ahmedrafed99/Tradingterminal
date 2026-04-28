@@ -193,6 +193,9 @@ export function buildOrderLabels(
       const unallocated = pos.size - totalTpSize;
       const minusDisabled = oSize <= 1;
       const plusDisabled = unallocated <= 0;
+      // Only reserve zone space when at least one button is active — both-or-none
+      // keeps the digit centred; when both are invisible the cell stays compact
+      const showZones = !minusDisabled || !plusDisabled;
 
       async function handleRedistribute(delta: 1 | -1): Promise<void> {
         if (refs.tpRedistInFlight.current) return;
@@ -212,10 +215,10 @@ export function buildOrderLabels(
         text: String(oSize),
         bg: cls.sizeBg,
         color: LABEL_TEXT,
-        leftText: '−',
+        leftText: showZones ? '−' : undefined,
         leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
         leftClick: minusDisabled ? undefined : () => handleRedistribute(-1),
-        rightText: '+',
+        rightText: showZones ? '+' : undefined,
         rightColor: plusDisabled ? 'transparent' : LABEL_TEXT,
         rightClick: plusDisabled ? undefined : () => handleRedistribute(1),
       });

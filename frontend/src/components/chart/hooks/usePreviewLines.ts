@@ -2,8 +2,9 @@ import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
 import { OrderSide } from '../../../types/enums';
-import { pointsToPrice } from '../../../utils/instrument';
-import { PriceLevelLine } from '../PriceLevelLine';
+import { pointsToPrice, priceToPoints, getTicksPerPoint } from '../../../utils/instrument';
+import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
+import { bracketEngine } from '../../../services/bracketEngine';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs } from './types';
 import { COLOR_TEXT_MUTED } from '../../../constants/colors';
@@ -11,7 +12,7 @@ import { BUY_COLOR, SELL_COLOR } from './labelUtils';
 
 /**
  * Manage preview overlay lines (entry + SL + TP ghost lines).
- * Effect 1: Create/destroy PriceLevelLine instances when structural config changes.
+ * Effect 1: Create/destroy PriceLevelPrimitive instances when structural config changes.
  * Effect 2: Update prices in-place via direct Zustand subscription (no React re-render).
  */
 export function usePreviewLines(
@@ -31,16 +32,19 @@ export function usePreviewLines(
   const orderSize = useStore((s) => s.orderSize);
   const adHocSlPoints = useStore((s) => s.adHocSlPoints);
   const adHocTpLevels = useStore((s) => s.adHocTpLevels);
+  // Structural shape for Effect 1 — only re-create lines when SL is added/removed
+  // or TP count changes, NOT when values change during drag (which would kill mid-drag)
+  const adHocSlExists = useStore((s) => s.adHocSlPoints != null);
+  const adHocTpCount = useStore((s) => s.adHocTpLevels.length);
 
   // Create / destroy lines when the structural config changes
   useEffect(() => {
     if (!isOrderChart) return;
     const series = refs.series.current;
-    const overlay = refs.overlay.current;
-    const chart = refs.chart.current;
-    if (!series || !overlay || !chart) return;
+    const container = refs.container.current;
+    if (!series || !container) return;
 
-    refs.previewLines.current.forEach((l) => l.destroy());
+    refs.previewLines.current.forEach((l) => series.detachPrimitive(l));
     refs.previewLines.current = [];
     refs.previewRoles.current = [];
     refs.previewPrices.current = [];
@@ -48,63 +52,187 @@ export function usePreviewLines(
     if ((!previewEnabled && !previewHideEntry) || !contract) return;
 
     const config = resolvePreviewConfig();
-    const tickSize = contract.tickSize;
+    const ts = contract.tickSize;
     const toPrice = (points: number) => pointsToPrice(points, contract);
 
     const snap = useStore.getState();
     const entry = snap.orderType === 'limit' ? snap.limitPrice : snap.lastPrice;
     const ep = entry ?? 0;
-
-    // Entry line (always created — hidden when limit order already placed)
     const hideEntry = snap.previewHideEntry;
-    refs.previewLines.current.push(new PriceLevelLine({
+
+    // ── Entry line ────────────────────────────────────────────────────────────
+    const entryPrimitive = new PriceLevelPrimitive({
       price: ep,
-      series, overlay, chartApi: chart,
+      cellOrder: [],
+      cells: {},
+      labelPosition: 'right',
       lineColor: hideEntry ? 'transparent' : COLOR_TEXT_MUTED,
-      lineStyle: 'dashed', lineWidth: 1,
-      axisLabelVisible: !hideEntry,
-      tickSize,
-    }));
+      lineStyle: 'dashed',
+      lineWidth: 1,
+      priceLabel: { visible: !hideEntry, tickSize: ts },
+      allowPriceMove: true,
+      onDrag: (rawPrice: number) => {
+        const snapped = Math.round(rawPrice / ts) * ts;
+        entryPrimitive.setPrice(snapped);
+        refs.previewPrices.current[0] = snapped;
+        const st = useStore.getState();
+        st.setOrderType('limit');
+        st.setLimitPrice(snapped);
+        // Move sibling SL/TP lines synchronously so P&L updates batch in one frame
+        const cfg = resolvePreviewConfig();
+        const side = st.previewSide;
+        let idx = 1;
+        if (cfg) {
+          if (cfg.stopLoss.points > 0) {
+            const slPrice = side === OrderSide.Buy
+              ? snapped - toPrice(cfg.stopLoss.points)
+              : snapped + toPrice(cfg.stopLoss.points);
+            const slLine = refs.previewLines.current[idx];
+            if (slLine) slLine.setPrice(slPrice);
+            refs.previewPrices.current[idx] = slPrice;
+            idx++;
+          }
+          cfg.takeProfits.forEach((tp) => {
+            const tpPrice = side === OrderSide.Buy
+              ? snapped + toPrice(tp.points)
+              : snapped - toPrice(tp.points);
+            const tpLine = refs.previewLines.current[idx];
+            if (tpLine) tpLine.setPrice(tpPrice);
+            refs.previewPrices.current[idx] = tpPrice;
+            idx++;
+          });
+        }
+        refs.updateOverlay.current();
+      },
+    });
+    series.attachPrimitive(entryPrimitive);
+    entryPrimitive.setChartElement(container);
+    refs.previewLines.current.push(entryPrimitive);
     refs.previewRoles.current.push({ kind: 'entry' });
     refs.previewPrices.current.push(ep);
 
     if (config) {
-      // SL line
+      // ── SL line ─────────────────────────────────────────────────────────────
       if (config.stopLoss.points > 0) {
         const slPts = config.stopLoss.points;
-        const slPrice = ep ? (snap.previewSide === OrderSide.Buy ? ep - toPrice(slPts) : ep + toPrice(slPts)) : 0;
-        refs.previewLines.current.push(new PriceLevelLine({
+        const slPrice = ep
+          ? (snap.previewSide === OrderSide.Buy ? ep - toPrice(slPts) : ep + toPrice(slPts))
+          : 0;
+        const slIdx = refs.previewLines.current.length;
+        const slPrimitive = new PriceLevelPrimitive({
           price: slPrice,
-          series, overlay, chartApi: chart,
-          lineColor: SELL_COLOR, lineStyle: 'dashed', lineWidth: 1,
-          axisLabelVisible: true, tickSize,
-        }));
+          cellOrder: [],
+          cells: {},
+          labelPosition: 'mid',
+          lineColor: SELL_COLOR,
+          lineStyle: 'dashed',
+          lineWidth: 1,
+          priceLabel: { visible: true, tickSize: ts },
+          allowPriceMove: true,
+          onDrag: (rawPrice: number) => {
+            const snapped = Math.round(rawPrice / ts) * ts;
+            slPrimitive.setPrice(snapped);
+            refs.previewPrices.current[slIdx] = snapped;
+            const st = useStore.getState();
+            const entryPrice = st.orderType === 'limit' ? st.limitPrice : st.lastPrice;
+            if (entryPrice) {
+              const pts = priceToPoints(Math.abs(entryPrice - snapped), contract);
+              const tpp = getTicksPerPoint(contract);
+              const rounded = Math.max(1 / tpp, Math.round(pts * tpp) / tpp);
+              const hasPreset = st.bracketPresets.some((p) => p.id === st.activePresetId);
+              if (hasPreset) st.setDraftSlPoints(rounded);
+              else st.setAdHocSlPoints(rounded);
+            }
+            refs.updateOverlay.current();
+          },
+          onDragEnd: (newPrice: number) => {
+            const snapped = Math.round(newPrice / ts) * ts;
+            const st = useStore.getState();
+            if (!st.previewHideEntry) return;
+            bracketEngine.updateArmedConfig((cfg) => ({
+              ...cfg,
+              stopLoss: st.draftSlPoints != null
+                ? { ...cfg.stopLoss, points: st.draftSlPoints }
+                : cfg.stopLoss,
+            }));
+            const bi = st.pendingBracketInfo;
+            if (bi) st.setPendingBracketInfo({ ...bi, slPrice: snapped });
+          },
+        });
+        series.attachPrimitive(slPrimitive);
+        slPrimitive.setChartElement(container);
+        refs.previewLines.current.push(slPrimitive);
         refs.previewRoles.current.push({ kind: 'sl' });
         refs.previewPrices.current.push(slPrice);
       }
 
-      // TP lines
+      // ── TP lines ─────────────────────────────────────────────────────────────
       config.takeProfits.forEach((tp, i) => {
         const tpPts = tp.points;
-        const tpPrice = ep ? (snap.previewSide === OrderSide.Buy ? ep + toPrice(tpPts) : ep - toPrice(tpPts)) : 0;
-        refs.previewLines.current.push(new PriceLevelLine({
+        const tpPrice = ep
+          ? (snap.previewSide === OrderSide.Buy ? ep + toPrice(tpPts) : ep - toPrice(tpPts))
+          : 0;
+        const tpIdx = refs.previewLines.current.length;
+        const tpPrimitive = new PriceLevelPrimitive({
           price: tpPrice,
-          series, overlay, chartApi: chart,
-          lineColor: BUY_COLOR, lineStyle: 'dashed', lineWidth: 1,
-          axisLabelVisible: true, tickSize,
-        }));
+          cellOrder: [],
+          cells: {},
+          labelPosition: 'mid',
+          lineColor: BUY_COLOR,
+          lineStyle: 'dashed',
+          lineWidth: 1,
+          priceLabel: { visible: true, tickSize: ts },
+          allowPriceMove: true,
+          onDrag: (rawPrice: number) => {
+            const snapped = Math.round(rawPrice / ts) * ts;
+            tpPrimitive.setPrice(snapped);
+            refs.previewPrices.current[tpIdx] = snapped;
+            const st = useStore.getState();
+            const entryPrice = st.orderType === 'limit' ? st.limitPrice : st.lastPrice;
+            if (entryPrice) {
+              const pts = priceToPoints(Math.abs(entryPrice - snapped), contract);
+              const tpp = getTicksPerPoint(contract);
+              const rounded = Math.max(1 / tpp, Math.round(pts * tpp) / tpp);
+              const hasPreset = st.bracketPresets.some((p) => p.id === st.activePresetId);
+              if (hasPreset) st.setDraftTpPoints(i, rounded);
+              else st.updateAdHocTpPoints(i, rounded);
+            }
+            refs.updateOverlay.current();
+          },
+          onDragEnd: (newPrice: number) => {
+            const snapped = Math.round(newPrice / ts) * ts;
+            const st = useStore.getState();
+            if (!st.previewHideEntry) return;
+            bracketEngine.updateArmedConfig((cfg) => ({
+              ...cfg,
+              takeProfits: cfg.takeProfits.map((tpCfg, cfgIdx) => {
+                const draft = st.draftTpPoints[cfgIdx];
+                return draft != null ? { ...tpCfg, points: draft } : tpCfg;
+              }),
+            }));
+            const bi = st.pendingBracketInfo;
+            if (bi) {
+              const newTpPrices = [...bi.tpPrices];
+              newTpPrices[i] = snapped;
+              st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
+            }
+          },
+        });
+        series.attachPrimitive(tpPrimitive);
+        tpPrimitive.setChartElement(container);
+        refs.previewLines.current.push(tpPrimitive);
         refs.previewRoles.current.push({ kind: 'tp', index: i });
         refs.previewPrices.current.push(tpPrice);
       });
     }
 
     return () => {
-      refs.previewLines.current.forEach((l) => l.destroy());
+      refs.previewLines.current.forEach((l) => series.detachPrimitive(l));
       refs.previewLines.current = [];
       refs.previewRoles.current = [];
       refs.previewPrices.current = [];
     };
-  }, [isOrderChart, previewEnabled, previewSide, previewHideEntry, bracketPresets, activePresetId, contract, adHocSlPoints, adHocTpLevels, orderSize]);
+  }, [isOrderChart, previewEnabled, previewSide, previewHideEntry, bracketPresets, activePresetId, contract, adHocSlExists, adHocTpCount, orderSize]);
 
   // Update line prices in-place (no teardown → no flicker)
   // Uses direct Zustand subscription for lastPrice to avoid re-rendering on every tick
@@ -116,8 +244,7 @@ export function usePreviewLines(
     const toPrice = (points: number) => pointsToPrice(points, contract);
 
     function doUpdate() {
-      // Skip while dragging a live order line — the drag handler manages
-      // preview positions itself, and store.limitPrice is stale until mouseUp.
+      // Skip while an order line is being dragged
       if (refs.isDragging.current) return;
 
       const snap = useStore.getState();
@@ -138,7 +265,9 @@ export function usePreviewLines(
         // SL
         if (cfg.stopLoss.points > 0) {
           const slPts = cfg.stopLoss.points;
-          const slPrice = snap.previewSide === OrderSide.Buy ? entryPrice - toPrice(slPts) : entryPrice + toPrice(slPts);
+          const slPrice = snap.previewSide === OrderSide.Buy
+            ? entryPrice - toPrice(slPts)
+            : entryPrice + toPrice(slPts);
           const slLine = refs.previewLines.current[idx];
           if (slLine) slLine.setPrice(slPrice);
           prices.push(slPrice);
@@ -148,7 +277,9 @@ export function usePreviewLines(
         // TPs
         cfg.takeProfits.forEach((tp) => {
           const tpPts = tp.points;
-          const tpPrice = snap.previewSide === OrderSide.Buy ? entryPrice + toPrice(tpPts) : entryPrice - toPrice(tpPts);
+          const tpPrice = snap.previewSide === OrderSide.Buy
+            ? entryPrice + toPrice(tpPts)
+            : entryPrice - toPrice(tpPts);
           const tpLine = refs.previewLines.current[idx];
           if (tpLine) tpLine.setPrice(tpPrice);
           prices.push(tpPrice);
@@ -162,7 +293,6 @@ export function usePreviewLines(
 
     doUpdate();
 
-    // Subscribe to lastPrice changes directly (bypasses React render cycle)
     let prevLp = useStore.getState().lastPrice;
     const unsub = useStore.subscribe((state) => {
       if (state.lastPrice !== prevLp) {

@@ -14,7 +14,7 @@ import { getSchedule } from '../../../utils/marketHours';
 
 /**
  * Build labels for preview lines (entry, SL, TP).
- * Registers cancel-X, execute, +SL/+TP buttons, and row-drag hit targets.
+ * Sets cell content and onClick handlers on PriceLevelPrimitive instances.
  * Returns P&L updater closures.
  */
 export function buildPreviewLabels(
@@ -37,23 +37,17 @@ export function buildPreviewLabels(
     const price = refs.previewPrices.current[i];
     if (price == null) continue;
 
-    const pvLine = refs.previewLines.current[i];
-    if (!pvLine) continue;
+    const primitive = refs.previewLines.current[i];
+    if (!primitive) continue;
 
-    let onCancel: (() => void) | undefined;
-    let onExecute: (() => void) | undefined;
-    let pnlText: string;
-    let pnlBg: string;
-    let pvPnlCompute: (() => { text: string; bg: string; color?: string }) | null = null;
-    let displaySize: number;
-
+    // ── Entry ─────────────────────────────────────────────────────────────────
     if (role.kind === 'entry') {
-      if (snap.previewHideEntry) continue;
-      pnlText = pvSide === OrderSide.Buy ? 'Limit Buy' : 'Limit Sell';
-      pnlBg = LABEL_BG;
-      displaySize = previewTotalSize;
-      onCancel = () => useStore.getState().togglePreview();
-      onExecute = async () => {
+      if (snap.previewHideEntry) {
+        primitive.setCellOrder([]);
+        continue;
+      }
+
+      const onExecute = async () => {
         if (!getSchedule(contract?.marketType).isOpen()) {
           showToast('warning', 'Market closed', 'Market is closed. Orders cannot be placed.');
           return;
@@ -115,41 +109,117 @@ export function buildPreviewLabels(
           if (engineArmed) bracketEngine.clearSession();
         }
       };
-    } else if (role.kind === 'sl') {
-      displaySize = previewTotalSize;
+
+      const entrySideBg = pvSide === OrderSide.Buy ? BUY_COLOR : SELL_COLOR;
+
+      primitive.setCell('pnl', {
+        text: pvSide === OrderSide.Buy ? 'Limit Buy' : 'Limit Sell',
+        bg: LABEL_BG,
+        color: LABEL_TEXT,
+        onClick: onExecute,
+      });
+      primitive.setCell('size', {
+        text: String(previewTotalSize),
+        bg: entrySideBg,
+        color: LABEL_TEXT,
+      });
+
+      const cellOrder: string[] = ['pnl', 'size'];
+
+      if (!hasPreset) {
+        const curAdHocSl = snap.adHocSlPoints;
+        const allocatedTpSize = snap.adHocTpLevels.reduce((sum, tp) => sum + tp.size, 0);
+        const remainingContracts = previewTotalSize - allocatedTpSize;
+
+        if (curAdHocSl == null) {
+          primitive.setCell('addsl', {
+            text: '+SL',
+            bg: `${COLOR_LINE_SELL}80`,
+            color: LABEL_TEXT,
+            onClick: () => useStore.getState().setAdHocSlPoints(10),
+          });
+          cellOrder.push('addsl');
+        }
+        if (remainingContracts > 0) {
+          primitive.setCell('addtp', {
+            text: '+TP',
+            bg: `${COLOR_LINE_BUY}80`,
+            color: LABEL_TEXT,
+            onClick: () => {
+              const st = useStore.getState();
+              const n = st.adHocTpLevels.length;
+              st.addAdHocTp(20 * (n + 1), 1);
+            },
+          });
+          cellOrder.push('addtp');
+        }
+      }
+
+      primitive.setCell('close', {
+        text: '✕',
+        bg: CLOSE_BG,
+        color: LABEL_TEXT,
+        onClick: () => useStore.getState().togglePreview(),
+      });
+      cellOrder.push('close');
+      primitive.setCellOrder(cellOrder);
+      continue;
+    }
+
+    // ── SL ────────────────────────────────────────────────────────────────────
+    if (role.kind === 'sl') {
+      const displaySize = previewTotalSize;
       const entryPrice = refs.previewPrices.current[0] ?? 0;
       const slDiff = pvSide === OrderSide.Buy ? entryPrice - price : price - entryPrice;
       const slPnl = calcPnl(slDiff, contract, displaySize);
-      pnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
-      pnlBg = SELL_COLOR;
-      onCancel = hasPreset
+      const pnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
+
+      const onCancel = hasPreset
         ? () => useStore.getState().setDraftSlPoints(0)
         : () => useStore.getState().setAdHocSlPoints(null);
 
+      primitive.setCell('pnl', { text: pnlText, bg: SELL_COLOR, color: LABEL_TEXT });
+      primitive.setCell('size', { text: String(displaySize), bg: SELL_COLOR, color: LABEL_TEXT });
+      primitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: onCancel });
+      primitive.setCellOrder(['pnl', 'size', 'close']);
+
       const previewIdx = i;
-      pvPnlCompute = () => {
+      pnlUpdaters.push(() => {
         const ep = refs.previewPrices.current[0] ?? 0;
         const sp = refs.previewPrices.current[previewIdx] ?? price;
         const s1 = useStore.getState();
         const sz = s1.orderSize;
         const diff = s1.previewSide === OrderSide.Buy ? ep - sp : sp - ep;
         const pnl = calcPnl(diff, contract, sz);
-        return { text: `-$${Math.abs(pnl).toFixed(2)}`, bg: SELL_COLOR };
-      };
-    } else {
-      displaySize = previewTpSizes[role.index] ?? previewTotalSize;
+        primitive.setCell('pnl', {
+          text: `-$${Math.abs(pnl).toFixed(2)}`,
+          bg: SELL_COLOR,
+          color: LABEL_TEXT,
+        });
+      });
+      continue;
+    }
+
+    // ── TP ────────────────────────────────────────────────────────────────────
+    if (role.kind === 'tp') {
+      const displaySize = previewTpSizes[role.index] ?? previewTotalSize;
       const entryPrice = refs.previewPrices.current[0] ?? 0;
       const tpDiff = pvSide === OrderSide.Buy ? price - entryPrice : entryPrice - price;
       const tpPnl = calcPnl(tpDiff, contract, displaySize);
-      pnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
-      pnlBg = BUY_COLOR;
-      onCancel = hasPreset
+      const pnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
+
+      const onCancel = hasPreset
         ? () => useStore.getState().setDraftTpPoints(role.index, 0)
         : () => useStore.getState().removeAdHocTp(role.index);
 
+      primitive.setCell('pnl', { text: pnlText, bg: BUY_COLOR, color: LABEL_TEXT });
+      primitive.setCell('size', { text: String(displaySize), bg: BUY_COLOR, color: LABEL_TEXT });
+      primitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: onCancel });
+      primitive.setCellOrder(['pnl', 'size', 'close']);
+
       const tpIdx = role.index;
       const previewIdx = i;
-      pvPnlCompute = () => {
+      pnlUpdaters.push(() => {
         const ep = refs.previewPrices.current[0] ?? 0;
         const tp = refs.previewPrices.current[previewIdx] ?? price;
         const s2 = useStore.getState();
@@ -160,111 +230,11 @@ export function buildPreviewLabels(
         const sz = fittedTps[tpIdx]?.size ?? s2.orderSize;
         const diff = s2.previewSide === OrderSide.Buy ? tp - ep : ep - tp;
         const pnl = calcPnl(diff, contract, sz);
-        return { text: `+$${Math.abs(pnl).toFixed(2)}`, bg: BUY_COLOR, color: LABEL_TEXT };
-      };
-    }
-
-    const previewIdx = i;
-    const isEntry = role.kind === 'entry';
-    const entrySideBg = pvSide === OrderSide.Buy ? BUY_COLOR : SELL_COLOR;
-    const sizeBg = isEntry ? entrySideBg : role.kind === 'sl' ? SELL_COLOR : BUY_COLOR;
-
-    const sections: { text: string; bg: string; color: string }[] = [
-      { text: pnlText, bg: pnlBg, color: LABEL_TEXT },
-      { text: String(displaySize), bg: sizeBg, color: LABEL_TEXT },
-    ];
-
-    const buttonCells: { index: number; handler: () => void }[] = [];
-
-    // +SL / +TP buttons on entry label when no preset is active
-    if (isEntry && !hasPreset) {
-      const curAdHocSl = snap.adHocSlPoints;
-      const allocatedTpSize = snap.adHocTpLevels.reduce((sum, tp) => sum + tp.size, 0);
-      const remainingContracts = previewTotalSize - allocatedTpSize;
-
-      if (curAdHocSl == null) {
-        const slBtnIdx = sections.length;
-        sections.push({ text: '+SL', bg: `${COLOR_LINE_SELL}80`, color: LABEL_TEXT });
-        buttonCells.push({ index: slBtnIdx, handler: () => useStore.getState().setAdHocSlPoints(10) });
-      }
-      if (remainingContracts > 0) {
-        const tpBtnIdx = sections.length;
-        sections.push({ text: '+TP', bg: `${COLOR_LINE_BUY}80`, color: LABEL_TEXT });
-        buttonCells.push({
-          index: tpBtnIdx,
-          handler: () => {
-            const st = useStore.getState();
-            const n = st.adHocTpLevels.length;
-            st.addAdHocTp(20 * (n + 1), 1);
-          },
+        primitive.setCell('pnl', {
+          text: `+$${Math.abs(pnl).toFixed(2)}`,
+          bg: BUY_COLOR,
+          color: LABEL_TEXT,
         });
-      }
-    }
-
-    // Close-X button
-    const cancelBtnIdx = sections.length;
-    sections.push({ text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT });
-    if (onCancel) {
-      buttonCells.push({ index: cancelBtnIdx, handler: onCancel });
-    }
-
-    if (isEntry) pvLine.setLabelLeft(0.65);
-    pvLine.setLabel(sections);
-    const cells = pvLine.getCells();
-    const labelEl = pvLine.getLabelEl();
-
-    // Register button hit targets (priority 0)
-    for (const btn of buttonCells) {
-      const handler = btn.handler;
-      refs.hitTargets.current.push({
-        el: cells[btn.index],
-        priority: 0,
-        handler: () => handler(),
-      });
-    }
-
-    // Entry label firstCell click + execute (priority 1)
-    if (onExecute) {
-      const exec = onExecute;
-      refs.hitTargets.current.push({
-        el: cells[0],
-        priority: 1,
-        handler: (e: MouseEvent) => {
-          if (!labelEl) return;
-          refs.entryClick.current = { downX: e.clientX, downY: e.clientY, exec };
-          refs.previewDragState.current = { role, lineIdx: previewIdx };
-          refs.activeDragRow.current = labelEl;
-          labelEl.style.cursor = 'grabbing';
-          if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-          if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-        },
-      });
-    }
-
-    // Row drag (priority 2)
-    if (labelEl) {
-      const dragRole = role;
-      const dragLineIdx = previewIdx;
-      refs.hitTargets.current.push({
-        el: labelEl,
-        priority: 2,
-        handler: () => {
-          refs.entryClick.current = null;
-          refs.previewDragState.current = { role: dragRole, lineIdx: dragLineIdx };
-          refs.activeDragRow.current = labelEl;
-          labelEl.style.cursor = 'grabbing';
-          if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-          if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-        },
-      });
-    }
-
-    // P&L updater
-    if (pvPnlCompute) {
-      const compute = pvPnlCompute;
-      pnlUpdaters.push(() => {
-        const result = compute();
-        if (result) pvLine.updateSection(0, result.text, result.bg, result.color);
       });
     }
   }

@@ -17,6 +17,7 @@ import { MarketDepthPrimitive } from './MarketDepthPrimitive';
 import { BidAskPrimitive } from './BidAskPrimitive';
 import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
 import type { PriceLevelLine } from './PriceLevelLine';
+import type { PriceLevelPrimitive } from './primitives/PriceLevelPrimitive';
 import { getPriceScaleWidth } from './barUtils';
 import { useChartWidgets } from './hooks/useChartWidgets';
 import { useChartBars } from './hooks/useChartBars';
@@ -80,21 +81,18 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   // --- Refs declared here for all hooks (stable across renders) ---
 
   // Preview line refs
-  const previewLinesRef = useRef<PriceLevelLine[]>([]);
+  const previewLinesRef = useRef<PriceLevelPrimitive[]>([]);
   const previewRolesRef = useRef<PreviewLineRole[]>([]);
   const previewPricesRef = useRef<number[]>([]);
-  const previewDragStateRef = useRef<{ role: PreviewLineRole; lineIdx: number } | null>(null);
 
   // Order line refs
   const orderEntriesRef = useRef<OrderLineEntry[]>([]);
   const isDraggingRef = useRef(false);
   const draggingKeyRef = useRef<string | null>(null);
   const labelPosCacheRef = useRef<Map<string, 'right' | 'mid'>>(new Map());
-  const activeDragRowRef = useRef<HTMLDivElement | null>(null);
 
   // Hit-target registry (shared between drawings + overlay labels)
   const hitTargetsRef = useRef<HitTarget[]>([]);
-  const entryClickRef = useRef<{ downX: number; downY: number; exec: () => void } | null>(null);
 
   // Position drag-to-create SL/TP refs
   const posDragRef = useRef<PosDragState | null>(null);
@@ -143,14 +141,11 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     labelHovered: labelHoveredRef,
     lastPnlCache,
     hitTargets: hitTargetsRef,
-    entryClick: entryClickRef,
     updateOverlay: updateOverlayRef,
     scheduleOverlaySync: scheduleOverlaySyncRef,
-    activeDragRow: activeDragRowRef,
     previewLines: previewLinesRef,
     previewRoles: previewRolesRef,
     previewPrices: previewPricesRef,
-    previewDragState: previewDragStateRef,
     orderEntries: orderEntriesRef,
     isDragging: isDraggingRef,
     draggingKey: draggingKeyRef,

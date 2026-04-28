@@ -95,16 +95,13 @@ export interface ChartRefs {
 
   // Hit-target registry (shared between drawings + overlay labels)
   hitTargets: React.MutableRefObject<HitTarget[]>;
-  entryClick: React.MutableRefObject<{ downX: number; downY: number; exec: () => void } | null>;
   updateOverlay: React.MutableRefObject<() => void>;
   scheduleOverlaySync: React.MutableRefObject<() => void>;
-  activeDragRow: React.MutableRefObject<HTMLDivElement | null>;
 
   // Preview lines
-  previewLines: React.MutableRefObject<PriceLevelLine[]>;
+  previewLines: React.MutableRefObject<PriceLevelPrimitive[]>;
   previewRoles: React.MutableRefObject<PreviewLineRole[]>;
   previewPrices: React.MutableRefObject<number[]>;
-  previewDragState: React.MutableRefObject<{ role: PreviewLineRole; lineIdx: number } | null>;
 
   // Order lines
   orderEntries: React.MutableRefObject<OrderLineEntry[]>;
