@@ -69,7 +69,6 @@ interface CellRect {
 }
 
 const DRAG_THRESHOLD_PX = 4;
-const SIDE_ZONE_W = 20;
 const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
@@ -133,6 +132,8 @@ function brighten(color: string, factor = 1.25): string {
 }
 
 // ── Renderer ─────────────────────────────────────────────────────────
+const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
+
 class PriceLevelRenderer implements IPrimitivePaneRenderer {
   private _y: number | null;
   private _plotWidth: number;
@@ -142,6 +143,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
   private _cellRects: CellRect[];
   private _cells: PriceLevelCells;
   private _hoveredKey: CellKey | null;
+  private _hoveredZone: 'left' | 'right' | null;
 
   constructor(
     y: number | null,
@@ -152,6 +154,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
     cellRects: CellRect[],
     cells: PriceLevelCells,
     hoveredKey: CellKey | null,
+    hoveredZone: 'left' | 'right' | null,
   ) {
     this._y = y;
     this._plotWidth = plotWidth;
@@ -161,6 +164,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
     this._cellRects = cellRects;
     this._cells = cells;
     this._hoveredKey = hoveredKey;
+    this._hoveredZone = hoveredZone;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -199,12 +203,17 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
           ctx.fillRect(r.x, r.y, 1, r.h);
         }
 
-        // Left zone (e.g. − button)
+        // Left zone
         if (r.leftZoneW > 0) {
-          ctx.fillStyle = COLOR_LABEL_TEXT;
-          ctx.fillRect(r.x + r.leftZoneW, r.y, 1, r.h);
+          const zoneHot = isHover && this._hoveredZone === 'left';
+          if (zoneHot) {
+            ctx.fillStyle = brighten(bg, 1.3);
+            ctx.fillRect(r.x, r.y, r.leftZoneW, r.h);
+            ctx.font = FONT_ZONE_HOVER;
+          }
           ctx.fillStyle = c.leftColor ?? c.color;
           ctx.fillText(c.leftText!, r.x + r.leftZoneW / 2, r.y + r.h / 2 + 0.5);
+          if (zoneHot) ctx.font = FONT;
         }
 
         // Main text centered between zones
@@ -213,12 +222,17 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
         ctx.fillStyle = c.color;
         ctx.fillText(c.text, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
 
-        // Right zone (e.g. + button)
+        // Right zone
         if (r.rightZoneW > 0) {
-          ctx.fillStyle = COLOR_LABEL_TEXT;
-          ctx.fillRect(r.x + r.w - r.rightZoneW, r.y, 1, r.h);
+          const zoneHot = isHover && this._hoveredZone === 'right';
+          if (zoneHot) {
+            ctx.fillStyle = brighten(bg, 1.3);
+            ctx.fillRect(r.x + r.w - r.rightZoneW, r.y, r.rightZoneW, r.h);
+            ctx.font = FONT_ZONE_HOVER;
+          }
           ctx.fillStyle = c.rightColor ?? c.color;
           ctx.fillText(c.rightText!, r.x + r.w - r.rightZoneW / 2, r.y + r.h / 2 + 0.5);
+          if (zoneHot) ctx.font = FONT;
         }
       }
 
@@ -236,6 +250,7 @@ class PriceLevelPaneView implements IPrimitivePaneView {
   private _cellRects: CellRect[] = [];
   private _cells!: PriceLevelCells;
   private _hoveredKey: CellKey | null = null;
+  private _hoveredZone: 'left' | 'right' | null = null;
 
   update(
     y: number | null,
@@ -246,6 +261,7 @@ class PriceLevelPaneView implements IPrimitivePaneView {
     cellRects: CellRect[],
     cells: PriceLevelCells,
     hoveredKey: CellKey | null,
+    hoveredZone: 'left' | 'right' | null,
   ): void {
     this._y = y;
     this._plotWidth = plotWidth;
@@ -255,12 +271,13 @@ class PriceLevelPaneView implements IPrimitivePaneView {
     this._cellRects = cellRects;
     this._cells = cells;
     this._hoveredKey = hoveredKey;
+    this._hoveredZone = hoveredZone;
   }
 
   renderer(): IPrimitivePaneRenderer {
     return new PriceLevelRenderer(
       this._y, this._plotWidth, this._lineColor, this._lineWidth, this._lineStyle,
-      this._cellRects, this._cells, this._hoveredKey,
+      this._cellRects, this._cells, this._hoveredKey, this._hoveredZone,
     );
   }
 
@@ -310,6 +327,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   // Hover/drag state
   private _hoveredKey: CellKey | null = null;
+  private _hoveredZone: 'left' | 'right' | null = null;
   private _cursorActive = false;
   private _dragArmed = false;
   private _dragActive = false;
@@ -427,7 +445,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
     this._paneView.update(
       y, plotWidth, this._lineColor, this._lineWidth, this._lineStyle,
-      this._cellRects, this._cells, this._hoveredKey,
+      this._cellRects, this._cells, this._hoveredKey, this._hoveredZone,
     );
     return this._paneViewsArr;
   }
@@ -450,11 +468,20 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _computeCellRects(y: number, plotWidth: number): CellRect[] {
     const ctx = _measureCtx();
     ctx.font = FONT;
+    const ZONE_PAD = 4;
     const items = this._cellOrder.map((key) => {
       const cell = this._cells[key];
-      const mainW = Math.ceil(ctx.measureText(cell.text).width) + CELL_PAD_H * 2;
-      const leftZoneW = cell.leftText != null ? SIDE_ZONE_W : 0;
-      const rightZoneW = cell.rightText != null ? SIDE_ZONE_W : 0;
+      const hasLeft = cell.leftText != null;
+      const hasRight = cell.rightText != null;
+      // Measure each zone independently
+      const leftRaw = hasLeft ? Math.ceil(ctx.measureText(cell.leftText!).width) + ZONE_PAD * 2 : 0;
+      const rightRaw = hasRight ? Math.ceil(ctx.measureText(cell.rightText!).width) + ZONE_PAD * 2 : 0;
+      // When both zones exist, use the same width for each so the digit stays centred
+      const symW = (hasLeft && hasRight) ? Math.max(leftRaw, rightRaw) : 0;
+      const leftZoneW = hasLeft ? (symW || leftRaw) : 0;
+      const rightZoneW = hasRight ? (symW || rightRaw) : 0;
+      const mainPad = (hasLeft || hasRight) ? 4 : CELL_PAD_H;
+      const mainW = Math.ceil(ctx.measureText(cell.text).width) + mainPad * 2;
       return { key, w: mainW + leftZoneW + rightZoneW, leftZoneW, rightZoneW };
     });
     const totalW = items.reduce((a, b) => a + b.w, 0);
@@ -484,6 +511,14 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     return null;
   }
 
+  private _detectZone(key: CellKey, plotX: number): 'left' | 'right' | null {
+    const r = this._cellRects.find((rect) => rect.key === key);
+    if (!r) return null;
+    if (r.leftZoneW > 0 && plotX < r.x + r.leftZoneW) return 'left';
+    if (r.rightZoneW > 0 && plotX > r.x + r.w - r.rightZoneW) return 'right';
+    return null;
+  }
+
   // ── Hover ──
   private _onMouseMove = (e: MouseEvent): void => {
     if (!this._chartEl) return;
@@ -492,8 +527,11 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     const x = e.clientX - this._cachedRect.left;
     const y = e.clientY - this._cachedRect.top;
     const hit = this._hitTest(x, y);
-    if (hit !== this._hoveredKey) {
+    const zone = hit ? this._detectZone(hit, x) : null;
+    const changed = hit !== this._hoveredKey || zone !== this._hoveredZone;
+    if (changed) {
       this._hoveredKey = hit;
+      this._hoveredZone = zone;
       if (hit) {
         const cell = this._cells[hit];
         const isClickable = !!(cell.onClick || cell.leftClick || cell.rightClick || cell.leftText || cell.rightText);
@@ -511,8 +549,9 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _onMouseLeave = (): void => {
     if (this._dragArmed || this._dragActive) return;
     this._cachedRect = null;
-    if (this._hoveredKey !== null) {
+    if (this._hoveredKey !== null || this._hoveredZone !== null) {
       this._hoveredKey = null;
+      this._hoveredZone = null;
       if (this._cursorActive) { removeCursorOverride(); this._cursorActive = false; }
       this._requestUpdate?.();
     }

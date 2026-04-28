@@ -185,7 +185,7 @@ function buildDragCallbacks(
       }
     }
 
-    refs.scheduleOverlaySync.current();
+    refs.updateOverlay.current();
   }
 
   function onDragEnd(rawNewPrice: number): void {

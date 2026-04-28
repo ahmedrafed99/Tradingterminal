@@ -212,11 +212,11 @@ export function buildOrderLabels(
         text: String(oSize),
         bg: cls.sizeBg,
         color: LABEL_TEXT,
-        leftText: minusDisabled ? undefined : '−',
-        leftColor: LABEL_TEXT,
+        leftText: '−',
+        leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
         leftClick: minusDisabled ? undefined : () => handleRedistribute(-1),
-        rightText: plusDisabled ? undefined : '+',
-        rightColor: LABEL_TEXT,
+        rightText: '+',
+        rightColor: plusDisabled ? 'transparent' : LABEL_TEXT,
         rightClick: plusDisabled ? undefined : () => handleRedistribute(1),
       });
     } else {
@@ -240,7 +240,6 @@ export function buildOrderLabels(
       const compute = orderPnlCompute;
       const capturedPrimitive = primitive;
       pnlUpdaters.push(() => {
-        if (refs.isDragging.current) return;
         const result = compute();
         capturedPrimitive.setCell('pnl', { text: result.text, bg: result.bg, color: LABEL_TEXT });
       });
@@ -287,7 +286,6 @@ export function buildOrderLabels(
     const capturedSize = phantomSize;
     const capturedBi = bi;
     pnlUpdaters.push(() => {
-      if (refs.isDragging.current) return;
       const curPrice = capturedEntry.price;
       const entryOrdEntry = refs.orderEntries.current.find(
         (e) =>
