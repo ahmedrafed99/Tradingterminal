@@ -125,22 +125,40 @@ function buildDragCallbacks(
       );
     }
 
-    // Sibling-follow: always shift all Suspended bracket legs (no pendingBracketInfo gate)
+    // Sibling-follow: shift the Suspended bracket legs that belong to the entry being dragged.
+    // Current bracket's entry → move legs matching pendingBracketInfo prices.
+    // Other bracket's entry → move legs NOT matching pendingBracketInfo prices.
     if (
       meta.kind === 'order' &&
       meta.order.type === OrderType.Limit &&
       meta.order.status !== OrderStatus.Suspended
     ) {
       const delta = snapped - dragState.originalPrice;
+      const bi = st.pendingBracketInfo;
+      const ts2 = contract.tickSize;
+      const isDraggingCurrentEntry = meta.order.id === st.pendingEntryOrderId;
+
+      function isCurrentBracketLeg(orderPrice: number): boolean {
+        if (!bi) return false;
+        const r = Math.round(orderPrice / ts2);
+        return (bi.slPrice != null && Math.round(bi.slPrice / ts2) === r) ||
+          bi.tpPrices.some((tp) => Math.round(tp / ts2) === r);
+      }
+
       for (const bracketEntry of refs.orderEntries.current) {
         if (bracketEntry.key === key) continue;
         if (bracketEntry.meta.kind === 'order') {
           if (bracketEntry.meta.order.status !== OrderStatus.Suspended) continue;
           if (String(bracketEntry.meta.order.contractId) !== String(contract.id)) continue;
           const origPrice = bracketEntry.meta.order.stopPrice ?? bracketEntry.meta.order.limitPrice ?? 0;
+          const legIsCurrentBracket = isCurrentBracketLeg(origPrice);
+          // Move only legs belonging to the same bracket as the dragged entry
+          if (isDraggingCurrentEntry !== legIsCurrentBracket) continue;
           bracketEntry.line.setPrice(origPrice + delta);
           bracketEntry.price = origPrice + delta;
         } else if (bracketEntry.meta.kind === 'phantom-bracket') {
+          // Phantoms always belong to current bracket — only follow current entry
+          if (!isDraggingCurrentEntry) continue;
           const origPrice = bracketEntry.meta.bracketType === 'sl'
             ? (bracketEntry.meta.bracketInfo.slPrice ?? 0)
             : (bracketEntry.meta.bracketInfo.tpPrices[bracketEntry.meta.tpIndex ?? 0] ?? 0);
@@ -150,12 +168,14 @@ function buildDragCallbacks(
       }
     }
 
-    // Shift preview lines when entry is dragged with hidden-entry active
+    // Shift preview lines when the CURRENT bracket's entry is dragged with hidden-entry active.
+    // Guard against other pending entries (e.g. bracket 1 while bracket 2 is the active one).
     if (
       meta.kind === 'order' &&
       meta.order.type === OrderType.Limit &&
       meta.order.status !== OrderStatus.Suspended &&
-      st.previewHideEntry
+      st.previewHideEntry &&
+      meta.order.id === st.pendingEntryOrderId
     ) {
       refs.previewPrices.current[0] = snapped;
       const toP = (points: number) => pointsToPrice(points, contract);
@@ -279,10 +299,16 @@ function buildDragCallbacks(
     }
 
     const isEntry = order.type === OrderType.Limit && order.status !== OrderStatus.Suspended;
-    const wasHideEntry = isEntry && useStore.getState().previewHideEntry;
-    const prevBi = isEntry && !wasHideEntry ? useStore.getState().pendingBracketInfo : null;
+    // Only treat this drag as the active bracket's entry if it matches pendingEntryOrderId.
+    // Without this guard, dragging any pending limit order would update limitPrice and
+    // reposition bracket 2's preview lines to near the dragged order.
+    const isCurrentBracketEntry = isEntry && order.id === useStore.getState().pendingEntryOrderId;
+    const wasHideEntry = isCurrentBracketEntry && useStore.getState().previewHideEntry;
+    // prevBi only applies to the CURRENT bracket's entry — never touch pendingBracketInfo
+    // when dragging an older bracket's entry.
+    const prevBi = isCurrentBracketEntry && !wasHideEntry ? useStore.getState().pendingBracketInfo : null;
 
-    // Optimistically update bracket info and entry price
+    // Optimistically update current bracket info and shift its Suspended legs
     if (prevBi) {
       const d = snapped - originalPrice;
       useStore.getState().setPendingBracketInfo({
@@ -303,27 +329,80 @@ function buildDragCallbacks(
         );
       }
     }
+
+    // Other-bracket entry drag: shift only its own Suspended legs (not current bracket's)
+    if (isEntry && !isCurrentBracketEntry) {
+      const d = snapped - originalPrice;
+      const st2 = useStore.getState();
+      const bi2 = st2.pendingBracketInfo;
+      const ts2 = contract.tickSize;
+      st2.upsertOrder({ ...order, limitPrice: snapped });
+      for (const leg of st2.openOrders) {
+        if (leg.status !== OrderStatus.Suspended || String(leg.contractId) !== String(contract.id)) continue;
+        const legPrice = leg.stopPrice ?? leg.limitPrice ?? 0;
+        const legRounded = Math.round(legPrice / ts2);
+        const isCurrentLeg = bi2
+          ? ((bi2.slPrice != null && Math.round(bi2.slPrice / ts2) === legRounded) ||
+             bi2.tpPrices.some((tp) => Math.round(tp / ts2) === legRounded))
+          : false;
+        if (isCurrentLeg) continue; // don't disturb current bracket's legs
+        const isSl2 = leg.type === OrderType.Stop || leg.type === OrderType.TrailingStop;
+        st2.upsertOrder(
+          isSl2
+            ? { ...leg, stopPrice: (leg.stopPrice ?? 0) + d }
+            : { ...leg, limitPrice: (leg.limitPrice ?? 0) + d },
+        );
+      }
+    }
+
     if (wasHideEntry) {
       useStore.getState().setLimitPrice(snapped);
     }
 
-    // Suspended bracket leg — update bracketEngine
+    // Suspended bracket leg — update bracketEngine only for CURRENT bracket's legs.
+    // Calling bracketEngine.handleLegModify for other-bracket legs corrupts
+    // pendingBracketInfo (it overwrites bracket 2's SL/TP price with bracket 1's).
     if (order.status === OrderStatus.Suspended) {
       const st = useStore.getState();
       const isSl = order.type === OrderType.Stop || order.type === OrderType.TrailingStop;
       st.upsertOrder(isSl ? { ...order, stopPrice: snapped } : { ...order, limitPrice: snapped });
       const bi = st.pendingBracketInfo;
-      const cls = classifyOrderLine(order, {
-        price: originalPrice,
-        pos: st.positions.find(
-          (p) => p.accountId === st.activeAccountId
-            && String(p.contractId) === String(contract.id) && p.size > 0,
-        ),
-        pendingBracketInfo: bi,
-        previewHideEntry: st.previewHideEntry,
-        previewSide: st.previewSide,
-      });
-      bracketEngine.handleLegModify(snapped, cls.isSl, cls.tpIndex, contract);
+      const ts2 = contract.tickSize;
+      const rounded = Math.round(originalPrice / ts2);
+      // When no pendingBracketInfo there's only one bracket — always current.
+      const isCurrentLeg = !bi || (
+        (bi.slPrice != null && Math.round(bi.slPrice / ts2) === rounded) ||
+        bi.tpPrices.some((tp) => Math.round(tp / ts2) === rounded)
+      );
+
+      if (isCurrentLeg) {
+        const cls = classifyOrderLine(order, {
+          price: originalPrice,
+          pos: st.positions.find(
+            (p) => p.accountId === st.activeAccountId
+              && String(p.contractId) === String(contract.id) && p.size > 0,
+          ),
+          pendingBracketInfo: bi,
+          previewHideEntry: st.previewHideEntry,
+          previewSide: st.previewSide,
+        });
+        bracketEngine.handleLegModify(snapped, cls.isSl, cls.tpIndex, contract);
+
+        // Sync pendingBracketInfo so coveredBracketPrices matches the new price.
+        if (bi) {
+          if (isSl && bi.slPrice != null && Math.round(bi.slPrice / ts2) === rounded) {
+            st.setPendingBracketInfo({ ...bi, slPrice: snapped });
+          } else {
+            const tpIdx = bi.tpPrices.findIndex((tp) => Math.round(tp / ts2) === rounded);
+            if (tpIdx >= 0) {
+              const newTpPrices = [...bi.tpPrices];
+              newTpPrices[tpIdx] = snapped;
+              st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });
+            }
+          }
+        }
+      }
+      // For other-bracket legs: store upsert above + orderService.modifyOrder below is enough.
     }
 
     debugLog.log('drag:complete', {
@@ -404,9 +483,59 @@ function computeOrderDesired(
     ? (previewSide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy)
     : null;
 
+  const contractOrders = openOrders.filter((o) => String(o.contractId) === String(contract.id));
+  debugLog.log('bracket:computeOrderDesired-input', {
+    contractId: contract.id,
+    pendingBracketInfo: pendingBracketInfo
+      ? { entryPrice: pendingBracketInfo.entryPrice, slPrice: pendingBracketInfo.slPrice, tpPrices: pendingBracketInfo.tpPrices, side: pendingBracketInfo.side }
+      : null,
+    previewHideEntry,
+    previewSide,
+    hideBracketSide,
+    hasPos: pos != null,
+    posAvg: pos?.averagePrice ?? null,
+    contractOrders: contractOrders.map((o) => ({
+      id: o.id, type: o.type, side: o.side, status: o.status,
+      price: o.stopPrice ?? o.limitPrice ?? null,
+    })),
+  });
+
   for (const order of openOrders) {
     if (order.contractId !== contract.id) continue;
-    if (hideBracketSide != null && order.side === hideBracketSide) continue;
+    if (hideBracketSide != null && order.side === hideBracketSide) {
+      // Only suppress Suspended legs that belong to the CURRENT pending bracket
+      // (matched by price). Older brackets' SL/TP at different prices remain visible.
+      if (order.status === OrderStatus.Suspended && pendingBracketInfo != null) {
+        const price = order.stopPrice ?? order.limitPrice ?? 0;
+        const rounded = Math.round(price / tickSize);
+        const isCurrentBracketLeg =
+          (pendingBracketInfo.slPrice != null && Math.round(pendingBracketInfo.slPrice / tickSize) === rounded) ||
+          pendingBracketInfo.tpPrices.some((tp) => Math.round(tp / tickSize) === rounded);
+        if (!isCurrentBracketLeg) {
+          debugLog.log('bracket:order-allowed-other-bracket', {
+            orderId: order.id, type: order.type, side: order.side, price,
+            reason: 'Suspended but not current bracket prices — keeping visible',
+          });
+          // fall through — let this order render
+        } else {
+          debugLog.log('bracket:order-hidden-hideBracketSide', {
+            orderId: order.id, type: order.type, side: order.side, status: order.status,
+            hideBracketSide, reason: 'current bracket leg suppressed by previewHideEntry',
+          });
+          continue;
+        }
+      } else if (order.status !== OrderStatus.Suspended) {
+        // Working/Open orders on this side are never suppressed — they may belong to
+        // a different bracket (e.g. a Long entry while current bracket is Short).
+      } else {
+        // Suspended but no pendingBracketInfo — hide as fallback
+        debugLog.log('bracket:order-hidden-hideBracketSide', {
+          orderId: order.id, type: order.type, side: order.side, status: order.status,
+          hideBracketSide, reason: 'no pendingBracketInfo, hiding by side',
+        });
+        continue;
+      }
+    }
 
     let price: number | undefined;
     if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
@@ -427,9 +556,31 @@ function computeOrderDesired(
 
     // In the race window after position closes but before orders cancel, skip
     // bracket orders so they don't flash with stale "SL" / "Sell Limit" text.
-    if (!pos) {
-      if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) continue;
-      if (order.type === OrderType.Limit && labelPosCache.get(order.id) === 'mid') continue;
+    // Suspended orders are always pending bracket legs — never hide them here,
+    // even when pendingBracketInfo is null (e.g. other bracket remains after
+    // cancelling the current-bracket entry).
+    if (!pos && pendingBracketInfo == null && order.status !== OrderStatus.Suspended) {
+      if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
+        debugLog.log('bracket:order-hidden-no-pos', { orderId: order.id, type: order.type, reason: 'no pos, stop order' });
+        continue;
+      }
+      if (order.type === OrderType.Limit && labelPosCache.get(order.id) === 'mid') {
+        debugLog.log('bracket:order-hidden-no-pos', { orderId: order.id, type: order.type, reason: 'no pos, mid-label limit' });
+        continue;
+      }
+    }
+    // Suspended leg with no pendingBracketInfo: skip if the sibling entry no longer exists.
+    // This prevents orphaned lines from flashing "SL"/"TP" during the brief window between
+    // the entry being removed from the store and its legs being removed.
+    if (!pos && pendingBracketInfo == null && order.status === OrderStatus.Suspended) {
+      const entrySide = order.side === OrderSide.Sell ? OrderSide.Buy : OrderSide.Sell;
+      const hasSiblingEntry = openOrders.some(
+        (o) => String(o.contractId) === String(contract.id) &&
+          o.type === OrderType.Limit &&
+          o.status !== OrderStatus.Suspended &&
+          o.side === entrySide,
+      );
+      if (!hasSiblingEntry) continue;
     }
 
     const cls = classifyOrderLine(order, { price, pos, pendingBracketInfo, previewHideEntry, previewSide });
@@ -505,6 +656,8 @@ function computeOrderDesired(
     });
   }
 
+  debugLog.log('bracket:coveredBracketPrices', { prices: Array.from(coveredBracketPrices) });
+
   // Phantom bracket lines (pendingBracketInfo not yet backed by real orders)
   if (pendingBracketInfo && !previewHideEntry) {
     const bi = pendingBracketInfo;
@@ -554,6 +707,9 @@ function computeOrderDesired(
     }
   }
 
+  debugLog.log('bracket:computeOrderDesired-result', {
+    desired: desired.map((d) => ({ key: d.key, price: d.price, metaKind: d.meta.kind })),
+  });
   return desired;
 }
 
@@ -570,8 +726,15 @@ function reconcileOrderEntries(
   const desiredKeys = new Set(desired.map((d) => d.key));
   const draggingKey = refs.draggingKey.current;
 
+  const detached: string[] = [];
   for (const e of current) {
-    if (!desiredKeys.has(e.key)) series.detachPrimitive(e.line);
+    if (!desiredKeys.has(e.key)) {
+      series.detachPrimitive(e.line);
+      detached.push(e.key);
+    }
+  }
+  if (detached.length > 0) {
+    debugLog.log('bracket:reconcile-detached', { detached });
   }
 
   return desired.map((d) => {

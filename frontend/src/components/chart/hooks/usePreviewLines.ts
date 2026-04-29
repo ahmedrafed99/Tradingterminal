@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
-import { OrderSide } from '../../../types/enums';
+import { OrderSide, OrderStatus, OrderType } from '../../../types/enums';
 import { pointsToPrice, priceToPoints, getTicksPerPoint } from '../../../utils/instrument';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import { bracketEngine } from '../../../services/bracketEngine';
+import { orderService } from '../../../services/orderService';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import type { ChartRefs } from './types';
 import { COLOR_TEXT_MUTED } from '../../../constants/colors';
@@ -156,7 +157,25 @@ export function usePreviewLines(
                 : cfg.stopLoss,
             }));
             const bi = st.pendingBracketInfo;
-            if (bi) st.setPendingBracketInfo({ ...bi, slPrice: snapped });
+            if (bi) {
+              // Sync the matching Suspended SL order so it stays price-matched
+              // after pendingBracketInfo updates, preventing a ghost at the old price.
+              if (bi.slPrice != null) {
+                const ts2 = contract.tickSize;
+                const suspendedSl = st.openOrders.find(
+                  (o) => o.status === OrderStatus.Suspended &&
+                    String(o.contractId) === String(contract.id) &&
+                    (o.type === OrderType.Stop || o.type === OrderType.TrailingStop) &&
+                    Math.round((o.stopPrice ?? 0) / ts2) === Math.round(bi.slPrice! / ts2),
+                );
+                if (suspendedSl) {
+                  st.upsertOrder({ ...suspendedSl, stopPrice: snapped });
+                  const acct = st.activeAccountId;
+                  if (acct) orderService.modifyOrder({ accountId: acct, orderId: suspendedSl.id, stopPrice: snapped }).catch(() => {});
+                }
+              }
+              st.setPendingBracketInfo({ ...bi, slPrice: snapped });
+            }
           },
         });
         series.attachPrimitive(slPrimitive);
@@ -212,6 +231,23 @@ export function usePreviewLines(
             }));
             const bi = st.pendingBracketInfo;
             if (bi) {
+              // Sync the matching Suspended TP order so it stays price-matched
+              // after pendingBracketInfo updates, preventing a ghost at the old price.
+              const oldTpPrice = bi.tpPrices[i];
+              if (oldTpPrice != null) {
+                const ts2 = contract.tickSize;
+                const suspendedTp = st.openOrders.find(
+                  (o) => o.status === OrderStatus.Suspended &&
+                    String(o.contractId) === String(contract.id) &&
+                    o.type === OrderType.Limit &&
+                    Math.round((o.limitPrice ?? 0) / ts2) === Math.round(oldTpPrice / ts2),
+                );
+                if (suspendedTp) {
+                  st.upsertOrder({ ...suspendedTp, limitPrice: snapped });
+                  const acct = st.activeAccountId;
+                  if (acct) orderService.modifyOrder({ accountId: acct, orderId: suspendedTp.id, limitPrice: snapped }).catch(() => {});
+                }
+              }
               const newTpPrices = [...bi.tpPrices];
               newTpPrices[i] = snapped;
               st.setPendingBracketInfo({ ...bi, tpPrices: newTpPrices });

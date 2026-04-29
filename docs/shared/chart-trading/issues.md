@@ -214,112 +214,65 @@ Move ALL store writes for SL/TP points out of `onMouseMove` and into `onMouseUp`
 
 ---
 
-## 2 — Multiple Bracket Orders: First Bracket Lines Disappear / Wrong Labels
+## Multiple Bracket Orders: Lines Disappear / Wrong Labels / Cancel Side Effects
 
-**Severity**: High (lines vanish, wrong P&L labels)
+**Date resolved**: 2026-04-29
 
-### Symptom A — Lines disappear
+**Severity**: High
 
-Place bracket order 1 (works fine). Place bracket order 2. Order 1's SL/TP preview lines disappear.
+### Symptoms
 
-### Symptom B — Wrong labels after cancel
-
-Cancel order 2. Order 1's SL/TP lines reappear but show "SL" / "Sell Limit" instead of projected P&L. The entry label also shifts left.
-
-### Root Cause
-
-The store holds a single `pendingBracketInfo` and `pendingEntryOrderId` tracking only the *current* (latest) pending entry. When order 2 is placed:
-
-- `pendingBracketInfo` is overwritten with order 2's bracket data
-- `pendingEntryOrderId` changes to order 2's ID
-- `useOrderLines` guards against showing Suspended legs that match `pendingBracketInfo` — but now `pendingBracketInfo` is order 2's data, so order 1's Suspended legs are no longer guarded and appear as raw order lines
-- Meanwhile `usePreviewLines` still shows preview lines based on the *current* config (order 2), so order 1's preview lines move to order 2's prices or disappear
-
-When order 2 is cancelled and `pendingBracketInfo` is cleared, `buildOrderLabels` finds order 1's Suspended legs but has no bracket info to identify them → labels fall back to generic "SL" / "Sell Limit".
-
-**Label shift**: `isEntryOrder` in `buildOrderLabels` does not account for the second bracket side, so the entry label logic breaks after cancel.
-
-### Required Fix
-
-Maintain a `pendingBracketInfos: PendingBracketEntry[]` array (each entry: `BracketInfo & { entryOrderId: string | null }`) alongside the existing `pendingBracketInfo` singleton (kept for backward compat / sessionStorage). Key changes:
-
-- `setPendingBracketInfo(info)`: push to array (staging slot, `entryOrderId: null`); if null, only remove staging entry
-- `setPendingEntryOrderId(id)`: if non-null, confirm staging slot with real ID; if null, remove that ID's entry from the array
-- `updatePendingBracketInfoEntry(entryOrderId, patch)`: patch specific array entry
-- `useOrderLines`: replace `pendingBracketInfo`-based color/guard with per-price lookup across full `pendingBracketInfos` array
-- `buildOrderLabels`: add `findBracketInfoForPrice(price)` that searches full `pendingBracketInfos` array; fix `isEntryOrder` to check all entries' sides
-- `usePreviewLines` Effect 1: `pendingEntryOrderId` must be in deps so lines are destroyed/recreated when a new entry takes over as the "current" preview entry (see Issue 3 for the complication this introduces)
-
-### Key Files
-
-- `frontend/src/store/slices/tradingSlice.ts` — add `pendingBracketInfos` array + CRUD actions
-- `frontend/src/components/chart/hooks/useOrderLines.ts` — multi-bracket guard + color logic
-- `frontend/src/components/chart/hooks/buildOrderLabels.ts` — `findBracketInfoForPrice`, `isEntryOrder` fix
-- `frontend/src/components/order-panel/OrderPanel.tsx` — account-switch clear
-
----
-
-## 3 — Preview Lines Lose X Button / Become Non-Draggable After Second Bracket
-
-**Severity**: High (TP line unresponsive after second bracket placed)
-
-### Symptom
-
-After placing a second bracket order, the TP preview line of the new (current) entry loses its X button and cannot be dragged.
+1. Place bracket order 1, place bracket order 2 → order 1's SL/TP lines disappear or show wrong labels
+2. Cancel order 2 → order 1's SL/TP show "SL"/"TP" instead of projected P&L; TP line turns red
+3. Cancel order 2 → order 1's entry line disappears (mixed Long/Short directions)
+4. Cancel order 2 → order 1's SL/TP lines disappear entirely
+5. Cancel order 1 → order 2's SL/TP are also cancelled
+6. Cancel order 2 → order 1's SL/TP vanish then reappear (flash on cancel)
+7. Brief "SL"/"TP" flash on entry 1's legs the moment entry 2 is placed
+8. Entry drag: dragging one bracket's entry moves the other bracket's SL/TP
 
 ### Root Cause
 
-Adding `pendingEntryOrderId` to `usePreviewLines` Effect 1 deps (required for Issue 2 fix) causes Effect 1 to re-run when a second bracket is placed. Effect 1 creates new preview lines but does **not** call `refs.updateOverlay.current()`. Effect 2 only re-runs if one of its own deps changed in the same render. If `pendingEntryOrderId` arrives in a separate render from `limitPrice`/`previewHideEntry` (which is possible — `setPendingEntryOrderId` is a separate Zustand `set` call from `useStore.setState({previewHideEntry, limitPrice})`), Effect 2 does not re-run, so `updateOverlay` is never called for the new lines. Labels are only built when the next `lastPrice` tick triggers the subscription's `doUpdate`.
+The store holds a single `pendingBracketInfo` singleton tracking only the *current* (latest) bracket. All multi-bracket issues stem from the singleton not being able to represent two concurrent brackets simultaneously. The fix kept the singleton but added price-matching heuristics (`isCurrentBracketLeg`) to distinguish current vs other-bracket Suspended orders.
 
-### Required Fix
+**Symptom 1 (disappear/wrong labels):** After order 2 is placed, `pendingBracketInfo` points to order 2's prices. Order 1's Suspended legs no longer match → `computeOrderDesired` hit the `!pos && pendingBracketInfo == null` guard and filtered them out; labels had no PnL path.
 
-Call `refs.updateOverlay.current()` at the end of Effect 1 body in `usePreviewLines`, after the last preview line is pushed. This ensures the overlay always rebuilds labels immediately whenever Effect 1 creates new lines, regardless of whether Effect 2 also runs.
+**Symptom 2 (wrong labels after cancel):** After clearing `pendingBracketInfo`, `buildOrderLabels` had no bracket context → fell to generic "SL"/"Sell Limit" text. TP color was red because `classifyOrderLine` only used bracket colors when `pendingBracketInfo != null`.
 
-### Key Files
+**Symptom 3 (entry disappears, mixed direction):** `hideBracketSide` for a Short entry = Buy side. Entry 1's Long entry (Buy, Working) was caught by the "non-suspended opposite-side suppressed" branch.
 
-- `frontend/src/components/chart/hooks/usePreviewLines.ts` — add `refs.updateOverlay.current()` at end of Effect 1
+**Symptom 4 (legs vanish on cancel):** `handleCancel` cleared `pendingBracketInfo` but not `previewHideEntry`. With `previewHideEntry=true` and `pendingBracketInfo=null`, a "hide as fallback" branch in `computeOrderDesired` suppressed all remaining Suspended orders.
 
----
+**Symptom 5 (wrong legs cancelled):** `handleCancel` collected ALL Suspended orders on the contract, not just the cancelled entry's legs.
 
-## 4 — Dragging One Bracket's Entry Moves Another Bracket's Preview Lines
+**Symptom 6 (flash on cancel):** After the `previewHideEntry` fix, a `!pos && pendingBracketInfo==null` guard still filtered Suspended legs when no position existed, and `labelPosCache` had pre-populated 'mid' for the TP.
 
-**Severity**: High (wrong lines move during drag)
+**Symptom 7 (flash on placement):** `pendingBracketInfo` was updated to order 2's bi before `pendingEntryOrderId` changed. The "other bracket" sibling lookup excluded `pendingEntryOrderId` (still order 1's ID) → no sibling found → "SL"/"TP" fallback for one render.
 
-### Symptom
+**Symptom 8 (wrong legs follow drag):** Sibling-follow in `onDrag` moved legs by XOR condition (`isDraggingCurrentEntry !== legIsCurrentBracket`), and `bracketEngine.handleLegModify` was called for all Suspended orders including other-bracket legs, corrupting `pendingBracketInfo`.
 
-With two bracket orders pending, dragging the first bracket's entry line causes the *second* bracket's SL/TP preview lines to move alongside it.
+### Fix
 
-### Root Cause
+Kept the `pendingBracketInfo` singleton. All other-bracket awareness uses `isCurrentBracketLeg` price-matching.
 
-`useOrderDrag.onMouseMove` shifts Suspended bracket legs and preview lines whenever an entry order is dragged. The Suspended leg shift uses `findSuspendedBracketIndices()` which returns ALL Suspended orders for the contract (not scoped to the dragged entry's bracket). The preview line shift is guarded by `st.previewHideEntry && draggedOrderId === st.pendingEntryOrderId` but `pendingEntryOrderId` points to the *second* order — so dragging the first also shifts the second's preview lines.
+| File | Change |
+|------|--------|
+| `buildOrderLabels.ts` | Cancel handler: scope cancellation to current-bracket legs (matching `pendingBracketInfo`) or other-bracket legs (not matching), never all. On cancel of current entry: also clear `previewHideEntry` + `pendingEntryOrderId` atomically. Add `else if (isSuspended && !pendingBracketInfo)` PnL branch that finds the sibling entry by side. "Other bracket" sibling lookup now excludes `pendingEntryOrderId` correctly. |
+| `useOrderLines.ts` | `computeOrderDesired`: don't suppress non-Suspended Working orders on `hideBracketSide` (was hiding other-direction entry). Suspend the `!pos && pendingBracketInfo==null` guard for Suspended orders. Add sibling-entry existence check before rendering orphaned Suspended legs (prevents flash). `bracketEngine.handleLegModify` guard: only call for current-bracket legs. Sibling-follow XOR fix: drag correct bracket's legs. Other-bracket entry drag-end: shift legs without touching `pendingBracketInfo`. |
+| `usePreviewLines.ts` | SL/TP `onDragEnd`: sync matching Suspended order in store + API after updating `pendingBracketInfo`, preventing ghost lines from price mismatch. |
+| `labelUtils.ts` | `classifyOrderLine`: use `order.status === Suspended` (not `pendingBracketInfo != null`) for color and sizeBg — Suspended legs always get SL/TP colors regardless of bracket context. |
+| `placeOrderWithBrackets.ts` | Clear `pendingEntryOrderId` to null before overwriting `pendingBracketInfo` for the new order — prevents the "other bracket" sibling lookup from excluding order 1's entry during the brief window before order 2's ID is confirmed. |
+| `OrderPanel.tsx` | WS suspended-override: always preserve the store's existing price for known orders — never let the gateway overwrite a user-adjusted price, even for other-bracket legs. |
 
-### Required Fix
+### Key Architectural Constraint
 
-- `findSuspendedBracketIndices()`: accept optional `bracketPrices` filter and only return legs whose price is within `tickSize` of one of those prices. On call site, pass `matchedBracket.slPrice + tpPrices` so only the dragged entry's legs move.
-- Preview line shift guard: require `draggedOrderId === pendingEntryOrderId` AND that the preview lines were created for that specific entry (see Issue 3 / `previewCreatedForOrderId` ref).
-
-### Key Files
-
-- `frontend/src/components/chart/hooks/useOrderDrag.ts` — scope `findSuspendedBracketIndices` + guard preview shift
-
----
-
-## 5 — Brief P&L Drift on Entry Line Drag (Two Brackets)
-
-**Severity**: Low (cosmetic, settles correctly on mouseup)
-
-### Symptom
-
-While dragging a bracket entry line, the projected P&L label on the order label changes continuously (based on the dragging price), instead of staying at the last committed P&L. On mouseup it corrects.
-
-### Root Cause
-
-`buildOrderLabels` computes P&L using `ep = pendingBracketInfo.entryPrice` directly. During drag, `pendingBracketInfo.entryPrice` is updated optimistically from `orderLinePrices`, but that lookup uses `pendingEntryOrderId`-scoped data which may not match the dragged order.
-
-### Required Fix
-
-In `buildOrderLabels`, use `getOrderLinePrice(entryOrderId)` (look up from `refs.orderLinePrices.current`) as `liveEp` if the entry order ID is known, falling back to `pendingBracketInfo.entryPrice`. This keeps P&L stable (anchored to the live line position) during drag.
+`pendingBracketInfo` is a singleton and only tracks the most recently placed bracket. The "other bracket" path in `buildOrderLabels` must find its sibling entry purely by side-matching in `openOrders`, filtered by `pendingEntryOrderId` to exclude the current bracket's entry. This works for ≤2 concurrent brackets of the same direction; more than 2 same-direction pending brackets would require the `pendingBracketInfos[]` array approach originally planned.
 
 ### Key Files
 
-- `frontend/src/components/chart/hooks/buildOrderLabels.ts` — `getOrderLinePrice` fallback in P&L closure
+- `frontend/src/components/chart/hooks/buildOrderLabels.ts`
+- `frontend/src/components/chart/hooks/useOrderLines.ts`
+- `frontend/src/components/chart/hooks/usePreviewLines.ts`
+- `frontend/src/components/chart/hooks/labelUtils.ts`
+- `frontend/src/services/placeOrderWithBrackets.ts`
+- `frontend/src/components/order-panel/OrderPanel.tsx`

@@ -582,18 +582,37 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
         // Suppress gateway updates for orders being corrected post-fill
         if (bracketCorrectionIds.current.has(order.id)) return;
 
-        // Gateway recomputes Suspended bracket prices after modifyOrder and sends back
-        // its own value — keep pendingBracketInfo as the source of truth instead.
+        // Gateway recomputes Suspended bracket prices after modifyOrder/fill and sends
+        // its own value. Keep the store's price as the source of truth instead:
+        //   - New order (not yet in store): use pendingBracketInfo price if it's the
+        //     current bracket's leg, otherwise accept the gateway price.
+        //   - Existing order: always keep the store's current price (user's dragged
+        //     value or previously overridden value) — never let the gateway override it.
         const bi = useStore.getState().pendingBracketInfo;
         let effectiveLimitPrice = order.limitPrice;
         let effectiveStopPrice = order.stopPrice;
-        if (order.status === OrderStatus.Suspended && bi && effectiveCustomTag) {
-          if (effectiveCustomTag.endsWith('-TP') && bi.tpPrices[0] != null) {
-            debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.limitPrice, keepPrice: bi.tpPrices[0] });
-            effectiveLimitPrice = bi.tpPrices[0];
-          } else if (effectiveCustomTag.endsWith('-SL') && bi.slPrice != null) {
-            debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.stopPrice, keepPrice: bi.slPrice });
-            effectiveStopPrice = bi.slPrice;
+        if (order.status === OrderStatus.Suspended && effectiveCustomTag) {
+          const existing = useStore.getState().openOrders.find((o) => o.id === order.id);
+          if (effectiveCustomTag.endsWith('-TP')) {
+            const existingPrice = existing?.limitPrice;
+            if (existingPrice != null) {
+              // Order exists — preserve whichever price is already in the store.
+              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.limitPrice, keepPrice: existingPrice });
+              effectiveLimitPrice = existingPrice;
+            } else if (bi?.tpPrices[0] != null) {
+              // New order — use current bracket's TP price.
+              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.limitPrice, keepPrice: bi.tpPrices[0] });
+              effectiveLimitPrice = bi.tpPrices[0];
+            }
+          } else if (effectiveCustomTag.endsWith('-SL')) {
+            const existingPrice = existing?.stopPrice;
+            if (existingPrice != null) {
+              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.stopPrice, keepPrice: existingPrice });
+              effectiveStopPrice = existingPrice;
+            } else if (bi?.slPrice != null) {
+              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.stopPrice, keepPrice: bi.slPrice });
+              effectiveStopPrice = bi.slPrice;
+            }
           }
         } else if (order.status === OrderStatus.Suspended) {
           debugLog.log('ws:suspended-no-override', { id: order.id, effectiveCustomTag, bi: !!bi, limitPrice: order.limitPrice, stopPrice: order.stopPrice });

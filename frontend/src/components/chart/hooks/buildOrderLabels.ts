@@ -86,31 +86,87 @@ export function buildOrderLabels(
     if (isSuspended && pendingBracketInfo) {
       const ep = pendingBracketInfo.entryPrice;
       const isSl = cls.isSl;
-      const diff = isSl
-        ? (pendingBracketInfo.side === OrderSide.Buy ? ep - price : price - ep)
-        : (pendingBracketInfo.side === OrderSide.Buy ? price - ep : ep - price);
-      const pnl = calcPnl(diff, contract, oSize);
-      initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
-      initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
+      const ts2 = contract.tickSize;
 
-      orderPnlCompute = () => {
-        const curPrice = getOrderRefPrice();
-        const entryOrdEntry = refs.orderEntries.current.find(
-          (e) =>
-            e.meta.kind === 'order' &&
-            e.meta.order.type === OrderType.Limit &&
-            e.meta.order.status !== OrderStatus.Suspended,
-        );
-        const currentEp = entryOrdEntry?.price ?? ep;
-        const d = isSl
-          ? (pendingBracketInfo.side === OrderSide.Buy ? currentEp - curPrice : curPrice - currentEp)
-          : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - currentEp : currentEp - curPrice);
-        const p = calcPnl(d, contract, oSize);
-        return {
-          text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
-          bg: isSl ? SELL_COLOR : BUY_COLOR,
+      // Determine if this Suspended leg belongs to the CURRENT bracket (matched by price).
+      // Legs from older brackets are shown with static SL/TP labels — we can't compute
+      // their PnL correctly because pendingBracketInfo only tracks the latest bracket's entry.
+      const isCurrentBracketLeg =
+        (pendingBracketInfo.slPrice != null && Math.round(price / ts2) === Math.round(pendingBracketInfo.slPrice / ts2)) ||
+        pendingBracketInfo.tpPrices.some((tp) => Math.round(tp / ts2) === Math.round(price / ts2));
+
+      if (isCurrentBracketLeg) {
+        const diff = isSl
+          ? (pendingBracketInfo.side === OrderSide.Buy ? ep - price : price - ep)
+          : (pendingBracketInfo.side === OrderSide.Buy ? price - ep : ep - price);
+        const pnl = calcPnl(diff, contract, oSize);
+        initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+        initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
+
+        orderPnlCompute = () => {
+          const curPrice = getOrderRefPrice();
+          // Use the specific pending entry order (not just any non-Suspended limit)
+          // so dragging other bracket entries doesn't skew this PnL.
+          const pendingId = useStore.getState().pendingEntryOrderId;
+          const entryOrdEntry = refs.orderEntries.current.find(
+            (e) => e.meta.kind === 'order' && e.meta.order.id === pendingId,
+          );
+          const currentEp = entryOrdEntry?.price ?? ep;
+          const d = isSl
+            ? (pendingBracketInfo.side === OrderSide.Buy ? currentEp - curPrice : curPrice - currentEp)
+            : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - currentEp : currentEp - curPrice);
+          const p = calcPnl(d, contract, oSize);
+          return {
+            text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+            bg: isSl ? SELL_COLOR : BUY_COLOR,
+          };
         };
-      };
+      } else {
+        // Other-bracket leg: find its sibling entry order and compute PnL from it.
+        // SL/TP are on the opposite side from their entry (Buy bracket → Sell SL/TP).
+        const isEntryBuy = oSide === OrderSide.Sell;
+        const entrySide = isEntryBuy ? OrderSide.Buy : OrderSide.Sell;
+        const pendingId = useStore.getState().pendingEntryOrderId;
+        const siblingEntry = openOrders.find(
+          (o) => String(o.contractId) === String(contract.id) &&
+            o.type === OrderType.Limit &&
+            o.status !== OrderStatus.Suspended &&
+            o.side === entrySide &&
+            o.id !== pendingId,
+        );
+        if (siblingEntry?.limitPrice != null) {
+          const ep = siblingEntry.limitPrice;
+          const diff = isSl
+            ? (isEntryBuy ? ep - price : price - ep)
+            : (isEntryBuy ? price - ep : ep - price);
+          const pnl = calcPnl(diff, contract, oSize);
+          initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+          initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
+          orderPnlCompute = () => {
+            const curPrice = getOrderRefPrice();
+            const curPendingId = useStore.getState().pendingEntryOrderId;
+            const siblingEntry2 = refs.orderEntries.current.find(
+              (e) => e.meta.kind === 'order' &&
+                e.meta.order.type === OrderType.Limit &&
+                e.meta.order.status !== OrderStatus.Suspended &&
+                e.meta.order.side === entrySide &&
+                e.meta.order.id !== curPendingId,
+            );
+            const currentEp = siblingEntry2?.price ?? ep;
+            const d = isSl
+              ? (isEntryBuy ? currentEp - curPrice : curPrice - currentEp)
+              : (isEntryBuy ? curPrice - currentEp : currentEp - curPrice);
+            const p = calcPnl(d, contract, oSize);
+            return {
+              text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+              bg: isSl ? SELL_COLOR : BUY_COLOR,
+            };
+          };
+        } else {
+          initPnlText = isSl ? 'SL' : 'TP';
+          initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
+        }
+      }
     } else if (pos && !isSameSideEntry) {
       const isLong = pos.type === PositionType.Long;
       const diff = isLong ? price - pos.averagePrice : pos.averagePrice - price;
@@ -131,6 +187,48 @@ export function buildOrderLabels(
         }).color;
         return { text: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, bg };
       };
+    } else if (isSuspended) {
+      // Suspended leg with no pendingBracketInfo (e.g. after cancelling the current bracket's entry).
+      // Find the sibling entry order by side and compute PnL from it.
+      const isEntryBuy = oSide === OrderSide.Sell;
+      const entrySide = isEntryBuy ? OrderSide.Buy : OrderSide.Sell;
+      const isSl2 = oType === OrderType.Stop || oType === OrderType.TrailingStop;
+      const siblingEntry = openOrders.find(
+        (o) => String(o.contractId) === String(contract.id) &&
+          o.type === OrderType.Limit &&
+          o.status !== OrderStatus.Suspended &&
+          o.side === entrySide,
+      );
+      if (siblingEntry?.limitPrice != null) {
+        const ep2 = siblingEntry.limitPrice;
+        const diff = isSl2
+          ? (isEntryBuy ? ep2 - price : price - ep2)
+          : (isEntryBuy ? price - ep2 : ep2 - price);
+        const pnl = calcPnl(diff, contract, oSize);
+        initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+        initPnlBg = isSl2 ? SELL_COLOR : BUY_COLOR;
+        orderPnlCompute = () => {
+          const curPrice = getOrderRefPrice();
+          const siblingEntry2 = refs.orderEntries.current.find(
+            (e) => e.meta.kind === 'order' &&
+              e.meta.order.type === OrderType.Limit &&
+              e.meta.order.status !== OrderStatus.Suspended &&
+              e.meta.order.side === entrySide,
+          );
+          const currentEp = siblingEntry2?.price ?? ep2;
+          const d = isSl2
+            ? (isEntryBuy ? currentEp - curPrice : curPrice - currentEp)
+            : (isEntryBuy ? curPrice - currentEp : currentEp - curPrice);
+          const p = calcPnl(d, contract, oSize);
+          return {
+            text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+            bg: isSl2 ? SELL_COLOR : BUY_COLOR,
+          };
+        };
+      } else {
+        initPnlText = isSl2 ? 'SL' : 'TP';
+        initPnlBg = isSl2 ? SELL_COLOR : BUY_COLOR;
+      }
     } else {
       if (oType === OrderType.Stop || oType === OrderType.TrailingStop) {
         initPnlText = 'SL';
@@ -154,18 +252,48 @@ export function buildOrderLabels(
       });
       if (cancelOrder.status === OrderStatus.Suspended) {
         bracketEngine.handleLegCancel(cls.isSl, cls.tpIndex);
-      } else if (cls.isEntry && useStore.getState().pendingBracketInfo) {
+      } else if (cls.isEntry) {
         const st = useStore.getState();
-        const bracketLegs = st.openOrders.filter(
-          (o) =>
-            o.status === OrderStatus.Suspended &&
-            String(o.contractId) === String(cancelOrder.contractId),
-        );
-        st.setPendingBracketInfo(null);
-        bracketEngine.clearSession();
-        for (const leg of bracketLegs) {
-          st.removeOrder(leg.id);
-          orderService.cancelOrder(acct, leg.id).catch(() => {});
+        const bi = st.pendingBracketInfo;
+        const ts2 = contract.tickSize;
+        const isCancellingCurrentEntry = cancelOrder.id === st.pendingEntryOrderId;
+
+        function legMatchesBi(o: typeof openOrders[0]): boolean {
+          if (!bi) return false;
+          const isSl2 = o.type === OrderType.Stop || o.type === OrderType.TrailingStop;
+          const p = isSl2 ? (o.stopPrice ?? 0) : (o.limitPrice ?? 0);
+          const r = Math.round(p / ts2);
+          return isSl2
+            ? (bi.slPrice != null && Math.round(bi.slPrice / ts2) === r)
+            : bi.tpPrices.some((tp) => Math.round(tp / ts2) === r);
+        }
+
+        if (isCancellingCurrentEntry && bi) {
+          // Cancel current bracket's legs and clear state
+          const bracketLegs = st.openOrders.filter(
+            (o) => o.status === OrderStatus.Suspended &&
+              String(o.contractId) === String(cancelOrder.contractId) &&
+              legMatchesBi(o),
+          );
+          st.setPendingBracketInfo(null);
+          st.setPendingEntryOrderId(null);
+          useStore.setState({ previewEnabled: false, previewHideEntry: false, draftSlPoints: null, draftTpPoints: [] });
+          bracketEngine.clearSession();
+          for (const leg of bracketLegs) {
+            st.removeOrder(leg.id);
+            orderService.cancelOrder(acct, leg.id).catch(() => {});
+          }
+        } else if (!isCancellingCurrentEntry) {
+          // Cancel only the other bracket's legs (those not matching pendingBracketInfo)
+          const bracketLegs = st.openOrders.filter(
+            (o) => o.status === OrderStatus.Suspended &&
+              String(o.contractId) === String(cancelOrder.contractId) &&
+              !legMatchesBi(o),
+          );
+          for (const leg of bracketLegs) {
+            st.removeOrder(leg.id);
+            orderService.cancelOrder(acct, leg.id).catch(() => {});
+          }
         }
       }
     }
