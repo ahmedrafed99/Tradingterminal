@@ -9,22 +9,16 @@ interface SnapshotPreviewProps {
   onClose: () => void;
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+function Checkbox({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
-    <label className="flex items-center gap-2.5 cursor-pointer select-none group">
-      <div className="relative">
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(e) => onChange(e.target.checked)}
-          className="sr-only peer"
-        />
-        <div className="w-8 h-[18px] rounded-full bg-(--color-border) peer-checked:bg-(--color-focus-ring) transition-colors" />
-        <div className="absolute top-[3px] left-[3px] w-3 h-3 rounded-full bg-(--color-text-muted) peer-checked:bg-(--color-accent) peer-checked:translate-x-[14px] transition-all" />
-      </div>
-      <span className="text-xs text-(--color-text-medium) group-hover:text-(--color-text) transition-colors">
-        {label}
-      </span>
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-(--color-accent) w-3.5 h-3.5"
+      />
+      <span className="text-xs text-(--color-text-medium)">{label}</span>
     </label>
   );
 }
@@ -142,9 +136,9 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         <div className="flex items-center justify-between border-t border-(--color-border)/50" style={{ padding: '14px 20px' }}>
           {/* Toggles */}
           <div className="flex items-center gap-5">
-            <Toggle checked={showDrawings} onChange={setShowDrawings} label="Drawings" />
-            <Toggle checked={showPositions} onChange={setShowPositions} label="Positions" />
-            <Toggle checked={showTrades} onChange={setShowTrades} label="Trades" />
+            <Checkbox checked={showDrawings} onChange={setShowDrawings} label="Drawings" />
+            <Checkbox checked={showPositions} onChange={setShowPositions} label="Positions" />
+            <Checkbox checked={showTrades} onChange={setShowTrades} label="Trades" />
           </div>
 
           {/* Copy button */}

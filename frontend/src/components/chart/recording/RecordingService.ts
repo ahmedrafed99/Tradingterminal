@@ -110,7 +110,7 @@ class RecordingService {
       const cssWidth = currentEntry.containerEl?.clientWidth ?? composite.width / dpr;
       ctx.save();
       ctx.scale(dpr, dpr);
-      paintOverlays(ctx, currentEntry, plotWidth, composite.height / dpr, { showPositions: true }, cssWidth);
+      paintOverlays(ctx, currentEntry, plotWidth, composite.height / dpr, cssWidth);
       ctx.restore();
 
       this._rafId = requestAnimationFrame(loop);

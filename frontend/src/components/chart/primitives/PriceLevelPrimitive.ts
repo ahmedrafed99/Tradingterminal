@@ -344,6 +344,9 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _dragCellKey: CellKey | null = null;
   private _cachedRect: DOMRect | null = null;
 
+  /** When false, paneViews() returns empty — used to exclude lines from screenshots */
+  visible = true;
+
   private _paneView = new PriceLevelPaneView();
   private _paneViewsArr: readonly IPrimitivePaneView[] = [this._paneView];
 
@@ -479,7 +482,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   // ── ISeriesPrimitive ──
   paneViews(): readonly IPrimitivePaneView[] {
-    if (!this._series || !this._chart) return [];
+    if (!this.visible || !this._series || !this._chart) return [];
 
     const y = this._series.priceToCoordinate(this._price);
     let psWidth = 0;

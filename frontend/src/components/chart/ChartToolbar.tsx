@@ -481,17 +481,21 @@ export function ChartToolbar() {
 
   /** Take a screenshot of a single chart entry, painting PriceLevelLine instances onto the canvas */
   function screenshotEntry(entry: ChartEntry, options: ScreenshotOptions): HTMLCanvasElement {
-    // Toggle drawings visibility
     if (entry.primitive && !options.showDrawings) entry.primitive.visible = false;
-    // Toggle trade zones visibility
     if (entry.tradeZonePrimitive && !options.showTrades) entry.tradeZonePrimitive.visible = false;
+    for (const e of entry.orderEntriesRef.current) {
+      if (e.meta.kind === 'phantom-bracket' || !options.showPositions) e.line.visible = false;
+    }
+    for (const l of entry.previewLinesRef.current) l.visible = false;
 
-    // Lines are HTML (not canvas), so takeScreenshot won't capture them — no need to hide
     const canvas = entry.chart.takeScreenshot(true);
 
-    // Restore
     if (entry.primitive && !options.showDrawings) entry.primitive.visible = true;
     if (entry.tradeZonePrimitive && !options.showTrades) entry.tradeZonePrimitive.visible = true;
+    for (const e of entry.orderEntriesRef.current) {
+      if (e.meta.kind === 'phantom-bracket' || !options.showPositions) e.line.visible = true;
+    }
+    for (const l of entry.previewLinesRef.current) l.visible = true;
 
     const ctx = canvas.getContext('2d');
     if (ctx) {
@@ -499,7 +503,7 @@ export function ChartToolbar() {
       const cssWidth = entry.containerEl?.clientWidth ?? canvas.width;
       const dpr = canvas.width / cssWidth;
       if (dpr !== 1) ctx.scale(dpr, dpr);
-      paintOverlays(ctx, entry, plotWidth, canvas.height / dpr, { showPositions: options.showPositions }, cssWidth);
+      paintOverlays(ctx, entry, plotWidth, canvas.height / dpr, cssWidth);
     }
 
     return canvas;

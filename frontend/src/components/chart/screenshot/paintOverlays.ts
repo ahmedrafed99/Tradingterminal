@@ -13,7 +13,6 @@ export function paintOverlays(
   entry: ChartEntry,
   plotWidth: number,
   canvasHeight: number,
-  options: { showPositions: boolean },
   totalWidth?: number,
 ): void {
   // Clip to plot area so text doesn't bleed into price scale
@@ -43,12 +42,4 @@ export function paintOverlays(
   }
 
   ctx.restore();
-
-  // Paint position entry + associated orders (SL/TP)
-  if (options.showPositions) {
-    for (const e of entry.orderEntriesRef.current) {
-      e.line.paintToCanvas(ctx, plotWidth, totalWidth);
-    }
-  }
-
 }
