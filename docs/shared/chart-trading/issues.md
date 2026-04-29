@@ -2,6 +2,45 @@
 
 # Resolved Issues
 
+## Order Lines Don't Persist After Hard Refresh (SL Hidden, TP Shifted Right)
+
+**Date resolved**: 2026-04-29
+
+**Severity**: High (SL permanently missing after any hard refresh with open position)
+
+### Symptoms
+
+1. Hard refresh while a bracket order (market or limit entry) is filled and SL/TP Working orders exist → SL line never appears; TP label shows at 'right' instead of 'mid' center position.
+2. Hard refresh while entry order is still pending fill (Suspended bracket legs) → SL and TP phantom lines both missing.
+
+### Root Cause
+
+**Symptom 1 — Working SL hidden:** `computeOrderDesired` in `useOrderLines.ts` unconditionally skips Working Stop/TrailingStop orders when `pos=null && pendingBracketInfo=null`. This guard exists to suppress stale SL orders in the race window after a position closes. On hard refresh, `openOrders` and `positions` were fetched concurrently; orders typically resolved first, so `pos` was `null` when the order-line effect first ran — causing the SL to be hidden. If `searchOpenPositions` returned empty, `inferPositionsFromOrders` only ran *after* `setOpenOrders`, meaning the first render was always wrong. The label-pos cache is also ephemeral (in-memory ref), so the TP rendered at `'right'` (cache miss default) instead of `'mid'`.
+
+**Symptom 2 — Suspended phantom lines missing:** `pendingBracketInfo` is restored from `sessionStorage` when the Zustand slice initialises. However, in the `OrderPanel.tsx` account-subscription effect, `st.setPendingBracketInfo(null)` ran unconditionally — including on the *initial* page load where `prevAccountId` is `null`. This cleared the sessionStorage-restored value before `hydratePositionsAndOrders` ran, so Suspended bracket legs arrived via WebSocket with no price context and either didn't render or showed at price 0.
+
+### Fix
+
+**`OrderPanel.tsx` — `hydratePositionsAndOrders`:** Refactored to use `Promise.allSettled` for both REST fetches, then apply positions (or run `inferPositionsFromOrders`) **before** calling `setOpenOrders`. This guarantees `pos` is in the store on the very first render, so the Stop-order guard never incorrectly fires.
+
+```
+Before: positionFetch ──┐             setOpenPositions (may arrive after orders)
+        ordersFetch  ────┴─ setOpenOrders  →  effect runs with pos=null  →  SL hidden
+
+After:  positionFetch ──┐
+        ordersFetch  ──┘  await both  →  setOpenPositions  →  setOpenOrders  →  effect runs with pos set
+```
+
+If `searchOpenPositions` fails or returns empty, `inferPositionsFromOrders` runs synchronously from the fetched orders array *before* `setOpenOrders` is called — still guaranteeing position context on first render.
+
+**`OrderPanel.tsx` — account-subscription effect:** On initial page load (`prevAccountId === null`), capture existing `pendingBracketInfo` as a synthetic snapshot before the clearing block runs. Pass it to `hydratePositionsAndOrders` so `setPendingBracketInfo(bi)` restores it, keeping WebSocket-delivered Suspended orders enrichable with correct SL/TP prices.
+
+### Key Files
+
+- `frontend/src/components/order-panel/OrderPanel.tsx` — `hydratePositionsAndOrders` serialisation + synthetic snapshot on initial load
+
+---
+
 ## Draft SL/TP Persists After Bracket Order Cancel — Next Order Uses Edited Positions / Preview Lines Flash Then Persist on Cancel
 
 **Date resolved**: 2026-04-27

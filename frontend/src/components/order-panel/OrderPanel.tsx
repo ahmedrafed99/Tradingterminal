@@ -135,59 +135,71 @@ type AccountSnapshot = {
 };
 
 /** Fetch open orders + positions and merge into store. */
-function hydratePositionsAndOrders(
+async function hydratePositionsAndOrders(
   accountId: string,
   savedSnapshot?: AccountSnapshot,
 ) {
-  // Try REST position endpoint first (may not exist on all gateways)
-  positionService.searchOpenPositions(accountId).then((positions) => {
-    // Replace all positions for this account — removes stale ones closed while offline
-    useStore.getState().setOpenPositions(positions, accountId);
-  }).catch((err) => {
-    console.error('[OrderPanel] Position REST fetch failed:', err instanceof Error ? err.message : err);
-  });
+  // Run both REST fetches in parallel for speed.
+  const [posResult, ordResult] = await Promise.allSettled([
+    positionService.searchOpenPositions(accountId),
+    orderService.searchOpenOrders(accountId),
+  ]);
 
-  // Fetch orders, then infer positions if needed
-  orderService.searchOpenOrders(accountId).then(async (orders) => {
-    const st = useStore.getState();
-    st.setOpenOrders(orders);
+  if (ordResult.status === 'rejected') {
+    console.warn('[OrderPanel] Order REST fetch failed:', ordResult.reason instanceof Error ? ordResult.reason.message : ordResult.reason);
+    return;
+  }
 
-    // searchOpenOrders never returns Suspended bracket legs — they only arrive via WebSocket.
-    // When switching back to an account with an active bracket session, re-inject them from
-    // the saved snapshot so the chart shows the correct SL/TP lines immediately.
-    if (savedSnapshot) {
-      const bi = savedSnapshot.bracketInfo;
-      st.setPendingBracketInfo(bi);
-      let tpIdx = 0;
-      for (const o of savedSnapshot.suspendedOrders) {
-        // Use bracketInfo prices — suspendedOrders may have pre-drag prices if the user
-        // dragged via preview lines (Buy/Sell flow) which updates bracketInfo but not openOrders.
-        const isSl = o.customTag?.endsWith('-SL')
-          ?? (o.type === OrderType.Stop || o.type === OrderType.TrailingStop);
-        const enriched = isSl
-          ? { ...o, stopPrice: bi.slPrice ?? o.stopPrice }
-          : { ...o, limitPrice: bi.tpPrices[tpIdx++] ?? o.limitPrice };
-        st.upsertOrder(enriched);
-      }
-      debugLog.log('snapshot:restore', {
-        bracketInfo: bi,
-        suspended: savedSnapshot.suspendedOrders.map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
-        storeAfter: useStore.getState().openOrders
-          .filter(o => o.status === OrderStatus.Suspended)
-          .map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
-      });
+  const orders = ordResult.value;
+  const st = useStore.getState();
+
+  // Apply positions (or infer from orders) BEFORE calling setOpenOrders.
+  // The order-line guard hides Working Stop orders when pos=null, so the SL
+  // would be permanently missing until a position event arrived. Ensuring
+  // positions are in the store first means the very first render is correct.
+  if (posResult.status === 'fulfilled' && posResult.value.length > 0) {
+    st.setOpenPositions(posResult.value, accountId);
+  } else {
+    if (posResult.status === 'rejected') {
+      console.error('[OrderPanel] Position REST fetch failed:', posResult.reason instanceof Error ? posResult.reason.message : posResult.reason);
     }
-
-    // If no positions loaded yet, infer from orders + trades
-    const hasAnyPosition = useStore.getState().positions.some(
+    // Gateway doesn't support REST positions — infer from orders + trades before rendering.
+    const hasAnyPosition = st.positions.some(
       (p) => p.accountId === accountId && p.size > 0,
     );
     if (!hasAnyPosition && orders.length > 0) {
       await inferPositionsFromOrders(accountId, orders);
     }
-  }).catch((err) => {
-    console.warn('[OrderPanel] Order REST fetch failed:', err instanceof Error ? err.message : err);
-  });
+  }
+
+  // Now set orders — position context is guaranteed to be in the store.
+  st.setOpenOrders(orders);
+
+  // searchOpenOrders never returns Suspended bracket legs — they only arrive via WebSocket.
+  // When switching back to an account with an active bracket session, re-inject them from
+  // the saved snapshot so the chart shows the correct SL/TP lines immediately.
+  if (savedSnapshot) {
+    const bi = savedSnapshot.bracketInfo;
+    st.setPendingBracketInfo(bi);
+    let tpIdx = 0;
+    for (const o of savedSnapshot.suspendedOrders) {
+      // Use bracketInfo prices — suspendedOrders may have pre-drag prices if the user
+      // dragged via preview lines (Buy/Sell flow) which updates bracketInfo but not openOrders.
+      const isSl = o.customTag?.endsWith('-SL')
+        ?? (o.type === OrderType.Stop || o.type === OrderType.TrailingStop);
+      const enriched = isSl
+        ? { ...o, stopPrice: bi.slPrice ?? o.stopPrice }
+        : { ...o, limitPrice: bi.tpPrices[tpIdx++] ?? o.limitPrice };
+      st.upsertOrder(enriched);
+    }
+    debugLog.log('snapshot:restore', {
+      bracketInfo: bi,
+      suspended: savedSnapshot.suspendedOrders.map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
+      storeAfter: useStore.getState().openOrders
+        .filter(o => o.status === OrderStatus.Suspended)
+        .map(o => ({ id: o.id, limitPrice: o.limitPrice, stopPrice: o.stopPrice })),
+    });
+  }
 }
 
 export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
@@ -259,6 +271,13 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
       });
     }
 
+    // On initial load (prevAccountId === null), preserve pendingBracketInfo from sessionStorage
+    // as a synthetic snapshot so Suspended bracket legs get their prices when they arrive via WebSocket.
+    let snapshotToUse = savedSnapshotRef.current.get(activeAccountId);
+    if (!snapshotToUse && !prevAccountId && st.pendingBracketInfo) {
+      snapshotToUse = { bracketInfo: st.pendingBracketInfo, suspendedOrders: [] };
+    }
+
     // Clear stale data from previous account
     st.setOpenOrders([]);
     st.setPendingBracketInfo(null);
@@ -271,7 +290,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
     realtimeService.subscribeUserEvents(activeAccountId);
 
     // Hydrate positions + orders, restoring snapshot if switching back to this account
-    hydratePositionsAndOrders(activeAccountId, savedSnapshotRef.current.get(activeAccountId));
+    hydratePositionsAndOrders(activeAccountId, snapshotToUse);
   }, [connected, activeAccountId]);
 
   // Re-fetch open orders + positions on user hub reconnect (events may have been missed)
