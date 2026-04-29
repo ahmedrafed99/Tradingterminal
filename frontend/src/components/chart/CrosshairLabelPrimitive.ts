@@ -1,42 +1,81 @@
-import type { IChartApi, ISeriesApi } from 'lightweight-charts';
-
+import type {
+  ISeriesPrimitive,
+  SeriesAttachedParameter,
+  IPrimitivePaneView,
+  IPrimitivePaneRenderer,
+  PrimitivePaneViewZOrder,
+  SeriesType,
+  Time,
+  ISeriesApi,
+} from 'lightweight-charts';
+import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { COLOR_BORDER, COLOR_TEXT } from '../../constants/colors';
 import { FONT_FAMILY } from '../../constants/layout';
 
 const BG_COLOR = COLOR_BORDER;
 const TEXT_COLOR = COLOR_TEXT;
+const LABEL_H = 20;
+const FONT = `bold 12px ${FONT_FAMILY}`;
 
-/**
- * Crosshair price label rendered as an HTML element in the chart overlay.
- * Uses z-index:30 so it always renders above PriceLevelLine axis labels (z-index:20).
- */
-export class CrosshairLabelPrimitive {
-  private _overlay: HTMLDivElement;
-  private _series: ISeriesApi<'Candlestick'>;
-  private _chart: IChartApi;
-  private _el: HTMLDivElement;
+class CrosshairAxisRenderer implements IPrimitivePaneRenderer {
+  private _y: number;
+  private _text: string;
+
+  constructor(y: number, text: string) {
+    this._y = y;
+    this._text = text;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
+      const top = this._y - LABEL_H / 2;
+      ctx.fillStyle = BG_COLOR;
+      ctx.fillRect(0, top, mediaSize.width, LABEL_H);
+      ctx.fillStyle = TEXT_COLOR;
+      ctx.font = FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this._text, mediaSize.width / 2, this._y);
+    });
+  }
+}
+
+class CrosshairAxisPaneView implements IPrimitivePaneView {
+  private _y = 0;
+  private _text = '';
+
+  update(y: number, text: string): void {
+    this._y = y;
+    this._text = text;
+  }
+
+  renderer(): IPrimitivePaneRenderer {
+    return new CrosshairAxisRenderer(this._y, this._text);
+  }
+
+  zOrder(): PrimitivePaneViewZOrder { return 'top'; }
+}
+
+export class CrosshairLabelPrimitive implements ISeriesPrimitive<Time> {
+  private _series: ISeriesApi<SeriesType, Time> | null = null;
+  private _requestUpdate: (() => void) | null = null;
+  private _price: number | null = null;
   private _decimals = 2;
   private _tickSize = 0;
   private _suppressed = false;
 
-  constructor(overlay: HTMLDivElement, series: ISeriesApi<'Candlestick'>, chart: IChartApi) {
-    this._overlay = overlay;
-    this._series = series;
-    this._chart = chart;
+  private _paneView = new CrosshairAxisPaneView();
+  private _paneViewArr: readonly IPrimitivePaneView[] = [this._paneView];
+  private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
 
-    this._el = document.createElement('div');
-    this._el.style.cssText =
-      `position:absolute;right:0;height:20px;font-size:12px;font-weight:bold;` +
-      `font-family:${FONT_FAMILY};line-height:20px;text-align:center;` +
-      `pointer-events:none;transform:translateY(-50%);box-sizing:border-box;` +
-      `background:${BG_COLOR};color:${TEXT_COLOR};z-index:30;display:none;`;
-    overlay.appendChild(this._el);
+  attached(param: SeriesAttachedParameter<Time, SeriesType>): void {
+    this._series = param.series;
+    this._requestUpdate = param.requestUpdate;
   }
 
-  get el(): HTMLDivElement { return this._el; }
-
-  destroy(): void {
-    this._el.remove();
+  detached(): void {
+    this._series = null;
+    this._requestUpdate = null;
   }
 
   setDecimals(decimals: number): void {
@@ -47,38 +86,30 @@ export class CrosshairLabelPrimitive {
     this._tickSize = tickSize;
   }
 
-  /** Hide the label while a drawing is being dragged (avoids 1-frame lag flicker) */
   suppress(suppressed: boolean): void {
     this._suppressed = suppressed;
-    if (suppressed) this._el.style.display = 'none';
+    this._requestUpdate?.();
   }
 
   updateCrosshairPrice(price: number | null): void {
-    if (this._suppressed) return;
-    if (price === null) {
-      this._el.style.display = 'none';
-      return;
-    }
+    this._price = price;
+    this._requestUpdate?.();
+  }
 
-    // Snap price to tick size
+  priceAxisPaneViews(): readonly IPrimitivePaneView[] {
+    if (this._price === null || this._suppressed || !this._series) return this._emptyPaneViews;
     const snapped = this._tickSize > 0
-      ? Math.round(price / this._tickSize) * this._tickSize
-      : price;
+      ? Math.round(this._price / this._tickSize) * this._tickSize
+      : this._price;
     const y = this._series.priceToCoordinate(snapped);
-    if (y === null) {
-      this._el.style.display = 'none';
-      return;
-    }
-
-    let psWidth = 56;
-    try { psWidth = this._chart.priceScale('right').width(); } catch { /* */ }
-
-    this._el.style.display = '';
-    this._el.style.top = `${y}px`;
-    this._el.style.width = `${psWidth}px`;
-    this._el.textContent = snapped.toLocaleString('en-US', {
+    if (y === null) return this._emptyPaneViews;
+    const text = snapped.toLocaleString('en-US', {
       minimumFractionDigits: this._decimals,
       maximumFractionDigits: this._decimals,
     });
+    this._paneView.update(y as number, text);
+    return this._paneViewArr;
   }
+
+  updateAllViews(): void {}
 }

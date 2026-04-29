@@ -8,7 +8,7 @@ import type { Condition } from '../../services/conditionService';
 import { shortSymbol } from '../../utils/formatters';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { syncForwarder } from '../../services/conditionTickForwarder';
-import { OrderSide } from '../../types/enums';
+import { OrderSide, OrderStatus, OrderType } from '../../types/enums';
 import { pointsToPrice } from '../../utils/instrument';
 import { fitTpsToOrderSize } from '../chart/hooks/resolvePreviewConfig';
 
@@ -101,6 +101,7 @@ export function ConditionsTab() {
       side,
       orderSize: c.orderSize,
       tpSizes: fittedTps.map((tp) => tp.size),
+      fromCondition: true,
     });
 
     useStore.setState({
@@ -108,10 +109,34 @@ export function ConditionsTab() {
       previewSide: side,
       limitPrice: entryPrice,
       orderType: 'limit',
+      draftSlPoints: c.bracket.sl && c.bracket.sl.points > 0 ? c.bracket.sl.points : null,
+      draftTpPoints: fittedTps.map((tp) => tp.points),
     });
 
     if (c.triggeredOrderId) {
       useStore.getState().setPendingEntryOrderId(c.triggeredOrderId);
+    }
+
+    // WS bracket Suspended events may have arrived before this SSE. Retroactively
+    // patch any already-stored Suspended legs that missed the ws:suspended-override.
+    const bi = useStore.getState().pendingBracketInfo;
+    if (bi) {
+      const oppSide = side === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy;
+      const suspended = useStore.getState().openOrders.filter(
+        (o) => o.status === OrderStatus.Suspended && String(o.contractId) === String(c.contractId),
+      );
+      const slOrder = suspended.find(
+        (o) => o.side === oppSide && (o.type === OrderType.Stop || o.type === OrderType.TrailingStop),
+      );
+      if (slOrder && bi.slPrice != null) {
+        useStore.getState().upsertOrder({ ...slOrder, stopPrice: bi.slPrice });
+      }
+      const tpOrders = suspended.filter((o) => o.side === oppSide && o.type === OrderType.Limit);
+      bi.tpPrices.forEach((tpPrice, i) => {
+        if (tpOrders[i]) {
+          useStore.getState().upsertOrder({ ...tpOrders[i], limitPrice: tpPrice });
+        }
+      });
     }
   }
 

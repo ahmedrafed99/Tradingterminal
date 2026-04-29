@@ -4,37 +4,39 @@ import type { Condition } from '../../../services/conditionService';
 import { conditionService } from '../../../services/conditionService';
 import { useStore } from '../../../store/useStore';
 import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
-import { PriceLevelLine } from '../PriceLevelLine';
+import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ArmedDragState } from './conditionLineTypes';
 import { CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL, CLR_ARM_ABOVE, CLR_ARM_BELOW, CLR_SL, CLR_TP } from './conditionLineTypes';
-import { LABEL_BG, LABEL_TEXT, CLOSE_BG, wireCloseHover, formatSlPnl, formatTpPnl } from './labelUtils';
+import { LABEL_BG, LABEL_TEXT, CLOSE_BG, formatSlPnl, formatTpPnl } from './labelUtils';
 import { snapToTickSize } from '../barUtils';
 
+const CLOSE_BG_HOVER = '#c0392b';
+
 /**
- * Effect 1: Creates dashed lines on the chart for each armed condition
- * that matches the current contract. Labels mirror the preview view exactly.
+ * Effect 1: Creates canvas primitives for each armed condition matching the
+ * current contract. Labels mirror the preview view. Drag is handled via
+ * built-in onDrag/onDragEnd callbacks; small click opens condition modal.
  */
 export function useArmedConditionLines(
   refs: ChartRefs,
   contract: Contract | null,
   conditions: Condition[],
   conditionServerUrl: string,
-  linesRef: React.MutableRefObject<PriceLevelLine[]>,
+  linesRef: React.MutableRefObject<PriceLevelPrimitive[]>,
   condIdsRef: React.MutableRefObject<string[]>,
   dragRef: React.MutableRefObject<ArmedDragState | null>,
 ): void {
   useEffect(() => {
     const series = refs.series.current;
-    const overlay = refs.overlay.current;
-    const chart = refs.chart.current;
+    const container = refs.container.current;
 
-    for (const line of linesRef.current) line.destroy();
+    for (const line of linesRef.current) series?.detachPrimitive(line);
     linesRef.current = [];
     condIdsRef.current = [];
 
-    if (!series || !overlay || !chart || !contract) return;
+    if (!series || !container || !contract) return;
 
     const relevant = conditions.filter(
       (c) => c.status === 'armed' && String(c.contractId) === String(contract.id),
@@ -42,157 +44,148 @@ export function useArmedConditionLines(
 
     const tickSize = contract.tickSize;
 
-    function wireDrag(
-      labelEl: HTMLElement,
-      excludeEl: HTMLElement | null,
-      drag: Omit<ArmedDragState, 'startY'>,
-    ) {
-      labelEl.style.pointerEvents = 'auto';
-      labelEl.style.cursor = 'grab';
-      labelEl.addEventListener('mousedown', (e) => {
-        if (excludeEl && (e.target === excludeEl || excludeEl.contains(e.target as Node))) return;
-        e.preventDefault();
-        dragRef.current = { ...drag, startY: e.clientY };
-        labelEl.style.cursor = 'grabbing';
-        if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-        if (chart) chart.applyOptions({ handleScroll: false, handleScale: false });
-      });
+    function attach(prim: PriceLevelPrimitive): PriceLevelPrimitive {
+      series!.attachPrimitive(prim);
+      prim.setChartElement(container!);
+      return prim;
     }
 
-    function wireX(
-      xCell: HTMLDivElement,
-      onClick: () => void,
-    ) {
-      xCell.style.cursor = 'pointer';
-      wireCloseHover(xCell);
-      xCell.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onClick();
-      });
-    }
+    const url = () => resolveConditionServerUrl(useStore.getState().conditionServerUrl);
 
     for (const cond of relevant) {
       const isAbove = cond.conditionType === 'closes_above';
-      const lineColor = isAbove ? CLR_ABOVE : CLR_BELOW;
       const condId = cond.id;
       const isBuy = cond.orderSide === 'buy';
       const sideBg = isBuy ? CLR_BUY : CLR_SELL;
-      const url = () => resolveConditionServerUrl(useStore.getState().conditionServerUrl);
-
-      // --- Trigger line ---
-      const line = new PriceLevelLine({
-        price: cond.triggerPrice,
-        series, overlay, chartApi: chart,
-        lineColor, lineStyle: 'dashed', lineWidth: 1,
-        axisLabelVisible: true, tickSize,
-      });
-
-      const arrowChar = isAbove ? '\u25B2' : '\u25BC';
+      const arrowChar = isAbove ? '▲' : '▼';
       const condText = isAbove ? 'If Close Above' : 'If Close Below';
+      const armBg = isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
       const orderWord = cond.orderType === 'market' ? 'market' : 'limit';
-
-      line.setLabel([
-        { text: arrowChar, bg: isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW, color: '#fff' },
-        { text: `${condText} ${cond.timeframe}`, bg: LABEL_BG, color: LABEL_TEXT },
-        { text: orderWord, bg: LABEL_BG, color: LABEL_TEXT },
-        { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-      ]);
-
-      const labelEl = line.getLabelEl();
-      const cells = line.getCells();
       const lineIdx = linesRef.current.length;
 
-      if (labelEl) {
-        const xCell = cells[cells.length - 1];
-        if (xCell) {
-          wireX(xCell, () => {
-            conditionService.remove(url(), condId)
-              .then(() => useStore.getState().removeCondition(condId))
-              .catch((err) => showToast('error', 'Failed to delete', errorMessage(err)));
-          });
-        }
-        wireDrag(labelEl, xCell ?? null, { condId, lineIdx, originalPrice: cond.triggerPrice, field: 'triggerPrice' });
-      }
+      // ── Trigger line ──
+      const triggerLine = attach(new PriceLevelPrimitive({
+        price: cond.triggerPrice,
+        lineColor: isAbove ? CLR_ABOVE : CLR_BELOW,
+        lineStyle: 'dashed',
+        lineWidth: 1,
+        priceLabel: { visible: true, tickSize },
+        labelFraction: cond.orderType === 'market' ? 0.30 : undefined,
+        cellOrder: ['arrow', 'label', 'type', 'close'],
+        cells: {
+          arrow: { text: arrowChar, bg: armBg, color: '#fff',
+                   onClick: () => useStore.getState().openConditionModal(condId) },
+          label: { text: `${condText} ${cond.timeframe}`, bg: LABEL_BG, color: LABEL_TEXT,
+                   onClick: () => useStore.getState().openConditionModal(condId) },
+          type:  { text: orderWord, bg: LABEL_BG, color: LABEL_TEXT,
+                   onClick: () => useStore.getState().openConditionModal(condId) },
+          close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                   hoverBg: CLOSE_BG_HOVER,
+                   onClick: () => {
+                     conditionService.remove(url(), condId)
+                       .then(() => useStore.getState().removeCondition(condId))
+                       .catch((err) => showToast('error', 'Failed to delete', errorMessage(err)));
+                   } },
+        },
+        onDrag: (price) => {
+          const line = linesRef.current[lineIdx];
+          if (line) line.setPrice(snapToTickSize(price, tickSize));
+        },
+        onDragEnd: (newPrice) => {
+          const snapped = snapToTickSize(newPrice, tickSize);
+          if (snapped === cond.triggerPrice) return;
+          conditionService.update(url(), condId, { triggerPrice: snapped })
+            .then((updated) => useStore.getState().upsertCondition(updated))
+            .catch((err) => {
+              const line = linesRef.current[lineIdx];
+              if (line) line.setPrice(cond.triggerPrice);
+              showToast('error', 'Failed to update condition', errorMessage(err));
+            });
+        },
+      }));
 
-      linesRef.current.push(line);
+      linesRef.current.push(triggerLine);
       condIdsRef.current.push(condId);
 
-      // --- Market order label (ghost line, side-by-side with trigger) ---
+      // ── Market mode: ghost order line with label side-by-side ──
       if (cond.orderType === 'market') {
         const sideLabel = isBuy ? 'Buy Market' : 'Sell Market';
+        const orderLineIdx = linesRef.current.length;
 
-        const orderLine = new PriceLevelLine({
+        const orderLine = attach(new PriceLevelPrimitive({
           price: cond.triggerPrice,
-          series, overlay, chartApi: chart,
-          lineColor: sideBg, lineStyle: 'dashed', lineWidth: 0,
-          axisLabelVisible: false, tickSize,
-        });
-
-        orderLine.setLabel([
-          { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT },
-          { text: String(cond.orderSize), bg: sideBg, color: LABEL_TEXT },
-          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-        ]);
-
-        const orderLabelEl = orderLine.getLabelEl();
-        const orderCells = orderLine.getCells();
-        if (orderLabelEl) {
-          const xCell = orderCells[orderCells.length - 1];
-          if (xCell) {
-            wireX(xCell, () => {
-              conditionService.remove(url(), condId)
-                .then(() => useStore.getState().removeCondition(condId))
-                .catch((err) => showToast('error', 'Failed to delete', errorMessage(err)));
-            });
-          }
-        }
-
-        // Position side-by-side
-        line.setLabelLeft(0.30);
-        orderLine.setLabelLeft(0.65);
+          lineColor: sideBg,
+          lineStyle: 'dashed',
+          lineWidth: 0,
+          priceLabel: { visible: false, tickSize },
+          labelFraction: 0.65,
+          cellOrder: ['side', 'size', 'close'],
+          cells: {
+            side:  { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT },
+            size:  { text: String(cond.orderSize), bg: sideBg, color: LABEL_TEXT },
+            close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                     hoverBg: CLOSE_BG_HOVER,
+                     onClick: () => {
+                       conditionService.remove(url(), condId)
+                         .then(() => useStore.getState().removeCondition(condId))
+                         .catch((err) => showToast('error', 'Failed to delete', errorMessage(err)));
+                     } },
+          },
+        }));
 
         linesRef.current.push(orderLine);
         condIdsRef.current.push(condId);
+        void orderLineIdx; // referenced by index but not draggable
       }
 
-      // --- Limit order line ---
+      // ── Limit order line ──
       if (cond.orderType === 'limit' && cond.orderPrice != null) {
         const sideLabel = isBuy ? 'Buy Limit' : 'Sell Limit';
-
-        const orderLine = new PriceLevelLine({
-          price: cond.orderPrice,
-          series, overlay, chartApi: chart,
-          lineColor: sideBg, lineStyle: 'dashed', lineWidth: 1,
-          axisLabelVisible: true, tickSize,
-        });
-
-        orderLine.setLabel([
-          { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT },
-          { text: String(cond.orderSize), bg: sideBg, color: LABEL_TEXT },
-          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-        ]);
-
-        const orderLabelEl = orderLine.getLabelEl();
-        const orderCells = orderLine.getCells();
         const orderLineIdx = linesRef.current.length;
-        if (orderLabelEl) {
-          const xCell = orderCells[orderCells.length - 1];
-          if (xCell) {
-            wireX(xCell, () => {
-              conditionService.update(url(), condId, { orderType: 'market', orderPrice: undefined })
-                .then((updated) => useStore.getState().upsertCondition(updated))
-                .catch((err) => showToast('error', 'Failed to update', errorMessage(err)));
-            });
-          }
-          wireDrag(orderLabelEl, xCell ?? null, { condId, lineIdx: orderLineIdx, originalPrice: cond.orderPrice!, field: 'orderPrice' });
-        }
+        const origOrderPrice = cond.orderPrice;
+
+        const orderLine = attach(new PriceLevelPrimitive({
+          price: cond.orderPrice,
+          lineColor: sideBg,
+          lineStyle: 'dashed',
+          lineWidth: 1,
+          priceLabel: { visible: true, tickSize },
+          cellOrder: ['side', 'size', 'close'],
+          cells: {
+            side:  { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT,
+                     onClick: () => useStore.getState().openConditionModal(condId) },
+            size:  { text: String(cond.orderSize), bg: sideBg, color: LABEL_TEXT,
+                     onClick: () => useStore.getState().openConditionModal(condId) },
+            close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                     hoverBg: CLOSE_BG_HOVER,
+                     onClick: () => {
+                       conditionService.update(url(), condId, { orderType: 'market', orderPrice: undefined })
+                         .then((updated) => useStore.getState().upsertCondition(updated))
+                         .catch((err) => showToast('error', 'Failed to update', errorMessage(err)));
+                     } },
+          },
+          onDrag: (price) => {
+            const line = linesRef.current[orderLineIdx];
+            if (line) line.setPrice(snapToTickSize(price, tickSize));
+          },
+          onDragEnd: (newPrice) => {
+            const snapped = snapToTickSize(newPrice, tickSize);
+            if (snapped === origOrderPrice) return;
+            conditionService.update(url(), condId, { orderPrice: snapped })
+              .then((updated) => useStore.getState().upsertCondition(updated))
+              .catch((err) => {
+                const line = linesRef.current[orderLineIdx];
+                if (line) line.setPrice(origOrderPrice);
+                showToast('error', 'Failed to update condition', errorMessage(err));
+              });
+          },
+        }));
 
         linesRef.current.push(orderLine);
         condIdsRef.current.push(condId);
       }
 
-      // --- Bracket SL/TP lines ---
+      // ── Bracket SL/TP lines ──
       if (cond.bracket?.enabled) {
         const refPrice = cond.orderType === 'limit' && cond.orderPrice != null
           ? cond.orderPrice
@@ -204,41 +197,62 @@ export function useArmedConditionLines(
             isBuy ? refPrice - slPoints : refPrice + slPoints,
             tickSize,
           );
+          const origSlPrice = slPrice;
+          const slLineIdx = linesRef.current.length;
           const pnlText = formatSlPnl(refPrice, slPrice, cond.orderSize, isBuy, contract);
 
-          const slLine = new PriceLevelLine({
+          const slLine = attach(new PriceLevelPrimitive({
             price: slPrice,
-            series, overlay, chartApi: chart,
-            lineColor: CLR_SL, lineStyle: 'dashed', lineWidth: 1,
-            axisLabelVisible: true, tickSize,
-          });
-
-          slLine.setLabel([
-            { text: pnlText, bg: CLR_SL, color: LABEL_TEXT },
-            { text: String(cond.orderSize), bg: CLR_SL, color: LABEL_TEXT },
-            { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-          ]);
-
-          const slLabelEl = slLine.getLabelEl();
-          const slCells = slLine.getCells();
-          const slLineIdx = linesRef.current.length;
-          if (slLabelEl) {
-            const xCell = slCells[slCells.length - 1];
-            if (xCell) {
-              wireX(xCell, () => {
-                const existing = useStore.getState().conditions.find((c) => c.id === condId);
-                if (!existing?.bracket) return;
-                const newBracket = { ...existing.bracket, sl: undefined };
-                conditionService.update(url(), condId, { bracket: newBracket })
-                  .then((updated) => useStore.getState().upsertCondition(updated))
-                  .catch((err) => showToast('error', 'Failed to update', errorMessage(err)));
-              });
-            }
-            wireDrag(slLabelEl, xCell ?? null, {
-              condId, lineIdx: slLineIdx, originalPrice: slPrice,
-              field: 'slPrice', refPrice, isBuy,
-            });
-          }
+            lineColor: CLR_SL,
+            lineStyle: 'dashed',
+            lineWidth: 1,
+            priceLabel: { visible: true, tickSize },
+            cellOrder: ['pnl', 'size', 'close'],
+            cells: {
+              pnl:   { text: pnlText, bg: CLR_SL, color: LABEL_TEXT },
+              size:  { text: String(cond.orderSize), bg: CLR_SL, color: LABEL_TEXT },
+              close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                       hoverBg: CLOSE_BG_HOVER,
+                       onClick: () => {
+                         const existing = useStore.getState().conditions.find((c) => c.id === condId);
+                         if (!existing?.bracket) return;
+                         const newBracket = { ...existing.bracket, sl: undefined };
+                         conditionService.update(url(), condId, { bracket: newBracket })
+                           .then((updated) => useStore.getState().upsertCondition(updated))
+                           .catch((err) => showToast('error', 'Failed to update', errorMessage(err)));
+                       } },
+            },
+            onDrag: (price) => {
+              const line = linesRef.current[slLineIdx];
+              if (!line) return;
+              const snapped = snapToTickSize(price, tickSize);
+              line.setPrice(snapped);
+              const newPnl = formatSlPnl(refPrice, snapped, cond.orderSize, isBuy, contract);
+              line.setCell('pnl', { text: newPnl });
+            },
+            onDragEnd: (newPrice) => {
+              const snapped = snapToTickSize(newPrice, tickSize);
+              if (snapped === origSlPrice) return;
+              const wrongSide = isBuy ? snapped >= refPrice : snapped <= refPrice;
+              if (wrongSide) {
+                showToast('error', 'Invalid bracket price', 'SL dragged to wrong side');
+                const line = linesRef.current[slLineIdx];
+                if (line) line.setPrice(origSlPrice);
+                return;
+              }
+              const existing = useStore.getState().conditions.find((c) => c.id === condId);
+              if (!existing?.bracket) return;
+              const points = Math.abs(snapped - refPrice);
+              const newBracket = { ...existing.bracket, sl: { points } };
+              conditionService.update(url(), condId, { bracket: newBracket })
+                .then((updated) => useStore.getState().upsertCondition(updated))
+                .catch((err) => {
+                  const line = linesRef.current[slLineIdx];
+                  if (line) line.setPrice(origSlPrice);
+                  showToast('error', 'Failed to update condition', errorMessage(err));
+                });
+            },
+          }));
 
           linesRef.current.push(slLine);
           condIdsRef.current.push(condId);
@@ -250,43 +264,68 @@ export function useArmedConditionLines(
             isBuy ? refPrice + tp.points : refPrice - tp.points,
             tickSize,
           );
+          const origTpPrice = tpPrice;
           const tpSize = tp.size ?? cond.orderSize;
-          const pnlText = formatTpPnl(refPrice, tpPrice, tpSize, isBuy, contract);
-
-          const tpLine = new PriceLevelLine({
-            price: tpPrice,
-            series, overlay, chartApi: chart,
-            lineColor: CLR_TP, lineStyle: 'dashed', lineWidth: 1,
-            axisLabelVisible: true, tickSize,
-          });
-
-          tpLine.setLabel([
-            { text: pnlText, bg: CLR_TP, color: LABEL_TEXT },
-            { text: String(tpSize), bg: CLR_TP, color: LABEL_TEXT },
-            { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-          ]);
-
-          const tpLabelEl = tpLine.getLabelEl();
-          const tpCells = tpLine.getCells();
           const tpLineIdx = linesRef.current.length;
-          if (tpLabelEl) {
-            const xCell = tpCells[tpCells.length - 1];
-            if (xCell) {
-              wireX(xCell, () => {
-                const existing = useStore.getState().conditions.find((c) => c.id === condId);
-                if (!existing?.bracket?.tp) return;
-                const newTp = existing.bracket.tp.filter((_, i) => i !== tpIndex);
-                const newBracket = { ...existing.bracket, tp: newTp.length > 0 ? newTp : undefined };
-                conditionService.update(url(), condId, { bracket: newBracket })
-                  .then((updated) => useStore.getState().upsertCondition(updated))
-                  .catch((err) => showToast('error', 'Failed to update', errorMessage(err)));
-              });
-            }
-            wireDrag(tpLabelEl, xCell ?? null, {
-              condId, lineIdx: tpLineIdx, originalPrice: tpPrice,
-              field: 'tpPrice', tpIndex, refPrice, isBuy,
-            });
-          }
+          const pnlText = formatTpPnl(refPrice, tpPrice, tpSize, isBuy, contract);
+          const tpIndexCapture = tpIndex;
+
+          const tpLine = attach(new PriceLevelPrimitive({
+            price: tpPrice,
+            lineColor: CLR_TP,
+            lineStyle: 'dashed',
+            lineWidth: 1,
+            priceLabel: { visible: true, tickSize },
+            cellOrder: ['pnl', 'size', 'close'],
+            cells: {
+              pnl:   { text: pnlText, bg: CLR_TP, color: LABEL_TEXT },
+              size:  { text: String(tpSize), bg: CLR_TP, color: LABEL_TEXT },
+              close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                       hoverBg: CLOSE_BG_HOVER,
+                       onClick: () => {
+                         const existing = useStore.getState().conditions.find((c) => c.id === condId);
+                         if (!existing?.bracket?.tp) return;
+                         const newTp = existing.bracket.tp.filter((_, i) => i !== tpIndexCapture);
+                         const newBracket = { ...existing.bracket, tp: newTp.length > 0 ? newTp : undefined };
+                         conditionService.update(url(), condId, { bracket: newBracket })
+                           .then((updated) => useStore.getState().upsertCondition(updated))
+                           .catch((err) => showToast('error', 'Failed to update', errorMessage(err)));
+                       } },
+            },
+            onDrag: (price) => {
+              const line = linesRef.current[tpLineIdx];
+              if (!line) return;
+              const snapped = snapToTickSize(price, tickSize);
+              line.setPrice(snapped);
+              const newPnl = formatTpPnl(refPrice, snapped, tpSize, isBuy, contract);
+              line.setCell('pnl', { text: newPnl });
+            },
+            onDragEnd: (newPrice) => {
+              const snapped = snapToTickSize(newPrice, tickSize);
+              if (snapped === origTpPrice) return;
+              const wrongSide = isBuy ? snapped <= refPrice : snapped >= refPrice;
+              if (wrongSide) {
+                showToast('error', 'Invalid bracket price', 'TP dragged to wrong side');
+                const line = linesRef.current[tpLineIdx];
+                if (line) line.setPrice(origTpPrice);
+                return;
+              }
+              const existing = useStore.getState().conditions.find((c) => c.id === condId);
+              if (!existing?.bracket?.tp) return;
+              const points = Math.abs(snapped - refPrice);
+              const newTp = (existing.bracket.tp ?? []).map((t, i) =>
+                i === tpIndexCapture ? { ...t, points } : t,
+              );
+              const newBracket = { ...existing.bracket, tp: newTp };
+              conditionService.update(url(), condId, { bracket: newBracket })
+                .then((updated) => useStore.getState().upsertCondition(updated))
+                .catch((err) => {
+                  const line = linesRef.current[tpLineIdx];
+                  if (line) line.setPrice(origTpPrice);
+                  showToast('error', 'Failed to update condition', errorMessage(err));
+                });
+            },
+          }));
 
           linesRef.current.push(tpLine);
           condIdsRef.current.push(condId);
@@ -295,7 +334,7 @@ export function useArmedConditionLines(
     }
 
     return () => {
-      for (const line of linesRef.current) line.destroy();
+      for (const line of linesRef.current) series?.detachPrimitive(line);
       linesRef.current = [];
       condIdsRef.current = [];
     };

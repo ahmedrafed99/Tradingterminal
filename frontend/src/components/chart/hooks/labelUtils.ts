@@ -108,12 +108,16 @@ export function classifyOrderLine(order: Order, ctx: OrderLineCtx): OrderLineCla
     }
   }
 
-  const color = isSuspendedBracketLeg
-    ? (isSl ? SELL_COLOR : BUY_COLOR)
+  // Color uses type-based SL/TP detection for all Suspended orders, regardless of
+  // whether pendingBracketInfo is set (e.g. after cancelling the current-bracket entry).
+  const isSuspendedSl = order.status === OrderStatus.Suspended &&
+    (order.type === OrderType.Stop || order.type === OrderType.TrailingStop);
+  const color = order.status === OrderStatus.Suspended
+    ? (isSuspendedSl ? SELL_COLOR : BUY_COLOR)
     : computeOrderLineColor(order, price, pos);
 
-  const sizeBg = isSuspendedBracketLeg
-    ? (isSl ? SELL_COLOR : BUY_COLOR)
+  const sizeBg = order.status === OrderStatus.Suspended
+    ? (isSuspendedSl ? SELL_COLOR : BUY_COLOR)
     : (order.side === OrderSide.Sell ? SELL_COLOR : BUY_COLOR);
 
   const isEntry = order.type === OrderType.Limit

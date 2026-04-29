@@ -18,8 +18,8 @@ interface Position {
 }
 
 /**
- * Build the position label on the position PriceLevelLine.
- * Registers close-X and row-drag hit targets.
+ * Configure cells + P&L updater on the position PriceLevelPrimitive.
+ * Drag-to-create-SL/TP is handled by the primitive's onDragStart (set in useOrderLines).
  * Returns P&L updater closures.
  */
 export function buildPositionLabel(
@@ -38,6 +38,17 @@ export function buildPositionLabel(
   const isLong = pos.type === PositionType.Long;
   const sideBg = isLong ? BUY_COLOR : SELL_COLOR;
 
+  const posEntry = refs.orderEntries.current.find((e) => e.meta.kind === 'position');
+  const posPrimitive = posEntry?.line ?? null;
+  if (!posPrimitive) return pnlUpdaters;
+
+  function fmtPnl(diff: number, pnl: number): string {
+    if (useStore.getState().pnlMode === 'points') {
+      return `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} pts`;
+    }
+    return `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+  }
+
   // Compute initial P&L
   const lp = useStore.getState().lastPrice;
   let initText: string;
@@ -45,7 +56,7 @@ export function buildPositionLabel(
   if (lp != null) {
     const diff = isLong ? lp - pos.averagePrice : pos.averagePrice - lp;
     const initPnl = calcPnl(diff, contract, pos.size);
-    initText = `${initPnl >= 0 ? '+' : ''}$${initPnl.toFixed(2)}`;
+    initText = fmtPnl(diff, initPnl);
     initBg = initPnl >= 0 ? BUY_COLOR : SELL_COLOR;
     refs.lastPnlCache.current = { text: initText, bg: initBg };
   } else if (refs.lastPnlCache.current.text) {
@@ -56,73 +67,53 @@ export function buildPositionLabel(
     initBg = COLOR_TEXT_MUTED;
   }
 
-  const posIdx = refs.orderEntries.current.findIndex((e) => e.meta.kind === 'position');
-  const posLine = posIdx >= 0 ? refs.orderEntries.current[posIdx].line : null;
-  if (!posLine) return pnlUpdaters;
-
-  posLine.setLabelLeft(0.65);
-  posLine.setLabel([
-    { text: initText, bg: initBg, color: LABEL_TEXT },
-    { text: String(pos.size), bg: sideBg, color: LABEL_TEXT },
-    { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-  ]);
-
-  const cells = posLine.getCells();
-  const labelEl = posLine.getLabelEl();
-
-  // Close-X button (priority 0)
-  refs.hitTargets.current.push({
-    el: cells[2],
-    priority: 0,
-    handler: () => {
-      const acct = useStore.getState().activeAccountId;
-      if (!acct || !contract) return;
-      markAsManualClose(contract.id);
-      orderService.placeOrder({
-        accountId: acct, contractId: contract.id,
-        type: OrderType.Market, side: isLong ? OrderSide.Sell : OrderSide.Buy, size: pos.size,
-      }).catch((err) => {
-        showToast('error', 'Failed to close position', errorMessage(err));
-      });
-    },
-  });
-
-  // Row drag (priority 2)
-  if (labelEl) {
-    refs.hitTargets.current.push({
-      el: labelEl,
-      priority: 2,
-      handler: () => {
-        refs.posDrag.current = {
-          isLong,
-          posSize: pos.size,
-          avgPrice: pos.averagePrice,
-          direction: null,
-          snappedPrice: pos.averagePrice,
-        };
-        refs.activeDragRow.current = labelEl;
-        labelEl.style.cursor = 'grabbing';
-        if (refs.container.current) refs.container.current.style.cursor = 'grabbing';
-        if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: false, handleScale: false });
-      },
+  // Close onClick
+  function handleClose(): void {
+    const acct = useStore.getState().activeAccountId;
+    if (!acct || !contract) return;
+    markAsManualClose(contract.id);
+    orderService.placeOrder({
+      accountId: acct,
+      contractId: contract.id,
+      type: OrderType.Market,
+      side: isLong ? OrderSide.Sell : OrderSide.Buy,
+      size: pos.size,
+    }).catch((err) => {
+      showToast('error', 'Failed to close position', errorMessage(err));
     });
   }
 
-  // P&L updater
+  function togglePnlMode(): void {
+    const next = useStore.getState().pnlMode === '$' ? 'points' : '$';
+    useStore.getState().setPnlMode(next);
+  }
+
+  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: LABEL_TEXT, onClick: togglePnlMode });
+  posPrimitive.setCell('size', { text: String(pos.size), bg: sideBg, color: LABEL_TEXT });
+  posPrimitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleClose });
+  posPrimitive.setCellOrder(['pnl', 'size', 'close']);
+
+  // P&L updater — skipped during drag to prevent blink
   pnlUpdaters.push(() => {
+    if (refs.isDragging.current) return;
     const curPrice = useStore.getState().lastPrice;
     if (curPrice == null) {
       if (refs.lastPnlCache.current.text) {
-        posLine.updateSection(0, refs.lastPnlCache.current.text, refs.lastPnlCache.current.bg);
+        posPrimitive.setCell('pnl', {
+          text: refs.lastPnlCache.current.text,
+          bg: refs.lastPnlCache.current.bg,
+          color: LABEL_TEXT,
+          onClick: togglePnlMode,
+        });
       }
       return;
     }
     const diff = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
     const pnl = calcPnl(diff, contract, pos.size);
     const bg = pnl >= 0 ? BUY_COLOR : SELL_COLOR;
-    const text = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+    const text = fmtPnl(diff, pnl);
     refs.lastPnlCache.current = { text, bg };
-    posLine.updateSection(0, text, bg, LABEL_TEXT);
+    posPrimitive.setCell('pnl', { text, bg, color: LABEL_TEXT, onClick: togglePnlMode });
   });
 
   return pnlUpdaters;

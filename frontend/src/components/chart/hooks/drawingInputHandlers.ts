@@ -351,7 +351,7 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
   if (state.ovalResize || state.ovalDrag || state.drawingDrag || state.arrowPathNodeDrag || state.rectCreation || state.freeDrawCreation || state.chartPanning
-      || refs.orderDragState.current || refs.previewDragState.current || refs.posDrag.current) {
+      || refs.draggingKey.current || refs.posDrag.current) {
     setCursor(container, 'grabbing');
     return;
   }
@@ -426,10 +426,9 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
       clearCloseHover();
     }
 
-    // Hide quick-order button while hovering a label
+    // Signal quick-order primitive to hide while hovering a label
+    // (primitive's crosshairMove handler checks this flag)
     refs.labelHovered.current = overLabel;
-    const qoEl = refs.quickOrder.current;
-    if (qoEl) qoEl.style.display = overLabel ? 'none' : '';
 
     if (overLabel) return;
 

@@ -8,12 +8,12 @@ import type { TradeZonePrimitive } from '../TradeZonePrimitive';
 import type { MarketDepthPrimitive } from '../MarketDepthPrimitive';
 import type { NewsEventsPrimitive } from '../primitives/NewsEventsPrimitive';
 import type { BidAskPrimitive } from '../BidAskPrimitive';
-import type { PriceLevelLine } from '../PriceLevelLine';
+import type { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 
-// ── Single order/position line entry (replaces 3 parallel arrays) ──
+// ── Single order/position line entry ──────────────────────────────────────────
 export type OrderLineEntry = {
   key: string;
-  line: PriceLevelLine;
+  line: PriceLevelPrimitive;
   meta: OrderLineMeta;
   price: number;
 };
@@ -56,14 +56,6 @@ export type PosDragState = {
   snappedPrice: number;
 };
 
-// ── Order drag state ──
-export type OrderDragState = {
-  meta: OrderLineMeta;
-  key: string;
-  originalPrice: number;
-  draggedPrice: number;
-};
-
 // ── All shared refs, declared once in the orchestrator ──
 export interface ChartRefs {
   // Core chart
@@ -90,34 +82,31 @@ export interface ChartRefs {
   // DOM elements
   ohlc: React.RefObject<HTMLDivElement | null>;
   instrumentLabel: React.RefObject<HTMLDivElement | null>;
-  quickOrder: React.RefObject<HTMLDivElement | null>;
 
   // Shared flags
   qoHovered: React.MutableRefObject<boolean>;
   labelHovered: React.MutableRefObject<boolean>;
   lastPnlCache: React.MutableRefObject<{ text: string; bg: string }>;
+  isDragging: React.MutableRefObject<boolean>;
+  draggingKey: React.MutableRefObject<string | null>;
+  labelPosCache: React.MutableRefObject<Map<string, 'right' | 'mid'>>;
 
   // Hit-target registry (shared between drawings + overlay labels)
   hitTargets: React.MutableRefObject<HitTarget[]>;
-  entryClick: React.MutableRefObject<{ downX: number; downY: number; exec: () => void } | null>;
   updateOverlay: React.MutableRefObject<() => void>;
   scheduleOverlaySync: React.MutableRefObject<() => void>;
-  activeDragRow: React.MutableRefObject<HTMLDivElement | null>;
 
   // Preview lines
-  previewLines: React.MutableRefObject<PriceLevelLine[]>;
+  previewLines: React.MutableRefObject<PriceLevelPrimitive[]>;
   previewRoles: React.MutableRefObject<PreviewLineRole[]>;
   previewPrices: React.MutableRefObject<number[]>;
-  previewDragState: React.MutableRefObject<{ role: PreviewLineRole; lineIdx: number } | null>;
 
   // Order lines
   orderEntries: React.MutableRefObject<OrderLineEntry[]>;
-  orderDragState: React.MutableRefObject<OrderDragState | null>;
 
   // Position drag-to-create SL/TP
   posDrag: React.MutableRefObject<PosDragState | null>;
-  posDragLine: React.MutableRefObject<PriceLevelLine | null>;
-  posDragLabel: React.MutableRefObject<HTMLDivElement | null>;
+  posDragLine: React.MutableRefObject<PriceLevelPrimitive | null>;
 
   // TP size +/- redistribution
   hoveredTpOrderId: React.MutableRefObject<string | null>;

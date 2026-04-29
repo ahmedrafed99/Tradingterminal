@@ -5,27 +5,32 @@ import { useStore } from '../../../store/useStore';
 import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
 import { conditionService } from '../../../services/conditionService';
 import type { CreateConditionInput } from '../../../services/conditionService';
-import { PriceLevelLine } from '../PriceLevelLine';
+import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import type { ChartRefs } from './types';
 import { showToast, errorMessage } from '../../../utils/toast';
 import {
-  installSizeButtons, formatSlPnl, formatTpPnl,
-  updateSizeCellCount, BUY_HOVER, SELL_HOVER,
-  LABEL_BG, LABEL_TEXT, CLOSE_BG, BUY_COLOR, wireCloseHover,
+  formatSlPnl, formatTpPnl,
+  BUY_HOVER, SELL_HOVER,
+  LABEL_BG, LABEL_TEXT, CLOSE_BG, BUY_COLOR,
 } from './labelUtils';
 import { snapToTickSize } from '../barUtils';
 import { pointsToPrice } from '../../../utils/instrument';
-import type { PreviewState, PreviewDragState } from './conditionLineTypes';
+import type { PreviewState } from './conditionLineTypes';
 import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
 import {
   CLR_ABOVE, CLR_BELOW, CLR_BUY, CLR_SELL,
   CLR_ARM_ABOVE, CLR_ARM_BELOW, CLR_SL, CLR_TP,
 } from './conditionLineTypes';
 
+const CLOSE_BG_HOVER = '#c0392b';
+
 /**
  * Effect 3: Preview mode — creates/destroys the preview lines for quick
  * condition creation. Handles all interaction (ARM, +SL, +TP, size buttons,
  * limit/market toggle, direction flip).
+ *
+ * Drag is handled by PriceLevelPrimitive built-in callbacks.
+ * No DOM event listeners; no syncPosition calls.
  */
 export function useConditionPreview(
   refs: ChartRefs,
@@ -34,31 +39,36 @@ export function useConditionPreview(
   conditionPreview: boolean,
   conditionServerUrl: string,
   previewRef: React.MutableRefObject<PreviewState | null>,
-  previewDragRef: React.MutableRefObject<PreviewDragState | null>,
 ): void {
   useEffect(() => {
     const series = refs.series.current;
-    const overlay = refs.overlay.current;
-    const chart = refs.chart.current;
     const container = refs.container.current;
 
-    // Cleanup helper
+    function attach(prim: PriceLevelPrimitive): PriceLevelPrimitive {
+      series!.attachPrimitive(prim);
+      prim.setChartElement(container!);
+      return prim;
+    }
+
+    function detach(prim: PriceLevelPrimitive | null): void {
+      if (prim) series!.detachPrimitive(prim);
+    }
+
     function destroyPreview() {
       const p = previewRef.current;
       if (!p) return;
-      p.condLine?.destroy();
-      p.orderLine?.destroy();
-      p.slLine?.destroy();
-      for (const tp of p.tpLines) tp.line.destroy();
+      detach(p.condLine);
+      detach(p.orderLine);
+      detach(p.slLine);
+      for (const tp of p.tpLines) detach(tp.line);
       previewRef.current = null;
     }
 
-    if (!conditionPreview || !series || !overlay || !chart || !container || !contract) {
+    if (!conditionPreview || !series || !container || !contract) {
       destroyPreview();
       return;
     }
 
-    // Don't recreate if already exists
     if (previewRef.current) return;
 
     const tickSize = contract.tickSize;
@@ -66,36 +76,430 @@ export function useConditionPreview(
     const lastP = st.lastPrice ?? refs.lastBar.current?.close;
     if (!lastP) { destroyPreview(); return; }
 
-    // Offset: ~20 ticks above/below last price
     const offset = tickSize * 20;
     const condPrice = snapToTickSize(lastP + offset, tickSize);
     const orderPrice = snapToTickSize(lastP - offset, tickSize);
     const size = st.orderSize;
 
-    // Condition line
-    const condLine = new PriceLevelLine({
-      price: condPrice, series, overlay, chartApi: chart,
-      lineColor: CLR_ABOVE, lineStyle: 'dashed', lineWidth: 1,
-      axisLabelVisible: true, tickSize,
-    });
+    // ── Build primitive helpers ──────────────────────────────────────
 
-    // Order line
-    const orderLine = new PriceLevelLine({
-      price: orderPrice, series, overlay, chartApi: chart,
-      lineColor: CLR_BUY, lineStyle: 'dashed', lineWidth: 1,
-      axisLabelVisible: true, tickSize,
-    });
+    function makeCondLine(p: PreviewState): PriceLevelPrimitive {
+      const isAbove = p.isAbove;
+      const armBg = isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
+      const condText = isAbove ? `If Close Above ${timeframe.label}` : `If Close Below ${timeframe.label}`;
+      const orderTypeText = p.isMarket ? 'market' : 'limit';
+      return attach(new PriceLevelPrimitive({
+        price: p.condPrice,
+        lineColor: isAbove ? CLR_ABOVE : CLR_BELOW,
+        lineStyle: 'dashed',
+        lineWidth: 1,
+        priceLabel: { visible: true, tickSize },
+        labelFraction: p.isMarket ? 0.30 : undefined,
+        cellOrder: ['arrow', 'label', 'type', 'arm', 'close'],
+        cells: {
+          arrow:  { text: isAbove ? '▲' : '▼', bg: armBg, color: '#fff' },
+          label:  { text: condText, bg: LABEL_BG, color: LABEL_TEXT },
+          type:   { text: orderTypeText, bg: LABEL_BG, color: LABEL_TEXT,
+                    hoverBg: '#b0afb1', onClick: () => toggleMarketMode() },
+          arm:    { text: 'ARM', bg: armBg, color: '#fff',
+                    onClick: () => armCondition() },
+          close:  { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                    hoverBg: CLOSE_BG_HOVER,
+                    onClick: () => useStore.getState().setConditionPreview(false) },
+        },
+        onDrag: (price) => {
+          const p2 = previewRef.current;
+          if (!p2) return;
+          const snapped = snapToTickSize(price, tickSize);
+          p2.condPrice = snapped;
+          if (p2.isMarket && p2.orderLine) {
+            p2.orderPrice = snapped;
+            p2.orderLine.setPrice(snapped);
+            updateBracketPnl(p2, snapped);
+          }
+          if (!p2.isMarket) flipDirectionIfCrossed(p2);
+        },
+        onDragEnd: () => {
+          const p2 = previewRef.current;
+          if (!p2) return;
+          const snapped = snapToTickSize(p2.condLine!.getPrice(), tickSize);
+          p2.condPrice = snapped;
+          if (p2.isMarket) {
+            p2.orderPrice = snapped;
+          }
+        },
+      }));
+    }
 
-    previewRef.current = {
-      condLine, orderLine,
-      slLine: null, tpLines: [],
-      condPrice, orderPrice,
-      slPrice: null,
-      size, isAbove: true, isMarket: false,
-    };
+    function makeOrderLine(p: PreviewState): PriceLevelPrimitive {
+      return buildOrderLine(p);
+    }
 
-    // Build labels (also wires up interaction handlers)
-    updatePreviewLabels();
+    function buildOrderLine(p: PreviewState): PriceLevelPrimitive {
+      const isAbove = p.isAbove;
+      const sideBg = isAbove ? CLR_BUY : CLR_SELL;
+      const sideLabel = isAbove ? (p.isMarket ? 'Buy Market' : 'Buy Limit') : (p.isMarket ? 'Sell Market' : 'Sell Limit');
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+
+      const cellOrder = ['side', 'size'];
+      if (!p.slLine) cellOrder.push('addSl');
+      if (totalTpSize < p.size) cellOrder.push('addTp');
+      cellOrder.push('close');
+
+      const minusDisabled = p.size <= 1 || p.size <= totalTpSize;
+      const plusDisabled = false;
+
+      const prim = attach(new PriceLevelPrimitive({
+        price: p.orderPrice,
+        lineColor: sideBg,
+        lineStyle: 'dashed',
+        lineWidth: p.isMarket ? 0 : 1,
+        priceLabel: { visible: !p.isMarket, tickSize },
+        labelFraction: p.isMarket ? 0.65 : undefined,
+        cellOrder,
+        cells: {
+          side:  { text: sideLabel, bg: LABEL_BG, color: LABEL_TEXT,
+                   ...(p.isMarket ? { hoverBg: '#b0afb1', onClick: () => flipDirection() } : {}) },
+          size:  { text: String(p.size), bg: sideBg, color: LABEL_TEXT,
+                   leftText: '−', leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
+                   leftClick: () => decrementSize(),
+                   rightText: '+', rightColor: plusDisabled ? 'transparent' : LABEL_TEXT,
+                   rightClick: () => incrementSize() },
+          addSl: { text: '+SL', bg: CLR_SL, color: LABEL_TEXT,
+                   hoverBg: SELL_HOVER, onClick: () => addSlLine() },
+          addTp: { text: '+TP', bg: BUY_COLOR, color: LABEL_TEXT,
+                   hoverBg: BUY_HOVER, onClick: () => addTpLine() },
+          close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                   hoverBg: CLOSE_BG_HOVER,
+                   onClick: () => {
+                     const p2 = previewRef.current;
+                     if (!p2) return;
+                     if (p2.isMarket) {
+                       useStore.getState().setConditionPreview(false);
+                     } else {
+                       // Remove limit order line — switch to market mode
+                       p2.isMarket = true;
+                       p2.isAbove = p2.condPrice > p2.orderPrice;
+                       p2.orderPrice = p2.condPrice;
+                       detachAndRebuildOrderLine(p2);
+                       updateCondLine(p2);
+                     }
+                   } },
+        },
+        ...(!p.isMarket ? {
+          onDrag: (price) => {
+            const p2 = previewRef.current;
+            if (!p2) return;
+            const snapped = snapToTickSize(price, tickSize);
+            p2.orderPrice = snapped;
+            updateBracketPnl(p2, snapped);
+            flipDirectionIfCrossed(p2);
+          },
+          onDragEnd: () => {
+            const p2 = previewRef.current;
+            if (!p2) return;
+            p2.orderPrice = snapToTickSize(p2.orderLine!.getPrice(), tickSize);
+          },
+        } : {}),
+      }));
+      return prim;
+    }
+
+    function makeSlLine(p: PreviewState, atPrice?: number): PriceLevelPrimitive {
+      const isAbove = p.isAbove;
+      const slOffset = tickSize * 15;
+      const slPrice = atPrice ?? (isAbove
+        ? snapToTickSize(p.orderPrice - slOffset, tickSize)
+        : snapToTickSize(p.orderPrice + slOffset, tickSize));
+
+      const pnlTxt = formatSlPnl(p.orderPrice, slPrice, p.size, isAbove, contract!);
+      p.slPrice = slPrice;
+
+      const minusDisabled = p.size <= 1 || p.size <= p.tpLines.reduce((s, t) => s + t.size, 0);
+
+      return attach(new PriceLevelPrimitive({
+        price: slPrice,
+        lineColor: CLR_SL,
+        lineStyle: 'dashed',
+        lineWidth: 1,
+        priceLabel: { visible: true, tickSize },
+        cellOrder: ['pnl', 'size', 'close'],
+        cells: {
+          pnl:   { text: pnlTxt, bg: CLR_SL, color: LABEL_TEXT },
+          size:  { text: String(p.size), bg: CLR_SL, color: LABEL_TEXT,
+                   leftText: '−', leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
+                   leftClick: () => decrementSize(),
+                   rightText: '+', rightColor: LABEL_TEXT,
+                   rightClick: () => incrementSize() },
+          close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                   hoverBg: CLOSE_BG_HOVER,
+                   onClick: () => {
+                     const p2 = previewRef.current;
+                     if (!p2) return;
+                     detach(p2.slLine);
+                     p2.slLine = null;
+                     p2.slPrice = null;
+                     rebuildOrderLine(p2);
+                   } },
+        },
+        onDrag: (price) => {
+          const p2 = previewRef.current;
+          if (!p2 || !p2.slLine) return;
+          const snapped = snapToTickSize(price, tickSize);
+          p2.slPrice = snapped;
+          const pnl = formatSlPnl(p2.orderPrice, snapped, p2.size, p2.isAbove, contract!);
+          p2.slLine.setCell('pnl', { text: pnl });
+        },
+        onDragEnd: () => {
+          const p2 = previewRef.current;
+          if (!p2 || !p2.slLine) return;
+          p2.slPrice = snapToTickSize(p2.slLine.getPrice(), tickSize);
+        },
+      }));
+    }
+
+    function makeTpLine(p: PreviewState, atPrice?: number, atSize?: number): PriceLevelPrimitive {
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      const remaining = p.size - totalTpSize;
+      if (remaining <= 0) return null!;
+
+      const isAbove = p.isAbove;
+      const tpOffset = tickSize * (30 + p.tpLines.length * 15);
+      const tpPrice = atPrice ?? (isAbove
+        ? snapToTickSize(p.orderPrice + tpOffset, tickSize)
+        : snapToTickSize(p.orderPrice - tpOffset, tickSize));
+      const tpSize = atSize ?? remaining;
+      const pnlTxt = formatTpPnl(p.orderPrice, tpPrice, tpSize, isAbove, contract!);
+
+      const entry = { line: null as unknown as PriceLevelPrimitive, price: tpPrice, size: tpSize };
+      p.tpLines.push(entry);
+      // totalTpSize now includes this entry — + is disabled when all contracts are filled
+      const tpMinusDisabled = tpSize <= 1;
+      const tpPlusDisabled = p.tpLines.reduce((s, t) => s + t.size, 0) >= p.size;
+      const tpShowZones = !tpMinusDisabled || !tpPlusDisabled;
+
+      const prim = attach(new PriceLevelPrimitive({
+        price: tpPrice,
+        lineColor: CLR_TP,
+        lineStyle: 'dashed',
+        lineWidth: 1,
+        priceLabel: { visible: true, tickSize },
+        cellOrder: ['pnl', 'size', 'close'],
+        cells: {
+          pnl:   { text: pnlTxt, bg: CLR_TP, color: LABEL_TEXT },
+          size:  { text: String(tpSize), bg: CLR_TP, color: LABEL_TEXT,
+                   ...(tpShowZones ? {
+                     leftText: '−', leftColor: tpMinusDisabled ? 'transparent' : LABEL_TEXT,
+                     leftClick: () => decrementTpSize(entry),
+                     rightText: '+', rightColor: tpPlusDisabled ? 'transparent' : LABEL_TEXT,
+                     rightClick: () => incrementTpSize(entry),
+                   } : {
+                     leftClick: () => decrementTpSize(entry),
+                     rightClick: () => incrementTpSize(entry),
+                   }) },
+          close: { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT,
+                   hoverBg: CLOSE_BG_HOVER,
+                   onClick: () => {
+                     const p2 = previewRef.current;
+                     if (!p2) return;
+                     detach(entry.line);
+                     const idx = p2.tpLines.indexOf(entry);
+                     if (idx >= 0) p2.tpLines.splice(idx, 1);
+                     rebuildOrderLine(p2);
+                   } },
+        },
+        onDrag: (price) => {
+          const p2 = previewRef.current;
+          if (!p2) return;
+          const snapped = snapToTickSize(price, tickSize);
+          entry.price = snapped;
+          const pnl = formatTpPnl(p2.orderPrice, snapped, entry.size, p2.isAbove, contract!);
+          entry.line.setCell('pnl', { text: pnl });
+        },
+        onDragEnd: () => {
+          const p2 = previewRef.current;
+          if (!p2) return;
+          entry.price = snapToTickSize(entry.line.getPrice(), tickSize);
+        },
+      }));
+
+      entry.line = prim;
+      return prim;
+    }
+
+    // ── State mutation helpers ───────────────────────────────────────
+
+    function decrementSize() {
+      const p = previewRef.current;
+      if (!p) return;
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      if (p.size <= 1 || p.size <= totalTpSize) return;
+      p.size--;
+      syncSizeLabels(p);
+      rebuildOrderLine(p);
+    }
+
+    function incrementSize() {
+      const p = previewRef.current;
+      if (!p) return;
+      p.size++;
+      syncSizeLabels(p);
+      rebuildOrderLine(p);
+    }
+
+    function syncTpZones(p: PreviewState) {
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      const allFilled = totalTpSize >= p.size;
+      for (const tp of p.tpLines) {
+        const minusDisabled = tp.size <= 1;
+        const plusDisabled = allFilled;
+        const showZones = !minusDisabled || !plusDisabled;
+        tp.line.setCell('size', {
+          leftText: showZones ? '−' : undefined,
+          leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
+          rightText: showZones ? '+' : undefined,
+          rightColor: plusDisabled ? 'transparent' : LABEL_TEXT,
+        });
+      }
+    }
+
+    function decrementTpSize(entry: { line: PriceLevelPrimitive; price: number; size: number }) {
+      const p = previewRef.current;
+      if (!p || entry.size <= 1) return;
+      entry.size--;
+      const pnl = formatTpPnl(p.orderPrice, entry.price, entry.size, p.isAbove, contract!);
+      entry.line.setCell('pnl', { text: pnl });
+      entry.line.setCell('size', {
+        text: String(entry.size),
+        leftColor: entry.size <= 1 ? 'transparent' : LABEL_TEXT,
+      });
+      syncTpZones(p);
+      rebuildOrderLine(p);
+    }
+
+    function incrementTpSize(entry: { line: PriceLevelPrimitive; price: number; size: number }) {
+      const p = previewRef.current;
+      if (!p) return;
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      if (totalTpSize >= p.size) return;
+      entry.size++;
+      const pnl = formatTpPnl(p.orderPrice, entry.price, entry.size, p.isAbove, contract!);
+      entry.line.setCell('pnl', { text: pnl });
+      entry.line.setCell('size', {
+        text: String(entry.size),
+        leftColor: entry.size <= 1 ? 'transparent' : LABEL_TEXT,
+      });
+      syncTpZones(p);
+      rebuildOrderLine(p);
+    }
+
+    function syncSizeLabels(p: PreviewState) {
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      if (p.slLine && p.slPrice != null) {
+        const pnl = formatSlPnl(p.orderPrice, p.slPrice, p.size, p.isAbove, contract!);
+        const minusDisabled = p.size <= 1 || p.size <= totalTpSize;
+        p.slLine.setCell('pnl', { text: pnl });
+        p.slLine.setCell('size', {
+          text: String(p.size),
+          leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
+        });
+      }
+      for (const tp of p.tpLines) {
+        const pnl = formatTpPnl(p.orderPrice, tp.price, tp.size, p.isAbove, contract!);
+        tp.line.setCell('pnl', { text: pnl });
+      }
+      syncTpZones(p);
+    }
+
+    /** Rebuild the order line primitive (cell order changes when +SL/+TP appear/disappear). */
+    function rebuildOrderLine(p: PreviewState) {
+      detach(p.orderLine);
+      p.orderLine = buildOrderLine(p);
+    }
+
+    /** Called when order line needs to switch market↔limit, updating condLine too. */
+    function detachAndRebuildOrderLine(p: PreviewState) {
+      detach(p.orderLine);
+      p.orderLine = buildOrderLine(p);
+    }
+
+    /** Update condLine cells in-place when direction or market/limit mode changes. */
+    function updateCondLine(p: PreviewState) {
+      if (!p.condLine) return;
+      const isAbove = p.isAbove;
+      const armBg = isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
+      const condText = isAbove ? `If Close Above ${timeframe.label}` : `If Close Below ${timeframe.label}`;
+      p.condLine.setLineColor(isAbove ? CLR_ABOVE : CLR_BELOW);
+      p.condLine.setCell('arrow', { text: isAbove ? '▲' : '▼', bg: armBg });
+      p.condLine.setCell('label', { text: condText });
+      p.condLine.setCell('type', { text: p.isMarket ? 'market' : 'limit' });
+      p.condLine.setCell('arm', { bg: armBg });
+      p.condLine.setLabelFraction(p.isMarket ? 0.30 : null);
+    }
+
+    function toggleMarketMode() {
+      const p = previewRef.current;
+      if (!p || !p.orderLine) return;
+      if (!p.isMarket) {
+        p.isMarket = true;
+        p.isAbove = p.condPrice > p.orderPrice;
+        p.orderPrice = p.condPrice;
+        detach(p.slLine); p.slLine = null; p.slPrice = null;
+        for (const tp of p.tpLines) detach(tp.line);
+        p.tpLines = [];
+        reapplyBracketPreset();
+      } else {
+        p.isMarket = false;
+        p.orderPrice = snapToTickSize(p.condPrice - tickSize * 20, tickSize);
+      }
+      detachAndRebuildOrderLine(p);
+      updateCondLine(p);
+    }
+
+    function flipDirection() {
+      const p = previewRef.current;
+      if (!p) return;
+      p.isAbove = !p.isAbove;
+      rebuildOrderLine(p);
+      updateCondLine(p);
+    }
+
+    /** Flip isAbove if cond and order lines have crossed (limit mode only). */
+    function flipDirectionIfCrossed(p: PreviewState) {
+      if (p.isMarket) return;
+      const shouldBeAbove = p.condPrice > p.orderPrice;
+      if (shouldBeAbove === p.isAbove) return;
+      p.isAbove = shouldBeAbove;
+      rebuildOrderLine(p);
+      updateCondLine(p);
+    }
+
+    function updateBracketPnl(p: PreviewState, refPrice: number) {
+      if (p.slLine && p.slPrice != null) {
+        const pnl = formatSlPnl(refPrice, p.slPrice, p.size, p.isAbove, contract!);
+        p.slLine.setCell('pnl', { text: pnl });
+      }
+      for (const tp of p.tpLines) {
+        const pnl = formatTpPnl(refPrice, tp.price, tp.size, p.isAbove, contract!);
+        tp.line.setCell('pnl', { text: pnl });
+      }
+    }
+
+    function addSlLine(atPrice?: number) {
+      const p = previewRef.current;
+      if (!p || p.slLine) return;
+      p.slLine = makeSlLine(p, atPrice);
+      rebuildOrderLine(p);
+    }
+
+    function addTpLine(atPrice?: number, atSize?: number) {
+      const p = previewRef.current;
+      if (!p) return;
+      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
+      if (totalTpSize >= p.size) return;
+      makeTpLine(p, atPrice, atSize);
+      rebuildOrderLine(p);
+    }
 
     function reapplyBracketPreset() {
       const p = previewRef.current;
@@ -117,518 +521,25 @@ export function useConditionPreview(
       }
     }
 
-    // Auto-populate SL/TP from the active bracket preset in the order panel
-    reapplyBracketPreset();
-
-    // Keep size in sync when orderSize changes in the store
-    const unsubSize = useStore.subscribe((state, prev) => {
-      if (state.orderSize !== prev.orderSize) {
-        const p = previewRef.current;
-        if (!p) return;
-        p.size = state.orderSize;
-        updatePreviewLabels();
-      }
-    });
-
-    // Re-sync SL/TP lines when bracket preset changes
-    const unsubBracket = useStore.subscribe((state, prev) => {
-      if (state.activePresetId === prev.activePresetId && state.bracketPresets === prev.bracketPresets) return;
-      const p = previewRef.current;
-      if (!p) return;
-      p.slLine?.destroy();
-      p.slLine = null;
-      p.slPrice = null;
-      for (const tp of p.tpLines) tp.line.destroy();
-      p.tpLines = [];
-      reapplyBracketPreset();
-      updatePreviewLabels();
-    });
-
-    function updatePreviewLabels() {
-      const p = previewRef.current;
-      if (!p || !p.condLine) return;
-
-      const isAbove = p.isAbove;
-
-      // Always sync line colors to match current direction
-      p.condLine.setLineColor(isAbove ? CLR_ABOVE : CLR_BELOW);
-      if (p.orderLine) {
-        if (p.isMarket) {
-          p.orderLine.setLineWidth(0);
-          p.orderLine.setAxisLabelVisible(false);
-        } else {
-          p.orderLine.setLineColor(isAbove ? CLR_BUY : CLR_SELL);
-          p.orderLine.setLineWidth(1);
-          p.orderLine.setAxisLabelVisible(true);
-        }
-      }
-
-      const arrowChar = isAbove ? '\u25B2' : '\u25BC';
-      const condText = isAbove ? 'If Close Above' : 'If Close Below';
-      const orderWord = p.isMarket ? 'Market' : 'Limit';
-      const sideText = isAbove ? `Buy ${orderWord}` : `Sell ${orderWord}`;
-      const sideBg = isAbove ? CLR_BUY : CLR_SELL;
-
-      const armBg = isAbove ? CLR_ARM_ABOVE : CLR_ARM_BELOW;
-      const orderTypeText = p.isMarket ? 'market' : 'limit';
-
-      p.condLine.setLabel([
-        { text: arrowChar, bg: armBg, color: '#fff' },
-        { text: `${condText} ${timeframe.label}`, bg: LABEL_BG, color: LABEL_TEXT },
-        { text: orderTypeText, bg: LABEL_BG, color: LABEL_TEXT },
-        { text: 'ARM', bg: armBg, color: '#fff' },
-        { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-      ]);
-
-      // Order / market label
-      if (p.orderLine) {
-        const sections = [
-          { text: sideText, bg: LABEL_BG, color: LABEL_TEXT },
-          { text: String(p.size), bg: sideBg, color: LABEL_TEXT },
-        ];
-        if (!p.slLine) sections.push({ text: '+SL', bg: CLR_SL, color: LABEL_TEXT });
-        const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-        if (totalTpSize < p.size) sections.push({ text: '+TP', bg: BUY_COLOR, color: LABEL_TEXT });
-        sections.push({ text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT });
-        p.orderLine.setLabel(sections);
-      }
-
-      // Rewire interaction after label rebuild
-      setupPreviewInteraction(p.condLine, 'cond');
-      if (p.orderLine) setupPreviewInteraction(p.orderLine, 'order');
-
-      // In market mode, position labels side by side; in limit mode, reset to centered
-      if (p.isMarket) {
-        positionMarketLabel();
-      } else {
-        p.condLine.setLabelLeft(0.5);
-      }
-    }
-
-    function positionMarketLabel() {
-      const p = previewRef.current;
-      if (!p || !p.isMarket || !p.condLine || !p.orderLine) return;
-      p.condLine.setLabelLeft(0.30);
-      p.orderLine.setLabelLeft(0.65);
-    }
-
-    function makeClickable(cell: HTMLDivElement) {
-      cell.style.cursor = 'pointer';
-      cell.style.transition = 'filter 0.15s';
-      cell.addEventListener('mouseenter', () => { cell.style.filter = 'brightness(1.25)'; });
-      cell.addEventListener('mouseleave', () => { cell.style.filter = 'brightness(1)'; });
-    }
-
-    function setupPreviewInteraction(line: PriceLevelLine, target: 'cond' | 'order') {
-      const labelEl = line.getLabelEl();
-      const cells = line.getCells();
-      if (!labelEl) return;
-
-      labelEl.style.pointerEvents = 'auto';
-      labelEl.style.cursor = 'grab';
-
-      if (target === 'cond') {
-        for (const cell of cells) {
-          if (cell.textContent === 'limit' || cell.textContent === 'market') {
-            makeClickable(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              const p = previewRef.current;
-              if (!p || !p.orderLine) return;
-              if (!p.isMarket) {
-                p.isMarket = true;
-                p.isAbove = p.condPrice > p.orderPrice;
-                p.orderPrice = p.condPrice;
-                p.orderLine.setPrice(p.condPrice);
-                p.slLine?.destroy();
-                p.slLine = null;
-                p.slPrice = null;
-                for (const tp of p.tpLines) tp.line.destroy();
-                p.tpLines = [];
-                reapplyBracketPreset();
-              } else {
-                p.isMarket = false;
-              }
-              updatePreviewLabels();
-            });
-          }
-          if (cell.textContent === 'ARM') {
-            makeClickable(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              armCondition();
-            });
-          }
-          if (cell.textContent === '\u2715') {
-            cell.style.cursor = 'pointer';
-            wireCloseHover(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              useStore.getState().setConditionPreview(false);
-            });
-          }
-        }
-      }
-
-      if (target === 'order') {
-        const p = previewRef.current;
-        if (!p) return;
-
-        if (p.isMarket) {
-          labelEl.style.cursor = 'default';
-          const sideCell = cells[0];
-          if (sideCell) {
-            makeClickable(sideCell);
-            sideCell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              const p = previewRef.current;
-              if (!p) return;
-              p.isAbove = !p.isAbove;
-              updatePreviewLabels();
-            });
-          }
-        }
-
-        const sizeCell = cells[1];
-        if (sizeCell) {
-          setupOrderSizeButtons(sizeCell);
-        }
-
-        for (const cell of cells) {
-          if (cell.textContent === '+SL') {
-            makeClickable(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              addSlLine();
-            });
-          }
-          if (cell.textContent === '+TP') {
-            makeClickable(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              addTpLine();
-            });
-          }
-          if (cell.textContent === '\u2715') {
-            cell.style.cursor = 'pointer';
-            wireCloseHover(cell);
-            cell.addEventListener('mousedown', (e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (p.isMarket) {
-                useStore.getState().setConditionPreview(false);
-              } else {
-                p.isMarket = true;
-                p.isAbove = p.condPrice > p.orderPrice;
-                p.orderPrice = p.condPrice;
-                p.orderLine?.setPrice(p.condPrice);
-                p.slLine?.destroy();
-                p.slLine = null;
-                p.slPrice = null;
-                for (const tp of p.tpLines) tp.line.destroy();
-                p.tpLines = [];
-                updatePreviewLabels();
-              }
-            });
-          }
-        }
-      }
-
-      // Drag start
-      labelEl.addEventListener('mousedown', (e) => {
-        const t = e.target as HTMLElement;
-        if (t.textContent === 'ARM' || t.textContent === 'limit' || t.textContent === 'market' || t.textContent === '+SL' || t.textContent === '+TP' || t.textContent === '\u2715') return;
-        if (t.textContent === '+' || t.textContent === '\u2212') return;
-        if (target === 'order' && previewRef.current?.isMarket) return;
-
-        e.preventDefault();
-        const p = previewRef.current;
-        if (!p) return;
-        const price = target === 'cond' ? p.condPrice : p.orderPrice;
-        previewDragRef.current = { target, startY: e.clientY, originalPrice: price };
-        labelEl.style.cursor = 'grabbing';
-        if (container) container.style.cursor = 'grabbing';
-        if (chart) chart.applyOptions({ handleScroll: false, handleScale: false });
-      });
-    }
-
-    function updateLineSizeCell(line: PriceLevelLine, cellIdx: number, size: number) {
-      const cells = line.getCells();
-      updateSizeCellCount(cells, cellIdx, size);
-    }
-
-    function syncBracketSizes() {
-      const p = previewRef.current;
-      if (!p) return;
-      if (p.slLine && p.slPrice != null) {
-        updateLineSizeCell(p.slLine, 1, p.size);
-        const txt = slPnlText(p.orderPrice, p.slPrice, p.size, p.isAbove);
-        p.slLine.updateSection(0, txt, CLR_SL, LABEL_TEXT);
-      }
-      for (const tp of p.tpLines) {
-        const txt = tpPnlText(p.orderPrice, tp.price, tp.size, p.isAbove);
-        tp.line.updateSection(0, txt, CLR_TP, LABEL_TEXT);
-      }
-      updatePreviewLabels();
-    }
-
-    function setupOrderSizeButtons(sizeCell: HTMLDivElement) {
-      const p = previewRef.current;
-      if (!p) return;
-
-      const kit = installSizeButtons(sizeCell, {
-        initialCount: p.size,
-        normalBg: p.isAbove ? CLR_BUY : CLR_SELL,
-        hoverBg: p.isAbove ? BUY_HOVER : SELL_HOVER,
-        onMinus: () => {
-          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-          if (p.size <= 1 || p.size <= totalTpSize) return;
-          p.size--;
-          kit.setCount(p.size);
-          syncBracketSizes();
-        },
-        onPlus: () => {
-          p.size++;
-          kit.setCount(p.size);
-          syncBracketSizes();
-        },
-        isMinDisabled: () => {
-          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-          return p.size <= 1 || p.size <= totalTpSize;
-        },
-      });
-    }
-
-    function setupSlSizeButtons(sizeCell: HTMLDivElement) {
-      const p = previewRef.current;
-      if (!p) return;
-
-      const kit = installSizeButtons(sizeCell, {
-        initialCount: p.size,
-        normalBg: CLR_SL,
-        hoverBg: SELL_HOVER,
-        onMinus: () => {
-          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-          if (p.size <= 1 || p.size <= totalTpSize) return;
-          p.size--;
-          kit.setCount(p.size);
-          syncBracketSizes();
-        },
-        onPlus: () => {
-          p.size++;
-          kit.setCount(p.size);
-          syncBracketSizes();
-        },
-        isMinDisabled: () => {
-          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-          return p.size <= 1 || p.size <= totalTpSize;
-        },
-      });
-    }
-
-    function setupTpSizeButtons(sizeCell: HTMLDivElement, tpEntry: { line: PriceLevelLine; price: number; size: number }) {
-      const p = previewRef.current;
-      if (!p) return;
-
-      const kit = installSizeButtons(sizeCell, {
-        initialCount: tpEntry.size,
-        normalBg: CLR_TP,
-        hoverBg: BUY_HOVER,
-        onMinus: () => {
-          if (tpEntry.size <= 1) return;
-          tpEntry.size--;
-          kit.setCount(tpEntry.size);
-          const txt = tpPnlText(p.orderPrice, tpEntry.price, tpEntry.size, p.isAbove);
-          tpEntry.line.updateSection(0, txt, CLR_TP, LABEL_TEXT);
-          updatePreviewLabels();
-        },
-        onPlus: () => {
-          const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-          if (totalTpSize >= p.size) return;
-          tpEntry.size++;
-          kit.setCount(tpEntry.size);
-          const txt = tpPnlText(p.orderPrice, tpEntry.price, tpEntry.size, p.isAbove);
-          tpEntry.line.updateSection(0, txt, CLR_TP, LABEL_TEXT);
-          updatePreviewLabels();
-        },
-        isMinDisabled: () => tpEntry.size <= 1,
-        isPlusDisabled: () => p.tpLines.reduce((s, t) => s + t.size, 0) >= p.size,
-      });
-    }
-
-    function slPnlText(orderPr: number, slPr: number, sz: number, isAbv: boolean): string {
-      return formatSlPnl(orderPr, slPr, sz, isAbv, contract!);
-    }
-
-    function tpPnlText(orderPr: number, tpPr: number, sz: number, isAbv: boolean): string {
-      return formatTpPnl(orderPr, tpPr, sz, isAbv, contract!);
-    }
-
-    function addSlLine(atPrice?: number) {
-      const p = previewRef.current;
-      if (!p || p.slLine || !series || !overlay || !chart) return;
-
-      const isAbove = p.isAbove;
-      const slOffset = tickSize * 15;
-      const slPrice = atPrice ?? (isAbove
-        ? snapToTickSize(p.orderPrice - slOffset, tickSize)
-        : snapToTickSize(p.orderPrice + slOffset, tickSize));
-
-      const pnlTxt = slPnlText(p.orderPrice, slPrice, p.size, isAbove);
-
-      const slLine = new PriceLevelLine({
-        price: slPrice, series, overlay, chartApi: chart,
-        lineColor: CLR_SL, lineStyle: 'dashed', lineWidth: 1,
-        axisLabelVisible: true, tickSize,
-        label: [
-          { text: pnlTxt, bg: CLR_SL, color: LABEL_TEXT },
-          { text: String(p.size), bg: CLR_SL, color: LABEL_TEXT },
-          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-        ],
-      });
-
-      p.slLine = slLine;
-      p.slPrice = slPrice;
-
-      const slLabel = slLine.getLabelEl();
-      const slCells = slLine.getCells();
-      if (slLabel) {
-        slLabel.style.pointerEvents = 'auto';
-        slLabel.style.cursor = 'grab';
-
-        if (slCells[1]) setupSlSizeButtons(slCells[1]);
-
-        if (slCells[2]) {
-          slCells[2].style.cursor = 'pointer';
-          wireCloseHover(slCells[2]);
-          slCells[2].addEventListener('mousedown', (e) => {
-            e.stopPropagation(); e.preventDefault();
-            p.slLine?.destroy();
-            p.slLine = null;
-            p.slPrice = null;
-            updatePreviewLabels();
-          });
-        }
-
-        slLabel.addEventListener('mousedown', (e) => {
-          const t = e.target as HTMLElement;
-          if (t.textContent === '+' || t.textContent === '\u2212') return;
-          if (e.target === slCells[2] || slCells[2]?.contains(e.target as Node)) return;
-          e.preventDefault();
-          previewDragRef.current = { target: 'sl', startY: e.clientY, originalPrice: slPrice };
-          slLabel.style.cursor = 'grabbing';
-          if (container) container.style.cursor = 'grabbing';
-          chart.applyOptions({ handleScroll: false, handleScale: false });
-        });
-      }
-
-      updatePreviewLabels();
-    }
-
-    function addTpLine(atPrice?: number, atSize?: number) {
-      const p = previewRef.current;
-      if (!p || !series || !overlay || !chart) return;
-
-      const totalTpSize = p.tpLines.reduce((s, t) => s + t.size, 0);
-      const remaining = p.size - totalTpSize;
-      if (remaining <= 0) return;
-
-      const isAbove = p.isAbove;
-      const tpOffset = tickSize * (30 + p.tpLines.length * 15);
-      const tpPrice = atPrice ?? (isAbove
-        ? snapToTickSize(p.orderPrice + tpOffset, tickSize)
-        : snapToTickSize(p.orderPrice - tpOffset, tickSize));
-
-      const tpSize = atSize ?? remaining;
-      const pnlTxt = tpPnlText(p.orderPrice, tpPrice, tpSize, isAbove);
-
-      const tpLine = new PriceLevelLine({
-        price: tpPrice, series, overlay, chartApi: chart,
-        lineColor: CLR_TP, lineStyle: 'dashed', lineWidth: 1,
-        axisLabelVisible: true, tickSize,
-        label: [
-          { text: pnlTxt, bg: CLR_TP, color: LABEL_TEXT },
-          { text: String(tpSize), bg: CLR_TP, color: LABEL_TEXT },
-          { text: '\u2715', bg: CLOSE_BG, color: LABEL_TEXT },
-        ],
-      });
-
-      const tpEntry = { line: tpLine, price: tpPrice, size: tpSize };
-      p.tpLines.push(tpEntry);
-      const tpIndex = p.tpLines.length - 1;
-
-      const tpLabel = tpLine.getLabelEl();
-      const tpCells = tpLine.getCells();
-      if (tpLabel) {
-        tpLabel.style.pointerEvents = 'auto';
-        tpLabel.style.cursor = 'grab';
-
-        if (tpCells[1]) setupTpSizeButtons(tpCells[1], tpEntry);
-
-        if (tpCells[2]) {
-          tpCells[2].style.cursor = 'pointer';
-          wireCloseHover(tpCells[2]);
-          tpCells[2].addEventListener('mousedown', (e) => {
-            e.stopPropagation(); e.preventDefault();
-            tpEntry.line.destroy();
-            const idx = p.tpLines.indexOf(tpEntry);
-            if (idx >= 0) p.tpLines.splice(idx, 1);
-            updatePreviewLabels();
-          });
-        }
-
-        tpLabel.addEventListener('mousedown', (e) => {
-          const t = e.target as HTMLElement;
-          if (t.textContent === '+' || t.textContent === '\u2212') return;
-          if (e.target === tpCells[2] || tpCells[2]?.contains(e.target as Node)) return;
-          e.preventDefault();
-          previewDragRef.current = { target: 'tp', startY: e.clientY, originalPrice: tpPrice, tpIndex };
-          tpLabel.style.cursor = 'grabbing';
-          if (container) container.style.cursor = 'grabbing';
-          chart.applyOptions({ handleScroll: false, handleScale: false });
-        });
-      }
-
-      updatePreviewLabels();
-    }
-
     function armCondition() {
       const p = previewRef.current;
       if (!p) return;
-      const st = useStore.getState();
-      const url = resolveConditionServerUrl(st.conditionServerUrl);
-      if (!st.activeAccountId || !contract) return;
+      const st2 = useStore.getState();
+      const url = resolveConditionServerUrl(st2.conditionServerUrl);
+      if (!st2.activeAccountId || !contract) return;
 
       const isAbove = p.isAbove;
       const conditionType = isAbove ? 'closes_above' : 'closes_below';
       const orderSide = isAbove ? 'buy' : 'sell';
 
+      // Always use actual dragged line positions — preset is only used for initial placement.
       let bracket: CreateConditionInput['bracket'];
-      const activePreset = st.bracketPresets.find((pr) => pr.id === st.activePresetId);
-      if (activePreset) {
-        const bc = activePreset.config;
-        bracket = {
-          enabled: true,
-          sl: bc.stopLoss.points > 0 ? { points: bc.stopLoss.points } : undefined,
-          tp: bc.takeProfits.length > 0 ? [{ points: bc.takeProfits[0].points }] : undefined,
-        };
-      } else if (p.slPrice != null || p.tpLines.length > 0) {
-        const refPrice = p.isMarket ? (st.lastPrice ?? p.orderPrice) : p.orderPrice;
-        const slPoints = p.slPrice != null
-          ? Math.abs(refPrice - p.slPrice) / contract.tickSize * contract.tickSize
-          : undefined;
+      if (p.slPrice != null || p.tpLines.length > 0) {
+        const refPrice = p.isMarket ? (st2.lastPrice ?? p.orderPrice) : p.orderPrice;
+        const slPoints = p.slPrice != null ? Math.abs(refPrice - p.slPrice) : undefined;
         const tpArr = p.tpLines
           .filter((t) => t.size > 0)
-          .map((t) => ({
-            points: Math.abs(t.price - refPrice) / contract.tickSize * contract.tickSize,
-            size: t.size,
-          }))
+          .map((t) => ({ points: Math.abs(t.price - refPrice), size: t.size }))
           .filter((t) => t.points > 0);
         bracket = {
           enabled: true,
@@ -647,7 +558,7 @@ export function useConditionPreview(
         orderType: p.isMarket ? 'market' : 'limit',
         orderPrice: p.isMarket ? undefined : p.orderPrice,
         orderSize: p.size,
-        accountId: st.activeAccountId,
+        accountId: st2.activeAccountId,
         bracket,
       };
 
@@ -662,10 +573,49 @@ export function useConditionPreview(
         });
     }
 
+    // ── Initial construction ─────────────────────────────────────────
+
+    const p: PreviewState = {
+      condLine: null, orderLine: null,
+      slLine: null, tpLines: [],
+      condPrice, orderPrice,
+      slPrice: null,
+      size, isAbove: true, isMarket: false,
+    };
+    previewRef.current = p;
+
+    p.condLine = makeCondLine(p);
+    p.orderLine = makeOrderLine(p);
+
+    reapplyBracketPreset();
+
+    // ── Store subscriptions ──────────────────────────────────────────
+
+    const unsubSize = useStore.subscribe((state, prev) => {
+      if (state.orderSize !== prev.orderSize) {
+        const p2 = previewRef.current;
+        if (!p2) return;
+        p2.size = state.orderSize;
+        syncSizeLabels(p2);
+        rebuildOrderLine(p2);
+      }
+    });
+
+    const unsubBracket = useStore.subscribe((state, prev) => {
+      if (state.activePresetId === prev.activePresetId && state.bracketPresets === prev.bracketPresets) return;
+      const p2 = previewRef.current;
+      if (!p2) return;
+      detach(p2.slLine); p2.slLine = null; p2.slPrice = null;
+      for (const tp of p2.tpLines) detach(tp.line);
+      p2.tpLines = [];
+      reapplyBracketPreset();
+      rebuildOrderLine(p2);
+    });
+
     return () => {
       unsubSize();
       unsubBracket();
       destroyPreview();
     };
-  }, [conditionPreview, contract, conditionServerUrl, timeframe, refs, previewRef, previewDragRef]);
+  }, [conditionPreview, contract, conditionServerUrl, timeframe, refs, previewRef]);
 }

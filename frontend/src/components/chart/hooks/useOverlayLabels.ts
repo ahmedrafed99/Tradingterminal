@@ -8,8 +8,8 @@ import { buildOrderLabels } from './buildOrderLabels';
 import { buildPreviewLabels } from './buildPreviewLabels';
 
 /**
- * Configures labels on PriceLevelLine instances, registers hit targets,
- * and runs the sync loop (scroll/zoom/resize/tick repositioning).
+ * Configures canvas primitive labels, registers hit targets,
+ * and subscribes to price ticks for P&L updates.
  *
  * Orchestrator — delegates label building to 3 builder functions:
  *  1. buildPositionLabel — position P&L label + close button
@@ -28,7 +28,7 @@ export function useOverlayLabels(
     bracketPresets, activePresetId,
     orderType, limitPrice, orderSize,
     draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels,
-    pendingBracketInfo,
+    pendingBracketInfo, pnlMode,
   } = useStore(useShallow((s) => ({
     openOrders: s.openOrders,
     positions: s.positions,
@@ -46,6 +46,7 @@ export function useOverlayLabels(
     adHocSlPoints: s.adHocSlPoints,
     adHocTpLevels: s.adHocTpLevels,
     pendingBracketInfo: s.pendingBracketInfo,
+    pnlMode: s.pnlMode,
   })));
 
   // -- Label configuration + hit-target registration --
@@ -55,9 +56,7 @@ export function useOverlayLabels(
     const series = refs.series.current;
     if (!overlay || !series) return;
 
-    // Clear previous labels + hit targets
-    for (const line of refs.previewLines.current) line.setLabel(null);
-    for (const e of refs.orderEntries.current) e.line.setLabel(null);
+    // Clear previous hit targets
     refs.hitTargets.current = [];
 
     const pnlUpdaters: (() => void)[] = [];
@@ -83,22 +82,8 @@ export function useOverlayLabels(
       pnlUpdaters.push(...buildPreviewLabels(refs, contract));
     }
 
-    // --- Sync function (repositions all lines + updates P&L) ---
+    // --- Sync function: update P&L cells ---
     function updatePositions() {
-      for (const line of refs.previewLines.current) line.syncPosition();
-      for (const e of refs.orderEntries.current) e.line.syncPosition();
-      if (refs.posDragLine.current) refs.posDragLine.current.syncPosition();
-
-      if (refs.posDragLabel.current && refs.posDrag.current && refs.series.current) {
-        const y = refs.series.current.priceToCoordinate(refs.posDrag.current.snappedPrice);
-        if (y !== null) {
-          refs.posDragLabel.current.style.top = `${y}px`;
-          refs.posDragLabel.current.style.display = 'flex';
-        } else {
-          refs.posDragLabel.current.style.display = 'none';
-        }
-      }
-
       for (const updater of pnlUpdaters) updater();
     }
 
@@ -118,66 +103,24 @@ export function useOverlayLabels(
     return () => {
       unsub();
       orderLabelsCleanup?.();
-      for (const line of refs.previewLines.current) line.setLabel(null);
-      for (const e of refs.orderEntries.current) e.line.setLabel(null);
       refs.hitTargets.current = [];
       refs.updateOverlay.current = () => {};
     };
   }, [isOrderChart, openOrders, positions, contract, activeAccountId, previewEnabled, previewSide, previewHideEntry,
     bracketPresets, activePresetId, orderType, limitPrice, orderSize,
-    draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels, pendingBracketInfo]);
+    draftSlPoints, draftTpPoints, adHocSlPoints, adHocTpLevels, pendingBracketInfo, pnlMode]);
 
-  // -- Sync overlay positions on chart scroll/zoom/resize/price-scale-drag --
+  // -- Wire up scheduleOverlaySync for the lastPrice subscription in the label-config effect --
   useEffect(() => {
-    const chart = refs.chart.current;
-    const container = refs.container.current;
-    if (!chart || !container) return;
-
-    const handler = () => refs.updateOverlay.current();
-
-    // Coalescing flag — all triggers (scroll, resize, wheel, drag, price tick)
-    // funnel through scheduleSync so at most one handler() runs per frame.
     let syncRafId = 0;
     function scheduleSync() {
       if (syncRafId) return;
       syncRafId = requestAnimationFrame(() => {
         syncRafId = 0;
-        handler();
+        refs.updateOverlay.current();
       });
     }
-
-    // Expose to the price-tick subscription in the label-config effect
     refs.scheduleOverlaySync.current = scheduleSync;
-
-    // visibleLogicalRangeChange fires synchronously during pan — defer to RAF
-    chart.timeScale().subscribeVisibleLogicalRangeChange(scheduleSync);
-
-    const ro = new ResizeObserver(scheduleSync);
-    ro.observe(container);
-
-    // During drag, schedule sync on mousemove (coalesced via scheduleSync)
-    function onDragMove() { scheduleSync(); }
-    function onPointerDown() {
-      handler(); // immediate first sync
-      window.addEventListener('mousemove', onDragMove);
-    }
-    function onPointerUp() {
-      window.removeEventListener('mousemove', onDragMove);
-      scheduleSync(); // final sync
-    }
-    container.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointerup', onPointerUp);
-
-    container.addEventListener('wheel', scheduleSync, { passive: true });
-
-    return () => {
-      chart.timeScale().unsubscribeVisibleLogicalRangeChange(scheduleSync);
-      ro.disconnect();
-      cancelAnimationFrame(syncRafId);
-      window.removeEventListener('mousemove', onDragMove);
-      container.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointerup', onPointerUp);
-      container.removeEventListener('wheel', scheduleSync);
-    };
+    return () => { cancelAnimationFrame(syncRafId); };
   }, []);
 }

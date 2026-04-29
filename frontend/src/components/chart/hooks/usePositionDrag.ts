@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { FONT_FAMILY } from '../../../constants/layout';
 import type { Contract } from '../../../services/marketDataService';
 import { orderService } from '../../../services/orderService';
 import { useStore } from '../../../store/useStore';
@@ -7,7 +6,7 @@ import { OrderType, OrderSide } from '../../../types/enums';
 import { calcPnl } from '../../../utils/instrument';
 import { snapToTickSize } from '../barUtils';
 import { showToast, errorMessage } from '../../../utils/toast';
-import { PriceLevelLine } from '../PriceLevelLine';
+import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import type { ChartRefs } from './types';
 import { BUY_COLOR, LABEL_TEXT, CLOSE_BG } from './labelUtils';
 import { CROSSHAIR_CURSOR } from './drawingInteraction';
@@ -29,9 +28,8 @@ export function usePositionDrag(
   useEffect(() => {
     if (!isOrderChart) return;
     const container = refs.container.current;
-    const overlay = refs.overlay.current;
     const chart = refs.chart.current;
-    if (!container || !overlay || !chart || !contract) return;
+    if (!container || !chart || !contract) return;
 
     const tickSize = contract.tickSize;
 
@@ -45,19 +43,11 @@ export function usePositionDrag(
     function abortDrag() {
       cachedRect = null;
       refs.posDrag.current = null;
-      if (refs.activeDragRow.current) {
-        refs.activeDragRow.current.style.cursor = 'pointer';
-        refs.activeDragRow.current = null;
-      }
       if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
       if (refs.chart.current) refs.chart.current.applyOptions({ handleScroll: true, handleScale: true });
-      if (refs.posDragLine.current) {
-        refs.posDragLine.current.destroy();
+      if (refs.posDragLine.current && refs.series.current) {
+        refs.series.current.detachPrimitive(refs.posDragLine.current);
         refs.posDragLine.current = null;
-      }
-      if (refs.posDragLabel.current) {
-        refs.posDragLabel.current.remove();
-        refs.posDragLabel.current = null;
       }
     }
 
@@ -102,22 +92,8 @@ export function usePositionDrag(
       drag.direction = direction;
       drag.snappedPrice = snapped;
 
-      // Create or update temporary preview line
+      // Compute all display values up front so the primitive gets correct cells from frame 1
       const color = direction === 'sl' ? '#ff4444' : BUY_COLOR;
-      if (!refs.posDragLine.current) {
-        refs.posDragLine.current = new PriceLevelLine({
-          price: snapped,
-          series: series!, overlay: overlay!, chartApi: chart!,
-          lineColor: color, lineStyle: 'dashed', lineWidth: 2,
-          axisLabelVisible: true, tickSize,
-        });
-      } else {
-        refs.posDragLine.current.setPrice(snapped);
-        refs.posDragLine.current.setLineColor(color);
-        refs.posDragLine.current.syncPosition();
-      }
-
-      // Compute projected P&L for the label
       const diff = drag.isLong
         ? (direction === 'tp' ? snapped - drag.avgPrice : drag.avgPrice - snapped)
         : (direction === 'tp' ? drag.avgPrice - snapped : snapped - drag.avgPrice);
@@ -129,50 +105,30 @@ export function usePositionDrag(
       const labelText = direction === 'sl' ? 'SL' : 'TP';
       const textColor = color === BUY_COLOR ? LABEL_TEXT : '#fff';
 
-      // Create or update temporary overlay label
-      if (!refs.posDragLabel.current && overlay) {
-        const row = document.createElement('div');
-        row.style.cssText = `position:absolute;left:50%;display:flex;height:20px;font-size:11px;font-weight:bold;font-family:${FONT_FAMILY};line-height:20px;transform:translate(-50%,-50%);white-space:nowrap;border-radius:3px;overflow:hidden;pointer-events:none;`;
-        // P&L cell
-        const pnlCell = document.createElement('div');
-        pnlCell.style.cssText = `background:${color};color:${textColor};padding:0 6px;`;
-        pnlCell.textContent = pnlText;
-        pnlCell.dataset.role = 'pnl';
-        row.appendChild(pnlCell);
-        // Size cell
-        const sizeCell = document.createElement('div');
-        sizeCell.style.cssText = `background:${color};color:${textColor};padding:0 6px;`;
-        sizeCell.textContent = String(orderSz);
-        sizeCell.dataset.role = 'size';
-        row.appendChild(sizeCell);
-        // Label cell
-        const lblCell = document.createElement('div');
-        lblCell.style.cssText = `background:${CLOSE_BG};color:${LABEL_TEXT};padding:0 6px;`;
-        lblCell.textContent = labelText;
-        lblCell.dataset.role = 'lbl';
-        row.appendChild(lblCell);
-        overlay.appendChild(row);
-        refs.posDragLabel.current = row;
-      }
-      if (refs.posDragLabel.current) {
-        // Update cell contents
-        const cells = refs.posDragLabel.current.children;
-        const pnlCell = cells[0] as HTMLDivElement;
-        const sizeCell = cells[1] as HTMLDivElement;
-        const lblCell = cells[2] as HTMLDivElement;
-        pnlCell.textContent = pnlText;
-        pnlCell.style.background = color;
-        pnlCell.style.color = textColor;
-        sizeCell.textContent = String(orderSz);
-        sizeCell.style.background = color;
-        sizeCell.style.color = textColor;
-        lblCell.textContent = labelText;
-        // Position at Y coordinate of the snapped price
-        const y = series.priceToCoordinate(snapped);
-        if (y !== null) {
-          refs.posDragLabel.current.style.top = `${y}px`;
-          refs.posDragLabel.current.style.display = 'flex';
-        }
+      // Create or update canvas primitive ghost line
+      if (!refs.posDragLine.current) {
+        const primitive = new PriceLevelPrimitive({
+          price: snapped,
+          lineColor: color,
+          lineStyle: 'dashed',
+          lineWidth: 2,
+          cellOrder: ['pnl', 'size', 'lbl'],
+          cells: {
+            pnl: { text: pnlText, bg: color, color: textColor },
+            size: { text: String(orderSz), bg: color, color: textColor },
+            lbl: { text: labelText, bg: CLOSE_BG, color: LABEL_TEXT },
+          },
+          priceLabel: { visible: true, tickSize },
+          allowPriceMove: false,
+        });
+        series.attachPrimitive(primitive);
+        refs.posDragLine.current = primitive;
+      } else {
+        refs.posDragLine.current.setPrice(snapped);
+        refs.posDragLine.current.setLineColor(color);
+        refs.posDragLine.current.setCell('pnl', { text: pnlText, bg: color, color: textColor });
+        refs.posDragLine.current.setCell('size', { text: String(orderSz), bg: color, color: textColor });
+        refs.posDragLine.current.setCell('lbl', { text: labelText });
       }
     }
 
@@ -189,6 +145,7 @@ export function usePositionDrag(
 
       const st = useStore.getState();
       if (!st.activeAccountId || !contract) return;
+      const accountId = st.activeAccountId;
 
       const oppositeSide = drag.isLong ? OrderSide.Sell : OrderSide.Buy;
 
@@ -213,7 +170,7 @@ export function usePositionDrag(
         if (isStopInvalid) {
           showToast('info', 'Stop above market — closing position');
           orderService.placeOrder({
-            accountId: st.activeAccountId,
+            accountId,
             contractId: contract!.id,
             type: OrderType.Market,
             side: oppositeSide,
@@ -225,7 +182,7 @@ export function usePositionDrag(
         }
 
         orderService.placeOrder({
-          accountId: st.activeAccountId,
+          accountId,
           contractId: contract!.id,
           type: OrderType.Stop,
           side: oppositeSide,
@@ -236,7 +193,7 @@ export function usePositionDrag(
           if (msg.includes('stop') && (msg.includes('above') || msg.includes('below'))) {
             showToast('info', 'Stop at market — closing position');
             orderService.placeOrder({
-              accountId: st.activeAccountId,
+              accountId,
               contractId: contract!.id,
               type: OrderType.Market,
               side: oppositeSide,
@@ -263,7 +220,7 @@ export function usePositionDrag(
           return;
         }
         orderService.placeOrder({
-          accountId: st.activeAccountId,
+          accountId,
           contractId: contract!.id,
           type: OrderType.Limit,
           side: oppositeSide,

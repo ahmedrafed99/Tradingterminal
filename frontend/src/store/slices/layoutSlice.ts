@@ -20,10 +20,12 @@ export interface UiState {
   hideBalance: boolean;
   hideRpnl: boolean;
   hideUpnl: boolean;
+  pnlMode: '$' | 'points';
   setHideAccountName: (v: boolean) => void;
   setHideBalance: (v: boolean) => void;
   setHideRpnl: (v: boolean) => void;
   setHideUpnl: (v: boolean) => void;
+  setPnlMode: (v: '$' | 'points') => void;
   copyEnabled: boolean;
   copyMasterAccountId: string | null;
   copyFollowerIds: string[];
@@ -147,10 +149,12 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   hideBalance: false,
   hideRpnl: false,
   hideUpnl: false,
+  pnlMode: '$' as '$' | 'points',
   setHideAccountName: (hideAccountName) => set({ hideAccountName }),
   setHideBalance: (hideBalance) => set({ hideBalance }),
   setHideRpnl: (hideRpnl) => set({ hideRpnl }),
   setHideUpnl: (hideUpnl) => set({ hideUpnl }),
+  setPnlMode: (pnlMode) => set({ pnlMode }),
   copyEnabled: false,
   copyMasterAccountId: null as string | null,
   copyFollowerIds: [] as string[],

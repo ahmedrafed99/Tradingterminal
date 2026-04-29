@@ -3,7 +3,6 @@ import type { Order } from '../../services/orderService';
 import type { RealtimePosition } from '../../services/realtimeService';
 import type { BracketPreset } from '../../types/bracket';
 import { OrderSide, OrderStatus, OrderType } from '../../types/enums';
-
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------
@@ -73,6 +72,8 @@ export interface OrderPanelState {
     side: OrderSide;
     orderSize: number;
     tpSizes: number[];
+    /** True when set from a condition trigger — prices come from c.bracket, not from the active preset. */
+    fromCondition?: boolean;
   } | null;
   setPendingBracketInfo: (info: OrderPanelState['pendingBracketInfo']) => void;
   /** The orderId of the entry order that pendingBracketInfo belongs to. */

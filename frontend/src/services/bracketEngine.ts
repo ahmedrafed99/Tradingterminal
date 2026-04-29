@@ -8,6 +8,7 @@ import { pointsToPrice, priceToPoints, roundToTick, getTicksPerPoint } from '../
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 import { audioService } from './audioService';
+import { debugLog } from '../utils/debugLog';
 
 const DEV = import.meta.env.DEV;
 
@@ -83,11 +84,17 @@ class BracketEngine {
    * Arms the engine to watch for fills on this contract/account.
    */
   armForEntry(config: PendingEntryConfig) {
+    debugLog.log('bracket:armForEntry', {
+      contractId: config.contractId,
+      side: config.entrySide,
+      size: config.entrySize,
+      hadSession: this.session !== null,
+      sessionContractId: this.session?.contractId ?? null,
+    });
     this.session = null;
     this.armedConfig = config;
     this.confirmedOrderId = null;
     this.bufferedFills = [];
-    if (DEV) console.log('[BracketEngine] Armed for entry', config.contractId);
   }
 
   /**
@@ -556,6 +563,13 @@ class BracketEngine {
   // ── Internal ──────────────────────────────────────────────────────────
 
   private async onEntryFilled(cfg: PendingEntryConfig, entryPrice: number) {
+    debugLog.log('bracket:onEntryFilled', {
+      contractId: cfg.contractId,
+      side: cfg.entrySide,
+      size: cfg.entrySize,
+      entryPrice,
+      hadSession: this.session !== null,
+    });
     audioService.play('order_filled');
     const { config, accountId, contractId, entrySide, entrySize, contract } = cfg;
 

@@ -16,7 +16,7 @@ import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { MarketDepthPrimitive } from './MarketDepthPrimitive';
 import { BidAskPrimitive } from './BidAskPrimitive';
 import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
-import type { PriceLevelLine } from './PriceLevelLine';
+import type { PriceLevelPrimitive } from './primitives/PriceLevelPrimitive';
 import { getPriceScaleWidth } from './barUtils';
 import { useChartWidgets } from './hooks/useChartWidgets';
 import { useChartBars } from './hooks/useChartBars';
@@ -28,7 +28,7 @@ import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
 import { MarketStatusBadge } from './MarketStatusBadge';
-import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, OrderDragState, PosDragState } from './hooks/types';
+import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, PosDragState } from './hooks/types';
 
 export interface CandlestickChartProps {
   chartId: 'left' | 'right';
@@ -71,7 +71,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const newsEventsPrimitiveRef = useRef<NewsEventsPrimitive | null>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
   const instrumentLabelRef = useRef<HTMLDivElement>(null);
-  const quickOrderRef = useRef<HTMLDivElement>(null);
   // Shared flag: true while the quick-order (+) button is hovered so the
   // crosshair label primitive doesn't clear itself during the transition.
   const qoHoveredRef = useRef(false);
@@ -80,23 +79,22 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   // --- Refs declared here for all hooks (stable across renders) ---
 
   // Preview line refs
-  const previewLinesRef = useRef<PriceLevelLine[]>([]);
+  const previewLinesRef = useRef<PriceLevelPrimitive[]>([]);
   const previewRolesRef = useRef<PreviewLineRole[]>([]);
   const previewPricesRef = useRef<number[]>([]);
-  const previewDragStateRef = useRef<{ role: PreviewLineRole; lineIdx: number } | null>(null);
 
   // Order line refs
   const orderEntriesRef = useRef<OrderLineEntry[]>([]);
-  const orderDragStateRef = useRef<OrderDragState | null>(null);
-  const activeDragRowRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingRef = useRef(false);
+  const draggingKeyRef = useRef<string | null>(null);
+  const labelPosCacheRef = useRef<Map<string, 'right' | 'mid'>>(new Map());
 
   // Hit-target registry (shared between drawings + overlay labels)
   const hitTargetsRef = useRef<HitTarget[]>([]);
-  const entryClickRef = useRef<{ downX: number; downY: number; exec: () => void } | null>(null);
 
   // Position drag-to-create SL/TP refs
   const posDragRef = useRef<PosDragState | null>(null);
-  const posDragLineRef = useRef<PriceLevelLine | null>(null);
+  const posDragLineRef = useRef<PriceLevelPrimitive | null>(null);
   const posDragLabelRef = useRef<HTMLDivElement | null>(null);
 
   // Overlay label system
@@ -136,21 +134,19 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     newsEventsPrimitive: newsEventsPrimitiveRef,
     ohlc: ohlcRef,
     instrumentLabel: instrumentLabelRef,
-    quickOrder: quickOrderRef,
     qoHovered: qoHoveredRef,
     labelHovered: labelHoveredRef,
     lastPnlCache,
     hitTargets: hitTargetsRef,
-    entryClick: entryClickRef,
     updateOverlay: updateOverlayRef,
     scheduleOverlaySync: scheduleOverlaySyncRef,
-    activeDragRow: activeDragRowRef,
     previewLines: previewLinesRef,
     previewRoles: previewRolesRef,
     previewPrices: previewPricesRef,
-    previewDragState: previewDragStateRef,
     orderEntries: orderEntriesRef,
-    orderDragState: orderDragStateRef,
+    isDragging: isDraggingRef,
+    draggingKey: draggingKeyRef,
+    labelPosCache: labelPosCacheRef,
     posDrag: posDragRef,
     posDragLine: posDragLineRef,
     posDragLabel: posDragLabelRef,
@@ -207,7 +203,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     // DrawingsPrimitive's priceAxisPaneViews renders on top of it
     const countdown = new CountdownPrimitive();
     series.attachPrimitive(countdown);
-    countdown.setOverlay(overlayRef.current!, chart);
     countdownRef.current = countdown;
 
     // Attach market depth primitive — renders behind everything else
@@ -236,8 +231,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     series.attachPrimitive(drawingsPrimitive);
     drawingsPrimitiveRef.current = drawingsPrimitive;
 
-    // Create crosshair label as HTML in overlay — z-index:30 above PriceLevelLine axis labels
-    const crosshairLabel = new CrosshairLabelPrimitive(overlayRef.current!, series, chart);
+    const crosshairLabel = new CrosshairLabelPrimitive();
+    series.attachPrimitive(crosshairLabel);
     crosshairLabelRef.current = crosshairLabel;
 
     // Selection click — mark this chart as selected in dual-chart mode
@@ -257,12 +252,10 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       containerEl: containerRef.current,
       orderEntriesRef,
       previewLinesRef,
-      crosshairLabelEl: crosshairLabel.el,
     });
 
     return () => {
       unregisterChart(chartId);
-      crosshairLabel.destroy();
       chart.remove();
       chartRef.current = null;
       seriesRef.current = null;
@@ -388,51 +381,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
         className="absolute inset-0 pointer-events-none overflow-hidden"
         style={{ zIndex: Z.OVERLAY }}
       />
-      {isOrderChart && (
-        <div
-          ref={quickOrderRef}
-          className="absolute pointer-events-none"
-          style={{ zIndex: Z.TOOLBAR, display: 'none', transform: 'translateY(-50%)' }}
-        >
-          <div data-qo-wrap style={{ display: 'flex', alignItems: 'center', pointerEvents: 'auto', cursor: 'pointer' }}>
-            <div
-              data-qo-label
-              style={{
-                display: 'none',
-                fontSize: 11,
-                fontWeight: 'bold',
-                fontFamily: FONT_FAMILY,
-                height: 20,
-                lineHeight: '20px',
-                whiteSpace: 'nowrap',
-                borderRadius: '2px 0 0 2px',
-                overflow: 'hidden',
-              }}
-            >
-              <span data-qo-size style={{ padding: '0 6px' }} />
-              <span data-qo-text style={{ padding: '0 6px', background: 'var(--color-label-bg)', color: 'var(--color-label-text)', borderLeft: '1px solid var(--color-separator)' }} />
-            </div>
-            <div
-              data-qo-plus
-              style={{
-                width: 20,
-                height: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--color-border)',
-                borderRadius: 2,
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Scroll-to-latest button — appears when user has scrolled away from latest candle */}
       <button
         onClick={() => {

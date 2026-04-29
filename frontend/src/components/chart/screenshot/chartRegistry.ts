@@ -22,8 +22,6 @@ export interface ChartEntry {
   orderEntriesRef: { current: OrderLineEntry[] };
   /** Mutable ref to preview bracket price lines */
   previewLinesRef: { current: PriceLevelLine[] };
-  /** The crosshair price label HTML element — painted onto canvas in screenshots */
-  crosshairLabelEl: HTMLDivElement | null;
 }
 
 const entries = new Map<string, ChartEntry>();
