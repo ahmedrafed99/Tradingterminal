@@ -50,8 +50,7 @@ async function getGrantedHandle(): Promise<FileSystemDirectoryHandle | null> {
   const h = await loadDirHandle();
   if (!h) return null;
   const perm = await (h as any).queryPermission({ mode: 'readwrite' });
-  if (perm === 'granted') return h;
-  return (await (h as any).requestPermission({ mode: 'readwrite' })) === 'granted' ? h : null;
+  return perm === 'granted' ? h : null;
 }
 
 // ── Logger ───────────────────────────────────────────────
