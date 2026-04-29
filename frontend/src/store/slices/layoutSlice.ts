@@ -70,11 +70,14 @@ export interface DualChartState {
   secondTimeframe: Timeframe;
   selectedChart: 'left' | 'right';
   splitRatio: number;
+  pendingDrillTarget: { chartId: 'left' | 'right'; time: number } | null;
   setDualChart: (enabled: boolean) => void;
   setSecondContract: (contract: Contract) => void;
   setSecondTimeframe: (tf: Timeframe) => void;
   setSelectedChart: (side: 'left' | 'right') => void;
   setSplitRatio: (ratio: number) => void;
+  setPendingDrillTarget: (target: { chartId: 'left' | 'right'; time: number }) => void;
+  clearPendingDrillTarget: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,11 +217,14 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   secondTimeframe: DEFAULT_PINNED[0],
   selectedChart: 'left' as 'left' | 'right',
   splitRatio: 0.5,
+  pendingDrillTarget: null,
   setDualChart: (dualChart) => set({ dualChart }),
   setSecondContract: (secondContract) => set({ secondContract }),
   setSecondTimeframe: (secondTimeframe) => set({ secondTimeframe }),
   setSelectedChart: (selectedChart) => set({ selectedChart }),
   setSplitRatio: (splitRatio) => set({ splitRatio: Math.max(0.2, Math.min(0.8, splitRatio)) }),
+  setPendingDrillTarget: (pendingDrillTarget) => set({ pendingDrillTarget }),
+  clearPendingDrillTarget: () => set({ pendingDrillTarget: null }),
 
   // Market Depth
   domEnabled: false,

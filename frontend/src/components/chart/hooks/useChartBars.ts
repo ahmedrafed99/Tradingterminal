@@ -108,13 +108,26 @@ export function useChartBars(
           refs.dataMap.current.set(c.time as number, c.close);
         }
 
-        // Show the last ~100 bars zoomed in, with some right padding
-        const totalBars = candles.length;
-        const visibleBars = Math.min(100, totalBars);
-        refs.chart.current?.timeScale().setVisibleLogicalRange({
-          from: totalBars - visibleBars,
-          to: totalBars + 10,
-        });
+        // If a drill-down target is pending, scroll to that candle's open time;
+        // otherwise show the last ~100 bars with right padding.
+        const drillTarget = useStore.getState().pendingDrillTarget;
+        if (drillTarget && drillTarget.chartId === chartId) {
+          useStore.getState().clearPendingDrillTarget();
+          // Find the bar index at or just after the drill target time
+          const targetIdx = candles.findIndex((c) => (c.time as number) >= drillTarget.time);
+          const fromIdx = targetIdx >= 0 ? targetIdx : Math.max(0, candles.length - 100);
+          refs.chart.current?.timeScale().setVisibleLogicalRange({
+            from: fromIdx,
+            to: fromIdx + 100,
+          });
+        } else {
+          const totalBars = candles.length;
+          const visibleBars = Math.min(100, totalBars);
+          refs.chart.current?.timeScale().setVisibleLogicalRange({
+            from: totalBars - visibleBars,
+            to: totalBars + 10,
+          });
+        }
 
         // Disable auto-scale so user can drag vertically immediately
         // (must happen after data load so the chart knows the initial price range)

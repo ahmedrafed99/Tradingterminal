@@ -21,6 +21,8 @@ import { getPriceScaleWidth } from './barUtils';
 import { useChartWidgets } from './hooks/useChartWidgets';
 import { useChartBars } from './hooks/useChartBars';
 import { useChartDrawings } from './hooks/useChartDrawings';
+import { useChartContextMenu } from './hooks/useChartContextMenu';
+import { ChartContextMenu } from './ChartContextMenu';
 import { useQuickOrder } from './hooks/useQuickOrder';
 import { useOrderLines } from './hooks/useOrderLines';
 import { useOverlayLabels } from './hooks/useOverlayLabels';
@@ -333,6 +335,18 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const showFps = chartSettings.showFpsCounter;
   const fps = useFpsCounter(showFps);
 
+  const { menuState, closeMenu } = useChartContextMenu(refs, timeframe);
+
+  function drillIntoCandle(candleTime: number, targetTf: Timeframe) {
+    const store = useStore.getState();
+    store.setPendingDrillTarget({ chartId, time: candleTime });
+    if (chartId === 'left') {
+      store.setTimeframe(targetTf);
+    } else {
+      store.setSecondTimeframe(targetTf);
+    }
+  }
+
   return (
     <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden">
       {loading && (
@@ -435,6 +449,15 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       </button>
       <DrawingEditToolbar contractId={contract ? String(contract.id) : undefined} />
       <ChartSettingsButton chartRef={chartRef} containerRef={containerRef} />
+      {menuState && (
+        <ChartContextMenu
+          x={menuState.x}
+          y={menuState.y}
+          candleSeconds={menuState.candleSeconds}
+          onSelectTimeframe={(tf) => drillIntoCandle(menuState.candleTime, tf)}
+          onClose={closeMenu}
+        />
+      )}
     </div>
   );
 }));

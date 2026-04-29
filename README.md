@@ -49,6 +49,7 @@ docs/
 │   ├── video-recording/       — Chart video recording for journaling
 │   ├── system-monitor/        — Live data-flow monitor + session logs
 │   ├── voice-notifications/   — Audible voice clips on order/TP/SL fills
+│   ├── openCandleInTimeframe/ — Right-click candle → jump to same time on lower timeframe
 │   ├── frontend/              — Full index: all components, services, store slices, types
 │   └── refactor/              — Known architectural issues and cleanup priorities
 │
