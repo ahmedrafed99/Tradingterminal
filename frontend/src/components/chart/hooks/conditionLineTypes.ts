@@ -1,4 +1,4 @@
-import type { PriceLevelLine } from '../PriceLevelLine';
+import type { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import { COLOR_ACCENT, COLOR_LINE_BUY, COLOR_LINE_SELL } from '../../../constants/colors';
 
 // ── Shared ref types for condition line sub-hooks ──
@@ -7,7 +7,6 @@ export interface ArmedDragState {
   condId: string;
   lineIdx: number;
   originalPrice: number;
-  startY: number;
   field: 'triggerPrice' | 'orderPrice' | 'slPrice' | 'tpPrice';
   tpIndex?: number;   // for tpPrice
   refPrice?: number;  // for slPrice/tpPrice: the order/trigger ref
@@ -15,23 +14,16 @@ export interface ArmedDragState {
 }
 
 export interface PreviewState {
-  condLine: PriceLevelLine | null;
-  orderLine: PriceLevelLine | null;
-  slLine: PriceLevelLine | null;
-  tpLines: { line: PriceLevelLine; price: number; size: number }[];
+  condLine: PriceLevelPrimitive | null;
+  orderLine: PriceLevelPrimitive | null;
+  slLine: PriceLevelPrimitive | null;
+  tpLines: { line: PriceLevelPrimitive; price: number; size: number }[];
   condPrice: number;
   orderPrice: number;
   slPrice: number | null;
   size: number;
   isAbove: boolean;
   isMarket: boolean;
-}
-
-export interface PreviewDragState {
-  target: 'cond' | 'order' | 'sl' | 'tp';
-  startY: number;
-  originalPrice: number;
-  tpIndex?: number;
 }
 
 // ── Colors ──

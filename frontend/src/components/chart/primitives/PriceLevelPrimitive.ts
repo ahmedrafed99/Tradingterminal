@@ -45,6 +45,8 @@ export interface PriceLevelPrimitiveOptions {
   cellOrder: string[];
   cells: PriceLevelCells;
   labelPosition?: LabelPosition;
+  /** Override label start position as a fraction of plot width (0–1). Overrides labelPosition. */
+  labelFraction?: number;
   lineColor?: string;
   lineWidth?: number;
   lineStyle?: 'solid' | 'dashed';
@@ -310,6 +312,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   private _price: number;
   private _labelPos: LabelPosition;
+  private _labelFraction: number | null;
   private _lineColor: string;
   private _lineWidth: number;
   private _lineStyle: 'solid' | 'dashed';
@@ -344,6 +347,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._cellOrder = opts.cellOrder;
     this._cells = opts.cells;
     this._labelPos = opts.labelPosition ?? 'mid';
+    this._labelFraction = opts.labelFraction ?? null;
     this._lineColor = opts.lineColor ?? '#2962ff';
     this._lineWidth = opts.lineWidth ?? 1;
     this._lineStyle = opts.lineStyle ?? 'solid';
@@ -398,6 +402,16 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   setLabelPosition(pos: LabelPosition): void {
     this._labelPos = pos;
+    this._requestUpdate?.();
+  }
+
+  setLabelFraction(f: number | null): void {
+    this._labelFraction = f;
+    this._requestUpdate?.();
+  }
+
+  setLineWidth(width: number): void {
+    this._lineWidth = width;
     this._requestUpdate?.();
   }
 
@@ -487,7 +501,8 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     const totalW = items.reduce((a, b) => a + b.w, 0);
 
     let startX: number;
-    if (this._labelPos === 'left') startX = 4;
+    if (this._labelFraction != null) startX = Math.max(4, this._labelFraction * plotWidth - totalW / 2);
+    else if (this._labelPos === 'left') startX = 4;
     else if (this._labelPos === 'right') startX = Math.max(4, plotWidth * 0.88 - totalW);
     else startX = (plotWidth - totalW) / 2;
 

@@ -3,25 +3,18 @@ import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { resolveConditionServerUrl } from '../../../store/slices/conditionsSlice';
-import type { PriceLevelLine } from '../PriceLevelLine';
+import type { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import type { ChartRefs } from './types';
-import type { ArmedDragState, PreviewState, PreviewDragState } from './conditionLineTypes';
+import type { ArmedDragState, PreviewState } from './conditionLineTypes';
 import { useArmedConditionLines } from './useArmedConditionLines';
-import { useArmedConditionDrag } from './useArmedConditionDrag';
 import { useConditionPreview } from './useConditionPreview';
-import { useConditionPreviewDrag } from './useConditionPreviewDrag';
-import { useConditionLinesSync } from './useConditionLinesSync';
 
 /**
- * Renders armed conditions as dashed lines on the chart,
- * AND manages the "Preview" mode for quick condition creation.
+ * Orchestrator for condition lines on the chart:
+ *  1. useArmedConditionLines — creates/destroys canvas primitives for armed conditions
+ *  2. useConditionPreview   — creates/destroys preview primitives for quick-arm flow
  *
- * Orchestrator — owns all shared refs and delegates to 5 sub-hooks:
- *  1. useArmedConditionLines — armed condition line lifecycle
- *  2. useArmedConditionDrag — armed condition drag handling
- *  3. useConditionPreview — preview creation/destruction + interaction
- *  4. useConditionPreviewDrag — preview drag handling
- *  5. useConditionLinesSync — position sync on scroll/zoom/resize
+ * All drag and sync is handled inside the primitives (no separate drag/sync hooks).
  */
 export function useConditionLines(
   refs: ChartRefs,
@@ -33,17 +26,13 @@ export function useConditionLines(
   const conditionPreview = useStore((s) => s.conditionPreview);
 
   // Armed condition refs
-  const linesRef = useRef<PriceLevelLine[]>([]);
+  const linesRef = useRef<PriceLevelPrimitive[]>([]);
   const condIdsRef = useRef<string[]>([]);
   const dragRef = useRef<ArmedDragState | null>(null);
 
-  // Preview refs
+  // Preview ref (drag state now lives inside the primitives)
   const previewRef = useRef<PreviewState | null>(null);
-  const previewDragRef = useRef<PreviewDragState | null>(null);
 
   useArmedConditionLines(refs, contract, conditions, conditionServerUrl, linesRef, condIdsRef, dragRef);
-  useArmedConditionDrag(refs, contract, linesRef, dragRef);
-  useConditionPreview(refs, contract, timeframe, conditionPreview, conditionServerUrl, previewRef, previewDragRef);
-  useConditionPreviewDrag(refs, contract, timeframe, previewRef, previewDragRef);
-  useConditionLinesSync(refs, linesRef, previewRef);
+  useConditionPreview(refs, contract, timeframe, conditionPreview, conditionServerUrl, previewRef);
 }

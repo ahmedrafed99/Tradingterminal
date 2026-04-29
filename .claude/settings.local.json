@@ -30,13 +30,21 @@
       "Bash(node -e \"let d='''''''';process.stdin.on\\(''''data'''',c=>d+=c\\);process.stdin.on\\(''''end'''',\\(\\)=>{const b=JSON.parse\\(d\\).bars||[];b.forEach\\(x=>console.log\\(x.t.slice\\(11,16\\),''''O:''''+x.o,''''H:''''+x.h,''''L:''''+x.l,''''C:''''+x.c,''''V:''''+x.v\\)\\)}\\)\")",
       "Bash(find /c/Users/Ahmed/Projects/TradingTerminal/frontend/src -type f -name *drawing* -o -name *hline*)",
       "Bash(bash c:/Users/Ahmed/Projects/TradingTerminal/backend/scripts/price-alert.sh *)",
-      "Bash(bash c:/Users/Ahmed/Projects/TradingTerminal/backend/scripts/order-fill-alert.sh *)"
+      "Bash(bash c:/Users/Ahmed/Projects/TradingTerminal/backend/scripts/order-fill-alert.sh *)",
+      "Bash(git commit -m ' *)"
     ]
   },
   "hooks": {
-      "PostToolUse": [{
+    "PostToolUse": [
+      {
         "matcher": "Edit|Write",
-        "hooks": [{"type": "command", "command": "npx tsc --noEmit 2>&1 | head -20"}]
-      }]
-    }
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tsc --noEmit 2>&1 | head -20"
+          }
+        ]
+      }
+    ]
+  }
 }

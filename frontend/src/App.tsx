@@ -120,8 +120,11 @@ export default function App() {
 
   // Listen for backend-pushed events (e.g. remote disconnect via Telegram)
   useEffect(() => {
+    let active = true;
     const ws = new WebSocket('ws://localhost:3001/ws/events');
+    ws.onopen = () => { if (!active) ws.close(); };
     ws.onmessage = async (e) => {
+      if (!active) return;
       try {
         const event = JSON.parse(e.data as string);
         if (event.type === 'disconnect') {
@@ -131,7 +134,11 @@ export default function App() {
         }
       } catch { /* ignore malformed */ }
     };
-    return () => ws.close();
+    return () => {
+      active = false;
+      if (ws.readyState === WebSocket.OPEN) ws.close();
+      // If still CONNECTING, onopen will close it once the handshake finishes
+    };
   }, []);
 
   // Auto-load NQ into chart and order panel when connected (single search)
