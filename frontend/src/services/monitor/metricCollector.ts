@@ -226,7 +226,7 @@ class MetricCollector {
     this.recordTick(this.nodes['market-hub'], now);
     this.recordSubEvent(this.nodes['market-hub'], 'Quotes', now);
     this.recordTick(this.nodes.adapter, now);
-    if (this.pulseListeners.size > 0 && now - this.lastPulseAt >= 350) {
+    if (this.pulseListeners.size > 0 && now - this.lastPulseAt >= 350 && q.lastPrice != null) {
       this.lastPulseAt = now;
       for (const cb of this.pulseListeners) cb(q.lastPrice);
     }
