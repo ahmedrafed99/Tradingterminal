@@ -12,7 +12,6 @@ import { resolvePreviewConfig } from './resolvePreviewConfig';
 import { orderService } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { showToast, errorMessage } from '../../../utils/toast';
-import { debugLog } from '../../../utils/debugLog';
 import { isBracketLegPrice } from '../../../utils/bracketUtils';
 import { usePreviewLines } from './usePreviewLines';
 import { usePositionDrag } from './usePositionDrag';
@@ -215,14 +214,6 @@ function buildDragCallbacks(
     const snapped = snapPrice(rawNewPrice, ts);
     const originalPrice = dragState.originalPrice;
 
-    debugLog.log('drag:mouseup-raw', {
-      key,
-      originalPrice,
-      newPrice: snapped,
-      metaKind: meta.kind,
-      status: meta.kind === 'order' ? meta.order.status : null,
-      samePrice: snapped === originalPrice,
-    });
 
     if (snapped === originalPrice) {
       refs.isDragging.current = false;
@@ -396,15 +387,6 @@ function buildDragCallbacks(
       // For other-bracket legs: store upsert above + orderService.modifyOrder below is enough.
     }
 
-    debugLog.log('drag:complete', {
-      key,
-      finalPrice: snapped,
-      bi: useStore.getState().pendingBracketInfo,
-      storeOrder: useStore.getState().openOrders.find(
-        (o) => meta.kind === 'order' && o.id === meta.order.id,
-      ),
-    });
-
     refs.isDragging.current = false;
     refs.draggingKey.current = null;
 
@@ -477,23 +459,6 @@ function computeOrderDesired(
     ? (previewSide === OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy)
     : null;
 
-  const contractOrders = openOrders.filter((o) => String(o.contractId) === String(contract.id));
-  debugLog.log('bracket:computeOrderDesired-input', {
-    contractId: contract.id,
-    pendingBracketInfo: pendingBracketInfo
-      ? { entryPrice: pendingBracketInfo.entryPrice, slPrice: pendingBracketInfo.slPrice, tpPrices: pendingBracketInfo.tpPrices, side: pendingBracketInfo.side }
-      : null,
-    previewHideEntry,
-    previewSide,
-    hideBracketSide,
-    hasPos: pos != null,
-    posAvg: pos?.averagePrice ?? null,
-    contractOrders: contractOrders.map((o) => ({
-      id: o.id, type: o.type, side: o.side, status: o.status,
-      price: o.stopPrice ?? o.limitPrice ?? null,
-    })),
-  });
-
   for (const order of openOrders) {
     if (order.contractId !== contract.id) continue;
     if (hideBracketSide != null && order.side === hideBracketSide) {
@@ -503,27 +468,14 @@ function computeOrderDesired(
         const price = order.stopPrice ?? order.limitPrice ?? 0;
         const isCurrentBracketLeg = isBracketLegPrice(price, tickSize, pendingBracketInfo);
         if (!isCurrentBracketLeg) {
-          debugLog.log('bracket:order-allowed-other-bracket', {
-            orderId: order.id, type: order.type, side: order.side, price,
-            reason: 'Suspended but not current bracket prices — keeping visible',
-          });
           // fall through — let this order render
         } else {
-          debugLog.log('bracket:order-hidden-hideBracketSide', {
-            orderId: order.id, type: order.type, side: order.side, status: order.status,
-            hideBracketSide, reason: 'current bracket leg suppressed by previewHideEntry',
-          });
           continue;
         }
       } else if (order.status !== OrderStatus.Suspended) {
         // Working/Open orders on this side are never suppressed — they may belong to
         // a different bracket (e.g. a Long entry while current bracket is Short).
       } else {
-        // Suspended but no pendingBracketInfo — hide as fallback
-        debugLog.log('bracket:order-hidden-hideBracketSide', {
-          orderId: order.id, type: order.type, side: order.side, status: order.status,
-          hideBracketSide, reason: 'no pendingBracketInfo, hiding by side',
-        });
         continue;
       }
     }
@@ -552,11 +504,9 @@ function computeOrderDesired(
     // cancelling the current-bracket entry).
     if (!pos && pendingBracketInfo == null && order.status !== OrderStatus.Suspended) {
       if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
-        debugLog.log('bracket:order-hidden-no-pos', { orderId: order.id, type: order.type, reason: 'no pos, stop order' });
         continue;
       }
       if (order.type === OrderType.Limit && labelPosCache.get(order.id) === 'mid') {
-        debugLog.log('bracket:order-hidden-no-pos', { orderId: order.id, type: order.type, reason: 'no pos, mid-label limit' });
         continue;
       }
     }
@@ -647,8 +597,6 @@ function computeOrderDesired(
     });
   }
 
-  debugLog.log('bracket:coveredBracketPrices', { prices: Array.from(coveredBracketPrices) });
-
   // Phantom bracket lines (pendingBracketInfo not yet backed by real orders)
   if (pendingBracketInfo && !previewHideEntry) {
     const bi = pendingBracketInfo;
@@ -698,9 +646,6 @@ function computeOrderDesired(
     }
   }
 
-  debugLog.log('bracket:computeOrderDesired-result', {
-    desired: desired.map((d) => ({ key: d.key, price: d.price, metaKind: d.meta.kind })),
-  });
   return desired;
 }
 
@@ -723,9 +668,6 @@ function reconcileOrderEntries(
       series.detachPrimitive(e.line);
       detached.push(e.key);
     }
-  }
-  if (detached.length > 0) {
-    debugLog.log('bracket:reconcile-detached', { detached });
   }
 
   return desired.map((d) => {

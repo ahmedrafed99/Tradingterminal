@@ -108,6 +108,7 @@ export function usePreviewLines(
     });
     series.attachPrimitive(entryPrimitive);
     entryPrimitive.setChartElement(container);
+    if (refs.drawingsPrimitive.current) entryPrimitive.setCoordinator(refs.drawingsPrimitive.current, 'preview-entry');
     refs.previewLines.current.push(entryPrimitive);
     refs.previewRoles.current.push({ kind: 'entry' });
     refs.previewPrices.current.push(ep);
@@ -180,6 +181,7 @@ export function usePreviewLines(
         });
         series.attachPrimitive(slPrimitive);
         slPrimitive.setChartElement(container);
+        if (refs.drawingsPrimitive.current) slPrimitive.setCoordinator(refs.drawingsPrimitive.current, 'preview-sl');
         refs.previewLines.current.push(slPrimitive);
         refs.previewRoles.current.push({ kind: 'sl' });
         refs.previewPrices.current.push(slPrice);
@@ -256,6 +258,7 @@ export function usePreviewLines(
         });
         series.attachPrimitive(tpPrimitive);
         tpPrimitive.setChartElement(container);
+        if (refs.drawingsPrimitive.current) tpPrimitive.setCoordinator(refs.drawingsPrimitive.current, `preview-tp-${i}`);
         refs.previewLines.current.push(tpPrimitive);
         refs.previewRoles.current.push({ kind: 'tp', index: i });
         refs.previewPrices.current.push(tpPrice);

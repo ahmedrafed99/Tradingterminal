@@ -1,8 +1,7 @@
 # DOM → Canvas Migration
 
 ## Status
-Phases A–H complete and committed.
-Phase F8 (axis label collision avoidance) still pending.
+Phases A–H and F8 complete and committed.
 
 ---
 

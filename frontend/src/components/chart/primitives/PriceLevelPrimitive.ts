@@ -16,6 +16,7 @@ import { FONT_FAMILY } from '../../../constants/layout';
 import { COLOR_LABEL_TEXT, COLOR_BG } from '../../../constants/colors';
 import { contrastText } from '../hooks/labelUtils';
 import type { IAxisCoordinator } from '../drawings/DrawingsPrimitive';
+import { debugLog } from '../../../utils/debugLog';
 
 // ── Types ──────────────────────────────────────────────────────────
 export type LabelPosition = 'left' | 'mid' | 'right';
@@ -635,6 +636,12 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     if (!this._dragActive) {
       if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
       this._dragActive = true;
+      debugLog.log('PriceLevelPrimitive DRAG START', {
+        id: this._coordinatorId, lineColor: this._lineColor, price: this._price,
+        priceLabelVisible: this._priceLabelVisible, hasCoordinator: !!this._coordinator,
+      });
+      this._chart?.applyOptions({ crosshair: { horzLine: { labelVisible: false } } });
+      this._coordinator?.setDraggingLabel(this._coordinatorId);
       this._onDragStart?.(this._price);
     }
     if (!this._cachedRect) this._cachedRect = this._chartEl.getBoundingClientRect();
@@ -642,6 +649,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     const newPrice = this._series.coordinateToPrice(localY);
     if (newPrice === null) return;
     if (this._allowPriceMove) this._price = newPrice;
+    this._syncCoordinator();
     this._requestUpdate?.();
     this._onDrag?.(newPrice);
   };
@@ -660,6 +668,9 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._dragCellKey = null;
     this._removeWindowListeners();
     if (wasActive) {
+      this._chart?.applyOptions({ crosshair: { horzLine: { labelVisible: true } } });
+      this._coordinator?.setDraggingLabel(null);
+      this._syncCoordinator();
       this._onDragEnd?.(this._price);
     } else if (cellKey) {
       const cell = this._cells[cellKey];

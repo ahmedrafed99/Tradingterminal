@@ -234,6 +234,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     const crosshairLabel = new CrosshairLabelPrimitive();
     series.attachPrimitive(crosshairLabel);
     crosshairLabelRef.current = crosshairLabel;
+    drawingsPrimitive.setCrosshairSuppressor((b) => crosshairLabel.suppress(b));
 
     // Selection click — mark this chart as selected in dual-chart mode
     const el = containerRef.current;

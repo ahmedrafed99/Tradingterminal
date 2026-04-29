@@ -15,7 +15,6 @@ import type { Contract } from './marketDataService';
 import { buildNativeBracketParams, buildNativeSLOnly } from '../types/bracket';
 import { pointsToPrice } from '../utils/instrument';
 import { fitTpsToOrderSize } from '../components/chart/hooks/resolvePreviewConfig';
-import { debugLog } from '../utils/debugLog';
 
 export interface PlaceWithBracketsRequest {
   accountId: string;
@@ -43,20 +42,6 @@ export async function placeOrderWithBrackets(
   if (useStore.getState().isBlacklisted(sym)) {
     throw new Error(`${sym} is blacklisted — orders are disabled on this symbol.`);
   }
-
-  debugLog.log('bracket:placeOrderWithBrackets', {
-    side,
-    size,
-    orderType,
-    limitPrice: limitPrice ?? null,
-    bracketsActive: bracketConfig != null && (bracketConfig.stopLoss.points >= 1 || bracketConfig.takeProfits.length >= 1),
-    willSetPendingBracketInfo: bracketConfig != null && limitPrice != null,
-    willSetPreviewHide: bracketConfig != null && limitPrice != null,
-    existingPendingBracketInfo: useStore.getState().pendingBracketInfo
-      ? { entryPrice: useStore.getState().pendingBracketInfo!.entryPrice, side: useStore.getState().pendingBracketInfo!.side }
-      : null,
-    bracketEngineHasSession: bracketEngine.hasActiveSession(),
-  });
 
   const params: PlaceOrderParams = {
     accountId,

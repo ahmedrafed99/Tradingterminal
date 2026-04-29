@@ -48,12 +48,16 @@ export function nyTickMarkFormatterRaw(utcSeconds: number, tickMarkType: number)
   }
 }
 
+export const PRICE_SCALE_FONT_SIZE = 12;
+/** Pixel height of a standard LWC price-axis label (font + 4px top/bottom padding). */
+export const PRICE_AXIS_LABEL_H = PRICE_SCALE_FONT_SIZE + 8;
+
 export const CHART_OPTIONS: DeepPartial<ChartOptions> = {
   autoSize: true,
   layout: {
     background: { type: ColorType.Solid, color: COLOR_LABEL_TEXT },
     textColor: COLOR_TEXT,
-    fontSize: 12,
+    fontSize: PRICE_SCALE_FONT_SIZE,
     fontFamily: FONT_FAMILY,
   },
   grid: {

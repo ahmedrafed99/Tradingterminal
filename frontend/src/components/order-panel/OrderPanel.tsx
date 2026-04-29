@@ -597,25 +597,19 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
             const existingPrice = existing?.limitPrice;
             if (existingPrice != null) {
               // Order exists — preserve whichever price is already in the store.
-              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.limitPrice, keepPrice: existingPrice });
               effectiveLimitPrice = existingPrice;
             } else if (bi?.tpPrices[0] != null) {
               // New order — use current bracket's TP price.
-              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.limitPrice, keepPrice: bi.tpPrices[0] });
               effectiveLimitPrice = bi.tpPrices[0];
             }
           } else if (effectiveCustomTag.endsWith('-SL')) {
             const existingPrice = existing?.stopPrice;
             if (existingPrice != null) {
-              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.stopPrice, keepPrice: existingPrice });
               effectiveStopPrice = existingPrice;
             } else if (bi?.slPrice != null) {
-              debugLog.log('ws:suspended-override', { id: order.id, gatewayPrice: order.stopPrice, keepPrice: bi.slPrice });
               effectiveStopPrice = bi.slPrice;
             }
           }
-        } else if (order.status === OrderStatus.Suspended) {
-          debugLog.log('ws:suspended-no-override', { id: order.id, effectiveCustomTag, bi: !!bi, limitPrice: order.limitPrice, stopPrice: order.stopPrice });
         }
 
         upsertOrder({

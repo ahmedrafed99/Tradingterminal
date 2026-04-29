@@ -8,6 +8,7 @@ import type {
   PrimitiveHoveredItem,
   IPrimitivePaneRenderer,
   ISeriesPrimitiveAxisView,
+  PrimitivePaneViewZOrder,
 } from 'lightweight-charts';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { ISeriesPrimitive } from 'lightweight-charts';
@@ -16,8 +17,10 @@ import type { Bar } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { contrastText } from '../hooks/labelUtils';
+import { debugLog } from '../../../utils/debugLog';
 import { stackAxisLabels } from '../utils/stackAxisLabels';
 import { COUNTDOWN_BADGE_HALF_H } from '../CountdownPrimitive';
+import { PRICE_AXIS_LABEL_H, PRICE_SCALE_FONT_SIZE } from '../chartTheme';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
@@ -710,6 +713,7 @@ const contrastTextColor = (hex: string) => contrastText(hex, COLOR_LABEL_TEXT);
 export interface IAxisCoordinator {
   registerAxisLabel(id: string, price: number, color: string, text: string, textColor: string): void;
   unregisterAxisLabel(id: string): void;
+  setDraggingLabel(id: string | null): void;
 }
 
 class DrawingPriceAxisView implements ISeriesPrimitiveAxisView {
@@ -753,16 +757,15 @@ class SelectedDrawingAxisRenderer implements IPrimitivePaneRenderer {
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
-      const fontSize = 12;
       const vPad = 3;
-      const totalHeight = fontSize + vPad * 2;
+      const totalHeight = PRICE_SCALE_FONT_SIZE + vPad * 2;
       const top = this._y - totalHeight / 2;
 
       ctx.fillStyle = this._bgColor;
       ctx.fillRect(0, top, mediaSize.width, totalHeight);
 
       ctx.fillStyle = this._textColor;
-      ctx.font = `bold ${fontSize}px ${FONT_FAMILY}`;
+      ctx.font = `bold ${PRICE_SCALE_FONT_SIZE}px ${FONT_FAMILY}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(this._text, mediaSize.width / 2, top + vPad);
@@ -787,7 +790,7 @@ class SelectedDrawingAxisPaneView implements IPrimitivePaneView {
     return new SelectedDrawingAxisRenderer(this._text, this._y, this._bgColor, this._textColor);
   }
 
-  zOrder(): string {
+  zOrder(): PrimitivePaneViewZOrder {
     return 'top';
   }
 }
@@ -840,7 +843,6 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _priceAxisViewPool: DrawingPriceAxisView[] = [];
   private _emptyAxisViews: readonly ISeriesPrimitiveAxisView[] = [];
   private _selectedAxisPaneView = new SelectedDrawingAxisPaneView();
-  private _selectedAxisPaneViewArr: readonly IPrimitivePaneView[] = [this._selectedAxisPaneView];
   private _emptyPaneViews: readonly IPrimitivePaneView[] = [];
   /** Cached de-overlapped Y for the selected hline (set in priceAxisViews) */
   private _selectedHLineAxisY: number | null = null;
@@ -848,6 +850,10 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _countdownPrice: number | null = null;
   /** External axis labels registered by order-line primitives */
   private _externalLabels = new Map<string, { price: number; color: string; text: string; textColor: string }>();
+  /** ID of the external label currently being dragged — rendered elevated, excluded from stacking */
+  private _draggingLabelId: string | null = null;
+  private _draggingOrderAxisPaneView = new SelectedDrawingAxisPaneView();
+  private _crosshairSuppressor: ((suppressed: boolean) => void) | null = null;
 
   /** When false, paneViews() returns empty — used to exclude drawings from screenshots */
   visible = true;
@@ -888,6 +894,16 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   unregisterAxisLabel(id: string): void {
     if (this._externalLabels.delete(id)) this._requestUpdate?.();
+  }
+
+  setCrosshairSuppressor(fn: ((suppressed: boolean) => void) | null): void {
+    this._crosshairSuppressor = fn;
+  }
+
+  setDraggingLabel(id: string | null): void {
+    this._draggingLabelId = id;
+    this._crosshairSuppressor?.(id !== null);
+    this._requestUpdate?.();
   }
 
   /** Update decimal places for price formatting (call when contract changes) */
@@ -1074,7 +1090,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._paneViews = this._drawings.map((d) => {
       const selected = this._selectedIds.includes(d.id);
       if (d.type === 'hline') {
-        return new HLinePaneView(d, selected, this._series!, this._chart! as IChartApiBase<never>);
+        return new HLinePaneView(d, selected, this._series!, this._chart! as unknown as IChartApiBase<never>);
       } else if (d.type === 'rect') {
         return new RectPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'oval') {
@@ -1167,7 +1183,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       items.push({ y, text, color: d.color, selected: this._selectedIds.includes(d.id) });
     }
 
-    for (const [, label] of externalEntries) {
+    for (const [id, label] of externalEntries) {
+      if (id === this._draggingLabelId) continue;
       const y = this._series.priceToCoordinate(label.price);
       if (y === null) continue;
       items.push({ y, text: label.text, color: label.color, selected: false, textColor: label.textColor, isExternal: true });
@@ -1176,9 +1193,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     const countdownY = this._countdownPrice !== null
       ? this._series.priceToCoordinate(this._countdownPrice)
       : null;
-    const LABEL_H = 18;
-    const countdownZone = COUNTDOWN_BADGE_HALF_H + LABEL_H / 2;
-    stackAxisLabels(items, countdownY as number | null, LABEL_H, countdownZone);
+    const countdownZone = COUNTDOWN_BADGE_HALF_H + PRICE_AXIS_LABEL_H / 2;
+    stackAxisLabels(items, countdownY as number | null, PRICE_AXIS_LABEL_H, countdownZone);
 
     // Grow pool to fit all items
     while (this._priceAxisViewPool.length < items.length) {
@@ -1199,24 +1215,42 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   priceAxisPaneViews(): readonly IPrimitivePaneView[] {
-    if (!this._series || !this.visible || this._selectedIds.length !== 1) return this._emptyPaneViews;
+    if (!this._series || !this.visible) return this._emptyPaneViews;
 
-    // Only render custom pane view for the selected hline
-    const selected = this._drawings.find((d) => d.id === this._selectedIds[0] && d.type === 'hline');
-    if (!selected || selected.type !== 'hline') return this._emptyPaneViews;
+    const views: IPrimitivePaneView[] = [];
 
-    // Use cached de-overlapped Y from priceAxisViews(), fall back to raw coordinate
-    const y = this._selectedHLineAxisY ?? this._series.priceToCoordinate(selected.price);
-    if (y === null) return this._emptyPaneViews;
+    // Elevated label for a dragging order line
+    if (this._draggingLabelId !== null) {
+      const label = this._externalLabels.get(this._draggingLabelId);
+      if (label) {
+        const y = this._series.priceToCoordinate(label.price);
+        if (y !== null) {
+          this._draggingOrderAxisPaneView.update(label.text, y as number, label.color, label.textColor);
+          views.push(this._draggingOrderAxisPaneView);
+        }
+      }
+    }
 
-    const text = selected.price.toLocaleString('en-US', {
-      minimumFractionDigits: this._decimals,
-      maximumFractionDigits: this._decimals,
-    });
-    const bgColor = selected.color;
-    const textColor = contrastTextColor(bgColor);
-    this._selectedAxisPaneView.update(text, y, bgColor, textColor);
-    return this._selectedAxisPaneViewArr;
+    // Elevated label for the selected hline
+    if (this._selectedIds.length === 1) {
+      const selected = this._drawings.find((d) => d.id === this._selectedIds[0] && d.type === 'hline');
+      if (selected && selected.type === 'hline') {
+        const y = this._selectedHLineAxisY ?? this._series.priceToCoordinate(selected.price);
+        debugLog.log('DrawingsPrimitive.priceAxisPaneViews HLINE DRAG', {
+          drawingId: selected.id, color: selected.color, price: selected.price, y,
+        });
+        if (y !== null) {
+          const text = selected.price.toLocaleString('en-US', {
+            minimumFractionDigits: this._decimals,
+            maximumFractionDigits: this._decimals,
+          });
+          this._selectedAxisPaneView.update(text, y, selected.color, contrastTextColor(selected.color));
+          views.push(this._selectedAxisPaneView);
+        }
+      }
+    }
+
+    return views.length > 0 ? views : this._emptyPaneViews;
   }
 
   /** Check if (x, y) hits a resize handle on the selected oval or arrow path node. */
