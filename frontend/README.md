@@ -349,6 +349,8 @@ export const DEFAULT_PINNED: Timeframe[] = [
 
 // Available in dropdown menu
 export const MORE_TIMEFRAMES: Timeframe[] = [
+  { unit: 1, unitNumber: 5,  label: '5s'  },
+  { unit: 1, unitNumber: 15, label: '15s' },
   { unit: 2, unitNumber: 3,  label: '3m'  },
   { unit: 3, unitNumber: 1,  label: '1h'  },
   { unit: 3, unitNumber: 4,  label: '4h'  },

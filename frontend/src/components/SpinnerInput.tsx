@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { RADIUS } from '../constants/layout';
 
 interface SpinnerInputProps {
   value: number;
@@ -42,7 +41,7 @@ export function SpinnerInput({
         display: 'flex',
         alignItems: 'stretch',
         border: '1px solid var(--color-border)',
-        borderRadius: RADIUS.MD,
+        borderRadius: 6,
         overflow: 'hidden',
         background: 'transparent',
         height,

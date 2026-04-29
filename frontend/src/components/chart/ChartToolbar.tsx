@@ -35,11 +35,11 @@ function TrashIcon() {
 
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ) : (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   );
@@ -204,7 +204,7 @@ function IndicatorsDropdown() {
                   className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
                   title="Edit color"
                 >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
@@ -450,6 +450,7 @@ export function ChartToolbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [customNumber, setCustomNumber] = useState(1);
   const [customUnit, setCustomUnit] = useState<number>(2); // default: Minutes
+  const [showDupeError, setShowDupeError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const marketType = useStore((s) => s.contract?.marketType ?? 'futures') as MarketType;
   const { time: nyClock, marketOpen, is24h } = useNYClock(marketType);
@@ -586,7 +587,16 @@ export function ChartToolbar() {
     setDropdownOpen(false);
   }
 
+  const customExists = [...TIMEFRAMES, ...customTimeframes].some(
+    (tf) => tf.unit === customUnit && tf.unitNumber === customNumber,
+  );
+
   function handleApplyCustom() {
+    if (customExists) {
+      setShowDupeError(true);
+      return;
+    }
+    setShowDupeError(false);
     const num = customNumber;
     if (!num || num < 1) return;
     const unitOpt = UNIT_OPTIONS.find((u) => u.value === customUnit);
@@ -635,72 +645,59 @@ export function ChartToolbar() {
           <div className="absolute top-full left-0 mt-1 w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-2 animate-dropdown-in"
             style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
           >
-            {/* Preset timeframes */}
-            {TIMEFRAMES.map((tf) => {
-              const pinned = isPinned(tf);
-              const active = timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber;
+            {/* Timeframes grouped by section */}
+            {[
+              { label: 'Seconds', unit: 1 },
+              { label: 'Minutes', unit: 2 },
+              { label: 'Hours',   unit: 3 },
+              { label: 'Days',    unit: 4 },
+            ].map(({ label, unit }, idx) => {
+              const presets = TIMEFRAMES.filter((tf) => tf.unit === unit);
+              const customs = customTimeframes.filter((tf) => tf.unit === unit);
+              const all = [...presets, ...customs];
+              if (all.length === 0) return null;
               return (
-                <div
-                  key={tf.label}
-                  className={`flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
-                    active ? 'bg-(--color-surface)' : ''
-                  }`}
-                  style={{ padding: '8px 10px' }}
-                >
-                  <button
-                    onClick={() => handleSelectMore(tf)}
-                    className={`text-xs flex-1 text-center font-medium ${
-                      active ? 'text-(--color-warning)' : 'text-(--color-text)'
-                    }`}
-                  >
-                    {tf.label}
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      pinned ? unpinTimeframe(tf) : pinTimeframe(tf);
-                    }}
-                    className="ml-2 p-0.5 hover:opacity-80 transition-opacity"
-                  >
-                    <StarIcon filled={pinned} />
-                  </button>
-                </div>
-              );
-            })}
-
-            {/* Custom timeframes — same row style as presets */}
-            {customTimeframes.map((tf) => {
-              const pinned = isPinned(tf);
-              const active = timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber;
-              return (
-                <div
-                  key={tf.label}
-                  className={`group relative flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
-                    active ? 'bg-(--color-surface)' : ''
-                  }`}
-                  style={{ padding: '8px 10px' }}
-                >
-                  <button
-                    onClick={(e) => { e.stopPropagation(); removeCustomTimeframe(tf.label); }}
-                    className="absolute left-1.5 p-0.5 text-(--color-text-muted) opacity-0 group-hover:opacity-100 hover:!text-red-400 hover:!bg-(--color-border)/50 rounded transition-colors"
-                    title="Remove"
-                  >
-                    <TrashIcon />
-                  </button>
-                  <button
-                    onClick={() => handleSelectMore(tf)}
-                    className={`text-xs flex-1 text-center font-medium ${
-                      active ? 'text-(--color-warning)' : 'text-(--color-text)'
-                    }`}
-                  >
-                    {tf.label}
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); pinned ? unpinTimeframe(tf) : pinTimeframe(tf); }}
-                    className="ml-2 p-0.5 hover:opacity-80 transition-opacity"
-                  >
-                    <StarIcon filled={pinned} />
-                  </button>
+                <div key={unit}>
+                  {idx > 0 && <div className="border-t border-(--color-border) mx-3 my-1" />}
+                  <div className={`${SECTION_LABEL} text-center`} style={{ padding: '6px 14px 2px' }}>{label}</div>
+                  {all.map((tf) => {
+                    const pinned = isPinned(tf);
+                    const active = timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber;
+                    const isCustom = customTimeframes.some((c) => c.label === tf.label);
+                    return (
+                      <div
+                        key={tf.label}
+                        className={`group relative flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
+                          active ? 'bg-(--color-surface)' : ''
+                        }`}
+                        style={{ padding: '8px 10px' }}
+                      >
+                        {isCustom && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeCustomTimeframe(tf.label); }}
+                            className="absolute left-1.5 p-0.5 text-(--color-text-muted) opacity-0 group-hover:opacity-100 hover:!text-red-400 hover:!bg-(--color-border)/50 rounded transition-colors"
+                            title="Remove"
+                          >
+                            <TrashIcon />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleSelectMore(tf)}
+                          className={`text-xs flex-1 text-center font-medium ${
+                            active ? 'text-(--color-warning)' : 'text-(--color-text)'
+                          }`}
+                        >
+                          {tf.label}
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); pinned ? unpinTimeframe(tf) : pinTimeframe(tf); }}
+                          className="ml-2 p-0.5 hover:opacity-80 transition-opacity"
+                        >
+                          <StarIcon filled={pinned} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -711,23 +708,33 @@ export function ChartToolbar() {
             {/* Custom timeframe input */}
             <div style={{ padding: '4px 14px 8px' }}>
               <div className={SECTION_LABEL} style={{ marginBottom: '8px' }}>Custom</div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" style={{ marginBottom: showDupeError ? 4 : 0 }}>
                 <SpinnerInput
                   value={customNumber}
-                  onChange={setCustomNumber}
+                  onChange={(v) => { setCustomNumber(v); setShowDupeError(false); }}
                   min={1}
                   step={1}
                   inputWidth={40}
                   height={28}
                 />
-                <UnitDropdown value={customUnit} onChange={setCustomUnit} />
+                <UnitDropdown value={customUnit} onChange={(v) => { setCustomUnit(v); setShowDupeError(false); }} />
                 <button
                   onClick={handleApplyCustom}
-                  className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all shrink-0"
-                  style={{ padding: '6px 12px' }}
+                  className={`text-xs font-medium rounded-md bg-(--color-panel) border transition-all shrink-0 ${
+                    showDupeError
+                      ? 'border-red-700 text-red-400'
+                      : 'text-(--color-text) border-(--color-border) hover:border-(--color-text-dim) active:bg-[#c8c8c8] active:text-black'
+                  }`}
+                  style={{ padding: '5px 12px' }}
                 >
                   Add
                 </button>
+              </div>
+              <div
+                className="text-[10px] text-red-400 text-center overflow-hidden transition-all duration-300"
+                style={{ maxHeight: showDupeError ? 20 : 0, opacity: showDupeError ? 1 : 0 }}
+              >
+                Timeframe already exists
               </div>
             </div>
           </div>
