@@ -757,8 +757,8 @@ class SelectedDrawingAxisRenderer implements IPrimitivePaneRenderer {
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
-      const vPad = 3;
-      const totalHeight = PRICE_SCALE_FONT_SIZE + vPad * 2;
+      const vPad = (PRICE_AXIS_LABEL_H - PRICE_SCALE_FONT_SIZE) / 2;
+      const totalHeight = PRICE_AXIS_LABEL_H;
       const top = this._y - totalHeight / 2;
 
       ctx.fillStyle = this._bgColor;
