@@ -3,6 +3,11 @@ import { listConnected, getAdapter, removeAdapter, getDefaultExchangeId } from '
 import { broadcast } from './eventsService';
 
 let bot: TelegramBot | null = null;
+let allowedChatId: number | null = null;
+
+function isAuthorized(chatId: number): boolean {
+  return allowedChatId === null || chatId === allowedChatId;
+}
 
 function handleDisconnect(chatId: number): void {
   const connected = listConnected();
@@ -37,6 +42,9 @@ export function start(): void {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) return;
 
+  const rawId = process.env.TELEGRAM_ALLOWED_CHAT_ID;
+  allowedChatId = rawId ? parseInt(rawId, 10) : null;
+
   bot = new TelegramBot(token, { polling: true });
 
   bot.on('polling_error', (err) => {
@@ -44,10 +52,12 @@ export function start(): void {
   });
 
   bot.onText(/\/disconnect/, (msg) => {
+    if (!isAuthorized(msg.chat.id)) return;
     handleDisconnect(msg.chat.id);
   });
 
   bot.onText(/\/status/, (msg) => {
+    if (!isAuthorized(msg.chat.id)) return;
     handleStatus(msg.chat.id);
   });
 

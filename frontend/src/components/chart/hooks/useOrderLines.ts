@@ -13,6 +13,7 @@ import { orderService } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { debugLog } from '../../../utils/debugLog';
+import { isBracketLegPrice } from '../../../utils/bracketUtils';
 import { usePreviewLines } from './usePreviewLines';
 import { usePositionDrag } from './usePositionDrag';
 import type { ChartRefs, OrderLineEntry, OrderLineMeta } from './types';
@@ -139,10 +140,7 @@ function buildDragCallbacks(
       const isDraggingCurrentEntry = meta.order.id === st.pendingEntryOrderId;
 
       function isCurrentBracketLeg(orderPrice: number): boolean {
-        if (!bi) return false;
-        const r = Math.round(orderPrice / ts2);
-        return (bi.slPrice != null && Math.round(bi.slPrice / ts2) === r) ||
-          bi.tpPrices.some((tp) => Math.round(tp / ts2) === r);
+        return !!bi && isBracketLegPrice(orderPrice, ts2, bi);
       }
 
       for (const bracketEntry of refs.orderEntries.current) {
@@ -340,11 +338,7 @@ function buildDragCallbacks(
       for (const leg of st2.openOrders) {
         if (leg.status !== OrderStatus.Suspended || String(leg.contractId) !== String(contract.id)) continue;
         const legPrice = leg.stopPrice ?? leg.limitPrice ?? 0;
-        const legRounded = Math.round(legPrice / ts2);
-        const isCurrentLeg = bi2
-          ? ((bi2.slPrice != null && Math.round(bi2.slPrice / ts2) === legRounded) ||
-             bi2.tpPrices.some((tp) => Math.round(tp / ts2) === legRounded))
-          : false;
+        const isCurrentLeg = bi2 ? isBracketLegPrice(legPrice, ts2, bi2) : false;
         if (isCurrentLeg) continue; // don't disturb current bracket's legs
         const isSl2 = leg.type === OrderType.Stop || leg.type === OrderType.TrailingStop;
         st2.upsertOrder(
@@ -370,10 +364,7 @@ function buildDragCallbacks(
       const ts2 = contract.tickSize;
       const rounded = Math.round(originalPrice / ts2);
       // When no pendingBracketInfo there's only one bracket — always current.
-      const isCurrentLeg = !bi || (
-        (bi.slPrice != null && Math.round(bi.slPrice / ts2) === rounded) ||
-        bi.tpPrices.some((tp) => Math.round(tp / ts2) === rounded)
-      );
+      const isCurrentLeg = !bi || isBracketLegPrice(originalPrice, ts2, bi);
 
       if (isCurrentLeg) {
         const cls = classifyOrderLine(order, {
@@ -507,10 +498,7 @@ function computeOrderDesired(
       // (matched by price). Older brackets' SL/TP at different prices remain visible.
       if (order.status === OrderStatus.Suspended && pendingBracketInfo != null) {
         const price = order.stopPrice ?? order.limitPrice ?? 0;
-        const rounded = Math.round(price / tickSize);
-        const isCurrentBracketLeg =
-          (pendingBracketInfo.slPrice != null && Math.round(pendingBracketInfo.slPrice / tickSize) === rounded) ||
-          pendingBracketInfo.tpPrices.some((tp) => Math.round(tp / tickSize) === rounded);
+        const isCurrentBracketLeg = isBracketLegPrice(price, tickSize, pendingBracketInfo);
         if (!isCurrentBracketLeg) {
           debugLog.log('bracket:order-allowed-other-bracket', {
             orderId: order.id, type: order.type, side: order.side, price,

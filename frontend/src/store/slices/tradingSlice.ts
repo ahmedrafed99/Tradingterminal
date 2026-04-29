@@ -3,7 +3,6 @@ import type { Order } from '../../services/orderService';
 import type { RealtimePosition } from '../../services/realtimeService';
 import type { BracketPreset } from '../../types/bracket';
 import { OrderSide, OrderStatus, OrderType } from '../../types/enums';
-
 // ---------------------------------------------------------------------------
 // Orders
 // ---------------------------------------------------------------------------

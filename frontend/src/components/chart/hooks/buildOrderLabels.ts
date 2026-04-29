@@ -7,6 +7,7 @@ import { calcPnl } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, classifyOrderLine } from './labelUtils';
+import { isBracketLegPrice } from '../../../utils/bracketUtils';
 
 interface Position {
   accountId: string;
@@ -91,9 +92,7 @@ export function buildOrderLabels(
       // Determine if this Suspended leg belongs to the CURRENT bracket (matched by price).
       // Legs from older brackets are shown with static SL/TP labels — we can't compute
       // their PnL correctly because pendingBracketInfo only tracks the latest bracket's entry.
-      const isCurrentBracketLeg =
-        (pendingBracketInfo.slPrice != null && Math.round(price / ts2) === Math.round(pendingBracketInfo.slPrice / ts2)) ||
-        pendingBracketInfo.tpPrices.some((tp) => Math.round(tp / ts2) === Math.round(price / ts2));
+      const isCurrentBracketLeg = isBracketLegPrice(price, ts2, pendingBracketInfo);
 
       if (isCurrentBracketLeg) {
         const diff = isSl
@@ -262,10 +261,7 @@ export function buildOrderLabels(
           if (!bi) return false;
           const isSl2 = o.type === OrderType.Stop || o.type === OrderType.TrailingStop;
           const p = isSl2 ? (o.stopPrice ?? 0) : (o.limitPrice ?? 0);
-          const r = Math.round(p / ts2);
-          return isSl2
-            ? (bi.slPrice != null && Math.round(bi.slPrice / ts2) === r)
-            : bi.tpPrices.some((tp) => Math.round(tp / ts2) === r);
+          return isBracketLegPrice(p, ts2, bi);
         }
 
         if (isCancellingCurrentEntry && bi) {
