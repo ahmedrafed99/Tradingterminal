@@ -43,6 +43,8 @@ const FONT_BOLD = `bold 12px ${FONT_FAMILY}`;
 const FONT_NORMAL = `12px ${FONT_FAMILY}`;
 const PRICE_ROW_H = 20;
 const TIMER_ROW_H = 16;
+/** Half-height of the tallest countdown badge (price row + timer row). Used by axis stacking. */
+export const COUNTDOWN_BADGE_HALF_H = (PRICE_ROW_H + TIMER_ROW_H) / 2;
 
 class CountdownAxisRenderer implements IPrimitivePaneRenderer {
   private _y: number;

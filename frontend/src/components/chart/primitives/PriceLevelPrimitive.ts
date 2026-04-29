@@ -15,6 +15,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { COLOR_LABEL_TEXT, COLOR_BG } from '../../../constants/colors';
 import { contrastText } from '../hooks/labelUtils';
+import type { IAxisCoordinator } from '../drawings/DrawingsPrimitive';
 
 // ── Types ──────────────────────────────────────────────────────────
 export type LabelPosition = 'left' | 'mid' | 'right';
@@ -325,6 +326,9 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _onDragEnd?: (price: number) => void;
   private _allowPriceMove: boolean;
 
+  private _coordinator: IAxisCoordinator | null = null;
+  private _coordinatorId = '';
+
   // Layout cache (recomputed during paneViews)
   private _cellRects: CellRect[] = [];
 
@@ -367,6 +371,8 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   }
 
   detached(): void {
+    this._coordinator?.unregisterAxisLabel(this._coordinatorId);
+    this._coordinator = null;
     this._removeListeners();
     if (this._cursorActive) { removeCursorOverride(); this._cursorActive = false; }
     this._removeWindowListeners();
@@ -374,6 +380,24 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._chart = null;
     this._chartEl = null;
     this._requestUpdate = null;
+  }
+
+  setCoordinator(coord: IAxisCoordinator | null, id: string): void {
+    if (this._coordinator) this._coordinator.unregisterAxisLabel(this._coordinatorId);
+    this._coordinator = coord;
+    this._coordinatorId = id;
+    this._syncCoordinator();
+  }
+
+  private _syncCoordinator(): void {
+    if (!this._coordinator || !this._priceLabelVisible) return;
+    this._coordinator.registerAxisLabel(
+      this._coordinatorId,
+      this._price,
+      this._lineColor,
+      this._price.toFixed(this._decimals),
+      contrastText(this._lineColor, COLOR_BG),
+    );
   }
 
   /** Attach DOM listeners to chart container for hit-test/drag/hover. */
@@ -395,6 +419,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   // ── Public API ──
   setPrice(price: number): void {
     this._price = price;
+    this._syncCoordinator();
     this._requestUpdate?.();
   }
 
@@ -417,6 +442,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   setLineColor(color: string): void {
     this._lineColor = color;
+    this._syncCoordinator();
     this._requestUpdate?.();
   }
 
@@ -427,11 +453,16 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   setPriceLabelVisible(visible: boolean): void {
     this._priceLabelVisible = visible;
+    if (this._coordinator) {
+      if (visible) this._syncCoordinator();
+      else this._coordinator.unregisterAxisLabel(this._coordinatorId);
+    }
     this._requestUpdate?.();
   }
 
   setTickSize(tickSize: number): void {
     this._decimals = decimalsFor(tickSize);
+    this._syncCoordinator();
     this._requestUpdate?.();
   }
 
@@ -465,6 +496,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   }
 
   priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
+    if (this._coordinator) return [];
     if (!this._priceLabelVisible || !this._series) return [];
     const y = this._series.priceToCoordinate(this._price);
     if (y === null) return [];

@@ -450,10 +450,13 @@ function attachPrimitive(
   p: PriceLevelPrimitive,
   series: ISeriesApi<'Candlestick'>,
   refs: ChartRefs,
+  coordId: string,
 ): void {
   series.attachPrimitive(p);
   const el = refs.container.current;
   if (el) p.setChartElement(el);
+  const coord = refs.drawingsPrimitive.current;
+  if (coord) p.setCoordinator(coord, coordId);
 }
 
 // ── Compute desired order/phantom entries (no position entry) ─────────────────
@@ -756,7 +759,7 @@ function reconcileOrderEntries(
       onDragEnd,
       allowPriceMove: true,
     });
-    attachPrimitive(p, series, refs);
+    attachPrimitive(p, series, refs, d.key);
 
     return { key: d.key, line: p, meta: d.meta, price: d.price };
   });
@@ -844,7 +847,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       onDragEnd,
       allowPriceMove: false,
     });
-    attachPrimitive(p, series, refs);
+    attachPrimitive(p, series, refs, 'pos');
 
     refs.orderEntries.current = [
       { key: 'pos', line: p, meta: { kind: 'position' }, price: pos.averagePrice },

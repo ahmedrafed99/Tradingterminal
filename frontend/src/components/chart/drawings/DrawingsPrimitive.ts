@@ -16,6 +16,8 @@ import type { Bar } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { contrastText } from '../hooks/labelUtils';
+import { stackAxisLabels } from '../utils/stackAxisLabels';
+import { COUNTDOWN_BADGE_HALF_H } from '../CountdownPrimitive';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
 import { ArrowPathPaneView } from './ArrowPathRenderer';
@@ -705,25 +707,34 @@ class SelectionRectPaneView implements IPrimitivePaneView {
 // ---------------------------------------------------------------------------
 const contrastTextColor = (hex: string) => contrastText(hex, COLOR_LABEL_TEXT);
 
+export interface IAxisCoordinator {
+  registerAxisLabel(id: string, price: number, color: string, text: string, textColor: string): void;
+  unregisterAxisLabel(id: string): void;
+}
+
 class DrawingPriceAxisView implements ISeriesPrimitiveAxisView {
   _coordinate = 0;
   _text = '';
   _color = COLOR_TEXT_MUTED;
   _selected = false;
+  _textColor: string | null = null;
+  _tickVisible = true;
 
-  update(coordinate: number, text: string, color: string, selected: boolean): void {
+  update(coordinate: number, text: string, color: string, selected: boolean, textColor?: string, tickVisible = true): void {
     this._coordinate = coordinate;
     this._text = text;
     this._color = color;
     this._selected = selected;
+    this._textColor = textColor ?? null;
+    this._tickVisible = tickVisible;
   }
 
   coordinate(): number { return this._coordinate; }
   text(): string { return this._text; }
-  textColor(): string { return contrastTextColor(this._color); }
+  textColor(): string { return this._textColor ?? contrastTextColor(this._color); }
   backColor(): string { return this._color; }
   visible(): boolean { return !this._selected; }
-  tickVisible(): boolean { return true; }
+  tickVisible(): boolean { return this._tickVisible; }
 }
 
 // Custom renderer for the selected drawing's price label (draws on top of everything)
@@ -835,6 +846,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _selectedHLineAxisY: number | null = null;
   /** Current price from the countdown label — drawing labels avoid this zone */
   private _countdownPrice: number | null = null;
+  /** External axis labels registered by order-line primitives */
+  private _externalLabels = new Map<string, { price: number; color: string; text: string; textColor: string }>();
 
   /** When false, paneViews() returns empty — used to exclude drawings from screenshots */
   visible = true;
@@ -866,6 +879,15 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   /** Feed current price so drawing labels can avoid the countdown label zone */
   setCountdownPrice(price: number | null): void {
     this._countdownPrice = price;
+  }
+
+  registerAxisLabel(id: string, price: number, color: string, text: string, textColor: string): void {
+    this._externalLabels.set(id, { price, color, text, textColor });
+    this._requestUpdate?.();
+  }
+
+  unregisterAxisLabel(id: string): void {
+    if (this._externalLabels.delete(id)) this._requestUpdate?.();
   }
 
   /** Update decimal places for price formatting (call when contract changes) */
@@ -1119,20 +1141,18 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
     if (!this._series || !this.visible) return this._emptyAxisViews;
 
-    // Collect all drawings that need price axis labels
     const hlines = this._drawings.filter((d) => d.type === 'hline');
-    if (hlines.length === 0) return this._emptyAxisViews;
+    const externalEntries = Array.from(this._externalLabels.entries());
 
-    // Grow pool if needed
-    while (this._priceAxisViewPool.length < hlines.length) {
-      this._priceAxisViewPool.push(new DrawingPriceAxisView());
-    }
+    if (hlines.length === 0 && externalEntries.length === 0) return this._emptyAxisViews;
 
-    // First pass: compute raw coordinates
-    const items: { poolIdx: number; y: number; text: string; color: string; selected: boolean }[] = [];
-    for (let i = 0; i < hlines.length; i++) {
-      const d = hlines[i];
-      if (d.type !== 'hline') continue;
+    type Item = {
+      y: number; text: string; color: string; selected: boolean;
+      textColor?: string; isExternal?: boolean;
+    };
+    const items: Item[] = [];
+
+    for (const d of hlines) {
       const y = this._series.priceToCoordinate(d.price);
       if (y === null) continue;
       const cacheKey = `${d.id}:${d.price}:${this._decimals}`;
@@ -1144,42 +1164,34 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         });
         this._priceAxisTextCache.set(cacheKey, text);
       }
-      const selected = this._selectedIds.includes(d.id);
-      items.push({ poolIdx: i, y, text, color: d.color, selected });
+      items.push({ y, text, color: d.color, selected: this._selectedIds.includes(d.id) });
     }
 
-    // Push drawing labels away from the countdown (current price) label zone
-    if (this._countdownPrice !== null) {
-      const cy = this._series.priceToCoordinate(this._countdownPrice);
-      if (cy !== null) {
-        const COUNTDOWN_ZONE = 25; // half-heights of countdown (~16) + drawing label (~9)
-        for (const item of items) {
-          const dist = item.y - (cy as number);
-          if (Math.abs(dist) < COUNTDOWN_ZONE) {
-            item.y = dist >= 0
-              ? (cy as number) + COUNTDOWN_ZONE   // drawing below → push further down
-              : (cy as number) - COUNTDOWN_ZONE;  // drawing above → push further up
-          }
-        }
-      }
+    for (const [, label] of externalEntries) {
+      const y = this._series.priceToCoordinate(label.price);
+      if (y === null) continue;
+      items.push({ y, text: label.text, color: label.color, selected: false, textColor: label.textColor, isExternal: true });
     }
 
-    // Sort by Y coordinate and de-overlap: stack labels that are too close
-    const LABEL_HEIGHT = 18;
-    items.sort((a, b) => a.y - b.y);
-    for (let i = 1; i < items.length; i++) {
-      if (items[i].y - items[i - 1].y < LABEL_HEIGHT) {
-        items[i].y = items[i - 1].y + LABEL_HEIGHT;
-      }
+    const countdownY = this._countdownPrice !== null
+      ? this._series.priceToCoordinate(this._countdownPrice)
+      : null;
+    const LABEL_H = 18;
+    const countdownZone = COUNTDOWN_BADGE_HALF_H + LABEL_H / 2;
+    stackAxisLabels(items, countdownY as number | null, LABEL_H, countdownZone);
+
+    // Grow pool to fit all items
+    while (this._priceAxisViewPool.length < items.length) {
+      this._priceAxisViewPool.push(new DrawingPriceAxisView());
     }
 
-    // Cache de-overlapped Y for the selected hline (used by priceAxisPaneViews)
     this._selectedHLineAxisY = null;
     const views: ISeriesPrimitiveAxisView[] = [];
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       if (item.selected) this._selectedHLineAxisY = item.y;
-      const axisView = this._priceAxisViewPool[item.poolIdx];
-      axisView.update(item.y, item.text, item.color, item.selected);
+      const axisView = this._priceAxisViewPool[i];
+      axisView.update(item.y, item.text, item.color, item.selected, item.textColor, !item.isExternal);
       views.push(axisView);
     }
 
