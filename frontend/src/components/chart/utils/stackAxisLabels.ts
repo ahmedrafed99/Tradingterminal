@@ -29,13 +29,20 @@ export function stackAxisLabels<T extends StackItem>(
     }
   }
   // Forward stacking pushes items downward, which can drag an above-zone label
-  // 1px back into the badge. Re-clamp only above-zone items (below-zone items
-  // are pushed further away by stacking, so they never need re-clamping).
+  // back into the badge. Re-clamp only above-zone items (below-zone items are
+  // pushed further away by stacking, so they never need re-clamping).
   if (countdownY !== null) {
     for (const item of items) {
       const dist = item.y - countdownY;
       if (dist < 0 && Math.abs(dist) < countdownZone) {
         item.y = countdownY - countdownZone;
+      }
+    }
+    // Re-clamping collapses multiple above-zone labels to the same Y.
+    // Spread them back upward with a reverse stacking pass.
+    for (let i = items.length - 1; i > 0; i--) {
+      if (items[i - 1].y > items[i].y - labelHeight) {
+        items[i - 1].y = items[i].y - labelHeight;
       }
     }
   }
