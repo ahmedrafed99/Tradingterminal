@@ -7,7 +7,7 @@ import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { markAsManualClose } from '../../../services/manualCloseTracker';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
+import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG, contrastText } from './labelUtils';
 
 interface Position {
   accountId: string;
@@ -89,7 +89,7 @@ export function buildPositionLabel(
     useStore.getState().setPnlMode(next);
   }
 
-  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: LABEL_TEXT, onClick: togglePnlMode });
+  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: contrastText(initBg), onClick: togglePnlMode });
   posPrimitive.setCell('size', { text: String(pos.size), bg: sideBg, color: LABEL_TEXT });
   posPrimitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleClose });
   posPrimitive.setCellOrder(['pnl', 'size', 'close']);
@@ -103,7 +103,7 @@ export function buildPositionLabel(
         posPrimitive.setCell('pnl', {
           text: refs.lastPnlCache.current.text,
           bg: refs.lastPnlCache.current.bg,
-          color: LABEL_TEXT,
+          color: contrastText(refs.lastPnlCache.current.bg),
           onClick: togglePnlMode,
         });
       }
@@ -114,7 +114,7 @@ export function buildPositionLabel(
     const bg = pnl >= 0 ? BUY_COLOR : SELL_COLOR;
     const text = fmtPnl(diff, pnl);
     refs.lastPnlCache.current = { text, bg };
-    posPrimitive.setCell('pnl', { text, bg, color: LABEL_TEXT, onClick: togglePnlMode });
+    posPrimitive.setCell('pnl', { text, bg, color: contrastText(bg), onClick: togglePnlMode });
   });
 
   return pnlUpdaters;

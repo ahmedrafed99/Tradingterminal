@@ -299,10 +299,14 @@ Fix: `onHandleHover` in `useChartDrawings` sets a shared `refs.labelHovered` fla
 
 ### Position label
 - Real-time P&L (green/red), contract size, X to close position (market order)
+- **P&L text color** uses `contrastText(bg)` — white on red (loss), dark on green (profit)
+- **Click P&L cell** to toggle between `$` and `pts` display (`pnlMode` store state, shared with order panel position section). In `pts` mode the value is rounded to the nearest tick via `roundToTick()` — no floating-point drift on multi-contract positions
 - Drag-to-create: mousedown on position label starts a drag — dragging in the loss direction creates a stop order (full position size), dragging in the profit direction creates a limit TP order (1 contract per drag)
 
 ### Order labels
 - **P&L cell**: colored by profit/loss relative to position — green if order is in profit territory, red if in loss. Updates dynamically during drag as the price crosses the entry. **Same-side limit orders** (entries that add to a position) show "Buy Limit"/"Sell Limit" in grey (`#cac9cb`) with black text instead of P&L — they are new entries, not exits.
+- **P&L text color** uses `contrastText(bg)` on all cells — white on red/green backgrounds
+- **P&L mode**: projected P&L on TP/SL and bracket labels respects `pnlMode` — toggles between `$` and `pts` (rounded to tick) together with the position label and order panel
 - **Size cell**: colored by order side — sell = red `#ff0000`, buy = green `#00c805`. Stays constant regardless of order position (reflects that it's a market sell/buy order).
 - When no position exists, label shows "SL"/"Buy Limit"/"Sell Limit" in grey (`#cac9cb`) with black text
 - X to cancel order
@@ -334,7 +338,7 @@ Size hover:  [│ +$50.00 ][ − 2 + ][ × ]
 ### Preview labels
 - Entry shows "Limit Buy"/"Limit Sell" in grey (`#cac9cb`) with black text (clickable to execute), size cell colored by side (green buy / red sell)
 - **Execute button market-closed guard**: the entry label's execute handler (`onExecute` in `buildPreviewLabels.ts`) calls `getSchedule(contract?.marketType).isOpen()` before arming the bracket engine or placing the order. If closed, shows a warning toast and returns immediately — no bracket engine arming, no API call.
-- SL/TP show projected P&L relative to entry price
+- SL/TP show projected P&L relative to entry price — respects `pnlMode` (toggles between `$` and `pts` together with position label / order panel)
 - Each TP shows its **individual** contract size from the preset or ad-hoc level (not total orderSize). SL shows total size. TPs are trimmed to fit within `orderSize` — if a preset has 2 TPs (1 ct each) but order size is 1, only the first TP is previewed
 - When no preset is active, entry label includes **+SL** and **+TP** buttons to add ad-hoc bracket lines
 
