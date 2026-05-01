@@ -3,10 +3,10 @@ import { useStore } from '../../../store/useStore';
 import { orderService, type Order } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/enums';
-import { calcPnl } from '../../../utils/instrument';
+import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, classifyOrderLine } from './labelUtils';
+import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, contrastText, classifyOrderLine } from './labelUtils';
 import { isBracketLegPrice } from '../../../utils/bracketUtils';
 
 interface Position {
@@ -36,6 +36,23 @@ export function buildOrderLabels(
   const pos = positions.find(
     (p) => p.accountId === activeAccountId && String(p.contractId) === String(contract.id) && p.size > 0,
   );
+
+  // diff is always-positive magnitude (SL/TP bracket legs)
+  function fmtMagPnl(diff: number, pnl: number): string {
+    if (useStore.getState().pnlMode === 'points') {
+      return `+${roundToTick(diff, contract.tickSize).toFixed(2)} pts`;
+    }
+    return `+$${Math.abs(pnl).toFixed(2)}`;
+  }
+
+  // diff is naturally signed (live TP/SL relative to position avg)
+  function fmtSignedPnl(diff: number, pnl: number): string {
+    if (useStore.getState().pnlMode === 'points') {
+      const pts = roundToTick(diff, contract.tickSize);
+      return `${pts >= 0 ? '+' : ''}${pts.toFixed(2)} pts`;
+    }
+    return `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+  }
 
   for (const order of openOrders) {
     if (String(order.contractId) !== String(contract.id)) continue;
@@ -99,7 +116,7 @@ export function buildOrderLabels(
           ? (pendingBracketInfo.side === OrderSide.Buy ? ep - price : price - ep)
           : (pendingBracketInfo.side === OrderSide.Buy ? price - ep : ep - price);
         const pnl = calcPnl(diff, contract, oSize);
-        initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+        initPnlText = fmtMagPnl(diff, pnl);
         initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
 
         orderPnlCompute = () => {
@@ -116,7 +133,7 @@ export function buildOrderLabels(
             : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - currentEp : currentEp - curPrice);
           const p = calcPnl(d, contract, oSize);
           return {
-            text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+            text: fmtMagPnl(d, p),
             bg: isSl ? SELL_COLOR : BUY_COLOR,
           };
         };
@@ -139,7 +156,7 @@ export function buildOrderLabels(
             ? (isEntryBuy ? ep - price : price - ep)
             : (isEntryBuy ? price - ep : ep - price);
           const pnl = calcPnl(diff, contract, oSize);
-          initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+          initPnlText = fmtMagPnl(diff, pnl);
           initPnlBg = isSl ? SELL_COLOR : BUY_COLOR;
           orderPnlCompute = () => {
             const curPrice = getOrderRefPrice();
@@ -157,7 +174,7 @@ export function buildOrderLabels(
               : (isEntryBuy ? curPrice - currentEp : currentEp - curPrice);
             const p = calcPnl(d, contract, oSize);
             return {
-              text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+              text: fmtMagPnl(d, p),
               bg: isSl ? SELL_COLOR : BUY_COLOR,
             };
           };
@@ -170,7 +187,7 @@ export function buildOrderLabels(
       const isLong = pos.type === PositionType.Long;
       const diff = isLong ? price - pos.averagePrice : pos.averagePrice - price;
       const projPnl = calcPnl(diff, contract, oSize);
-      initPnlText = `${projPnl >= 0 ? '+' : ''}$${projPnl.toFixed(2)}`;
+      initPnlText = fmtSignedPnl(diff, projPnl);
       initPnlBg = cls.color;
 
       orderPnlCompute = () => {
@@ -184,7 +201,7 @@ export function buildOrderLabels(
           previewHideEntry,
           previewSide,
         }).color;
-        return { text: `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`, bg };
+        return { text: fmtSignedPnl(d, pnl), bg };
       };
     } else if (isSuspended) {
       // Suspended leg with no pendingBracketInfo (e.g. after cancelling the current bracket's entry).
@@ -204,7 +221,7 @@ export function buildOrderLabels(
           ? (isEntryBuy ? ep2 - price : price - ep2)
           : (isEntryBuy ? price - ep2 : ep2 - price);
         const pnl = calcPnl(diff, contract, oSize);
-        initPnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+        initPnlText = fmtMagPnl(diff, pnl);
         initPnlBg = isSl2 ? SELL_COLOR : BUY_COLOR;
         orderPnlCompute = () => {
           const curPrice = getOrderRefPrice();
@@ -220,7 +237,7 @@ export function buildOrderLabels(
             : (isEntryBuy ? curPrice - currentEp : currentEp - curPrice);
           const p = calcPnl(d, contract, oSize);
           return {
-            text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+            text: fmtMagPnl(d, p),
             bg: isSl2 ? SELL_COLOR : BUY_COLOR,
           };
         };
@@ -302,7 +319,7 @@ export function buildOrderLabels(
       oType === OrderType.Limit &&
       oSide === (pos.type === PositionType.Long ? OrderSide.Sell : OrderSide.Buy);
 
-    primitive.setCell('pnl', { text: initPnlText, bg: initPnlBg, color: LABEL_TEXT });
+    primitive.setCell('pnl', { text: initPnlText, bg: initPnlBg, color: contrastText(initPnlBg) });
     primitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleCancel });
 
     if (isLiveTP) {
@@ -335,22 +352,23 @@ export function buildOrderLabels(
         refs.tpRedistInFlight.current = false;
       }
 
+      const sizeTextColor = contrastText(cls.sizeBg);
       primitive.setCell('size', {
         text: String(oSize),
         bg: cls.sizeBg,
-        color: LABEL_TEXT,
+        color: sizeTextColor,
         leftText: showZones ? '−' : undefined,
-        leftColor: minusDisabled ? 'transparent' : LABEL_TEXT,
+        leftColor: minusDisabled ? 'transparent' : sizeTextColor,
         leftClick: minusDisabled ? undefined : () => handleRedistribute(-1),
         rightText: showZones ? '+' : undefined,
-        rightColor: plusDisabled ? 'transparent' : LABEL_TEXT,
+        rightColor: plusDisabled ? 'transparent' : sizeTextColor,
         rightClick: plusDisabled ? undefined : () => handleRedistribute(1),
       });
     } else {
       primitive.setCell('size', {
         text: String(oSize),
         bg: cls.sizeBg,
-        color: LABEL_TEXT,
+        color: contrastText(cls.sizeBg),
         leftText: undefined,
         leftColor: undefined,
         leftClick: undefined,
@@ -368,7 +386,7 @@ export function buildOrderLabels(
       const capturedPrimitive = primitive;
       pnlUpdaters.push(() => {
         const result = compute();
-        capturedPrimitive.setCell('pnl', { text: result.text, bg: result.bg, color: LABEL_TEXT });
+        capturedPrimitive.setCell('pnl', { text: result.text, bg: result.bg, color: contrastText(result.bg) });
       });
     }
   }
@@ -389,12 +407,13 @@ export function buildOrderLabels(
       ? (bi.side === OrderSide.Buy ? bi.entryPrice - phantomPrice : phantomPrice - bi.entryPrice)
       : (bi.side === OrderSide.Buy ? phantomPrice - bi.entryPrice : bi.entryPrice - phantomPrice);
     const pnl = calcPnl(diff, contract, phantomSize);
-    const pnlText = `${pnl >= 0 ? '+' : '-'}$${Math.abs(pnl).toFixed(2)}`;
+    const pnlText = fmtMagPnl(diff, pnl);
     const pnlBg = isSl ? SELL_COLOR : BUY_COLOR;
 
     const phantomMeta = meta;
-    primitive.setCell('pnl', { text: pnlText, bg: pnlBg, color: LABEL_TEXT });
-    primitive.setCell('size', { text: String(phantomSize), bg: pnlBg, color: LABEL_TEXT });
+    const pnlTextColor = isSl ? SELL_TEXT : BUY_TEXT;
+    primitive.setCell('pnl', { text: pnlText, bg: pnlBg, color: pnlTextColor });
+    primitive.setCell('size', { text: String(phantomSize), bg: pnlBg, color: pnlTextColor });
     primitive.setCell('close', {
       text: '✕',
       bg: CLOSE_BG,
@@ -430,9 +449,9 @@ export function buildOrderLabels(
           : currentEntryPrice - curPrice);
       const p = calcPnl(d, contract, capturedSize);
       primitive.setCell('pnl', {
-        text: `${p >= 0 ? '+' : '-'}$${Math.abs(p).toFixed(2)}`,
+        text: fmtMagPnl(d, p),
         bg: capturedIsSl ? SELL_COLOR : BUY_COLOR,
-        color: LABEL_TEXT,
+        color: capturedIsSl ? SELL_TEXT : BUY_TEXT,
       });
     });
   }

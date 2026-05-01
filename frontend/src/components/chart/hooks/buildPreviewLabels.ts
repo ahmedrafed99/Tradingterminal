@@ -3,12 +3,12 @@ import { useStore } from '../../../store/useStore';
 import { orderService, type PlaceOrderParams } from '../../../services/orderService';
 import { bracketEngine } from '../../../services/bracketEngine';
 import { OrderType, OrderSide } from '../../../types/enums';
-import { calcPnl } from '../../../utils/instrument';
+import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { resolvePreviewConfig, fitTpsToOrderSize } from './resolvePreviewConfig';
 import { buildNativeBracketParams, buildNativeSLOnly } from '../../../types/bracket';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT, LABEL_BG, BUY_COLOR, SELL_COLOR, CLOSE_BG } from './labelUtils';
+import { LABEL_TEXT, LABEL_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, CLOSE_BG } from './labelUtils';
 import { COLOR_LINE_BUY, COLOR_LINE_SELL } from '../../../constants/colors';
 import { getSchedule } from '../../../utils/marketHours';
 
@@ -111,6 +111,7 @@ export function buildPreviewLabels(
       };
 
       const entrySideBg = pvSide === OrderSide.Buy ? BUY_COLOR : SELL_COLOR;
+      const entrySideText = pvSide === OrderSide.Buy ? BUY_TEXT : SELL_TEXT;
 
       primitive.setCell('pnl', {
         text: pvSide === OrderSide.Buy ? 'Limit Buy' : 'Limit Sell',
@@ -121,7 +122,7 @@ export function buildPreviewLabels(
       primitive.setCell('size', {
         text: String(previewTotalSize),
         bg: entrySideBg,
-        color: LABEL_TEXT,
+        color: entrySideText,
       });
 
       const cellOrder: string[] = ['pnl', 'size'];
@@ -172,14 +173,16 @@ export function buildPreviewLabels(
       const entryPrice = refs.previewPrices.current[0] ?? 0;
       const slDiff = pvSide === OrderSide.Buy ? entryPrice - price : price - entryPrice;
       const slPnl = calcPnl(slDiff, contract, displaySize);
-      const pnlText = `-$${Math.abs(slPnl).toFixed(2)}`;
+      const pnlText = snap.pnlMode === 'points'
+        ? `-${roundToTick(slDiff, contract.tickSize).toFixed(2)} pts`
+        : `-$${Math.abs(slPnl).toFixed(2)}`;
 
       const onCancel = hasPreset
         ? () => useStore.getState().setDraftSlPoints(0)
         : () => useStore.getState().setAdHocSlPoints(null);
 
-      primitive.setCell('pnl', { text: pnlText, bg: SELL_COLOR, color: LABEL_TEXT });
-      primitive.setCell('size', { text: String(displaySize), bg: SELL_COLOR, color: LABEL_TEXT });
+      primitive.setCell('pnl', { text: pnlText, bg: SELL_COLOR, color: SELL_TEXT });
+      primitive.setCell('size', { text: String(displaySize), bg: SELL_COLOR, color: SELL_TEXT });
       primitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: onCancel });
       primitive.setCellOrder(['pnl', 'size', 'close']);
 
@@ -192,9 +195,11 @@ export function buildPreviewLabels(
         const diff = s1.previewSide === OrderSide.Buy ? ep - sp : sp - ep;
         const pnl = calcPnl(diff, contract, sz);
         primitive.setCell('pnl', {
-          text: `-$${Math.abs(pnl).toFixed(2)}`,
+          text: s1.pnlMode === 'points'
+            ? `-${roundToTick(diff, contract.tickSize).toFixed(2)} pts`
+            : `-$${Math.abs(pnl).toFixed(2)}`,
           bg: SELL_COLOR,
-          color: LABEL_TEXT,
+          color: SELL_TEXT,
         });
       });
       continue;
@@ -206,14 +211,16 @@ export function buildPreviewLabels(
       const entryPrice = refs.previewPrices.current[0] ?? 0;
       const tpDiff = pvSide === OrderSide.Buy ? price - entryPrice : entryPrice - price;
       const tpPnl = calcPnl(tpDiff, contract, displaySize);
-      const pnlText = `+$${Math.abs(tpPnl).toFixed(2)}`;
+      const pnlText = snap.pnlMode === 'points'
+        ? `+${roundToTick(tpDiff, contract.tickSize).toFixed(2)} pts`
+        : `+$${Math.abs(tpPnl).toFixed(2)}`;
 
       const onCancel = hasPreset
         ? () => useStore.getState().setDraftTpPoints(role.index, 0)
         : () => useStore.getState().removeAdHocTp(role.index);
 
-      primitive.setCell('pnl', { text: pnlText, bg: BUY_COLOR, color: LABEL_TEXT });
-      primitive.setCell('size', { text: String(displaySize), bg: BUY_COLOR, color: LABEL_TEXT });
+      primitive.setCell('pnl', { text: pnlText, bg: BUY_COLOR, color: BUY_TEXT });
+      primitive.setCell('size', { text: String(displaySize), bg: BUY_COLOR, color: BUY_TEXT });
       primitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: onCancel });
       primitive.setCellOrder(['pnl', 'size', 'close']);
 
@@ -231,9 +238,11 @@ export function buildPreviewLabels(
         const diff = s2.previewSide === OrderSide.Buy ? tp - ep : ep - tp;
         const pnl = calcPnl(diff, contract, sz);
         primitive.setCell('pnl', {
-          text: `+$${Math.abs(pnl).toFixed(2)}`,
+          text: s2.pnlMode === 'points'
+            ? `+${roundToTick(diff, contract.tickSize).toFixed(2)} pts`
+            : `+$${Math.abs(pnl).toFixed(2)}`,
           bg: BUY_COLOR,
-          color: LABEL_TEXT,
+          color: BUY_TEXT,
         });
       });
     }

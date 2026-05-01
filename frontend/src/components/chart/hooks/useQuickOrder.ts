@@ -12,7 +12,7 @@ import { getSchedule } from '../../../utils/marketHours';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import { QuickOrderPrimitive } from '../primitives/QuickOrderPrimitive';
 import type { ChartRefs } from './types';
-import { BUY_COLOR, SELL_COLOR, LABEL_TEXT } from './labelUtils';
+import { BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT } from './labelUtils';
 
 export function useQuickOrder(
   refs: ChartRefs,
@@ -76,8 +76,8 @@ export function useQuickOrder(
           priceLabel: { visible: true, tickSize },
           cellOrder: ['pnl', 'size'],
           cells: {
-            pnl:  { text: `-$${Math.abs(slPnl).toFixed(2)}`, bg: SELL_COLOR, color: LABEL_TEXT },
-            size: { text: String(st.orderSize), bg: SELL_COLOR, color: LABEL_TEXT },
+            pnl:  { text: `-$${Math.abs(slPnl).toFixed(2)}`, bg: SELL_COLOR, color: SELL_TEXT },
+            size: { text: String(st.orderSize), bg: SELL_COLOR, color: SELL_TEXT },
           },
         });
         series!.attachPrimitive(slLine);
@@ -95,8 +95,8 @@ export function useQuickOrder(
           priceLabel: { visible: true, tickSize },
           cellOrder: ['pnl', 'size'],
           cells: {
-            pnl:  { text: `+$${Math.abs(tpPnl).toFixed(2)}`, bg: BUY_COLOR, color: LABEL_TEXT },
-            size: { text: String(tp.size), bg: BUY_COLOR, color: LABEL_TEXT },
+            pnl:  { text: `+$${Math.abs(tpPnl).toFixed(2)}`, bg: BUY_COLOR, color: BUY_TEXT },
+            size: { text: String(tp.size), bg: BUY_COLOR, color: BUY_TEXT },
           },
         });
         series!.attachPrimitive(tpLine);

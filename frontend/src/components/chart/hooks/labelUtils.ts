@@ -17,6 +17,8 @@ export const BUY_COLOR = COLOR_LINE_BUY;
 export const SELL_COLOR = COLOR_LINE_SELL;
 export const BUY_HOVER = COLOR_LINE_BUY_HOVER;
 export const SELL_HOVER = COLOR_LINE_SELL_HOVER;
+export const SELL_TEXT = contrastText(SELL_COLOR);
+export const BUY_TEXT = contrastText(BUY_COLOR);
 
 /** Wire hover darken effect on a ✕ close cell. */
 export function wireCloseHover(cell: HTMLDivElement): void {
