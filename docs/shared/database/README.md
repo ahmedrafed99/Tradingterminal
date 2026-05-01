@@ -306,6 +306,60 @@ frontend/
 
 ---
 
+## Cross-Device Sync (Git LFS) — TODO
+
+The database file is gitignored by default. To share historical data across machines, track it with Git LFS.
+
+### One-time setup (on the machine with data)
+
+```bash
+# Install Git LFS
+git lfs install
+
+# Track the DB file
+git lfs track "backend/data/candles.db"
+
+# Unignore the DB file — update .gitignore:
+# Change:  backend/data/
+# To:      backend/data/*
+#          !backend/data/candles.db
+
+# Commit and push
+git add .gitattributes .gitignore backend/data/candles.db
+git commit -m "chore: add candles.db to Git LFS"
+git push
+```
+
+### On a new device
+
+```bash
+git lfs install   # once per machine
+git pull          # downloads candles.db from LFS storage automatically
+```
+
+### Keeping data in sync
+
+The 30-min auto-sync writes new candles locally but does not push to GitHub. To share updated data with other devices:
+
+```bash
+git add backend/data/candles.db
+git commit -m "chore: update candles"
+git push
+```
+
+Then `git pull` on the other machine.
+
+### GitHub LFS limits (free tier)
+
+| Limit | Free |
+|-------|------|
+| Storage | 1 GB |
+| Bandwidth/month | 1 GB |
+
+At ~400 MB for 17 years of NQ data, there's comfortable headroom. Each push re-uploads the full file (LFS doesn't delta-compress binaries), so push infrequently — not after every 30-min sync.
+
+---
+
 ## Open Questions
 
 - **Rate limiting**: ProjectX API rate limits are undocumented. Start conservative (500ms between pages) and adjust based on observed behavior (429 responses).
