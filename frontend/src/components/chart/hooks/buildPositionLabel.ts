@@ -3,7 +3,7 @@ import { COLOR_TEXT_MUTED } from '../../../constants/colors';
 import { useStore } from '../../../store/useStore';
 import { orderService } from '../../../services/orderService';
 import { OrderType, OrderSide, PositionType } from '../../../types/enums';
-import { calcPnl } from '../../../utils/instrument';
+import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { markAsManualClose } from '../../../services/manualCloseTracker';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
@@ -44,7 +44,8 @@ export function buildPositionLabel(
 
   function fmtPnl(diff: number, pnl: number): string {
     if (useStore.getState().pnlMode === 'points') {
-      return `${diff >= 0 ? '+' : ''}${diff.toFixed(2)} pts`;
+      const pts = roundToTick(diff, contract.tickSize);
+      return `${pts >= 0 ? '+' : ''}${pts.toFixed(2)} pts`;
     }
     return `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
   }
