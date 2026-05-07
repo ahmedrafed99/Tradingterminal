@@ -50,7 +50,7 @@ backend/src/
 │       ├── index.ts        ← createProjectXAdapter() factory
 │       ├── auth.ts         ← JWT token store + /api/Auth/loginKey; extracts userId from login response or JWT claims
 │       ├── accounts.ts     ← /api/Account/search
-│       ├── marketData.ts   ← bars + contract search/available/byId
+│       ├── marketData.ts   ← bars (dual-endpoint fallback: primary + chartapi.topstepx.com) + contract search/available/byId
 │       ├── orders.ts       ← place / cancel / modify / searchOpen (converts string IDs → numeric)
 │       ├── positions.ts    ← /api/Position/searchOpen (converts string IDs → numeric)
 │       ├── trades.ts       ← /api/Trade/search (converts string IDs → numeric)
@@ -58,7 +58,7 @@ backend/src/
 ├── routes/
 │   ├── authRoutes.ts       ← multi-exchange connect/disconnect/status/exchanges/default
 │   ├── accountRoutes.ts
-│   ├── marketDataRoutes.ts ← bars history + automatic quarterly rollover backfill
+│   ├── marketDataRoutes.ts ← bars history + automatic quarterly rollover backfill + chartapi debug proxy
 │   ├── orderRoutes.ts
 │   ├── positionRoutes.ts   ← GET /positions/open (searchOpen)
 │   ├── tradeRoutes.ts
@@ -303,12 +303,15 @@ Legacy fields (`userName`, `apiKey`, `baseUrl`) are supported for backward compa
 
 ### Market Data
 
-| Method | Path | Body | Adapter call |
-|--------|------|------|-------------|
-| POST | /market/bars | retrieveBars params | `adapter.marketData.retrieveBars(params)` |
+| Method | Path | Body / Params | Description |
+|--------|------|---------------|-------------|
+| POST | /market/bars | retrieveBars params | `adapter.marketData.retrieveBars(params)` — includes dual-endpoint fallback and quarterly rollover backfill |
 | GET | /market/contracts/search?q= | — | `adapter.marketData.searchContracts(q, live)` |
 | GET | /market/contracts/available | — | `adapter.marketData.availableContracts(live)` |
 | GET | /market/contracts/:id | — | `adapter.marketData.searchContractById(id, live)` |
+| GET | /market/chartapi-test | `symbol`, `resolution`, `countback`, `from`, `to`, `sessionId`, `live` | Dev/debug: proxies directly to `chartapi.topstepx.com/History/v2` using the stored JWT — returns `{ elapsed, url, data }` |
+
+**Bar fallback:** `POST /market/bars` is exchange-agnostic at the route level. For the ProjectX adapter, `retrieveBars` internally attempts the primary endpoint (`api.topstepx.com`) and falls back to `chartapi.topstepx.com` on hard failure, empty response, or detected trailing gap. See [ProjectX adapter docs](../../exchange-adapters/projectx.md#bar-data--dual-endpoint-fallback) for the full decision tree.
 
 ### Orders
 

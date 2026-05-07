@@ -54,6 +54,107 @@ The frontend accumulates both when building trade groups:
 
 This handles partial fills correctly (each leg has its own proportional fee). No doubling in the backend — raw per-leg values are passed through unchanged.
 
+## Bar Data — Dual-Endpoint Fallback
+
+`marketData.ts` fetches historical bars from the primary TopstepX REST endpoint and automatically falls back to `chartapi.topstepx.com` when the primary has gaps or fails entirely. The frontend receives one merged response and renders once — it is unaware which endpoint was used.
+
+### Endpoints
+
+| Role | Method | URL |
+|------|--------|-----|
+| Primary | `POST` | `https://api.topstepx.com/api/History/retrieveBars` |
+| Fallback | `GET` | `https://chartapi.topstepx.com/History/v2` |
+
+### Fallback Decision Tree
+
+```
+retrieveBars(params)
+│
+├─ Call primary (POST /api/History/retrieveBars)
+│   │
+│   ├─ HTTP error or success=false
+│   │   └─ HARD FAIL → fetch full range from chartapi → return
+│   │
+│   ├─ success=true, bars=[]
+│   │   └─ PRIMARY EMPTY → fetch full range from chartapi
+│   │       ├─ chartapi has bars → return chartapi bars
+│   │       └─ chartapi also empty → return empty
+│   │
+│   └─ success=true, bars=[…]
+│       │
+│       ├─ latestBarTime + candlePeriod < endTime  (gap detected)
+│       │   └─ SOFT GAP → fetch chartapi from (latestBar + 1 period) to endTime
+│       │       ├─ gap filled → return [chartapiBars…, primaryBars…] (descending)
+│       │       └─ supplement failed → return primary as-is
+│       │
+│       └─ no gap → return primary as-is
+```
+
+### Gap Detection
+
+A gap is detected when the primary's most recent bar is stale by at least one candle period:
+
+```
+latestBarTime + candlePeriodMs < endTime
+```
+
+`candlePeriodMs` is derived from `unit` + `unitNumber` (Second=1, Minute=2, Hour=3, Day=4, Week=5, Month=6). The gap fetch starts from `latestBarTime + candlePeriodMs` to skip to the next expected candle, avoiding duplicate timestamps from chartapi's inclusive `From` boundary.
+
+### Parameter Mapping (Primary → Fallback)
+
+| Primary param | chartapi param | Conversion |
+|---------------|----------------|------------|
+| `contractId` (`CON.F.US.ENQ.M26`) | `Symbol` (`/NQ`) | `PRODUCT_TO_CHART_SYMBOL` map in `marketData.ts` |
+| `unit` + `unitNumber` | `Resolution` | Second→`NS`, Minute→`N`, Hour→`N*60`, Day→`D`, Week→`W`, Month→`M` |
+| `startTime` (ISO) | `From` (Unix s) | `Math.floor(new Date(startTime).getTime() / 1000)` |
+| `endTime` (ISO) | `To` (Unix s) | `Math.floor(new Date(endTime).getTime() / 1000)` |
+| `limit` | `Countback` | Direct (omitted if not specified — chartapi returns full range) |
+| `live` | `Live` | Boolean → `"true"/"false"` |
+| — | `SessionId` | Always `"extended"` |
+
+### Response Normalization
+
+chartapi returns `{ bars: Bar[], code: number }`. Each bar is normalized to the primary format:
+
+| chartapi field | Primary format | Conversion |
+|----------------|----------------|------------|
+| `t` (Unix ms) | `t` (ISO string) | `new Date(ms).toISOString()` |
+| `o`, `h`, `l`, `c`, `v` | same | direct |
+| `tv` (tick volume) | — | dropped |
+
+### Supported Symbol Mappings
+
+Configured in `PRODUCT_TO_CHART_SYMBOL` in `marketData.ts`:
+
+| Contract product | chartapi Symbol |
+|------------------|-----------------|
+| `ENQ` | `/NQ` |
+| `EP` | `/ES` |
+| `MNQ` | `/MNQ` |
+| `MES` | `/MES` |
+| `MCL` | `/MCL` |
+| `MGC` | `/MGC` |
+
+Add entries here when onboarding new instruments.
+
+### Debug Logging
+
+All fallback paths write to `log/debug-YYYY-MM-DD.log` via `backend/src/utils/debugLog.ts`. Nothing is logged when the primary returns complete data.
+
+| Tag | Condition |
+|-----|-----------|
+| `bars:hard-fail` | Primary threw HTTP error |
+| `bars:chartapi-full` | Starting full-range chartapi fetch after hard fail |
+| `bars:chartapi-full:ok` | Full fallback succeeded — logs bar count |
+| `bars:primary-empty` | Primary returned 0 bars |
+| `bars:chartapi-empty-fill:ok` | chartapi filled the empty — logs bar count |
+| `bars:chartapi-empty-fill:fail` | chartapi also failed |
+| `bars:soft-gap` | Gap detected — logs `latestBar`, `gapMs`, `periodMs` |
+| `bars:soft-gap:filled` | Gap filled — logs `added` + `total` bar count |
+| `bars:soft-gap:chartapi-empty` | Gap fetch returned 0 bars |
+| `bars:soft-gap:fail` | Supplement threw — primary returned as-is |
+| `bars:chartapi-unexpected` | chartapi returned unexpected shape — logs raw response |
+
 ## Adapter Files
 
 ```
@@ -61,7 +162,7 @@ backend/src/adapters/projectx/
 ├── index.ts       — createProjectXAdapter() factory
 ├── auth.ts        — JWT token management
 ├── accounts.ts    — Account listing
-├── marketData.ts  — Bars, contract search, contract by ID
+├── marketData.ts  — Bars (dual-endpoint fallback), contract search, contract by ID
 ├── orders.ts      — Place, cancel, modify, search open
 ├── positions.ts   — Search open positions
 ├── trades.ts      — Trade history search
