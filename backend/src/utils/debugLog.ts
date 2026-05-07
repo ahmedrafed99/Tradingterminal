@@ -1,8 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 
-// Writes to <project-root>/log/debug-YYYY-MM-DD.log — same dir as frontend debugLog
-const LOG_DIR = path.resolve(process.cwd(), '..', 'log');
+// Anchored to __dirname so it's CWD-independent: backend/src/utils → ../../../log = project-root/log
+const LOG_DIR = path.resolve(__dirname, '../../..', 'log');
+let dirReady = false;
+
+function ensureDir(): void {
+  if (dirReady) return;
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+  dirReady = true;
+}
 
 function logFilePath(): string {
   const date = new Date().toISOString().slice(0, 10);
@@ -11,10 +18,10 @@ function logFilePath(): string {
 
 function write(tag: string, data?: unknown): void {
   try {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
+    ensureDir();
     const ts   = new Date().toISOString().slice(11, 23);
     const body = data !== undefined ? `  ${JSON.stringify(data)}` : '';
-    fs.appendFileSync(logFilePath(), `${ts}  [${tag}]${body}\n`);
+    fs.appendFile(logFilePath(), `${ts}  [${tag}]${body}\n`, () => {});
   } catch { /* never crash the caller */ }
 }
 

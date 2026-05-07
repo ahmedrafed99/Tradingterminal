@@ -137,7 +137,10 @@ router.get('/contracts/:id', withConnection(async (req, res) => {
 
 // GET /market/chartapi-test?symbol=/NQ&resolution=15&countback=200&from=<unix>&to=<unix>
 // Calls chartapi.topstepx.com using the already-stored JWT — no credentials needed.
-router.get('/chartapi-test', async (req, res) => {
+router.get('/chartapi-test', withConnection(async (req, res) => {
+  const token = getToken();
+  if (!token) { res.status(401).json({ error: 'No ProjectX token' }); return; }
+
   const { symbol = '/NQ', resolution = '15', countback = '200', from, to, sessionId = 'extended', live = 'false' } = req.query as Record<string, string>;
   const toTs = to ?? String(Math.floor(Date.now() / 1000));
   const fromTs = from ?? String(Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 3);
@@ -148,7 +151,7 @@ router.get('/chartapi-test', async (req, res) => {
   const t0 = Date.now();
   try {
     const result = await axios.get(url, {
-      headers: { Authorization: `Bearer ${getToken()}`, Accept: 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
     });
     res.json({ elapsed: Date.now() - t0, url, data: result.data });
   } catch (err: unknown) {
@@ -158,6 +161,6 @@ router.get('/chartapi-test', async (req, res) => {
       res.status(500).json({ error: String(err) });
     }
   }
-});
+}));
 
 export default router;

@@ -8,6 +8,7 @@ import { pointsToPrice, priceToPoints, roundToTick, getTicksPerPoint } from '../
 import { showToast, errorMessage } from '../utils/toast';
 import { retryAsync } from '../utils/retry';
 import { audioService } from './audioService';
+import { debugLog } from '../utils/debugLog';
 
 const DEV = import.meta.env.DEV;
 
@@ -83,6 +84,16 @@ class BracketEngine {
    * Arms the engine to watch for fills on this contract/account.
    */
   armForEntry(config: PendingEntryConfig) {
+    if (this.session || this.armedConfig) {
+      debugLog.log('bracket:armForEntry:abandon', {
+        hadSession: !!this.session,
+        hadArmedConfig: !!this.armedConfig,
+        sessionContractId: this.session?.contractId,
+        sessionSlOrderId: this.session?.slOrderId,
+        sessionTpOrderIds: this.session ? [...this.session.tpOrderIds.entries()] : null,
+        newContractId: config.contractId,
+      });
+    }
     this.session = null;
     this.armedConfig = config;
     this.confirmedOrderId = null;
@@ -450,6 +461,13 @@ class BracketEngine {
 
     this.handledFillIds.add(order.id);
     audioService.play('target_filled');
+    debugLog.log('bracket:tpFilled', {
+      orderId: order.id,
+      filledPrice: order.filledPrice,
+      tpIndex: filledTpIndex,
+      entryPrice: this.session.entryPrice,
+      entrySide: this.session.entrySide,
+    });
     if (DEV) console.log(`[BracketEngine] TP${filledTpIndex + 1} filled`);
     this.session.filledTPs.add(filledTpIndex);
 
@@ -557,6 +575,22 @@ class BracketEngine {
   private async onEntryFilled(cfg: PendingEntryConfig, entryPrice: number) {
     audioService.play('order_filled');
     const { config, accountId, contractId, entrySide, entrySize, contract } = cfg;
+
+    debugLog.log('bracket:onEntryFilled', {
+      contractId,
+      entrySide,
+      entrySize,
+      entryPrice,
+      slPoints: config.stopLoss.points,
+      tpPoints: config.takeProfits.map((t) => t.points),
+      computedSlPrice: entrySide === 0
+        ? entryPrice - pointsToPrice(config.stopLoss.points, contract)
+        : entryPrice + pointsToPrice(config.stopLoss.points, contract),
+      computedTpPrices: config.takeProfits.map((t) => entrySide === 0
+        ? entryPrice + pointsToPrice(t.points, contract)
+        : entryPrice - pointsToPrice(t.points, contract),
+      ),
+    });
 
     // Normalize TP sizes upfront
     const rawTps = [...config.takeProfits].sort((a, b) => a.points - b.points);

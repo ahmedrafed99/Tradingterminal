@@ -572,6 +572,20 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
                    (p.type === PositionType.Short && order.side === OrderSide.Buy)),
               )
             );
+            debugLog.log('bracket:adHocFill', {
+              orderId: order.id,
+              orderType: order.type,
+              orderSide: order.side,
+              filledPrice: order.filledPrice,
+              customTag: order.customTag,
+              isSl,
+              isTp,
+              positions: useStore.getState().positions.map((p) => ({
+                contractId: p.contractId,
+                type: p.type,
+                size: p.size,
+              })),
+            });
             if (isSl) {
               audioService.play('stop_filled');
             } else if (isTp) {

@@ -83,6 +83,10 @@ async function fetchFromChartApi(
   const unit       = params['unit'] as number;
   const unitNumber = params['unitNumber'] as number;
   const live       = (params['live'] as boolean | undefined) ?? false;
+  const limit      = params['limit'] as number | undefined;
+
+  const token = getToken();
+  if (!token) throw new Error('No auth token — not connected to ProjectX');
 
   const symbol = contractIdToChartSymbol(contractId);
   if (!symbol) throw new Error(`No chartapi symbol mapping for: ${contractId}`);
@@ -93,18 +97,20 @@ async function fetchFromChartApi(
   const fromTs = Math.floor(new Date(startTime).getTime() / 1000);
   const toTs   = Math.floor(new Date(endTime).getTime()   / 1000);
 
-  const query = new URLSearchParams({
+  const queryParams: Record<string, string> = {
     Symbol:     symbol,
     Resolution: resolution,
     From:       String(fromTs),
     To:         String(toTs),
     SessionId:  'extended',
     Live:       live ? 'true' : 'false',
-  });
+  };
+  if (limit !== undefined) queryParams['Countback'] = String(limit);
+  const query = new URLSearchParams(queryParams);
 
   const response = await axios.get<unknown>(
     `${CHART_API_BASE}/History/v2?${query}`,
-    { headers: { Authorization: `Bearer ${getToken()}`, Accept: 'application/json' } },
+    { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } },
   );
 
   const raw = response.data as { bars?: Record<string, unknown>[] };
@@ -173,7 +179,7 @@ export const projectXMarketData: ExchangeMarketData = {
     }
 
     // ── Soft-gap check: latest bar + 1 period < endTime ────────────────────
-    const latestBarMs = Math.max(...primaryBars.map(b => new Date(b.t).getTime()));
+    const latestBarMs = primaryBars.reduce((m, b) => Math.max(m, new Date(b.t).getTime()), 0);
 
     if (latestBarMs + periodMs < endTimeMs) {
       const gapMs = endTimeMs - latestBarMs;
@@ -187,8 +193,8 @@ export const projectXMarketData: ExchangeMarketData = {
           const existing = new Set(primaryBars.map(b => new Date(b.t).getTime()));
           const newBars  = gapBars.filter(b => !existing.has(new Date(b.t).getTime()));
           debugLog.log('bars:soft-gap:filled', { added: newBars.length, total: primaryBars.length + newBars.length });
-          // gapBars are newer — prepend so array stays descending
-          return { ...(primaryRaw as object), success: true, bars: [...newBars, ...primaryBars] };
+          const merged = [...newBars, ...primaryBars].sort((a, b) => new Date(b.t).getTime() - new Date(a.t).getTime());
+          return { ...(primaryRaw as object), success: true, bars: merged };
         }
         debugLog.log('bars:soft-gap:chartapi-empty', {});
       } catch (err: unknown) {
