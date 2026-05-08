@@ -193,11 +193,11 @@ function TextPopover({
     <div
       ref={ref}
       className="fixed border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)' }}
+      style={{ zIndex: Z.DROPDOWN, width: 460, minHeight: 540, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 24px 16px' }}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>Text</span>
         <button
           onClick={onClose}
@@ -219,10 +219,12 @@ function TextPopover({
         </button>
       </div>
 
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
+
       {/* Body */}
-      <div style={{ flex: 1, padding: '0 16px 12px' }}>
+      <div style={{ flex: 1, padding: '4px 24px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
       {/* Row 1: Color swatch + Font size + Bold + Italic */}
-      <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
+      <div className="flex items-center" style={{ gap: 8 }}>
         {/* Color swatch */}
         <ColorSwatchButton color={color} onChange={setColor} />
         {/* Font size — custom dropdown */}
@@ -321,7 +323,6 @@ function TextPopover({
         className="w-full text-(--color-text) rounded outline-none"
         style={{
           padding: '10px 12px',
-          marginBottom: 8,
           resize: 'none',
           minHeight: 120,
           fontFamily: FONT_FAMILY,
@@ -329,19 +330,19 @@ function TextPopover({
           lineHeight: '1.5',
           border: '1px solid var(--color-border)',
           background: 'var(--color-surface)',
+          borderRadius: RADIUS.XL,
         }}
         autoFocus
       />
 
       {/* Row 3: Text position — live preview */}
-      <div style={{ marginBottom: 10 }}>
-        <div className={SECTION_LABEL} style={{ marginBottom: 6 }}>Text position</div>
+      <div>
+        <div className={SECTION_LABEL} style={{ marginBottom: 14 }}>Text position</div>
         {/* Preview box */}
         <div style={{
           position: 'relative',
           width: '100%',
           height: 90,
-          border: '1px solid var(--color-border)',
           borderRadius: RADIUS.LG,
           overflow: 'hidden',
         }}>

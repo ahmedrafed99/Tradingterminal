@@ -139,6 +139,8 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
         ctx.font = `${style} ${weight} ${fs}px ${FONT_FAMILY}`;
         ctx.fillStyle = text.color;
 
+        const w = rawW;
+        const h = rawH;
         const pad = Math.round(4 * hpr);
         let tx: number;
         if (text.hAlign === 'left') {
