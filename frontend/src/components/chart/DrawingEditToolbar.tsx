@@ -515,7 +515,7 @@ function StrokePopover({
             className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
             style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
           >
-            <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" style={{ flex: 1 }}>
+            <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
               <line x1="0" y1="5" x2="50" y2="5" stroke="currentColor" strokeWidth={w} />
             </svg>
             <span style={{ fontSize: 11, flexShrink: 0, width: 42, textAlign: 'center' }}>{w}px</span>
@@ -534,11 +534,11 @@ function StrokePopover({
             className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
             style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
           >
-            <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" style={{ flex: 1 }}>
+            <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
               <line
                 x1="0" y1="5" x2="50" y2="5"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="1"
                 strokeDasharray={dasharray}
                 strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap'] ?? 'butt'}
               />
@@ -809,6 +809,7 @@ function RectSettingsPopover({
   const [showMlColor, setShowMlColor] = useState(false);
   const [showMlStyle, setShowMlStyle] = useState(false);
   const [showExtend, setShowExtend] = useState(false);
+  const mlColorRef = useRef<HTMLDivElement>(null);
   const mlStyleRef = useRef<HTMLDivElement>(null);
   const extendRef = useRef<HTMLDivElement>(null);
   const closeMlStyle = useCallback(() => setShowMlStyle(false), []);
@@ -845,7 +846,13 @@ function RectSettingsPopover({
       className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
       style={{ zIndex: Z.DROPDOWN, width: 294, padding: '12px 16px' }}
       onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        const t = e.target as Node;
+        if (showExtend && extendRef.current && !extendRef.current.contains(t)) setShowExtend(false);
+        if (showMlColor && mlColorRef.current && !mlColorRef.current.contains(t)) setShowMlColor(false);
+        if (showMlStyle && mlStyleRef.current && !mlStyleRef.current.contains(t)) setShowMlStyle(false);
+      }}
     >
       {/* Extend row */}
       <div className="flex items-center" style={{ minHeight: 34, gap: 10, marginBottom: 10 }}>
@@ -858,7 +865,7 @@ function RectSettingsPopover({
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: 'var(--color-panel)', color: 'var(--color-text)',
               border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
-              padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+              padding: '4px 10px', fontSize: 13, cursor: 'pointer',
               transition: 'border-color var(--transition-fast)',
             }}
           >
@@ -888,7 +895,7 @@ function RectSettingsPopover({
                         </svg>
                       )}
                     </span>
-                    <span style={{ ...labelStyle, fontSize: 12 }}>{label}</span>
+                    <span style={labelStyle}>{label}</span>
                   </label>
                 )
               )}
@@ -917,6 +924,7 @@ function RectSettingsPopover({
 
         {/* Color swatch */}
         <div
+          ref={mlColorRef}
           className="relative"
           style={{ flexShrink: 0, opacity: mlEnabled ? 1 : 0.35, pointerEvents: mlEnabled ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}
         >
@@ -955,24 +963,28 @@ function RectSettingsPopover({
               background: 'transparent',
               color: 'var(--color-text)',
               border: '1px solid var(--color-border)',
-              borderRadius: RADIUS.LG,
+              borderRadius: RADIUS.XL,
               height: 30,
-              padding: '0 8px',
+              padding: '0 10px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: 6,
+              justifyContent: 'space-between',
+              gap: 8,
               transition: 'border-color var(--transition-fast)',
             }}
             title="Line style"
           >
-            <svg width="44" height="10" viewBox="0 0 44 10" style={{ flexShrink: 0 }}>
+            <svg width="44" height="10" viewBox="0 0 44 10" style={{ flexShrink: 0 }} shapeRendering="crispEdges">
               <line
                 x1="2" y1="5" x2="42" y2="5"
-                stroke="currentColor" strokeWidth="1.5"
+                stroke="currentColor" strokeWidth="1"
                 strokeDasharray={currentStyleDef.dasharray}
                 strokeLinecap={(currentStyleDef.linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
               />
+            </svg>
+            <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showMlStyle ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+              <path d="M0 0l4 5 4-5z" />
             </svg>
           </button>
           {showMlStyle && (
@@ -999,10 +1011,10 @@ function RectSettingsPopover({
                     className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
                     style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
                   >
-                    <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" style={{ flex: 1 }}>
+                    <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
                       <line
                         x1="0" y1="5" x2="50" y2="5"
-                        stroke="currentColor" strokeWidth="1.5"
+                        stroke="currentColor" strokeWidth="1"
                         strokeDasharray={dasharray}
                         strokeLinecap={(linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
                       />
