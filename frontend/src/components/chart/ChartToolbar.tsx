@@ -72,7 +72,7 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
             <button
               key={u.value}
               onClick={() => { onChange(u.value); setOpen(false); }}
-              className={`w-full text-center text-xs font-medium px-2 py-1 transition-colors rounded-sm mx-0 hover:bg-(--color-surface) ${
+              className={`w-full text-center text-xs font-medium px-2 py-1 transition-colors rounded-sm mx-0 hover:bg-(--color-panel) ${
                 u.value === value ? 'text-(--color-warning)' : 'text-(--color-text)'
               }`}
             >
@@ -136,7 +136,7 @@ function IndicatorsDropdown() {
     <div ref={ref} className="relative self-stretch flex items-center">
       <button
         onClick={() => { setOpen((o) => !o); setEditingDom(false); }}
-        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
+        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-panel) transition-colors ${
           open ? 'text-(--color-text)' : 'text-(--color-text-muted) hover:text-(--color-text)'
         }`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
@@ -159,7 +159,7 @@ function IndicatorsDropdown() {
             <div style={{ padding: 6 }}>
               {/* Market Depth row */}
               <div
-                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-panel) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 {/* Checkbox */}
@@ -213,7 +213,7 @@ function IndicatorsDropdown() {
 
               {/* Bid/Ask Footprint row */}
               <div
-                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-panel) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 <button
@@ -272,7 +272,7 @@ function IndicatorsDropdown() {
                           width: 20, height: 20, background: c, borderRadius: RADIUS.MD,
                           border: c === domParsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
                           cursor: 'pointer',
-                          boxShadow: c === domParsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
+                          boxShadow: c === domParsed.hex ? SHADOW.ring('var(--color-panel)') : 'none',
                         }}
                       />
                     ))}
@@ -318,7 +318,7 @@ function IndicatorsDropdown() {
                     <div
                       style={{
                         width: 32, height: 18, borderRadius: RADIUS.PILL,
-                        background: domHoverExpand ? 'var(--color-accent)' : 'var(--color-surface)',
+                        background: domHoverExpand ? 'var(--color-accent)' : 'var(--color-panel)',
                         border: '1px solid var(--color-border)',
                         position: 'relative',
                         transition: 'background var(--transition-fast)',
@@ -592,8 +592,8 @@ export function ChartToolbar() {
                     return (
                       <div
                         key={tf.label}
-                        className={`group relative flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5 ${
-                          active ? 'bg-(--color-surface)' : ''
+                        className={`group relative flex items-center hover:bg-(--color-panel) transition-colors rounded-md mx-1.5 ${
+                          active ? 'bg-(--color-panel)' : ''
                         }`}
                         style={{ padding: '8px 10px' }}
                       >
@@ -681,7 +681,7 @@ export function ChartToolbar() {
           setDualChart(next);
           if (next) setSelectedChart('left');
         }}
-        className={`self-stretch flex items-center rounded hover:bg-(--color-surface) transition-colors ${
+        className={`self-stretch flex items-center rounded hover:bg-(--color-panel) transition-colors ${
           dualChart
             ? 'text-(--color-text)'
             : 'text-(--color-text-muted) hover:text-(--color-text)'
@@ -707,7 +707,7 @@ export function ChartToolbar() {
       <div ref={cameraRef} className="relative self-stretch flex items-center">
         <button
           onClick={() => setCameraOpen((o) => !o)}
-          className={`h-full flex items-center justify-center rounded hover:bg-(--color-surface) transition-colors ${
+          className={`h-full flex items-center justify-center rounded hover:bg-(--color-panel) transition-colors ${
             copied
               ? 'text-green-400'
               : cameraOpen
@@ -736,7 +736,7 @@ export function ChartToolbar() {
           >
             <button
               onClick={handleCopyChartImage}
-              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-surface) transition-colors rounded-lg"
+              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-panel) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
@@ -748,7 +748,7 @@ export function ChartToolbar() {
             <div className="border-t border-(--color-border)/40 my-1 mx-2" />
             <button
               onClick={handleCustomSnapshot}
-              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-surface) transition-colors rounded-lg"
+              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-panel) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
@@ -768,8 +768,8 @@ export function ChartToolbar() {
         onClick={handleToggleRecording}
         className={`h-full flex items-center justify-center rounded transition-colors ${
           isRecording
-            ? 'text-(--color-sell) hover:bg-(--color-surface)'
-            : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-surface)'
+            ? 'text-(--color-sell) hover:bg-(--color-panel)'
+            : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-panel)'
         }`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title={isRecording ? 'Stop recording' : 'Record chart'}

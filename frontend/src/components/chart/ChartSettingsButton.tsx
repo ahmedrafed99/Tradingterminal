@@ -170,7 +170,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             right: rect.r,
             zIndex: Z.TOOLBAR_EDIT,
             minWidth: 160,
-            background: 'var(--color-bg)',
+            background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             borderRadius: RADIUS.LG,
             padding: '4px 0',
@@ -190,27 +190,28 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               border: 'none',
               color: 'var(--color-text)',
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
           >
             {/* Checkmark — fades + scales in/out */}
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              style={{
-                opacity: inverted ? 1 : 0,
-                transform: inverted ? 'scale(1)' : 'scale(0.5)',
-                transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
-                flexShrink: 0,
-              }}
-            >
-              <path d="M2 6.5l2.5 2.5L10 3" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                style={{
+                  opacity: inverted ? 1 : 0,
+                  transform: inverted ? 'scale(1)' : 'scale(0.5)',
+                  transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
+                }}
+              >
+                <path d="M2 6.5l2.5 2.5L10 3" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
             <span>Invert scale</span>
           </button>
           {/* Divider */}
@@ -227,14 +228,14 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               border: 'none',
               color: 'var(--color-text)',
-              fontSize: 12,
+              fontSize: 13,
               fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
           >
             {/* Gear icon */}
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
               <polygon
                 points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
                 stroke="var(--color-text-muted)"
@@ -244,7 +245,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               />
               <circle cx="8" cy="8" r="2.5" stroke="var(--color-text-muted)" strokeWidth="1.3" fill="none" />
             </svg>
-            <span>Settings...</span>
+            <span>More settings</span>
           </button>
         </div>
       )}

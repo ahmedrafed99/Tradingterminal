@@ -99,7 +99,7 @@ export function OpacitySlider({
             position: 'relative',
             cursor: 'pointer',
             // checkerboard behind the gradient
-            background: 'var(--color-panel)',
+            background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
           }}
           onMouseDown={(e) => {
@@ -225,7 +225,7 @@ export function ColorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
+      className="absolute top-full left-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg shadow-lg"
       style={{ zIndex: Z.DROPDOWN, padding: 10, width: 252 }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
