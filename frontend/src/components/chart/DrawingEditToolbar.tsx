@@ -333,64 +333,98 @@ function TextPopover({
         autoFocus
       />
 
-      {/* Row 3: Text position — visual 3×3 grid with vertical line */}
+      {/* Row 3: Text position — live preview */}
       <div style={{ marginBottom: 10 }}>
-        <div className={SECTION_LABEL} style={{ marginBottom: 6 }}>
-          Text position
-        </div>
+        <div className={SECTION_LABEL} style={{ marginBottom: 6 }}>Text position</div>
+        {/* Preview box */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gridTemplateRows: '1fr 1fr 1fr',
-          width: '80%',
-          height: 54,
           position: 'relative',
-          margin: '0 auto',
+          width: '100%',
+          height: 90,
+          border: '1px solid var(--color-border)',
+          borderRadius: RADIUS.LG,
+          overflow: 'hidden',
         }}>
-          {/* Horizontal line across the middle */}
+          {/* Price line */}
           <div style={{
             position: 'absolute',
             top: '50%',
-            left: 4,
-            right: 4,
-            height: 2,
+            left: 8,
+            right: 8,
+            height: 1,
             background: color,
-            opacity: 0.5,
-            borderRadius: RADIUS.XS,
+            opacity: 0.4,
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
           }} />
-          {(['top', 'middle', 'bottom'] as TextVAlign[]).flatMap((v) =>
-            (['left', 'center', 'right'] as TextHAlign[]).map((h) => {
-              const active = vAlign === v && hAlign === h;
-              return (
-                <button
-                  key={`${v}-${h}`}
-                  onClick={() => { setVAlign(v); setHAlign(h); }}
-                  title={`${v} ${h}`}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: 0,
-                  }}
-                >
-                  <span style={{
-                    width: active ? 8 : 5,
-                    height: active ? 8 : 5,
-                    borderRadius: RADIUS.CIRCLE,
-                    background: active ? color : 'var(--color-text-dim)',
-                    border: active ? '1.5px solid var(--color-text)' : 'none',
-                    transition: 'all var(--transition-fast)',
-                    flexShrink: 0,
-                  }} />
-                </button>
-              );
-            })
-          )}
+
+          {/* Text preview */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: vAlign === 'top' ? 'flex-start' : vAlign === 'bottom' ? 'flex-end' : 'center',
+            justifyContent: hAlign === 'left' ? 'flex-start' : hAlign === 'right' ? 'flex-end' : 'center',
+            padding: '6px 10px',
+            pointerEvents: 'none',
+          }}>
+            <span style={{
+              fontSize: 11,
+              fontFamily: FONT_FAMILY,
+              color: color,
+              opacity: 0.9,
+              whiteSpace: 'nowrap',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {(content.trim().split(/\s+/)[0]) || 'text'}
+            </span>
+          </div>
+
+          {/* 3×3 clickable zones */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gridTemplateRows: '1fr 1fr 1fr',
+          }}>
+            {(['top', 'middle', 'bottom'] as TextVAlign[]).flatMap((v) =>
+              (['left', 'center', 'right'] as TextHAlign[]).map((h) => {
+                const active = vAlign === v && hAlign === h;
+                return (
+                  <button
+                    key={`${v}-${h}`}
+                    onClick={() => { setVAlign(v); setHAlign(h); }}
+                    title={`${v} ${h}`}
+                    style={{
+                      background: active ? `${color}18` : 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: v === 'top' ? 'flex-start' : v === 'bottom' ? 'flex-end' : 'center',
+                      justifyContent: h === 'left' ? 'flex-start' : h === 'right' ? 'flex-end' : 'center',
+                      padding: 5,
+                      transition: 'background var(--transition-fast)',
+                    }}
+                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--color-hover-row)'; }}
+                    onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {!active && (
+                      <span style={{
+                        width: 3,
+                        height: 3,
+                        borderRadius: RADIUS.CIRCLE,
+                        background: 'var(--color-text-dim)',
+                        flexShrink: 0,
+                      }} />
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
