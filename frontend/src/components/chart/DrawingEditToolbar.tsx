@@ -59,8 +59,8 @@ function TextColorGrid({
             key={`txt-${c}-${i}`}
             onClick={() => handleColorChange(c)}
             style={{
-              width: 20,
-              height: 20,
+              width: 24,
+              height: 24,
               background: c,
               borderRadius: RADIUS.MD,
               border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
@@ -77,8 +77,8 @@ function TextColorGrid({
               <button
                 onClick={() => handleColorChange(c)}
                 style={{
-                  width: 20,
-                  height: 20,
+                  width: 24,
+                  height: 24,
                   background: c,
                   borderRadius: RADIUS.MD,
                   border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
@@ -978,7 +978,7 @@ function RectSettingsPopover({
                 transition: 'border-color var(--transition-fast)',
               }}
             >
-              <span style={{ display: 'block', width: 20, height: 20, borderRadius: RADIUS.LG, background: mlColor }} />
+              <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: mlColor }} />
             </button>
             {showMlColor && (
               <ColorPopover
@@ -1073,8 +1073,9 @@ function RectSettingsPopover({
       <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
         <button
           onClick={handleCancel}
-          className="text-xs text-(--color-text) rounded"
+          className="text-(--color-text) rounded"
           style={{
+            fontSize: 13,
             padding: '5px 16px',
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
@@ -1088,8 +1089,9 @@ function RectSettingsPopover({
         </button>
         <button
           onClick={onClose}
-          className="text-xs rounded"
+          className="rounded"
           style={{
+            fontSize: 13,
             padding: '5px 16px',
             background: 'var(--color-label-close)',
             color: 'var(--color-label-text)',
