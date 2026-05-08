@@ -3,7 +3,11 @@ import type { Contract } from '../services/marketDataService';
 import { useStore } from '../store/useStore';
 import { useInstrumentSearch } from '../hooks/useInstrumentSearch';
 import { useClickOutside } from '../hooks/useClickOutside';
-import { SHADOW, Z } from '../constants/layout';
+import { RADIUS, SHADOW, Z } from '../constants/layout';
+
+const EXCHANGE_LOGOS: Record<string, string> = {
+  ProjectX: 'https://s2fassets.s3.us-east-1.amazonaws.com/projectx-login.png',
+};
 
 const CATEGORIES = [
   { id: 'futures',    label: 'Futures',    exchanges: ['ProjectX'], disabled: false },
@@ -15,11 +19,11 @@ const CATEGORIES = [
 
 function StarIcon({ filled }: { filled: boolean }) {
   return filled ? (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ) : (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   );
@@ -91,16 +95,39 @@ export function InstrumentSelectorPopover() {
         </svg>
       </button>
 
-      {/* Popover */}
+      {/* Modal */}
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
-          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, width: 380 }}
+          className="fixed bg-(--color-surface) border border-(--color-border) rounded-xl shadow-lg"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, width: 620, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', maxHeight: '90vh', minHeight: 560 }}
+          onClick={(e) => e.stopPropagation()}
         >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '16px 20px 14px', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>Symbol search</span>
+            <button
+              onClick={() => setOpen(false)}
+              className="focus:outline-none"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 22, height: 22, borderRadius: RADIUS.MD,
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                color: 'var(--color-text-muted)',
+                transition: 'background var(--transition-fast), color var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
+              </svg>
+            </button>
+          </div>
+
           {/* Search input */}
-          <div style={{ padding: '10px 12px 0' }}>
-            <div className="flex items-center gap-2 bg-(--color-input) rounded-md border border-(--color-border) transition-colors focus-within:border-(--color-text-dim)"
-              style={{ padding: '6px 10px' }}
+          <div style={{ padding: '0 20px 12px' }}>
+            <div className="flex items-center gap-2 bg-(--color-input) border border-(--color-border) transition-colors focus-within:border-(--color-text-dim)"
+              style={{ padding: '8px 12px', borderRadius: RADIUS.XL }}
             >
               <SearchIcon />
               <input
@@ -109,13 +136,15 @@ export function InstrumentSelectorPopover() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search instrument..."
-                className="bg-transparent border-none text-xs text-white flex-1 focus:outline-none placeholder-(--color-text-muted)"
+                className="bg-transparent border-none text-sm text-white flex-1 focus:outline-none placeholder-(--color-text-muted)"
               />
             </div>
           </div>
 
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
+
           {/* Category filter row */}
-          <div className="flex items-center gap-1" style={{ padding: '8px 12px 0' }}>
+          <div className="flex items-center gap-1" style={{ padding: '10px 20px 0' }}>
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
@@ -126,14 +155,14 @@ export function InstrumentSelectorPopover() {
                   setActiveExchange(exs.length > 0 ? exs[0] : '');
                 }}
                 disabled={cat.disabled}
-                className={`text-[11px] font-medium rounded-md transition-colors ${
+                className={`text-xs font-medium transition-colors ${
                   cat.disabled
-                    ? 'opacity-50 cursor-default'
+                    ? 'opacity-40 cursor-default'
                     : cat.id === activeCategory
-                      ? 'text-white bg-(--color-surface)'
+                      ? 'text-white bg-(--color-border)'
                       : 'text-(--color-text-muted) hover:text-(--color-text)'
                 }`}
-                style={{ padding: '4px 8px' }}
+                style={{ padding: '4px 10px', borderRadius: RADIUS.XL, border: 'none', cursor: cat.disabled ? 'default' : 'pointer', background: cat.id === activeCategory ? 'var(--color-border)' : 'transparent' }}
                 title={cat.disabled ? 'Coming soon' : undefined}
               >
                 {cat.label}
@@ -143,68 +172,63 @@ export function InstrumentSelectorPopover() {
 
           {/* Exchange filter row */}
           {exchanges.length > 0 && (
-            <div className="flex items-center gap-1" style={{ padding: '6px 12px 0' }}>
+            <div className="flex items-center gap-1" style={{ padding: '6px 20px 0' }}>
               {exchanges.map((ex) => (
                 <button
                   key={ex}
                   onClick={() => setActiveExchange(ex)}
-                  className={`text-[11px] font-medium rounded-md transition-colors ${
-                    ex === activeExchange
-                      ? 'text-white bg-(--color-surface)'
-                      : 'text-(--color-text-muted) hover:text-(--color-text)'
+                  className={`text-xs font-medium transition-colors ${
+                    ex === activeExchange ? 'text-white' : 'text-(--color-text-muted) hover:text-(--color-text)'
                   }`}
-                  style={{ padding: '3px 8px' }}
+                  style={{ padding: '3px 10px', borderRadius: RADIUS.XL, border: 'none', cursor: 'pointer', background: ex === activeExchange ? 'var(--color-border)' : 'transparent', display: 'flex', alignItems: 'center', gap: 5 }}
                 >
+                  {EXCHANGE_LOGOS[ex] && <img src={EXCHANGE_LOGOS[ex]} alt={ex} style={{ width: 14, height: 14, objectFit: 'contain', borderRadius: 2 }} />}
                   {ex}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Divider */}
-          <div className="border-t border-(--color-border) mx-3" style={{ marginTop: 8 }} />
+          <div style={{ height: 8 }} />
+          <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
 
           {/* Results list */}
-          <div className="overflow-y-auto" style={{ maxHeight: 280, padding: '4px 6px 6px' }}>
+          <div className="overflow-y-auto" style={{ flex: 1, padding: '6px 12px 10px' }}>
             {searching && results.length === 0 && (
-              <div className="px-3 py-4 text-xs text-(--color-text-muted) text-center">Searching...</div>
+              <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">Searching...</div>
             )}
             {showingSearch && !searching && results.length === 0 && (
-              <div className="px-3 py-4 text-xs text-(--color-text-muted) text-center">No results</div>
+              <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">No results</div>
             )}
             {!showingSearch && bookmarks.length === 0 && (
-              <div className="px-3 py-4 text-xs text-(--color-text-muted) text-center">
-                Type to search instruments
-              </div>
+              <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">Type to search instruments</div>
             )}
-
             {displayList.map((c) => {
               const active = contract?.id === c.id;
               const bookmarked = isBookmarked(c);
               return (
                 <div
                   key={c.id}
-                  className={`flex items-center hover:bg-(--color-surface) transition-colors rounded-md cursor-pointer ${
-                    active ? 'bg-(--color-surface)' : ''
-                  }`}
-                  style={{ padding: '8px 10px' }}
+                  className={`flex items-center hover:bg-(--color-hover-row) transition-colors cursor-pointer`}
+                  style={{ padding: '10px 12px', borderRadius: RADIUS.LG, background: active ? 'var(--color-hover-row)' : 'transparent' }}
                   onClick={() => handleSelect(c)}
                 >
                   <button
                     onClick={(e) => toggleBookmark(c, e)}
                     className="p-0.5 hover:opacity-80 transition-opacity"
-                    style={{ marginRight: 10 }}
+                    style={{ marginRight: 12, background: 'none', border: 'none', cursor: 'pointer' }}
                   >
                     <StarIcon filled={bookmarked} />
                   </button>
                   <div className="flex-1 min-w-0">
-                    <div className={`text-xs font-medium ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}>
+                    <div className={`text-sm font-medium ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}>
                       {c.name}
                     </div>
-                    <div className="text-[10px] text-(--color-text-muted) truncate">{c.description}</div>
-                    <div className="text-[10px] text-(--color-text-muted)">
-                      {currentCategory?.label ?? 'Futures'} · {activeExchange || 'ProjectX'}
-                    </div>
+                    <div className="text-xs text-(--color-text-muted) truncate">{c.description}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-(--color-text-muted)" style={{ marginLeft: 12, flexShrink: 0 }}>
+                    <span>{currentCategory?.label ?? 'Futures'} · {activeExchange || 'ProjectX'}</span>
+                    {EXCHANGE_LOGOS[activeExchange] && <img src={EXCHANGE_LOGOS[activeExchange]} alt={activeExchange} style={{ width: 14, height: 14, objectFit: 'contain', borderRadius: 2 }} />}
                   </div>
                 </div>
               );
