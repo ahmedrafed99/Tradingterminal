@@ -106,14 +106,14 @@ function TextColorGrid({
       <button
         onClick={() => customColorRef.current?.click()}
         style={{
-          width: 20,
-          height: 20,
+          width: 24,
+          height: 24,
           borderRadius: RADIUS.MD,
           border: '1px dashed var(--color-border)',
           background: 'transparent',
           color: 'var(--color-text-muted)',
           fontSize: 14,
-          lineHeight: '18px',
+          lineHeight: '22px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -858,7 +858,7 @@ function RectSettingsPopover({
     <div
       ref={ref}
       className="fixed bg-(--color-surface) border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column' }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => {
         e.stopPropagation();
