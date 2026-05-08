@@ -23,6 +23,7 @@ export interface ChartSettingsState {
 
     // Trading
     extendTradeZoneRight: boolean;
+    showQuickOrder: boolean;
 
     // Performance
     showFpsCounter: boolean;
@@ -55,6 +56,7 @@ export const CHART_SETTINGS_DEFAULTS: ChartSettingsState['chartSettings'] = {
   gradientBottomColor: '#000000',
 
   extendTradeZoneRight: false,
+  showQuickOrder: true,
 
   showFpsCounter: false,
   fpsCounterColor: '#808080',

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { IChartApi } from 'lightweight-charts';
 import { ChartSettingsModal } from './ChartSettingsModal';
+import { useStore } from '../../store/useStore';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
 export function ChartSettingsButton({ chartRef, containerRef }: Props) {
   const [open, setOpen] = useState(false);
   const [inverted, setInverted] = useState(false);
+  const showQuickOrder = useStore((s) => s.chartSettings.showQuickOrder);
+  const setChartSettings = useStore((s) => s.setChartSettings);
   const [modalOpen, setModalOpen] = useState(false);
   const [rect, setRect] = useState<{ w: number; h: number; r: number; b: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -232,6 +235,40 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               </svg>
             </span>
             <span>Invert scale</span>
+          </button>
+          <button
+            onClick={() => setChartSettings({ showQuickOrder: !showQuickOrder })}
+            className="hover:bg-(--color-border) transition-colors cursor-pointer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '6px 12px',
+              border: 'none',
+              color: 'var(--color-text)',
+              fontSize: 13,
+              fontFamily: FONT_FAMILY,
+              textAlign: 'left',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                style={{
+                  opacity: showQuickOrder ? 1 : 0,
+                  transform: showQuickOrder ? 'scale(1)' : 'scale(0.5)',
+                  transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
+                }}
+              >
+                <path d="M2 6.5l2.5 2.5L10 3" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span>Plus button</span>
           </button>
           {/* Divider */}
           <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />

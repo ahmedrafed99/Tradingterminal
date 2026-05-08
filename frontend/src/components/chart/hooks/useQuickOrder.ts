@@ -20,11 +20,13 @@ export function useQuickOrder(
   timeframe: Timeframe,
   isOrderChart: boolean,
 ): void {
+  const showQuickOrder = useStore((s) => s.chartSettings.showQuickOrder);
+
   useEffect(() => {
     const chart = refs.chart.current;
     const series = refs.series.current;
     const container = refs.container.current;
-    if (!chart || !series || !container || !isOrderChart || !contract) return;
+    if (!chart || !series || !container || !isOrderChart || !contract || !showQuickOrder) return;
 
     const primitive = new QuickOrderPrimitive();
     series.attachPrimitive(primitive);
@@ -292,5 +294,5 @@ export function useQuickOrder(
       series.detachPrimitive(primitive);
       refs.qoHovered.current = false;
     };
-  }, [contract, timeframe, isOrderChart]);
+  }, [contract, timeframe, isOrderChart, showQuickOrder]);
 }
