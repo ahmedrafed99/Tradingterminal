@@ -12,33 +12,24 @@ type Category = 'bars' | 'canvas' | 'trading';
 // ---------------------------------------------------------------------------
 function BarsIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-      <line x1="4" y1="2" x2="4" y2="14" />
-      <line x1="2.5" y1="5" x2="5.5" y2="5" />
-      <line x1="2.5" y1="11" x2="5.5" y2="11" />
-      <rect x="2.5" y="5" width="3" height="6" rx="0.5" fill="currentColor" opacity="0.3" />
-      <line x1="10" y1="3" x2="10" y2="13" />
-      <line x1="8.5" y1="6" x2="11.5" y2="6" />
-      <line x1="8.5" y1="10" x2="11.5" y2="10" />
-      <rect x="8.5" y="6" width="3" height="4" rx="0.5" fill="currentColor" opacity="0.3" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28">
+      <path fill="currentColor" fillRule="evenodd" d="M11 4h-1v3H8.5a.5.5 0 0 0-.5.5v13a.5.5 0 0 0 .5.5H10v3h1v-3h1.5a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5H11V4ZM9 8v12h3V8H9Zm10-1h-1v3h-1.5a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5H18v3h1v-3h1.5a.5.5 0 0 0 .5-.5v-7a.5.5 0 0 0-.5-.5H19V7Zm-2 10v-6h3v6h-3Z" />
     </svg>
   );
 }
 
 function CanvasIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="12" height="12" rx="1.5" />
-      <path d="M2 10l3-3 2 2 4-4 3 3" opacity="0.5" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
+      <path fill="currentColor" d="M18.965 5a2.5 2.5 0 0 1 1.666.73l1.637 1.637c.49.49.733 1.132.732 1.773a2.5 2.5 0 0 1-.73 1.762l-.788.789L10.172 23H4.998v-5.17l.146-.146 1.116-1.117L16.31 6.519l.785-.787A2.5 2.5 0 0 1 18.965 5M6 18.243v3.758h3.758l.616-.616-3.758-3.759zm1.323-1.324 3.759 3.759 9.34-9.34-3.758-3.759zM19.924 6.438a1.5 1.5 0 0 0-2.122 0l-.433.433 3.758 3.758.435-.434a1.5 1.5 0 0 0-.001-2.12z" />
     </svg>
   );
 }
 
 function TradingIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 11l4-6 3 4 3-5" />
-      <polyline points="11 4 14 4 14 7" strokeWidth="1.2" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
+      <path fill="currentColor" d="M17.138 18.207a2.098 2.098 0 0 1-2.461 3.4l-4.68-3.359-4.673 3.357a2.097 2.097 0 0 1-2.463-3.398L9.997 13zm-13.687.808a1.097 1.097 0 0 0-.222 1.555 1.1 1.1 0 0 0 1.512.223l5.256-3.775 5.263 3.776a1.1 1.1 0 0 0 1.289-1.78l-6.552-4.777zM22.677 6.394a2.098 2.098 0 0 1 2.46 3.4L17.998 15l-7.136-5.207a2.097 2.097 0 0 1 2.463-3.397l4.673 3.356zm2.095 1.035a1.1 1.1 0 0 0-1.512-.223l-5.263 3.776-5.256-3.775a1.1 1.1 0 0 0-1.512.223 1.097 1.097 0 0 0 .222 1.555l6.546 4.778 6.552-4.778c.499-.364.6-1.067.223-1.556" />
     </svg>
   );
 }
@@ -164,7 +155,7 @@ function SectionHeader({ children }: { children: string }) {
   return (
     <div
       style={{
-        fontSize: 10,
+        fontSize: 11,
         textTransform: 'uppercase',
         letterSpacing: '0.08em',
         color: 'var(--color-text-muted)',
@@ -318,20 +309,20 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Body: sidebar + content */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 380 }}>
         {/* Sidebar */}
-        <div style={{ width: 140, borderRight: '1px solid var(--color-border)', padding: '8px 0', flexShrink: 0 }}>
+        <div style={{ width: 160, borderRight: '1px solid var(--color-border)', padding: '8px 0', flexShrink: 0 }}>
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                width: '100%', padding: '8px 16px',
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '10px 18px',
                 background: category === cat.id ? 'var(--color-border)' : 'transparent',
                 border: 'none',
                 color: category === cat.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-                fontSize: 13, fontFamily: FONT_FAMILY, cursor: 'pointer',
+                fontSize: 14, fontFamily: FONT_FAMILY, cursor: 'pointer',
                 transition: 'background var(--transition-fast), color var(--transition-fast)',
                 textAlign: 'left',
               }}
@@ -445,8 +436,8 @@ function BarsPanel({ settings, onChange }: { settings: Settings; onChange: OnCha
 
       {/* Legend for up/down columns */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: -4 }}>
-        <span style={{ fontSize: 10, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>up</span>
-        <span style={{ fontSize: 10, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>down</span>
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>up</span>
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>down</span>
       </div>
     </>
   );
