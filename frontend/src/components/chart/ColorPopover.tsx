@@ -163,13 +163,13 @@ export function OpacitySlider({
   );
 }
 
-function ColorSwatch({ color, current, onClick }: { color: string; current: string; onClick: () => void }) {
+export function ColorSwatch({ color, current, onClick }: { color: string; current: string; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
       style={{
-        width: 20,
-        height: 20,
+        width: 24,
+        height: 24,
         background: color,
         borderRadius: RADIUS.MD,
         border: color === current ? '2px solid #fff' : '1px solid var(--color-border)',
@@ -177,6 +177,54 @@ function ColorSwatch({ color, current, onClick }: { color: string; current: stri
         boxShadow: color === current ? SHADOW.ring('var(--color-surface)') : 'none',
       }}
     />
+  );
+}
+
+export function ColorSwatchButton({
+  color,
+  onChange,
+  disabled,
+}: {
+  color: string;
+  onChange: (c: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, left: r.left });
+  }, [open]);
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+      <button
+        ref={ref}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        className="focus:outline-none focus:ring-0"
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          padding: 4, borderRadius: RADIUS.XL,
+          border: '1px solid var(--color-border)',
+          background: 'transparent',
+          cursor: disabled ? 'default' : 'pointer',
+          opacity: disabled ? 0.4 : 1,
+          transition: 'opacity var(--transition-fast), border-color var(--transition-fast)',
+        }}
+        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+        onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+      >
+        <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: color }} />
+      </button>
+      {open && !disabled && pos && (
+        <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: Z.TOAST }}>
+          <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -226,7 +274,7 @@ export function ColorPopover({
     <div
       ref={ref}
       className="absolute top-full left-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, padding: 10, width: 252 }}
+      style={{ zIndex: Z.DROPDOWN, padding: 10, width: 290 }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
@@ -265,14 +313,14 @@ export function ColorPopover({
       <button
         onClick={() => customInputRef.current?.click()}
         style={{
-          width: 20,
-          height: 20,
+          width: 24,
+          height: 24,
           borderRadius: RADIUS.MD,
           border: '1px dashed var(--color-border)',
           background: 'transparent',
           color: 'var(--color-text-muted)',
           fontSize: 14,
-          lineHeight: '18px',
+          lineHeight: '22px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',

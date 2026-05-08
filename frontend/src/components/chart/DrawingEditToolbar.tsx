@@ -5,7 +5,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 import type { Drawing, FRVPDrawing, RectDrawing, RectExtendMode, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
-import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
+import { ColorPopover, ColorSwatch, ColorSwatchButton, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
 import { COLOR_ACCENT } from '../../constants/colors';
 import { SpinnerInput } from '../SpinnerInput';
 
@@ -55,37 +55,14 @@ function TextColorGrid({
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: customColors.length > 0 ? 4 : 6 }}>
         {COLOR_PALETTE.flat().map((c, i) => (
-          <button
-            key={`txt-${c}-${i}`}
-            onClick={() => handleColorChange(c)}
-            style={{
-              width: 24,
-              height: 24,
-              background: c,
-              borderRadius: RADIUS.MD,
-              border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
-              cursor: 'pointer',
-              boxShadow: c === parsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
-            }}
-          />
+          <ColorSwatch key={`txt-${c}-${i}`} color={c} current={parsed.hex} onClick={() => handleColorChange(c)} />
         ))}
       </div>
       {customColors.length > 0 && (
         <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', marginBottom: 6 }}>
           {customColors.map((c, i) => (
             <div key={`txt-custom-${c}-${i}`} className="relative group">
-              <button
-                onClick={() => handleColorChange(c)}
-                style={{
-                  width: 24,
-                  height: 24,
-                  background: c,
-                  borderRadius: RADIUS.MD,
-                  border: c === parsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
-                  cursor: 'pointer',
-                  boxShadow: c === parsed.hex ? SHADOW.ring('var(--color-surface)') : 'none',
-                }}
-              />
+              <ColorSwatch color={c} current={parsed.hex} onClick={() => handleColorChange(c)} />
               <button
                 onClick={(e) => { e.stopPropagation(); removeCustomColor(i); }}
                 className="absolute opacity-0 group-hover:opacity-100"
@@ -217,10 +194,35 @@ function TextPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 border border-(--color-border) rounded-lg shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, padding: 12, width: 290, background: 'var(--color-surface)' }}
+      className="fixed bg-(--color-panel) border border-(--color-border) rounded-xl shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column' }}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px' }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>Text</span>
+        <button
+          onClick={onClose}
+          className="focus:outline-none focus:ring-0"
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 22, height: 22, borderRadius: RADIUS.MD,
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            color: 'var(--color-text-muted)',
+            transition: 'background var(--transition-fast), color var(--transition-fast)',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+        >
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Body */}
+      <div style={{ flex: 1, padding: '0 16px 12px' }}>
       {/* Row 1: Color swatch + Font size + Bold + Italic */}
       <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
         {/* Color swatch */}
@@ -360,15 +362,15 @@ function TextPopover({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="text"
-        className="w-full text-(--color-text) text-xs rounded outline-none"
+        className="w-full text-(--color-text) rounded outline-none"
         style={{
-          padding: '8px 10px',
+          padding: '10px 12px',
           marginBottom: 8,
           resize: 'none',
-          minHeight: 60,
+          minHeight: 120,
           fontFamily: FONT_FAMILY,
-          fontSize: 12,
-          lineHeight: '1.4',
+          fontSize: 13,
+          lineHeight: '1.5',
           border: '1px solid var(--color-border)',
           background: 'var(--color-surface)',
         }}
@@ -436,12 +438,16 @@ function TextPopover({
         </div>
       </div>
 
-      {/* Row 4: Cancel + Ok */}
-      <div className="flex justify-end" style={{ gap: 6 }}>
+      </div>{/* /Body */}
+
+      {/* Footer */}
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
+      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
         <button
           onClick={cancel}
-          className="text-xs text-(--color-text) rounded"
+          className="text-(--color-text) rounded"
           style={{
+            fontSize: 13,
             padding: '5px 16px',
             background: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
@@ -455,8 +461,9 @@ function TextPopover({
         </button>
         <button
           onClick={apply}
-          className="text-xs rounded"
+          className="rounded"
           style={{
+            fontSize: 13,
             padding: '5px 16px',
             background: 'var(--color-label-close)',
             color: 'var(--color-label-text)',
@@ -819,10 +826,8 @@ function RectSettingsPopover({
     middleLineStyle: drawing.middleLineStyle,
   });
 
-  const [showMlColor, setShowMlColor] = useState(false);
   const [showMlStyle, setShowMlStyle] = useState(false);
   const [showExtend, setShowExtend] = useState(false);
-  const mlColorRef = useRef<HTMLDivElement>(null);
   const mlStyleRef = useRef<HTMLDivElement>(null);
   const extendRef = useRef<HTMLDivElement>(null);
   const closeMlStyle = useCallback(() => setShowMlStyle(false), []);
@@ -868,7 +873,6 @@ function RectSettingsPopover({
         e.stopPropagation();
         const t = e.target as Node;
         if (showExtend && extendRef.current && !extendRef.current.contains(t)) setShowExtend(false);
-        if (showMlColor && mlColorRef.current && !mlColorRef.current.contains(t)) setShowMlColor(false);
         if (showMlStyle && mlStyleRef.current && !mlStyleRef.current.contains(t)) setShowMlStyle(false);
       }}
     >
@@ -968,33 +972,8 @@ function RectSettingsPopover({
           </div>
 
           {/* Color swatch */}
-          <div
-            ref={mlColorRef}
-            className="relative"
-            style={{ flexShrink: 0, opacity: mlEnabled ? 1 : 0.35, pointerEvents: mlEnabled ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}
-          >
-            <button
-              onClick={() => setShowMlColor((v) => !v)}
-              className="focus:outline-none focus:ring-0"
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                padding: 4, borderRadius: RADIUS.XL,
-                border: '1px solid var(--color-border)',
-                background: 'transparent', cursor: 'pointer',
-                transition: 'border-color var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-            >
-              <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: mlColor }} />
-            </button>
-            {showMlColor && (
-              <ColorPopover
-                current={mlColor}
-                onChange={(color) => onUpdate({ middleLineColor: color })}
-                onClose={() => setShowMlColor(false)}
-              />
-            )}
+          <div style={{ flexShrink: 0, opacity: mlEnabled ? 1 : 0.35, pointerEvents: mlEnabled ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+            <ColorSwatchButton color={mlColor} onChange={(color) => onUpdate({ middleLineColor: color })} />
           </div>
 
           {/* Line style dropdown */}
@@ -1141,8 +1120,6 @@ export function DrawingEditToolbar({
   const [showTemplate, setShowTemplate] = useState(false);
   const [showPocColor, setShowPocColor] = useState(false);
   const [frvpTab, setFrvpTab] = useState<'input' | 'style' | null>(null);
-  const [showFrvpBarColor, setShowFrvpBarColor] = useState(false);
-  const [showFrvpPocColor, setShowFrvpPocColor] = useState(false);
   const [showRectSettings, setShowRectSettings] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -1152,7 +1129,7 @@ export function DrawingEditToolbar({
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowFrvpBarColor(false); setShowFrvpPocColor(false); setShowRectSettings(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowRectSettings(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -1380,28 +1357,12 @@ export function DrawingEditToolbar({
                     {/* ── Bars section ── */}
                     <span className={`${SECTION_LABEL} block text-center`}>Bars</span>
                     {/* Bar color */}
-                    <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                       <span style={{ fontSize: 13, color: 'var(--color-text)' }}>Color</span>
-                      <button
-                        onClick={() => { const v = !showFrvpBarColor; setShowFrvpPocColor(false); setShowFrvpBarColor(v); }}
-                        className="focus:outline-none focus:ring-0"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          padding: 4, borderRadius: RADIUS.XL,
-                          border: '1px solid var(--color-border)',
-                          background: 'transparent', cursor: 'pointer', flexShrink: 0,
-                          transition: 'border-color var(--transition-fast)',
-                        }}
-                      >
-                        <span style={{ display: 'block', width: 18, height: 18, borderRadius: RADIUS.LG, background: frvp.color }} />
-                      </button>
-                      {showFrvpBarColor && (
-                        <ColorPopover
-                          current={frvp.color}
-                          onChange={(color) => updateDrawing(drawing.id, { color } as Partial<Drawing>)}
-                          onClose={() => setShowFrvpBarColor(false)}
-                        />
-                      )}
+                      <ColorSwatchButton
+                        color={frvp.color}
+                        onChange={(color) => updateDrawing(drawing.id, { color } as Partial<Drawing>)}
+                      />
                     </div>
                     {/* Show Values */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
@@ -1484,27 +1445,11 @@ export function DrawingEditToolbar({
                         </span>
                         <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Color</span>
                       </label>
-                      <button
-                        onClick={() => { const v = !showFrvpPocColor; setShowFrvpBarColor(false); setShowFrvpPocColor(v); }}
-                        className="focus:outline-none focus:ring-0"
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          padding: 4, borderRadius: RADIUS.XL,
-                          border: '1px solid var(--color-border)',
-                          background: 'transparent', cursor: 'pointer', flexShrink: 0,
-                          transition: 'border-color var(--transition-fast)',
-                          opacity: pocVisible ? 1 : 0.35,
-                        }}
-                      >
-                        <span style={{ display: 'block', width: 18, height: 18, borderRadius: RADIUS.LG, background: frvp.pocColor ?? COLOR_ACCENT }} />
-                      </button>
-                      {showFrvpPocColor && (
-                        <ColorPopover
-                          current={frvp.pocColor ?? COLOR_ACCENT}
-                          onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
-                          onClose={() => setShowFrvpPocColor(false)}
-                        />
-                      )}
+                      <ColorSwatchButton
+                        color={frvp.pocColor ?? COLOR_ACCENT}
+                        onChange={(color) => updateDrawing(drawing.id, { pocColor: color } as Partial<Drawing>)}
+                        disabled={!pocVisible}
+                      />
                     </div>
                   </>
                 )}

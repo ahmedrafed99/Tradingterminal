@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
-import { ColorPopover } from './ColorPopover';
+import { ColorSwatchButton } from './ColorPopover';
 import { CustomSelect } from '../shared/CustomSelect';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 
@@ -44,70 +44,6 @@ function EventsIcon() {
 }
 
 // ---------------------------------------------------------------------------
-// Color swatch button (opens ColorPopover)
-// ---------------------------------------------------------------------------
-function ColorSwatchButton({
-  color,
-  onChange,
-  disabled,
-}: {
-  color: string;
-  onChange: (c: string) => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const swatchRef = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-
-  // Measure swatch position when opening
-  useEffect(() => {
-    if (!open || !swatchRef.current) return;
-    const r = swatchRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 4, left: r.left });
-  }, [open]);
-
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-      <button
-        ref={swatchRef}
-        onClick={() => !disabled && setOpen((v) => !v)}
-        className="focus:outline-none focus:ring-0"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 4,
-          borderRadius: RADIUS.XL,
-          border: '1px solid var(--color-border)',
-          background: 'transparent',
-          cursor: disabled ? 'default' : 'pointer',
-          opacity: disabled ? 0.4 : 1,
-          transition: 'opacity var(--transition-fast), border-color var(--transition-fast)',
-        }}
-        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-        onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-      >
-        <span style={{
-          display: 'block',
-          width: 18,
-          height: 18,
-          borderRadius: RADIUS.LG,
-          background: color,
-        }} />
-      </button>
-      {open && !disabled && pos && (
-        <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: Z.TOAST }}>
-          <ColorPopover
-            current={color}
-            onChange={(c) => { onChange(c); }}
-            onClose={() => setOpen(false)}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Checkbox
 // ---------------------------------------------------------------------------
@@ -449,8 +385,8 @@ function BarsPanel({ settings, onChange }: { settings: Settings; onChange: OnCha
 
       {/* Legend for up/down columns */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: -4 }}>
-        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>up</span>
-        <span style={{ fontSize: 11, color: 'var(--color-text-muted)', width: 28, textAlign: 'center' }}>down</span>
+        <span style={{ fontSize: 13, color: 'var(--color-text-muted)', width: 34, textAlign: 'center' }}>up</span>
+        <span style={{ fontSize: 13, color: 'var(--color-text-muted)', width: 34, textAlign: 'center' }}>down</span>
       </div>
     </>
   );

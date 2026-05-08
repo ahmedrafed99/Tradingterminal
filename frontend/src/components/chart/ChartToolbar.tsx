@@ -6,7 +6,7 @@ import { ChevronDown } from '../icons/ChevronDown';
 import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
-import { COLOR_PALETTE, OpacitySlider, parseColorWithOpacity, toRgba } from './ColorPopover';
+import { ColorSwatch, COLOR_PALETTE, OpacitySlider, parseColorWithOpacity, toRgba } from './ColorPopover';
 import { getSchedule, type MarketType } from '../../utils/marketHours';
 import { COLOR_BG, COLOR_BORDER } from '../../constants/colors';
 import { paintOverlays } from './screenshot/paintOverlays';
@@ -265,16 +265,7 @@ function IndicatorsDropdown() {
                   {/* Color palette grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 3, marginBottom: 8 }}>
                     {COLOR_PALETTE.flat().map((c, i) => (
-                      <button
-                        key={`${c}-${i}`}
-                        onClick={() => setDomColor(toRgba(c, domParsed.opacity))}
-                        style={{
-                          width: 20, height: 20, background: c, borderRadius: RADIUS.MD,
-                          border: c === domParsed.hex ? '2px solid #fff' : '1px solid var(--color-border)',
-                          cursor: 'pointer',
-                          boxShadow: c === domParsed.hex ? SHADOW.ring('var(--color-panel)') : 'none',
-                        }}
-                      />
+                      <ColorSwatch key={`${c}-${i}`} color={c} current={domParsed.hex} onClick={() => setDomColor(toRgba(c, domParsed.opacity))} />
                     ))}
                   </div>
 
@@ -282,9 +273,9 @@ function IndicatorsDropdown() {
                   <button
                     onClick={() => customInputRef.current?.click()}
                     style={{
-                      width: 20, height: 20, borderRadius: RADIUS.MD,
+                      width: 24, height: 24, borderRadius: RADIUS.MD,
                       border: '1px dashed var(--color-text-muted)', background: 'transparent',
-                      color: 'var(--color-text-muted)', fontSize: 14, lineHeight: '18px',
+                      color: 'var(--color-text-muted)', fontSize: 14, lineHeight: '22px',
                       cursor: 'pointer', display: 'flex',
                       alignItems: 'center', justifyContent: 'center',
                     }}
