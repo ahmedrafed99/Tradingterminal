@@ -246,7 +246,7 @@ export function DrawingToolbar() {
               disabled={drawings.length === 0}
               className={`flex items-center justify-center transition-colors ${
                 drawings.length > 0
-                  ? 'text-(--color-text) hover:text-red-400 hover:bg-(--color-border)/50'
+                  ? 'text-(--color-text) hover:text-(--color-error) hover:bg-(--color-border)/50'
                   : 'text-(--color-text) disabled:opacity-50 cursor-default'
               }`}
               style={{ width: 36, height: 34 }}

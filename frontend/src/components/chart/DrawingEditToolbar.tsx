@@ -828,8 +828,8 @@ export function DrawingEditToolbar({
   if (isMulti && multiDrawings.length === 0) return null;
 
   const btnBase = "relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text) transition-colors duration-150";
-  const btnHover = "hover:bg-(--color-hover-toolbar) hover:text-(--color-text)";
-  const btnActive = "bg-(--color-hover-toolbar) text-white";
+  const btnHover = "hover:bg-(--color-border)/50 hover:text-(--color-text)";
+  const btnActive = "bg-(--color-hover-toolbar) text-white hover:bg-(--color-border)/50";
 
   // Multi-selection: simplified toolbar with count + delete
   if (isMulti) {
@@ -862,7 +862,7 @@ export function DrawingEditToolbar({
         <Divider />
         <button
           onClick={() => { removeDrawings(selectedIds); setSelectedDrawingIds([]); }}
-          className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
+          className={`${btnBase} hover:bg-(--color-border)/50 hover:text-(--color-error)`}
           title="Delete selected"
         >
           <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
@@ -1369,7 +1369,7 @@ export function DrawingEditToolbar({
       {/* Delete */}
       <button
         onClick={() => { removeDrawing(drawing.id); setSelectedDrawingIds([]); }}
-        className={`${btnBase} hover:bg-(--color-hover-toolbar) hover:text-(--color-error)`}
+        className={`${btnBase} hover:bg-(--color-border)/50 hover:text-(--color-error)`}
         title="Delete"
       >
         <svg width="22" height="22" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
