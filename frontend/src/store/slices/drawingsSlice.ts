@@ -1,4 +1,4 @@
-import type { Drawing, DrawingTool, HLineTemplate, LineStyle } from '../../types/drawing';
+import type { Drawing, DrawingTool, HLineTemplate, LineStyle, RectExtendMode } from '../../types/drawing';
 
 // ---------------------------------------------------------------------------
 // Drawings
@@ -16,6 +16,11 @@ interface DrawingStyleDefaults {
   lineStyle?: LineStyle;
   fillColor?: string;
   mode?: 'anchor' | 'range';
+  // Rect-specific
+  extendMode?: RectExtendMode;
+  middleLine?: boolean;
+  middleLineColor?: string;
+  middleLineStyle?: LineStyle;
   // FRVP-specific
   numBars?: number;
   rowSizeMode?: 'count' | 'price';
@@ -116,8 +121,9 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           { type: 'update', drawingId: id, previous },
         ].slice(-50);
 
+        const rectKeys = ['extendMode', 'middleLine', 'middleLineColor', 'middleLineStyle'] as const;
         const frvpKeys = ['numBars', 'rowSizeMode', 'rowSizePrice', 'rowTickSize', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues'] as const;
-        const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...frvpKeys] as const;
+        const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...rectKeys, ...frvpKeys] as const;
         if (existing && styleKeys.some((k) => k in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
           const p = patch as Record<string, unknown>;
@@ -158,6 +164,19 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           }
           if ('showBarValues' in patch || cur.showBarValues !== undefined) {
             updated.showBarValues = (p.showBarValues as boolean) ?? cur.showBarValues;
+          }
+          // Rect-specific defaults
+          if ('extendMode' in patch || cur.extendMode !== undefined) {
+            updated.extendMode = (p.extendMode as RectExtendMode) ?? cur.extendMode;
+          }
+          if ('middleLine' in patch || cur.middleLine !== undefined) {
+            updated.middleLine = (p.middleLine as boolean) ?? cur.middleLine;
+          }
+          if ('middleLineColor' in patch || cur.middleLineColor !== undefined) {
+            updated.middleLineColor = (p.middleLineColor as string) ?? cur.middleLineColor;
+          }
+          if ('middleLineStyle' in patch || cur.middleLineStyle !== undefined) {
+            updated.middleLineStyle = (p.middleLineStyle as LineStyle) ?? cur.middleLineStyle;
           }
           result.drawingDefaults = {
             ...s.drawingDefaults,

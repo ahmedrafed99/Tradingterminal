@@ -32,6 +32,9 @@ export function useChartContextMenu(
       const time = chart.timeScale().coordinateToTime(localX);
       if (time == null) return;
 
+      const lastBar = refs.lastBar.current;
+      if (lastBar && (time as number) > (lastBar.time as number)) return;
+
       setMenuState({
         x: e.clientX,
         y: e.clientY,

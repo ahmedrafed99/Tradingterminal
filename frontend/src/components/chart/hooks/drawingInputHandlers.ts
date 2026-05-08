@@ -124,6 +124,14 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Drawing selected: deselect and suppress candle context menu
+  const { selectedDrawingIds, setSelectedDrawingIds } = useStore.getState();
+  if (activeTool === 'select' && selectedDrawingIds.length > 0) {
+    e.stopImmediatePropagation();
+    setSelectedDrawingIds([]);
+    return;
+  }
+
   // Any other drawing tool active: cancel to select
   if (activeTool !== 'select') {
     setActiveTool('select');

@@ -581,6 +581,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
       rectDef?.color ?? DEFAULT_RECT_COLOR,
       rectDef?.fillColor ?? DEFAULT_RECT_FILL,
       rectDef?.strokeWidth ?? 1,
+      rectDef?.extendMode ?? 'none',
     );
     return;
   }
@@ -967,6 +968,10 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
           strokeWidth: rectDef?.strokeWidth ?? 1,
           lineStyle: rectDef?.lineStyle ?? 'solid',
           fillColor: rectDef?.fillColor ?? DEFAULT_RECT_FILL,
+          extendMode: rectDef?.extendMode ?? 'none',
+          middleLine: rectDef?.middleLine ?? false,
+          middleLineColor: rectDef?.middleLineColor,
+          middleLineStyle: rectDef?.middleLineStyle ?? 'dashed',
           text: null,
           contractId: String(contract.id),
         });
