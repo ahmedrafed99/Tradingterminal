@@ -105,12 +105,20 @@ latestBarTime + candlePeriodMs < endTime
 | Primary param | chartapi param | Conversion |
 |---------------|----------------|------------|
 | `contractId` (`CON.F.US.ENQ.M26`) | `Symbol` (`/NQ`) | `PRODUCT_TO_CHART_SYMBOL` map in `marketData.ts` |
-| `unit` + `unitNumber` | `Resolution` | Second→`NS`, Minute→`N`, Hour→`N*60`, Day→`D`, Week→`W`, Month→`M` |
+| `unit` + `unitNumber` | `Resolution` | Second→`NS`, Minute→`N`, Hour→`N*60`, Day→`D`, Week→`W`, Month→`M`, Tick→`NT` |
 | `startTime` (ISO) | `From` (Unix s) | `Math.floor(new Date(startTime).getTime() / 1000)` |
 | `endTime` (ISO) | `To` (Unix s) | `Math.floor(new Date(endTime).getTime() / 1000)` |
 | `limit` | `Countback` | Direct (omitted if not specified — chartapi returns full range) |
 | `live` | `Live` | Boolean → `"true"/"false"` |
 | — | `SessionId` | Always `"extended"` |
+
+### Tick Bar Minimum (100T)
+
+chartapi silently returns **1-minute bars** for tick resolutions below `100T` — no error, `code: 0`, wrong data. `fetchFromChartApi` rejects these early with an explicit error:
+
+> `Tick resolution 50T rejected — chartapi minimum is 100T`
+
+Verified resolutions: `100T`, `233T`, `500T`, `1000T`, `2000T`. Do not request `1T`–`99T`.
 
 ### Response Normalization
 

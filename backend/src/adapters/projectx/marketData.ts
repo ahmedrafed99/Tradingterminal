@@ -94,6 +94,11 @@ async function fetchFromChartApi(
   const resolution = toChartResolution(unit, unitNumber);
   if (!resolution) throw new Error(`No chartapi resolution for unit=${unit}`);
 
+  // chartapi silently returns 1m bars for tick resolutions < 100T — reject early
+  if (resolution.endsWith('T') && parseInt(resolution, 10) < 100) {
+    throw new Error(`Tick resolution ${resolution} rejected — chartapi minimum is 100T (smaller values silently return 1m bars)`);
+  }
+
   const fromTs = Math.floor(new Date(startTime).getTime() / 1000);
   const toTs   = Math.floor(new Date(endTime).getTime()   / 1000);
 
