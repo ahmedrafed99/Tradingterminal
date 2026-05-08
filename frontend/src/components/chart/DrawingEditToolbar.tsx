@@ -451,16 +451,17 @@ function TextPopover({
         </button>
         <button
           onClick={apply}
-          className="text-xs text-white rounded"
+          className="text-xs rounded"
           style={{
             padding: '5px 16px',
-            background: 'var(--color-focus-ring)',
-            border: '1px solid transparent',
+            background: 'var(--color-label-close)',
+            color: 'var(--color-label-text)',
+            border: 'none',
             cursor: 'pointer',
             transition: 'background var(--transition-fast)',
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-focus-ring)')}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-label-close-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-label-close)')}
         >
           Ok
         </button>
@@ -702,10 +703,10 @@ function TemplatePopover({
             />
             <button
               onClick={handleSave}
-              className="text-xs text-white rounded"
-              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: 'var(--color-focus-ring)', transition: 'background var(--transition-fast)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-accent-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-focus-ring)')}
+              className="text-xs rounded"
+              style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: 'var(--color-label-close)', color: 'var(--color-label-text)', transition: 'background var(--transition-fast)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-label-close-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-label-close)')}
             >
               Save
             </button>
