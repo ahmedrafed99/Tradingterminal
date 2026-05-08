@@ -35,6 +35,10 @@ export type { ToastItem } from './slices/toastSlice';
 // ---------------------------------------------------------------------------
 // Combined store
 // ---------------------------------------------------------------------------
+
+// AUTO-BUMPED by pre-commit hook when store slices change. Do not edit manually.
+const STORE_VERSION = 3;
+
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
   & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice;
 
@@ -55,8 +59,9 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'chart-store',
-      version: 2,
+      version: STORE_VERSION,
       migrate: (persisted: any, version: number) => {
+        if (version > STORE_VERSION) return {}; // persisted state is newer than this code → reset
         if (version === 0) {
           const wasVisible = persisted.newsVisible ?? true;
           delete persisted.newsVisible;

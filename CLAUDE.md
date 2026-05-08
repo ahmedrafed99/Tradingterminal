@@ -14,3 +14,9 @@ don't log in console, log into a file. use `debugLog.log(tag, data)` from `src/u
 
 ## Architecture principles
 always look for modularity, nothing is to be harcoded.
+
+## Zustand store versioning
+`STORE_VERSION` constant in `frontend/src/store/useStore.ts` controls persist compatibility.
+- Pre-commit hook (`.git/hooks/pre-commit`) auto-bumps it whenever any file in `frontend/src/store/` is staged — no manual edits needed.
+- If persisted version > `STORE_VERSION`, state resets to defaults (protects against reverting to old commits with "future" state).
+- Only bump manually if you need to force a reset without touching store files.
