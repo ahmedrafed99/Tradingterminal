@@ -62,11 +62,18 @@ export interface AnchoredPoint {
 // ---------------------------------------------------------------------------
 // Rectangle drawing
 // ---------------------------------------------------------------------------
+export type RectExtendMode = 'none' | 'right' | 'left' | 'both';
+
 export interface RectDrawing extends DrawingBase {
   type: 'rect';
   p1: AnchoredPoint;     // diagonal corner 1
   p2: AnchoredPoint;     // diagonal corner 2
   fillColor: string;     // fill color (supports alpha, e.g. rgba)
+  extendMode?: RectExtendMode;
+  middleLine?: boolean;
+  middleLineColor?: string;
+  middleLineStyle?: LineStyle;
+  middleLineWidth?: number;
 }
 
 // ---------------------------------------------------------------------------

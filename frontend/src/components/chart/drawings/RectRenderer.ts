@@ -50,14 +50,22 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
       const x2 = cssX2 * hpr;
       const y2 = cssY2 * vpr;
 
-      const rawLeft = Math.min(x1, x2);
+      let rawLeft = Math.min(x1, x2);
       const rawTop = Math.min(y1, y2);
-      const rawW = Math.abs(x2 - x1);
+      let rawRight = Math.max(x1, x2);
       const rawH = Math.abs(y2 - y1);
 
-      if (rawW < 1 && rawH < 1) return;
+      if (rawRight - rawLeft < 1 && rawH < 1) return;
 
-      // Fill (use raw coords for full coverage)
+      // Apply extend mode
+      const extendMode = this._drawing.extendMode ?? 'none';
+      const canvasW = ctx.canvas.width;
+      if (extendMode === 'right' || extendMode === 'both') rawRight = canvasW;
+      if (extendMode === 'left' || extendMode === 'both') rawLeft = 0;
+
+      const rawW = rawRight - rawLeft;
+
+      // Fill
       if (this._drawing.fillColor) {
         ctx.fillStyle = this._drawing.fillColor;
         ctx.fillRect(rawLeft, rawTop, rawW, rawH);
@@ -66,13 +74,34 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
       // Stroke — snap edges to pixel grid + 0.5 offset for crisp lines
       const left = Math.round(rawLeft) + 0.5;
       const top = Math.round(rawTop) + 0.5;
-      const right = Math.round(rawLeft + rawW) + 0.5;
+      const right = Math.round(rawRight) + 0.5;
       const bottom = Math.round(rawTop + rawH) + 0.5;
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth;
       applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, Math.min(hpr, vpr));
-      ctx.strokeRect(left, top, right - left, bottom - top);
+      ctx.beginPath();
+      ctx.moveTo(left, top); ctx.lineTo(right, top);
+      ctx.moveTo(left, bottom); ctx.lineTo(right, bottom);
+      if (extendMode !== 'left' && extendMode !== 'both') { ctx.moveTo(left, top); ctx.lineTo(left, bottom); }
+      if (extendMode !== 'right' && extendMode !== 'both') { ctx.moveTo(right, top); ctx.lineTo(right, bottom); }
+      ctx.stroke();
       ctx.setLineDash([]);
+
+      // Middle line
+      if (this._drawing.middleLine) {
+        const midY = Math.round(rawTop + rawH / 2) + 0.5;
+        const mlStyle = this._drawing.middleLineStyle ?? 'dashed';
+        const mlWidth = this._drawing.middleLineWidth ?? 1;
+        const mlColor = this._drawing.middleLineColor ?? this._drawing.color;
+        ctx.strokeStyle = mlColor;
+        ctx.lineWidth = mlWidth;
+        applyLineDash(ctx, mlStyle, mlWidth, Math.min(hpr, vpr));
+        ctx.beginPath();
+        ctx.moveTo(left, midY);
+        ctx.lineTo(right, midY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
       // Selection: 4 corner handles
       if (this._selected) {

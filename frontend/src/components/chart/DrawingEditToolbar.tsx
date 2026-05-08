@@ -3,11 +3,12 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
-import type { Drawing, FRVPDrawing, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
+import type { Drawing, FRVPDrawing, RectDrawing, RectExtendMode, TextHAlign, TextVAlign, HLineTemplate, LineStyle } from '../../types/drawing';
 import { STROKE_WIDTH_OPTIONS, FONT_SIZE_OPTIONS, DEFAULT_HLINE_COLOR } from '../../types/drawing';
 import { ColorPopover, COLOR_PALETTE, parseColorWithOpacity, toRgba, OpacitySlider } from './ColorPopover';
 import { COLOR_ACCENT } from '../../constants/colors';
 import { SpinnerInput } from '../SpinnerInput';
+
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -791,6 +792,235 @@ function TemplatePopover({
 }
 
 // ---------------------------------------------------------------------------
+// Rect settings popover
+// ---------------------------------------------------------------------------
+
+function RectSettingsPopover({
+  drawing,
+  onUpdate,
+  onClose,
+}: {
+  drawing: RectDrawing;
+  onUpdate: (patch: Partial<RectDrawing>) => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, true, onClose);
+  const [showMlColor, setShowMlColor] = useState(false);
+  const [showMlStyle, setShowMlStyle] = useState(false);
+  const [showExtend, setShowExtend] = useState(false);
+  const mlStyleRef = useRef<HTMLDivElement>(null);
+  const extendRef = useRef<HTMLDivElement>(null);
+  const closeMlStyle = useCallback(() => setShowMlStyle(false), []);
+  const closeExtend = useCallback(() => setShowExtend(false), []);
+  useClickOutside(mlStyleRef, showMlStyle, closeMlStyle);
+  useClickOutside(extendRef, showExtend, closeExtend);
+
+  const extendMode   = drawing.extendMode ?? 'none';
+  const extendRight  = extendMode === 'right' || extendMode === 'both';
+  const extendLeft   = extendMode === 'left'  || extendMode === 'both';
+  const mlEnabled    = drawing.middleLine ?? false;
+  const mlColor      = drawing.middleLineColor ?? drawing.color;
+  const mlStyle      = drawing.middleLineStyle ?? 'dashed';
+  const currentStyleDef = LINE_STYLE_DEFS.find((d) => d.style === mlStyle) ?? LINE_STYLE_DEFS[0];
+
+  const checkboxStyle = (checked: boolean): React.CSSProperties => ({
+    width: 14, height: 14, borderRadius: 3,
+    border: '1.5px solid var(--color-border)',
+    background: checked ? '#ffffff' : 'transparent',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, transition: 'background var(--transition-fast)',
+  });
+
+  const rowStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', minHeight: 34, gap: 10,
+  };
+  const labelStyle: React.CSSProperties = {
+    color: 'var(--color-text)', fontSize: 13, whiteSpace: 'nowrap',
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, width: 294, padding: '12px 16px' }}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Extend row */}
+      <div className="flex items-center" style={{ minHeight: 34, gap: 10, marginBottom: 10 }}>
+        <span style={{ ...labelStyle, flexShrink: 0, width: 90 }}>Extend</span>
+        <div ref={extendRef} className="relative" style={{ flex: 1 }}>
+          <button
+            onClick={() => setShowExtend((v) => !v)}
+            className="focus:outline-none focus:ring-0"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'var(--color-panel)', color: 'var(--color-text)',
+              border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+              padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+              transition: 'border-color var(--transition-fast)',
+            }}
+          >
+            <span>{extendRight && extendLeft ? 'Both' : extendRight ? 'Extend right' : extendLeft ? 'Extend left' : 'None'}</span>
+            <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showExtend ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+              <path d="M0 0l4 5 4-5z" />
+            </svg>
+          </button>
+          {showExtend && (
+            <div
+              className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+              style={{ zIndex: Z.DROPDOWN + 1, top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--color-panel)', boxShadow: SHADOW.LG, padding: '4px 0' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {([['right', 'Extend right', extendRight, extendLeft], ['left', 'Extend left', extendLeft, extendRight]] as const).map(
+                ([dir, label, checked, other]) => (
+                  <label
+                    key={dir}
+                    className="flex items-center hover:bg-(--color-border)/50 transition-colors"
+                    style={{ gap: 8, cursor: 'pointer', userSelect: 'none', padding: '7px 10px' }}
+                    onClick={() => onUpdate({ extendMode: checked ? (other ? (dir === 'right' ? 'left' : 'right') : 'none') : (other ? 'both' : dir) })}
+                  >
+                    <span style={checkboxStyle(checked)}>
+                      {checked && (
+                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                          <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
+                    <span style={{ ...labelStyle, fontSize: 12 }}>{label}</span>
+                  </label>
+                )
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 0 10px' }} />
+
+      {/* Middle line row */}
+      <div style={rowStyle}>
+        <label
+          className="flex items-center"
+          style={{ gap: 8, cursor: 'pointer', width: 90, flexShrink: 0, userSelect: 'none' }}
+          onClick={() => onUpdate({ middleLine: !mlEnabled })}
+        >
+          <span style={checkboxStyle(mlEnabled)}>
+            {mlEnabled && (
+              <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </span>
+          <span style={labelStyle}>Middle line</span>
+        </label>
+
+        {/* Color swatch */}
+        <div
+          className="relative"
+          style={{ flexShrink: 0, opacity: mlEnabled ? 1 : 0.35, pointerEvents: mlEnabled ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}
+        >
+          <button
+            onClick={() => setShowMlColor((v) => !v)}
+            className="focus:outline-none focus:ring-0"
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: 4, borderRadius: RADIUS.XL,
+              border: '1px solid var(--color-border)',
+              background: 'transparent', cursor: 'pointer',
+              transition: 'border-color var(--transition-fast)',
+            }}
+          >
+            <span style={{ display: 'block', width: 20, height: 20, borderRadius: RADIUS.LG, background: mlColor }} />
+          </button>
+          {showMlColor && (
+            <ColorPopover
+              current={mlColor}
+              onChange={(color) => onUpdate({ middleLineColor: color })}
+              onClose={() => setShowMlColor(false)}
+            />
+          )}
+        </div>
+
+        {/* Line style dropdown */}
+        <div
+          ref={mlStyleRef}
+          className="relative"
+          style={{ flexShrink: 0, opacity: mlEnabled ? 1 : 0.35, pointerEvents: mlEnabled ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}
+        >
+          <button
+            onClick={() => setShowMlStyle((v) => !v)}
+            className="focus:outline-none focus:ring-0"
+            style={{
+              background: 'transparent',
+              color: 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+              borderRadius: RADIUS.LG,
+              height: 30,
+              padding: '0 8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              transition: 'border-color var(--transition-fast)',
+            }}
+            title="Line style"
+          >
+            <svg width="44" height="10" viewBox="0 0 44 10" style={{ flexShrink: 0 }}>
+              <line
+                x1="2" y1="5" x2="42" y2="5"
+                stroke="currentColor" strokeWidth="1.5"
+                strokeDasharray={currentStyleDef.dasharray}
+                strokeLinecap={(currentStyleDef.linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
+              />
+            </svg>
+          </button>
+          {showMlStyle && (
+            <div
+              className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+              style={{
+                zIndex: Z.DROPDOWN + 1,
+                top: '100%',
+                left: 0,
+                marginTop: 4,
+                background: 'var(--color-panel)',
+                boxShadow: SHADOW.LG,
+                minWidth: 130,
+                padding: '2px 0',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {LINE_STYLE_DEFS.map(({ style, label, dasharray, linecap }) => {
+                const active = style === mlStyle;
+                return (
+                  <button
+                    key={style}
+                    onClick={() => { onUpdate({ middleLineStyle: style }); setShowMlStyle(false); }}
+                    className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
+                    style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+                  >
+                    <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" style={{ flex: 1 }}>
+                      <line
+                        x1="0" y1="5" x2="50" y2="5"
+                        stroke="currentColor" strokeWidth="1.5"
+                        strokeDasharray={dasharray}
+                        strokeLinecap={(linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
+                      />
+                    </svg>
+                    <span style={{ fontSize: 12, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main edit toolbar
 // ---------------------------------------------------------------------------
 export function DrawingEditToolbar({
@@ -814,6 +1044,7 @@ export function DrawingEditToolbar({
   const [frvpTab, setFrvpTab] = useState<'input' | 'style' | null>(null);
   const [showFrvpBarColor, setShowFrvpBarColor] = useState(false);
   const [showFrvpPocColor, setShowFrvpPocColor] = useState(false);
+  const [showRectSettings, setShowRectSettings] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -822,7 +1053,7 @@ export function DrawingEditToolbar({
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowFrvpBarColor(false); setShowFrvpPocColor(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowFrvpBarColor(false); setShowFrvpPocColor(false); setShowRectSettings(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -1361,6 +1592,32 @@ export function DrawingEditToolbar({
               </div>
             </>
           )}
+        </>
+      )}
+
+      {/* Rect settings */}
+      {drawing.type === 'rect' && (
+        <>
+          <Divider />
+          <div className="relative">
+            <button
+              onClick={() => { const v = !showRectSettings; closeAll(); if (v) setShowRectSettings(true); }}
+              className={`${btnBase} ${showRectSettings ? btnActive : btnHover}`}
+              title="Rectangle settings"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <polygon points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none" />
+                <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none" />
+              </svg>
+            </button>
+            {showRectSettings && (
+              <RectSettingsPopover
+                drawing={drawing as RectDrawing}
+                onUpdate={(patch) => updateDrawing(drawing.id, patch as Partial<Drawing>)}
+                onClose={() => setShowRectSettings(false)}
+              />
+            )}
+          </div>
         </>
       )}
 
