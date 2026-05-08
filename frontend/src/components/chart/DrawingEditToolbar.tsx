@@ -121,7 +121,6 @@ function TextPopover({
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const customColorRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState(drawing.text?.content ?? '');
   const [color, setColor] = useState(drawing.text?.color ?? '#ffffff');
   const [fontSize, setFontSize] = useState(drawing.text?.fontSize ?? 12);
@@ -129,7 +128,6 @@ function TextPopover({
   const [italic, setItalic] = useState(drawing.text?.italic ?? false);
   const [hAlign, setHAlign] = useState<TextHAlign>(drawing.text?.hAlign ?? 'center');
   const [vAlign, setVAlign] = useState<TextVAlign>(drawing.text?.vAlign ?? 'middle');
-  const [showColorGrid, setShowColorGrid] = useState(false);
   const [showFontSizes, setShowFontSizes] = useState(false);
   const fontSizeRef = useRef<HTMLDivElement>(null);
 
@@ -163,8 +161,8 @@ function TextPopover({
   const hAlignLabel: Record<TextHAlign, string> = { left: 'Left', center: 'Center', right: 'Right' };
 
   const toggleBtn = (active: boolean): React.CSSProperties => ({
-    width: 28,
-    height: 28,
+    width: 34,
+    height: 34,
     borderRadius: RADIUS.LG,
     border: '1px solid var(--color-border)',
     outline: 'none',
@@ -194,8 +192,8 @@ function TextPopover({
   return (
     <div
       ref={ref}
-      className="fixed bg-(--color-panel) border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column' }}
+      className="fixed border border-(--color-border) rounded-xl shadow-lg"
+      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)' }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
@@ -226,34 +224,7 @@ function TextPopover({
       {/* Row 1: Color swatch + Font size + Bold + Italic */}
       <div className="flex items-center" style={{ gap: 6, marginBottom: 8 }}>
         {/* Color swatch */}
-        <button
-          onClick={() => setShowColorGrid(!showColorGrid)}
-          title="Text color"
-          className="focus:outline-none focus:ring-0"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 4,
-            borderRadius: RADIUS.XL,
-            border: '1px solid var(--color-border)',
-            outline: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            flexShrink: 0,
-            transition: 'border-color var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-        >
-          <span style={{
-            display: 'block',
-            width: 18,
-            height: 18,
-            background: color,
-            borderRadius: RADIUS.LG,
-          }} />
-        </button>
+        <ColorSwatchButton color={color} onChange={setColor} />
         {/* Font size — custom dropdown */}
         <div ref={fontSizeRef} style={{ position: 'relative' }}>
           <button
@@ -265,8 +236,9 @@ function TextPopover({
               border: '1px solid var(--color-border)',
               outline: 'none',
               borderRadius: RADIUS.LG,
-              padding: '4px 6px',
+              padding: '0 6px',
               fontSize: 12,
+              height: 34,
               cursor: 'pointer',
               width: 56,
               display: 'flex',
@@ -339,22 +311,6 @@ function TextPopover({
         >
           I
         </button>
-      </div>
-
-      {/* Color palette grid (animated toggle) */}
-      <div
-        style={{
-          overflow: 'hidden',
-          maxHeight: showColorGrid ? 300 : 0,
-          opacity: showColorGrid ? 1 : 0,
-          transition: 'max-height var(--transition-normal) ease, opacity var(--transition-fast) ease',
-        }}
-      >
-        <TextColorGrid
-          color={color}
-          setColor={setColor}
-          customColorRef={customColorRef}
-        />
       </div>
 
       {/* Row 2: Textarea */}
