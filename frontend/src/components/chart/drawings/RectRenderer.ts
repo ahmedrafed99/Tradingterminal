@@ -198,7 +198,13 @@ export class RectPaneView implements IPrimitivePaneView {
 
     if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
 
-    return hitTestRectEdges(mouseX, mouseY, x1, y1, x2, y2);
+    const extendMode = this._drawing.extendMode ?? 'none';
+    let effLeft  = Math.min(x1, x2);
+    let effRight = Math.max(x1, x2);
+    if (extendMode === 'left'  || extendMode === 'both') effLeft  = -1e6;
+    if (extendMode === 'right' || extendMode === 'both') effRight =  1e6;
+
+    return hitTestRectEdges(mouseX, mouseY, effLeft, Math.min(y1, y2), effRight, Math.max(y1, y2));
   }
 
   hitTestHandle(mx: number, my: number): string | null {

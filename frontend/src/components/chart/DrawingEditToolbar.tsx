@@ -901,12 +901,11 @@ function RectSettingsPopover({
 
       {/* Middle line row */}
       <div style={rowStyle}>
-        <label
-          className="flex items-center"
-          style={{ gap: 8, cursor: 'pointer', width: 90, flexShrink: 0, userSelect: 'none' }}
-          onClick={() => onUpdate({ middleLine: !mlEnabled })}
-        >
-          <span style={checkboxStyle(mlEnabled)}>
+        <div className="flex items-center" style={{ gap: 8, width: 90, flexShrink: 0, userSelect: 'none' }}>
+          <span
+            style={{ ...checkboxStyle(mlEnabled), cursor: 'pointer' }}
+            onClick={() => onUpdate({ middleLine: !mlEnabled })}
+          >
             {mlEnabled && (
               <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
                 <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -914,7 +913,7 @@ function RectSettingsPopover({
             )}
           </span>
           <span style={labelStyle}>Middle line</span>
-        </label>
+        </div>
 
         {/* Color swatch */}
         <div
