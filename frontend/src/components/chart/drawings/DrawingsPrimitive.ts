@@ -27,6 +27,8 @@ import { ArrowPathPaneView } from './ArrowPathRenderer';
 import { RulerPaneView } from './RulerRenderer';
 import { FreeDrawPaneView } from './FreeDrawRenderer';
 import { RectPaneView } from './RectRenderer';
+import { applyLineDash } from './rendererUtils';
+import type { LineStyle } from '../../../types/drawing';
 import { MarkerPaneView } from './MarkerRenderer';
 import { FRVPPaneView } from './FRVPRenderer';
 import { formatVolume } from './rulerMetrics';
@@ -113,29 +115,34 @@ class DragPreviewPaneView implements IPrimitivePaneView {
 // ---------------------------------------------------------------------------
 // Rect preview renderer: live rectangle preview during rect click-click creation
 // ---------------------------------------------------------------------------
+interface RectPreviewOpts {
+  color: string;
+  fillColor: string;
+  strokeWidth: number;
+  lineStyle: LineStyle;
+  extendMode: RectExtendMode;
+  middleLine: boolean;
+  middleLineColor: string;
+  middleLineStyle: LineStyle;
+}
+
 class RectPreviewRenderer implements IPrimitivePaneRenderer {
   private _x1: number;
   private _y1: number;
   private _x2: number;
   private _y2: number;
-  private _color: string;
-  private _fillColor: string;
-  private _strokeWidth: number;
-  private _extendMode: RectExtendMode;
+  private _opts: RectPreviewOpts;
 
-  constructor(x1: number, y1: number, x2: number, y2: number, color: string, fillColor: string, strokeWidth: number, extendMode: RectExtendMode) {
-    this._x1 = x1;
-    this._y1 = y1;
-    this._x2 = x2;
-    this._y2 = y2;
-    this._color = color;
-    this._fillColor = fillColor;
-    this._strokeWidth = strokeWidth;
-    this._extendMode = extendMode;
+  constructor(x1: number, y1: number, x2: number, y2: number, opts: RectPreviewOpts) {
+    this._x1 = x1; this._y1 = y1; this._x2 = x2; this._y2 = y2;
+    this._opts = opts;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
+      const { color, fillColor, strokeWidth, lineStyle, extendMode, middleLine, middleLineColor, middleLineStyle } = this._opts;
+      const dpr = Math.min(hpr, vpr);
+
       let rawLeft  = Math.min(this._x1, this._x2) * hpr;
       const rawTop = Math.min(this._y1, this._y2) * vpr;
       let rawRight = Math.max(this._x1, this._x2) * hpr;
@@ -143,36 +150,48 @@ class RectPreviewRenderer implements IPrimitivePaneRenderer {
 
       if (rawRight - rawLeft < 1 && rawH < 1) return;
 
-      if (this._extendMode === 'right' || this._extendMode === 'both') rawRight = ctx.canvas.width;
-      if (this._extendMode === 'left'  || this._extendMode === 'both') rawLeft  = 0;
+      if (extendMode === 'right' || extendMode === 'both') rawRight = ctx.canvas.width;
+      if (extendMode === 'left'  || extendMode === 'both') rawLeft  = 0;
 
       const rawW = rawRight - rawLeft;
-
-      ctx.fillStyle = this._fillColor;
+      ctx.fillStyle = fillColor;
       ctx.fillRect(rawLeft, rawTop, rawW, rawH);
 
       const left   = Math.round(rawLeft)  + 0.5;
       const top    = Math.round(rawTop)   + 0.5;
       const right  = Math.round(rawRight) + 0.5;
       const bottom = Math.round(rawTop + rawH) + 0.5;
-      ctx.strokeStyle = this._color;
-      ctx.lineWidth = this._strokeWidth;
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = strokeWidth;
+      applyLineDash(ctx, lineStyle, strokeWidth, dpr);
       ctx.beginPath();
       ctx.moveTo(left, top); ctx.lineTo(right, top);
       ctx.moveTo(left, bottom); ctx.lineTo(right, bottom);
-      if (this._extendMode !== 'left'  && this._extendMode !== 'both') { ctx.moveTo(left,  top); ctx.lineTo(left,  bottom); }
-      if (this._extendMode !== 'right' && this._extendMode !== 'both') { ctx.moveTo(right, top); ctx.lineTo(right, bottom); }
+      if (extendMode !== 'left'  && extendMode !== 'both') { ctx.moveTo(left,  top); ctx.lineTo(left,  bottom); }
+      if (extendMode !== 'right' && extendMode !== 'both') { ctx.moveTo(right, top); ctx.lineTo(right, bottom); }
       ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (middleLine) {
+        const midY = Math.round(rawTop + rawH / 2) + 0.5;
+        ctx.strokeStyle = middleLineColor;
+        ctx.lineWidth = 1;
+        applyLineDash(ctx, middleLineStyle, 1, dpr);
+        ctx.beginPath();
+        ctx.moveTo(left, midY); ctx.lineTo(right, midY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
 
       // Corner handles (original corners only)
       const ox1 = Math.round(Math.min(this._x1, this._x2) * hpr) + 0.5;
       const ox2 = Math.round(Math.max(this._x1, this._x2) * hpr) + 0.5;
       const hr = Math.round(5 * vpr);
-      const handles = [[ox1, top], [ox2, top], [ox1, bottom], [ox2, bottom]];
       ctx.fillStyle = COLOR_LABEL_TEXT;
       ctx.strokeStyle = COLOR_HANDLE_STROKE;
       ctx.lineWidth = Math.round(1.5 * vpr);
-      for (const [hx, hy] of handles) {
+      for (const [hx, hy] of [[ox1, top], [ox2, top], [ox1, bottom], [ox2, bottom]]) {
         ctx.beginPath();
         ctx.arc(hx, hy, hr, 0, 2 * Math.PI);
         ctx.fill();
@@ -187,28 +206,17 @@ class RectPreviewPaneView implements IPrimitivePaneView {
   private _y1: number;
   private _x2: number;
   private _y2: number;
-  private _color: string;
-  private _fillColor: string;
-  private _strokeWidth: number;
-  private _extendMode: RectExtendMode;
+  private _opts: RectPreviewOpts;
 
-  constructor(x1: number, y1: number, x2: number, y2: number, color: string, fillColor: string, strokeWidth: number, extendMode: RectExtendMode) {
-    this._x1 = x1;
-    this._y1 = y1;
-    this._x2 = x2;
-    this._y2 = y2;
-    this._color = color;
-    this._fillColor = fillColor;
-    this._strokeWidth = strokeWidth;
-    this._extendMode = extendMode;
+  constructor(x1: number, y1: number, x2: number, y2: number, opts: RectPreviewOpts) {
+    this._x1 = x1; this._y1 = y1; this._x2 = x2; this._y2 = y2;
+    this._opts = opts;
   }
 
-  zOrder(): 'top' {
-    return 'top';
-  }
+  zOrder(): 'top' { return 'top'; }
 
   renderer(): IPrimitivePaneRenderer | null {
-    return new RectPreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._color, this._fillColor, this._strokeWidth, this._extendMode);
+    return new RectPreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._opts);
   }
 }
 
@@ -1037,8 +1045,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   /** Show a solid rect preview during rect click-click creation */
-  setRectPreview(x1: number, y1: number, x2: number, y2: number, color: string, fillColor: string, strokeWidth: number, extendMode: RectExtendMode = 'none'): void {
-    this._rectPreview = new RectPreviewPaneView(x1, y1, x2, y2, color, fillColor, strokeWidth, extendMode);
+  setRectPreview(x1: number, y1: number, x2: number, y2: number, opts: RectPreviewOpts): void {
+    this._rectPreview = new RectPreviewPaneView(x1, y1, x2, y2, opts);
     this._requestUpdate?.();
   }
 

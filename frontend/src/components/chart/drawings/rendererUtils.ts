@@ -17,7 +17,7 @@ export function applyLineDash(
   }
   const sw = strokeWidth;
   if (lineStyle === 'dashed') {
-    ctx.setLineDash([sw * 4 * pixelRatio, sw * 3 * pixelRatio]);
+    ctx.setLineDash([sw * 6 * pixelRatio, sw * 5 * pixelRatio]);
     ctx.lineCap = 'butt';
   } else {
     // dotted

@@ -248,7 +248,7 @@ export function ColorPopover({
                 className="absolute opacity-0 group-hover:opacity-100"
                 style={{
                   top: -4, right: -4, width: 12, height: 12,
-                  borderRadius: RADIUS.CIRCLE, background: '#000', border: '1px solid var(--color-text-dim)',
+                  borderRadius: RADIUS.CIRCLE, background: '#000', border: '1px solid var(--color-border)',
                   color: 'var(--color-text-muted)', fontSize: 8, lineHeight: '10px',
                   cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'opacity var(--transition-fast)',
@@ -268,7 +268,7 @@ export function ColorPopover({
           width: 20,
           height: 20,
           borderRadius: RADIUS.MD,
-          border: '1px dashed var(--color-text-muted)',
+          border: '1px dashed var(--color-border)',
           background: 'transparent',
           color: 'var(--color-text-muted)',
           fontSize: 14,

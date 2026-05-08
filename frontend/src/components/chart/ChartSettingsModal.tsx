@@ -1,10 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
-import { Modal } from '../shared/Modal';
 import { ColorPopover } from './ColorPopover';
 import { CustomSelect } from '../shared/CustomSelect';
-import { FONT_FAMILY, RADIUS, Z } from '../../constants/layout';
+import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 
 type Category = 'bars' | 'canvas' | 'trading';
 
@@ -79,7 +78,7 @@ function ColorSwatchButton({
           justifyContent: 'center',
           padding: 4,
           borderRadius: RADIUS.XL,
-          border: '1px solid var(--color-text-muted)',
+          border: '1px solid var(--color-border)',
           background: 'transparent',
           cursor: disabled ? 'default' : 'pointer',
           opacity: disabled ? 0.4 : 1,
@@ -137,19 +136,19 @@ function Checkbox({
           width: 16,
           height: 16,
           borderRadius: RADIUS.MD,
-          border: `1px solid ${checked ? 'var(--color-accent)' : 'var(--color-text-dim)'}`,
-          background: checked ? 'var(--color-accent)' : 'transparent',
+          border: '1px solid var(--color-border)',
+          background: checked ? '#ffffff' : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'background var(--transition-fast), border-color var(--transition-fast)',
+          transition: 'background var(--transition-fast)',
           flexShrink: 0,
           cursor: 'pointer',
         }}
       >
         {checked && (
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M2 5.5l2 2L8 3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M2 5.5l2 2L8 3" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         )}
       </span>
@@ -218,6 +217,13 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   const chartSettings = useStore((s) => s.chartSettings);
   const setChartSettings = useStore((s) => s.setChartSettings);
 
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => ({
+    x: Math.round(window.innerWidth / 2 - 260),
+    y: Math.round(window.innerHeight / 2 - 200),
+  }));
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+
   // Snapshot on open for Cancel
   const snapshotRef = useRef({ ...chartSettings });
 
@@ -234,6 +240,32 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
     setChartSettings({ ...CHART_SETTINGS_DEFAULTS });
   }, [setChartSettings]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleCancel(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleCancel]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current) return;
+      setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  const handleTitleMouseDown = (e: React.MouseEvent) => {
+    dragging.current = true;
+    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    e.preventDefault();
+  };
+
   const categories: { id: Category; label: string; icon: React.ReactNode }[] = [
     { id: 'bars', label: 'Bars', icon: <BarsIcon /> },
     { id: 'canvas', label: 'Canvas', icon: <CanvasIcon /> },
@@ -241,20 +273,41 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <Modal onClose={handleCancel} className="bg-(--color-surface) border border-(--color-border) rounded-lg" style={{ width: 520, maxHeight: '80vh', fontFamily: FONT_FAMILY, overflow: 'visible' }}>
-      {/* Title bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--color-border)' }}>
+    <div
+      style={{
+        position: 'fixed',
+        left: pos.x,
+        top: pos.y,
+        zIndex: Z.MODAL,
+        width: 520,
+        maxHeight: '80vh',
+        fontFamily: FONT_FAMILY,
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: RADIUS.LG,
+        boxShadow: SHADOW.LG,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Title bar — drag handle */}
+      <div
+        onMouseDown={handleTitleMouseDown}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px', borderBottom: '1px solid var(--color-border)',
+          cursor: 'move', userSelect: 'none', flexShrink: 0,
+        }}
+      >
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-bright)' }}>Settings</span>
         <button
           onClick={handleCancel}
+          onMouseDown={(e) => e.stopPropagation()}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--color-text-muted)',
-            fontSize: 18,
-            cursor: 'pointer',
-            lineHeight: 1,
-            padding: '0 2px',
+            background: 'transparent', border: 'none',
+            color: 'var(--color-text-muted)', fontSize: 18,
+            cursor: 'pointer', lineHeight: 1, padding: '0 2px',
             transition: 'color var(--transition-fast)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
@@ -265,38 +318,25 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Body: sidebar + content */}
-      <div style={{ display: 'flex', minHeight: 260 }}>
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Sidebar */}
-        <div style={{ width: 140, borderRight: '1px solid var(--color-border)', padding: '8px 0' }}>
+        <div style={{ width: 140, borderRight: '1px solid var(--color-border)', padding: '8px 0', flexShrink: 0 }}>
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                width: '100%',
-                padding: '8px 16px',
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '8px 16px',
                 background: category === cat.id ? 'var(--color-border)' : 'transparent',
                 border: 'none',
                 color: category === cat.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-                fontSize: 13,
-                fontFamily: FONT_FAMILY,
-                cursor: 'pointer',
+                fontSize: 13, fontFamily: FONT_FAMILY, cursor: 'pointer',
                 transition: 'background var(--transition-fast), color var(--transition-fast)',
                 textAlign: 'left',
               }}
-              onMouseEnter={(e) => {
-                if (category !== cat.id) {
-                  e.currentTarget.style.color = 'var(--color-text)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (category !== cat.id) {
-                  e.currentTarget.style.color = 'var(--color-text-muted)';
-                }
-              }}
+              onMouseEnter={(e) => { if (category !== cat.id) e.currentTarget.style.color = 'var(--color-text)'; }}
+              onMouseLeave={(e) => { if (category !== cat.id) e.currentTarget.style.color = 'var(--color-text-muted)'; }}
             >
               {cat.icon}
               {cat.label}
@@ -313,16 +353,13 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--color-border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
         <button
           onClick={handleReset}
           style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--color-text-muted)',
-            fontSize: 12,
-            fontFamily: FONT_FAMILY,
-            cursor: 'pointer',
+            background: 'transparent', border: 'none',
+            color: 'var(--color-text-muted)', fontSize: 12,
+            fontFamily: FONT_FAMILY, cursor: 'pointer',
             transition: 'color var(--transition-fast)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)'; }}
@@ -334,14 +371,10 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleCancel}
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--color-text-muted)',
-              fontSize: 13,
-              fontFamily: FONT_FAMILY,
-              cursor: 'pointer',
-              padding: '6px 16px',
-              borderRadius: RADIUS.LG,
+              background: 'transparent', border: 'none',
+              color: 'var(--color-text-muted)', fontSize: 13,
+              fontFamily: FONT_FAMILY, cursor: 'pointer',
+              padding: '6px 16px', borderRadius: RADIUS.LG,
               transition: 'color var(--transition-fast)',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
@@ -352,16 +385,11 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleOk}
             style={{
-              background: 'var(--color-accent-hover)',
-              border: 'none',
-              color: 'var(--color-text-bright)',
-              fontSize: 13,
-              fontFamily: FONT_FAMILY,
-              cursor: 'pointer',
-              padding: '6px 20px',
-              borderRadius: RADIUS.LG,
-              fontWeight: 500,
-              transition: 'background var(--transition-fast)',
+              background: 'var(--color-accent-hover)', border: 'none',
+              color: 'var(--color-text-bright)', fontSize: 13,
+              fontFamily: FONT_FAMILY, cursor: 'pointer',
+              padding: '6px 20px', borderRadius: RADIUS.LG,
+              fontWeight: 500, transition: 'background var(--transition-fast)',
             }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-accent)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
@@ -370,7 +398,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 

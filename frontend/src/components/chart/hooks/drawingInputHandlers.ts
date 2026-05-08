@@ -83,8 +83,17 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Ruler displayed: dismiss on right-click
+  if (state.rulerDisplayActive) {
+    e.stopImmediatePropagation();
+    state.rulerDisplayActive = false;
+    primitive.clearRulerDragPreview();
+    return;
+  }
+
   // Rect in progress: cancel
   if (state.rectCreation) {
+    e.stopImmediatePropagation();
     state.rectCreation = null;
     primitive.clearRectPreview();
     resetChartInteraction(ctx);
@@ -94,6 +103,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
 
   // Free draw in progress: cancel
   if (state.freeDrawCreation) {
+    e.stopImmediatePropagation();
     state.freeDrawCreation = null;
     primitive.clearFreeDrawPreview();
     resetChartInteraction(ctx);
@@ -103,6 +113,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
 
   // Ruler in progress: cancel
   if (state.rulerCreation) {
+    e.stopImmediatePropagation();
     state.rulerCreation = null;
     primitive.clearRulerDragPreview();
     resetChartInteraction(ctx);
@@ -112,6 +123,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
 
   // FRVP in progress: cancel
   if (state.frvpCreation) {
+    e.stopImmediatePropagation();
     const frvpMode = state.frvpCreation.mode;
     state.frvpCreation = null;
     if (frvpMode === 'range') {
@@ -126,7 +138,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
 
   // Drawing selected: deselect and suppress candle context menu
   const { selectedDrawingIds, setSelectedDrawingIds } = useStore.getState();
-  if (activeTool === 'select' && selectedDrawingIds.length > 0) {
+  if (selectedDrawingIds.length > 0) {
     e.stopImmediatePropagation();
     setSelectedDrawingIds([]);
     return;

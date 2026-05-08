@@ -578,10 +578,16 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     const rectDef = useStore.getState().drawingDefaults['rect'];
     primitive.setRectPreview(
       state.rectCreation.startX, state.rectCreation.startY, x, previewY,
-      rectDef?.color ?? DEFAULT_RECT_COLOR,
-      rectDef?.fillColor ?? DEFAULT_RECT_FILL,
-      rectDef?.strokeWidth ?? 1,
-      rectDef?.extendMode ?? 'none',
+      {
+        color:           rectDef?.color           ?? DEFAULT_RECT_COLOR,
+        fillColor:       rectDef?.fillColor        ?? DEFAULT_RECT_FILL,
+        strokeWidth:     rectDef?.strokeWidth      ?? 1,
+        lineStyle:       rectDef?.lineStyle        ?? 'solid',
+        extendMode:      rectDef?.extendMode       ?? 'none',
+        middleLine:      rectDef?.middleLine       ?? false,
+        middleLineColor: rectDef?.middleLineColor  ?? rectDef?.color ?? DEFAULT_RECT_COLOR,
+        middleLineStyle: rectDef?.middleLineStyle  ?? 'dashed',
+      },
     );
     return;
   }
