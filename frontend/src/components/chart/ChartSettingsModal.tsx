@@ -376,14 +376,14 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           <button
             onClick={handleOk}
             style={{
-              background: 'var(--color-accent-hover)', border: 'none',
-              color: 'var(--color-text-bright)', fontSize: 13,
+              background: 'var(--color-label-close)', border: 'none',
+              color: 'var(--color-label-text)', fontSize: 13,
               fontFamily: FONT_FAMILY, cursor: 'pointer',
               padding: '6px 20px', borderRadius: RADIUS.LG,
               fontWeight: 500, transition: 'background var(--transition-fast)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-accent)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-label-close-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-label-close)'; }}
           >
             Ok
           </button>
