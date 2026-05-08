@@ -889,11 +889,12 @@ function RectSettingsPopover({
           </svg>
         </button>
       </div>
+      <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
 
       {/* Body */}
-      <div style={{ flex: 1, padding: '12px 16px' }}>
+      <div style={{ flex: 1, padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
         {/* Extend row */}
-        <div className="flex items-center" style={{ minHeight: 34, gap: 10, marginBottom: 10 }}>
+        <div className="flex items-center" style={{ minHeight: 34, gap: 10 }}>
           <span style={{ ...labelStyle, flexShrink: 0, width: 90 }}>Extend</span>
           <div ref={extendRef} className="relative" style={{ flex: 1 }}>
             <button
@@ -943,8 +944,6 @@ function RectSettingsPopover({
             )}
           </div>
         </div>
-
-        <div style={{ marginBottom: 10 }} />
 
         {/* Middle line row */}
         <div style={rowStyle}>
