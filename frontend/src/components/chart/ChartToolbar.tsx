@@ -346,85 +346,6 @@ function IndicatorsDropdown() {
   );
 }
 
-const IMPACT_LEVELS = [
-  { key: 'high' as const,   label: 'High Impact' },
-  { key: 'medium' as const, label: 'Medium Impact' },
-  { key: 'low' as const,    label: 'Low Impact' },
-];
-
-function NewsDropdown() {
-  const newsImpactFilter = useStore((s) => s.newsImpactFilter);
-  const setNewsImpactFilter = useStore((s) => s.setNewsImpactFilter);
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const close = useCallback(() => setOpen(false), []);
-  useClickOutside(ref, open, close);
-
-  const anyActive = newsImpactFilter.high || newsImpactFilter.medium || newsImpactFilter.low;
-
-  const toggle = (level: 'high' | 'medium' | 'low') => {
-    setNewsImpactFilter({ ...newsImpactFilter, [level]: !newsImpactFilter[level] });
-  };
-
-  return (
-    <div ref={ref} className="relative self-stretch flex items-center">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className={`h-full flex items-center gap-1.5 text-xs font-medium rounded hover:bg-(--color-surface) transition-colors ${
-          anyActive ? 'text-(--color-warning)' : 'text-(--color-text-muted) hover:text-(--color-text)'
-        }`}
-        style={{ paddingLeft: 12, paddingRight: 12 }}
-        title="Economic calendar filter"
-      >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
-          <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9h4" />
-          <path d="M10 7h6" />
-          <path d="M10 11h6" />
-          <path d="M10 15h4" />
-        </svg>
-        News
-        <ChevronDown />
-      </button>
-
-      {open && (
-        <div
-          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
-          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, minWidth: 180 }}
-        >
-          <div style={{ padding: 6 }}>
-            {IMPACT_LEVELS.map(({ key, label }) => (
-              <div
-                key={key}
-                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-lg cursor-pointer"
-                style={{ padding: '6px 10px', gap: 8 }}
-                onClick={() => toggle(key)}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  style={{
-                    opacity: newsImpactFilter[key] ? 1 : 0,
-                    transform: newsImpactFilter[key] ? 'scale(1)' : 'scale(0.5)',
-                    transition: 'opacity var(--transition-fast), transform var(--transition-fast)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <path d="M2 6.5l2.5 2.5L10 3" stroke="var(--color-accent)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-
-                <span className="text-xs text-(--color-text) select-none">
-                  {label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function ChartToolbar() {
   const pinnedTimeframes = useStore((s) => s.pinnedTimeframes);
@@ -749,9 +670,6 @@ export function ChartToolbar() {
 
       {/* Indicators */}
       <IndicatorsDropdown />
-
-      {/* News calendar toggle */}
-      <NewsDropdown />
 
       {/* Spacer */}
       <div className="flex-1" />

@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
 import { ColorPopover } from './ColorPopover';
 import { CustomSelect } from '../shared/CustomSelect';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 
-type Category = 'bars' | 'canvas' | 'trading';
+type Category = 'bars' | 'canvas' | 'trading' | 'events';
 
 // ---------------------------------------------------------------------------
 // Sidebar icons
@@ -30,6 +31,14 @@ function TradingIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
       <path fill="currentColor" d="M17.138 18.207a2.098 2.098 0 0 1-2.461 3.4l-4.68-3.359-4.673 3.357a2.097 2.097 0 0 1-2.463-3.398L9.997 13zm-13.687.808a1.097 1.097 0 0 0-.222 1.555 1.1 1.1 0 0 0 1.512.223l5.256-3.775 5.263 3.776a1.1 1.1 0 0 0 1.289-1.78l-6.552-4.777zM22.677 6.394a2.098 2.098 0 0 1 2.46 3.4L17.998 15l-7.136-5.207a2.097 2.097 0 0 1 2.463-3.397l4.673 3.356zm2.095 1.035a1.1 1.1 0 0 0-1.512-.223l-5.263 3.776-5.256-3.775a1.1 1.1 0 0 0-1.512.223 1.097 1.097 0 0 0 .222 1.555l6.546 4.778 6.552-4.778c.499-.364.6-1.067.223-1.556" />
+    </svg>
+  );
+}
+
+function EventsIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
+      <path fill="currentColor" d="M9 3a1 1 0 0 1 1 1v1h8V4a1 1 0 1 1 2 0v1h1.5A2.5 2.5 0 0 1 24 7.5v14a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 4 21.5v-14A2.5 2.5 0 0 1 6.5 5H8V4a1 1 0 0 1 1-1zm12 4h-1v1a1 1 0 1 1-2 0V7h-8v1a1 1 0 0 1-2 0V7H6.5a.5.5 0 0 0-.5.5V11h16V7.5a.5.5 0 0 0-.5-.5zM6 12v9.5a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5V12zm3 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-8 4a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
     </svg>
   );
 }
@@ -261,6 +270,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
     { id: 'bars', label: 'Bars', icon: <BarsIcon /> },
     { id: 'canvas', label: 'Canvas', icon: <CanvasIcon /> },
     { id: 'trading', label: 'Trading', icon: <TradingIcon /> },
+    { id: 'events', label: 'Events', icon: <EventsIcon /> },
   ];
 
   return (
@@ -340,6 +350,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           {category === 'bars' && <BarsPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'canvas' && <CanvasPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'trading' && <TradingPanel settings={chartSettings} onChange={setChartSettings} />}
+          {category === 'events' && <EventsPanel />}
         </div>
       </div>
 
@@ -469,6 +480,142 @@ function TradingPanel({ settings, onChange }: { settings: Settings; onChange: On
         Extend the trade zone rectangle to the right edge of the chart
       </div>
 
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Events Panel
+// ---------------------------------------------------------------------------
+const IMPACT_LEVELS = [
+  { key: 'high' as const,   label: 'High Impact' },
+  { key: 'medium' as const, label: 'Medium Impact' },
+  { key: 'low' as const,    label: 'Low Impact' },
+];
+
+function EventsPanel() {
+  const newsImpactFilter = useStore((s) => s.newsImpactFilter);
+  const setNewsImpactFilter = useStore((s) => s.setNewsImpactFilter);
+  const lastFilterRef = useRef({ ...newsImpactFilter });
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const closeDropdown = useCallback(() => setDropdownOpen(false), []);
+  useClickOutside(dropdownRef, dropdownOpen, closeDropdown);
+
+  const anyActive = newsImpactFilter.high || newsImpactFilter.medium || newsImpactFilter.low;
+
+  const toggleMaster = () => {
+    if (anyActive) {
+      lastFilterRef.current = { ...newsImpactFilter };
+      setNewsImpactFilter({ high: false, medium: false, low: false });
+    } else {
+      const last = lastFilterRef.current;
+      setNewsImpactFilter(
+        last.high || last.medium || last.low
+          ? last
+          : { high: true, medium: false, low: false }
+      );
+    }
+  };
+
+  const toggle = (level: 'high' | 'medium' | 'low') => {
+    setNewsImpactFilter({ ...newsImpactFilter, [level]: !newsImpactFilter[level] });
+  };
+
+  const activeLabels = IMPACT_LEVELS.filter(({ key }) => newsImpactFilter[key]).map(({ label }) => label);
+  const dropdownSummary = activeLabels.length === 0 ? 'None' : activeLabels.length === 3 ? 'All' : activeLabels.join(', ');
+
+  const rowStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', minHeight: 34, gap: 10, cursor: 'pointer',
+  };
+
+  const checkboxStyle = (checked: boolean): React.CSSProperties => ({
+    width: 14, height: 14, borderRadius: 3,
+    border: '1.5px solid var(--color-border)',
+    background: checked ? '#ffffff' : 'transparent',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, transition: 'background var(--transition-fast)',
+  });
+
+  const labelStyle: React.CSSProperties = {
+    color: 'var(--color-text)', fontSize: 13, whiteSpace: 'nowrap',
+  };
+
+  return (
+    <>
+      <SectionHeader>News Events</SectionHeader>
+
+      {/* Master toggle row */}
+      <div style={rowStyle} onClick={toggleMaster}>
+        <span style={checkboxStyle(anyActive)}>
+          {anyActive && (
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M1 5.5L3.5 8L9 2" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
+        <span style={labelStyle}>Show news events</span>
+      </div>
+
+      {/* Impact filter row with dropdown */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', minHeight: 34, gap: 10,
+          opacity: anyActive ? 1 : 0.4,
+          transition: 'opacity var(--transition-fast)',
+          pointerEvents: anyActive ? 'auto' : 'none',
+        }}
+      >
+        <span style={{ ...labelStyle, flexShrink: 0, width: 90 }}>Impact filter</span>
+        <div ref={dropdownRef} style={{ position: 'relative', flex: 1 }}>
+          <button
+            onClick={() => setDropdownOpen((v) => !v)}
+            className="focus:outline-none focus:ring-0"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'var(--color-surface)', color: 'var(--color-text)',
+              border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+              padding: '4px 10px', fontSize: 13, cursor: 'pointer', fontFamily: FONT_FAMILY,
+              transition: 'border-color var(--transition-fast)',
+            }}
+          >
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dropdownSummary}</span>
+            <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, marginLeft: 6, transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+              <path d="M0 0l4 5 4-5z" />
+            </svg>
+          </button>
+
+          {dropdownOpen && (
+            <div
+              style={{
+                position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+                background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                borderRadius: RADIUS.LG, boxShadow: SHADOW.LG, zIndex: Z.DROPDOWN,
+                padding: 4,
+              }}
+            >
+              {IMPACT_LEVELS.map(({ key, label }) => (
+                <div
+                  key={key}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer', borderRadius: RADIUS.MD }}
+                  onClick={() => toggle(key)}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style={checkboxStyle(newsImpactFilter[key])}>
+                    {newsImpactFilter[key] && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M1 5.5L3.5 8L9 2" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text)', userSelect: 'none', fontFamily: FONT_FAMILY }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </>
   );
 }
