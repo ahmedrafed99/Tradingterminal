@@ -82,8 +82,10 @@ function ColorSwatchButton({
           background: 'transparent',
           cursor: disabled ? 'default' : 'pointer',
           opacity: disabled ? 0.4 : 1,
-          transition: 'opacity var(--transition-fast)',
+          transition: 'opacity var(--transition-fast), border-color var(--transition-fast)',
         }}
+        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+        onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-border)'; }}
       >
         <span style={{
           display: 'block',
@@ -578,6 +580,8 @@ function EventsPanel() {
               padding: '4px 10px', fontSize: 13, cursor: 'pointer', fontFamily: FONT_FAMILY,
               transition: 'border-color var(--transition-fast)',
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dropdownSummary}</span>
             <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, marginLeft: 6, transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
@@ -633,9 +637,8 @@ function CanvasPanel({ settings, onChange }: { settings: Settings; onChange: OnC
             { value: 'gradient', label: 'Gradient' },
           ]}
           onChange={(v) => onChange({ bgType: v as 'solid' | 'gradient' })}
-          style={{
-            width: 110,
-          }}
+          style={{ width: 110 }}
+          dropdownBg="var(--color-surface)"
         />
 
         {settings.bgType === 'solid' && (

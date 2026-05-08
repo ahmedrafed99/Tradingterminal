@@ -19,6 +19,8 @@ interface CustomSelectProps {
   dropUp?: boolean;
   /** CSS variable for the button background (default: --color-input) */
   bg?: string;
+  /** CSS variable for the dropdown list background (default: --color-panel) */
+  dropdownBg?: string;
   /** Button padding (default: '6px 10px') */
   padding?: string;
   /** Font size in px (default: 12) */
@@ -35,6 +37,7 @@ export function CustomSelect({
   title,
   dropUp = false,
   bg = 'var(--color-input)',
+  dropdownBg = 'var(--color-panel)',
   padding: btnPadding = '6px 10px',
   fontSize: btnFontSize = 12,
 }: CustomSelectProps) {
@@ -92,6 +95,8 @@ export function CustomSelect({
           textAlign: 'left',
         }}
         title={title}
+        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+        onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--color-border)'; }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {selected?.label ?? value}
@@ -110,7 +115,7 @@ export function CustomSelect({
             bottom: dropUp ? `calc(100vh - ${dropPos.top}px)` : undefined,
             left: dropPos.left,
             width: dropPos.width,
-            background: 'var(--color-panel)',
+            background: dropdownBg,
             boxShadow: SHADOW.LG,
             maxHeight: options.length > 8 ? 200 : undefined,
             overflowY: options.length > 8 ? 'auto' : undefined,

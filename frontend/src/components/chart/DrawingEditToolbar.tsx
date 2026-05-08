@@ -241,6 +241,8 @@ function TextPopover({
             flexShrink: 0,
             transition: 'border-color var(--transition-fast)',
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
         >
           <span style={{
             display: 'block',
@@ -271,6 +273,8 @@ function TextPopover({
               transition: 'border-color var(--transition-fast)',
             }}
             title="Font size"
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
           >
             {fontSize}
             <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5 }}>
@@ -907,6 +911,8 @@ function RectSettingsPopover({
                 padding: '4px 10px', fontSize: 13, cursor: 'pointer',
                 transition: 'border-color var(--transition-fast)',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
             >
               <span>{extendRight && extendLeft ? 'Both' : extendRight ? 'Extend right' : extendLeft ? 'Extend left' : 'None'}</span>
               <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showExtend ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
@@ -977,6 +983,8 @@ function RectSettingsPopover({
                 background: 'transparent', cursor: 'pointer',
                 transition: 'border-color var(--transition-fast)',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
             >
               <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: mlColor }} />
             </button>
@@ -1013,6 +1021,8 @@ function RectSettingsPopover({
                 transition: 'border-color var(--transition-fast)',
               }}
               title="Line style"
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
             >
               <svg width="44" height="10" viewBox="0 0 44 10" style={{ flexShrink: 0 }} shapeRendering="crispEdges">
                 <line
