@@ -91,6 +91,25 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
     };
   }, [chartRef, containerRef]);
 
+  // Right-click on price axis opens the menu
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const onContextMenu = (e: MouseEvent) => {
+      const chart = chartRef.current;
+      if (!chart) return;
+      let priceScaleWidth = 56;
+      try { priceScaleWidth = chart.priceScale('right').width(); } catch { /* noop */ }
+      const containerRect = container.getBoundingClientRect();
+      if (e.clientX >= containerRect.right - priceScaleWidth) {
+        e.preventDefault();
+        setOpen(true);
+      }
+    };
+    container.addEventListener('contextmenu', onContextMenu);
+    return () => container.removeEventListener('contextmenu', onContextMenu);
+  }, [chartRef, containerRef]);
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
