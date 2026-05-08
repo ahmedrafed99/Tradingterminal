@@ -103,15 +103,22 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
         ctx.setLineDash([]);
       }
 
-      // Selection: 4 corner handles
+      // Selection: 4 corner handles + 2 mid-side handles (W/E) for horizontal resize
       if (this._selected) {
         const hr = Math.round(5 * vpr);
-        const handles = [
-          [Math.min(x1, x2), Math.min(y1, y2)], // top-left
-          [Math.max(x1, x2), Math.min(y1, y2)], // top-right
-          [Math.min(x1, x2), Math.max(y1, y2)], // bottom-left
-          [Math.max(x1, x2), Math.max(y1, y2)], // bottom-right
+        const left0 = Math.min(x1, x2);
+        const right0 = Math.max(x1, x2);
+        const top0  = Math.min(y1, y2);
+        const bot0  = Math.max(y1, y2);
+        const midY0 = (top0 + bot0) / 2;
+        const handles: [number, number][] = [
+          [left0,  top0],
+          [right0, top0],
+          [left0,  bot0],
+          [right0, bot0],
         ];
+        if (extendMode !== 'left'  && extendMode !== 'both') handles.push([left0,  midY0]);
+        if (extendMode !== 'right' && extendMode !== 'both') handles.push([right0, midY0]);
         ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = COLOR_HANDLE_STROKE;
         ctx.lineWidth = Math.round(1.5 * vpr);
@@ -217,17 +224,21 @@ export class RectPaneView implements IPrimitivePaneView {
     if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
 
     const tol = 6;
-    const left = Math.min(x1, x2);
-    const right = Math.max(x1, x2);
-    const top = Math.min(y1, y2);
+    const left   = Math.min(x1, x2);
+    const right  = Math.max(x1, x2);
+    const top    = Math.min(y1, y2);
     const bottom = Math.max(y1, y2);
+    const midY   = (top + bottom) / 2;
 
+    const extendMode = this._drawing.extendMode ?? 'none';
     const handles: [number, number, string][] = [
-      [left, top, 'nw'],
-      [right, top, 'ne'],
-      [left, bottom, 'sw'],
+      [left,  top,    'nw'],
+      [right, top,    'ne'],
+      [left,  bottom, 'sw'],
       [right, bottom, 'se'],
     ];
+    if (extendMode !== 'left'  && extendMode !== 'both') handles.push([left,  midY, 'w']);
+    if (extendMode !== 'right' && extendMode !== 'both') handles.push([right, midY, 'e']);
 
     for (const [hx, hy, id] of handles) {
       if (Math.abs(mx - hx) <= tol && Math.abs(my - hy) <= tol) return id;
