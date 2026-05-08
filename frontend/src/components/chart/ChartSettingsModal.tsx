@@ -38,7 +38,7 @@ function TradingIcon() {
 function EventsIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
-      <path fill="currentColor" d="M9 3a1 1 0 0 1 1 1v1h8V4a1 1 0 1 1 2 0v1h1.5A2.5 2.5 0 0 1 24 7.5v14a2.5 2.5 0 0 1-2.5 2.5h-15A2.5 2.5 0 0 1 4 21.5v-14A2.5 2.5 0 0 1 6.5 5H8V4a1 1 0 0 1 1-1zm12 4h-1v1a1 1 0 1 1-2 0V7h-8v1a1 1 0 0 1-2 0V7H6.5a.5.5 0 0 0-.5.5V11h16V7.5a.5.5 0 0 0-.5-.5zM6 12v9.5a.5.5 0 0 0 .5.5h15a.5.5 0 0 0 .5-.5V12zm3 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-8 4a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm4 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+      <path fill="currentColor" d="M10 6h8V4h1v2h1.5A2.5 2.5 0 0 1 23 8.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 5 19.5v-11A2.5 2.5 0 0 1 7.5 6H9V4h1zM6 19.5A1.5 1.5 0 0 0 7.5 21h13a1.5 1.5 0 0 0 1.5-1.5V11H6zM7.5 7A1.5 1.5 0 0 0 6 8.5V10h16V8.5A1.5 1.5 0 0 0 20.5 7H19v1h-1V7h-8v1H9V7z" />
     </svg>
   );
 }
