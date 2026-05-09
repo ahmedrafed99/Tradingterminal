@@ -162,21 +162,15 @@ export const projectXMarketData: ExchangeMarketData = {
 
     // ── Hard fail: full chartapi fetch ─────────────────────────────────────
     if (primaryBars === null) {
-      debugLog.log('bars:chartapi-full', { contractId: params['contractId'], startTime, endTime });
       const bars = await fetchFromChartApi(params, startTime, endTime);
-      debugLog.log('bars:chartapi-full:ok', { count: bars.length });
       return { success: true, bars };
     }
 
     // ── No bars at all from primary: try chartapi ──────────────────────────
     if (primaryBars.length === 0) {
-      debugLog.log('bars:primary-empty', { contractId: params['contractId'], startTime, endTime });
       try {
         const bars = await fetchFromChartApi(params, startTime, endTime);
-        if (bars.length > 0) {
-          debugLog.log('bars:chartapi-empty-fill:ok', { count: bars.length });
-          return { success: true, bars };
-        }
+        if (bars.length > 0) return { success: true, bars };
       } catch (err: unknown) {
         debugLog.log('bars:chartapi-empty-fill:fail', { error: err instanceof Error ? err.message : String(err) });
       }
@@ -187,21 +181,16 @@ export const projectXMarketData: ExchangeMarketData = {
     const latestBarMs = primaryBars.reduce((m, b) => Math.max(m, new Date(b.t).getTime()), 0);
 
     if (latestBarMs + periodMs < endTimeMs) {
-      const gapMs = endTimeMs - latestBarMs;
-      debugLog.log('bars:soft-gap', { contractId: params['contractId'], latestBar: new Date(latestBarMs).toISOString(), gapMs, periodMs });
       try {
-        // Start from the next candle period to avoid returning the overlap bar
         const gapStart = new Date(latestBarMs + periodMs).toISOString();
         const gapBars  = await fetchFromChartApi(params, gapStart, endTime);
 
         if (gapBars.length > 0) {
           const existing = new Set(primaryBars.map(b => new Date(b.t).getTime()));
           const newBars  = gapBars.filter(b => !existing.has(new Date(b.t).getTime()));
-          debugLog.log('bars:soft-gap:filled', { added: newBars.length, total: primaryBars.length + newBars.length });
           const merged = [...newBars, ...primaryBars].sort((a, b) => new Date(b.t).getTime() - new Date(a.t).getTime());
           return { ...(primaryRaw as object), success: true, bars: merged };
         }
-        debugLog.log('bars:soft-gap:chartapi-empty', {});
       } catch (err: unknown) {
         debugLog.log('bars:soft-gap:fail', { error: err instanceof Error ? err.message : String(err) });
       }
