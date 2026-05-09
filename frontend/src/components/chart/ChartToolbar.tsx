@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore, TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
@@ -526,29 +526,28 @@ export function ChartToolbar() {
       <InstrumentSelectorPopover />
 
       {/* Pinned timeframe buttons */}
-      {pinnedTimeframes.map((tf) => (
-        <button
-          key={tf.label}
-          onClick={() => setTimeframe(tf)}
-          className={`px-2 py-1 text-xs font-medium transition-colors ${
-            timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber
-              ? 'text-(--color-warning)'
-              : 'text-(--color-text)'
-          }`}
-        >
-          {tf.label}
-        </button>
-      ))}
+      <div className="self-stretch flex items-stretch gap-1">
+        {pinnedTimeframes.map((tf) => (
+          <button
+            key={tf.label}
+            onClick={() => setTimeframe(tf)}
+            className={`flex items-center text-xs font-medium transition-colors rounded text-(--color-text) hover:bg-(--color-border) ${
+              timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber
+                ? 'bg-(--color-border)'
+                : ''
+            }`}
+            style={{ paddingLeft: 4, paddingRight: 4 }}
+          >
+            {tf.label}
+          </button>
+        ))}
+      </div>
 
       {/* Dropdown trigger */}
       <div ref={dropdownRef} className="relative">
         <button
           onClick={() => setDropdownOpen((o) => !o)}
-          className={`flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
-            !isActivePinned
-              ? 'text-(--color-warning)'
-              : 'text-(--color-text)'
-          }`}
+          className="flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors text-(--color-text)"
         >
           {!isActivePinned && <span>{timeframe.label}</span>}
           <ChevronDown />
@@ -582,7 +581,7 @@ export function ChartToolbar() {
                       <div
                         key={tf.label}
                         className={`group relative flex items-center hover:bg-(--color-border) transition-colors rounded-md mx-1.5 ${
-                          active ? 'bg-(--color-panel)' : ''
+                          active ? 'bg-(--color-border)' : ''
                         }`}
                         style={{ padding: '8px 10px' }}
                       >
@@ -597,9 +596,7 @@ export function ChartToolbar() {
                         )}
                         <button
                           onClick={() => handleSelectMore(tf)}
-                          className={`text-xs flex-1 text-center font-medium ${
-                            active ? 'text-(--color-warning)' : 'text-(--color-text)'
-                          }`}
+                          className="text-xs flex-1 text-center font-medium text-(--color-text)"
                         >
                           {tf.label}
                         </button>
