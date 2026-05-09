@@ -85,7 +85,8 @@ function ssSet(key: string, bars: Bar[]): void {
 }
 
 function barsCacheKey(p: RetrieveBarsParams): string {
-  return `${p.contractId}:${p.unit}:${p.unitNumber}:${p.limit ?? 0}`;
+  const startDay = Math.floor(new Date(p.startTime).getTime() / 86_400_000);
+  return `${p.contractId}:${p.unit}:${p.unitNumber}:${p.limit ?? 0}:${startDay}`;
 }
 
 export const marketDataService = {

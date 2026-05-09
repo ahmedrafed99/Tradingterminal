@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { CandlestickData, UTCTimestamp } from 'lightweight-charts';
+import type { CandlestickData, UTCTimestamp, LogicalRange } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
@@ -34,6 +34,12 @@ export function useChartBars(
   // Accumulated trade volume map for anchor-mode FRVP drawings (price → contracts traded)
   const tradeAnchorMapRef = useRef(new Map<number, number>());
 
+  // Historical load-more state
+  const earliestLoadedTimeRef = useRef<string | null>(null);
+  const isLoadingMoreRef = useRef(false);
+  const reachedHistoryStartRef = useRef(false);
+  const loadGenerationRef = useRef(0);
+
   const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : s.secondDomEnabled);
   const domColor = useStore((s) => chartId === 'left' ? s.domColor : s.secondDomColor);
   const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : s.secondDomHoverExpand);
@@ -54,6 +60,74 @@ export function useChartBars(
     const series = refs.series.current;
     let cancelled = false;
     let autoScaleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Reset load-more state for this contract/timeframe
+    earliestLoadedTimeRef.current = null;
+    isLoadingMoreRef.current = false;
+    reachedHistoryStartRef.current = false;
+    const gen = ++loadGenerationRef.current;
+
+    let rangeUnsub: (() => void) | null = null;
+
+    async function loadOlder() {
+      if (isLoadingMoreRef.current || reachedHistoryStartRef.current || cancelled) return;
+      const earliest = earliestLoadedTimeRef.current;
+      if (!earliest || !refs.series.current || !refs.chart.current) return;
+
+      isLoadingMoreRef.current = true;
+      try {
+        const periodSec = getCandlePeriodSeconds(timeframe);
+        const MS_DAY = 86_400_000;
+        const lookbackMs = Math.min(Math.max(periodSec * 500 * 1000, 14 * MS_DAY), 365 * MS_DAY);
+        const startTime = new Date(new Date(earliest).getTime() - lookbackMs).toISOString();
+
+        const bars = await marketDataService.retrieveBars({
+          contractId: contract!.id,
+          live: false,
+          unit: timeframe.unit,
+          unitNumber: timeframe.unitNumber,
+          startTime,
+          endTime: earliest,
+          limit: 20000,
+          includePartialBar: false,
+        });
+
+        if (gen !== loadGenerationRef.current || cancelled) return;
+
+        const sorted = sortBarsAscending(bars);
+        // Exclude any bars at or after earliest (avoid duplicates at boundary)
+        const filtered = sorted.filter((b) => b.t < earliest);
+
+        if (filtered.length === 0) {
+          reachedHistoryStartRef.current = true;
+          return;
+        }
+
+        const chart = refs.chart.current!;
+        const visibleRange = chart.timeScale().getVisibleRange();
+
+        const allBars = [...filtered, ...refs.bars.current];
+        refs.bars.current = allBars;
+        refs.drawingsPrimitive.current?.setBarsRef(allBars);
+        earliestLoadedTimeRef.current = filtered[0].t;
+
+        for (const c of filtered.map(barToCandle)) {
+          refs.dataMap.current.set(c.time as number, c.close);
+        }
+
+        refs.series.current!.setData(allBars.map(barToCandle));
+
+        if (visibleRange) {
+          chart.timeScale().setVisibleRange(visibleRange);
+        }
+      } catch {
+        // Silent — don't disrupt the user's session
+      } finally {
+        if (gen === loadGenerationRef.current && !cancelled) {
+          isLoadingMoreRef.current = false;
+        }
+      }
+    }
 
     async function loadBars() {
       setLoading(true);
@@ -94,6 +168,7 @@ export function useChartBars(
         }
 
         series.setData(candles);
+        earliestLoadedTimeRef.current = sorted.length > 0 ? sorted[0].t : null;
         refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
         if (refs.lastBar.current) {
           useStore.getState().setLastBarTime(refs.lastBar.current.time as number);
@@ -182,6 +257,17 @@ export function useChartBars(
             refs.drawingsPrimitive.current?.setCountdownPrice(refs.lastBar.current.close);
           }
         }
+
+        // Subscribe to left-edge scroll to fetch older batches on demand
+        const chart = refs.chart.current;
+        if (chart && earliestLoadedTimeRef.current) {
+          const onRangeChange = (range: LogicalRange | null) => {
+            if (!range || range.from > 50) return;
+            loadOlder();
+          };
+          chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange);
+          rangeUnsub = () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to load bars');
@@ -194,6 +280,8 @@ export function useChartBars(
     loadBars();
     return () => {
       cancelled = true;
+      rangeUnsub?.();
+      rangeUnsub = null;
       if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
     };
   }, [connected, contract, timeframe, reconnectCount]);
