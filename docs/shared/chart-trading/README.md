@@ -669,6 +669,48 @@ Any open order gets `−` / `+` on size cell. Calls `orderService.modifyOrder()`
 
 ---
 
+## Trail Toggle on SL Order Label
+
+**Status**: TODO
+
+Converts a working Stop Loss order to a Trailing Stop (and back) directly from the chart label — no preset editing required. `OrderType.TrailingStop = 5` is already wired to ProjectX; only the UI is missing.
+
+### UI Behavior
+
+Cell layout: `[SL -$50 | 2 | trail cell | ✕]`
+
+| State | Normal | Hovered |
+|---|---|---|
+| **Inactive** (regular Stop) | `—` dimmed grey | `Trail` in amber |
+| **Active** (TrailingStop, long) | `↑` in amber | `Untrail` in white |
+| **Active** (TrailingStop, short) | `↓` in amber | `Untrail` in white |
+
+- Cell width is always fixed to the widest text (`Untrail`) — no layout shift on hover
+- Arrow direction: `↑` when `order.side === OrderSide.Sell` (long position), `↓` when `order.side === OrderSide.Buy` (short position)
+- Only shown on working (non-Suspended) SL orders
+
+### Action on click
+
+Cancel + replace (ProjectX does not support order-type change via modify):
+1. Record `stopPrice`, `size`, `side`, `contractId` from the existing SL order
+2. Optimistically remove the old order from the store
+3. Call `cancelOrder()` then `placeOrder()` with same price/size/side but opposite type
+4. On error: restore original order, show toast
+
+### Implementation
+
+**Files:**
+- `frontend/src/components/chart/primitives/PriceLevelPrimitive.ts` — extend `PriceLevelCell` with `hoverText?: string` and `hoverColor?: string`; use `max(text, hoverText)` for cell width so it never shifts on hover; swap to hoverText/hoverColor when `_hoveredKey` matches
+- `frontend/src/components/chart/hooks/buildOrderLabels.ts` — add `trail` cell and `handleTrailToggle` handler on working SL orders; update `setCellOrder` to `['pnl', 'size', 'trail', 'close']`
+
+**No store changes needed** — the toggle acts directly on the live order.
+
+### Caveat
+
+When toggling TrailingStop → Stop, `order.stopPrice` is the last exchange-reported trailing level. This is correct — the new Stop lands wherever the trail currently sits.
+
+---
+
 ## API Calls
 
 | Action | Proxy Route | ProjectX Endpoint |
