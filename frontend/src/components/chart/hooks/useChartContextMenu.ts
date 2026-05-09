@@ -27,6 +27,10 @@ export function useChartContextMenu(
       const chart = refs.chart.current;
       if (!chart) return;
 
+      // Ignore clicks on the time scale (last tr in the chart table)
+      const timeScaleRow = chart.chartElement().querySelector('table tr:last-child');
+      if (timeScaleRow && e.clientY >= timeScaleRow.getBoundingClientRect().top) return;
+
       const rect = container!.getBoundingClientRect();
       const localX = e.clientX - rect.left;
       const time = chart.timeScale().coordinateToTime(localX);
