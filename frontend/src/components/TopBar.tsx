@@ -333,16 +333,16 @@ export function TopBar() {
       {activeAccount ? (
         <div className="flex items-center gap-3 justify-center">
           <span
-            className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
+            className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
             onClick={() => setHideBalance(!hideBalance)}
             title={hideBalance ? 'Show balance' : 'Hide balance'}
           >
-            Balance: <span style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
+            Balance: <span className="text-(--color-text-muted)" style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
               ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </span>
           <span
-            className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
+            className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
             onClick={() => setHideRpnl(!hideRpnl)}
             title={hideRpnl ? 'Show RP&L' : 'Hide RP&L'}
           >
@@ -353,7 +353,7 @@ export function TopBar() {
             ); })()}
           </span>
           <span
-            className="text-xs text-(--color-text-muted) cursor-pointer select-none transition-colors hover:text-(--color-text)"
+            className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
             onClick={() => setHideUpnl(!hideUpnl)}
             title={hideUpnl ? 'Show UP&L' : 'Hide UP&L'}
           >

@@ -12,8 +12,8 @@
 :root {
   /* ── Backgrounds ── */
   --color-bg: #131722;
-  --color-panel: #000000;
-  --color-surface: #111111;
+  --color-panel: #0f0f0f;
+  --color-surface: #0f0f0f;
   --color-input: #111111;
   --color-hover-row: #1e222d;
   --color-hover-toolbar: #363a45;
