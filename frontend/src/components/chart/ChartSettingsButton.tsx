@@ -15,6 +15,34 @@ interface Props {
  * We find the actual dead-zone <td> that lightweight-charts renders
  * and position/size the button to cover it exactly.
  */
+type MenuAnchor =
+  | { type: 'button' }
+  | { type: 'cursor'; top: number; parentHeight: number };
+
+const MENU_ESTIMATED_H = 140;
+
+function getMenuStyle(
+  anchor: MenuAnchor,
+  rect: { w: number; h: number; r: number; b: number },
+): React.CSSProperties {
+  if (anchor.type === 'button') {
+    return {
+      position: 'absolute',
+      bottom: rect.b + rect.h + 1,
+      right: rect.r,
+      transformOrigin: 'bottom right',
+    };
+  }
+  const flipUp = anchor.top + MENU_ESTIMATED_H > anchor.parentHeight;
+  return {
+    position: 'absolute',
+    right: rect.r,
+    ...(flipUp
+      ? { bottom: anchor.parentHeight - anchor.top, transformOrigin: 'bottom right' }
+      : { top: anchor.top, transformOrigin: 'top right' }),
+  };
+}
+
 export function ChartSettingsButton({ chartRef, containerRef }: Props) {
   const [open, setOpen] = useState(false);
   const [inverted, setInverted] = useState(false);
@@ -22,6 +50,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
   const setChartSettings = useStore((s) => s.setChartSettings);
   const [modalOpen, setModalOpen] = useState(false);
   const [rect, setRect] = useState<{ w: number; h: number; r: number; b: number } | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<MenuAnchor>({ type: 'button' });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -106,6 +135,11 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
       const containerRect = container.getBoundingClientRect();
       if (e.clientX >= containerRect.right - priceScaleWidth) {
         e.preventDefault();
+        const parent = container.parentElement;
+        if (parent) {
+          const parentRect = parent.getBoundingClientRect();
+          setMenuAnchor({ type: 'cursor', top: e.clientY - parentRect.top, parentHeight: parentRect.height });
+        }
         setOpen(true);
       }
     };
@@ -154,7 +188,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
     <>
       <button
         ref={btnRef}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setMenuAnchor({ type: 'button' }); setOpen((v) => !v); }}
         className="hover:bg-(--color-surface) transition-colors cursor-pointer"
         style={{
           position: 'absolute',
@@ -187,9 +221,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
         <div
           ref={menuRef}
           style={{
-            position: 'absolute',
-            bottom: rect.b + rect.h + 1,
-            right: rect.r,
+            ...getMenuStyle(menuAnchor, rect),
             zIndex: Z.TOOLBAR_EDIT,
             minWidth: 160,
             background: 'var(--color-surface)',
@@ -198,7 +230,6 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             padding: '4px 0',
             boxShadow: SHADOW.MD,
             animation: 'chartSettingsFadeIn var(--transition-fast) ease-out',
-            transformOrigin: 'bottom right',
           }}
         >
           <button
