@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { IChartApi } from 'lightweight-charts';
 import { ChartSettingsModal } from './ChartSettingsModal';
 import { useStore } from '../../store/useStore';
-import { FONT_FAMILY, FONT_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
+import { CHART_ICON_SIZE, FONT_FAMILY, FONT_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 
 interface Props {
   chartRef: React.RefObject<IChartApi | null>;
@@ -189,7 +189,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
       <button
         ref={btnRef}
         onClick={() => { setMenuAnchor({ type: 'button' }); setOpen((v) => !v); }}
-        className="hover:bg-(--color-surface) transition-colors cursor-pointer"
+        className="hover:bg-(--color-border) transition-colors cursor-pointer"
         style={{
           position: 'absolute',
           bottom: rect.b,
@@ -205,7 +205,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
         }}
         title="Chart settings"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 16 16" fill="none">
           <polygon
             points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
             stroke="var(--color-text)"

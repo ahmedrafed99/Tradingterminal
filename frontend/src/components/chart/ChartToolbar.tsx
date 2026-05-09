@@ -12,7 +12,7 @@ import { COLOR_BG, COLOR_BORDER } from '../../constants/colors';
 import { paintOverlays } from './screenshot/paintOverlays';
 import { useRecording } from './recording/useRecording';
 import { RecordingIndicator } from './recording/RecordingIndicator';
-import { RADIUS, SHADOW, Z } from '../../constants/layout';
+import { CHART_ICON_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 import { SpinnerInput } from '../SpinnerInput';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
@@ -137,13 +137,11 @@ function IndicatorsDropdown() {
     <div ref={ref} className="relative self-stretch flex items-center">
       <button
         onClick={() => { setOpen((o) => !o); setEditingDom(false); }}
-        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-border) transition-colors ${
-          open ? 'text-(--color-text)' : 'text-(--color-text-muted) hover:text-(--color-text)'
-        }`}
+        className="h-full flex items-center gap-1 text-xs font-medium rounded text-(--color-text) hover:bg-(--color-border) transition-colors"
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title="Indicators"
       >
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
+        <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'relative', top: -1 }}>
           <path d="M3 3v18h18" />
           <path d="M7 16l4-8 4 4 5-10" />
         </svg>
@@ -526,7 +524,6 @@ export function ChartToolbar() {
   return (
     <div className="flex items-center gap-2 px-4 bg-(--color-panel) border-b border-(--color-border)" style={{ paddingTop: '7px', paddingBottom: '7px' }}>
       <InstrumentSelectorPopover />
-      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* Pinned timeframe buttons */}
       {pinnedTimeframes.map((tf) => (
@@ -536,7 +533,7 @@ export function ChartToolbar() {
           className={`px-2 py-1 text-xs font-medium transition-colors ${
             timeframe.unit === tf.unit && timeframe.unitNumber === tf.unitNumber
               ? 'text-(--color-warning)'
-              : 'text-(--color-text-muted) hover:text-(--color-text)'
+              : 'text-(--color-text)'
           }`}
         >
           {tf.label}
@@ -550,7 +547,7 @@ export function ChartToolbar() {
           className={`flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors ${
             !isActivePinned
               ? 'text-(--color-warning)'
-              : 'text-(--color-text-muted) hover:text-(--color-text)'
+              : 'text-(--color-text)'
           }`}
         >
           {!isActivePinned && <span>{timeframe.label}</span>}
@@ -658,13 +655,15 @@ export function ChartToolbar() {
         )}
       </div>
 
-      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* Indicators */}
       <IndicatorsDropdown />
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Right icon group — flush hit areas */}
+      <div className="flex items-stretch self-stretch">
 
       {/* Layout toggle */}
       <button
@@ -673,11 +672,7 @@ export function ChartToolbar() {
           setDualChart(next);
           if (next) setSelectedChart('left');
         }}
-        className={`self-stretch flex items-center rounded hover:bg-(--color-border) transition-colors ${
-          dualChart
-            ? 'text-(--color-text)'
-            : 'text-(--color-text-muted) hover:text-(--color-text)'
-        }`}
+        className="self-stretch flex items-center rounded text-(--color-text) hover:bg-(--color-border) transition-colors"
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title={dualChart ? 'Single chart' : 'Dual chart'}
       >
@@ -693,28 +688,20 @@ export function ChartToolbar() {
         )}
       </button>
 
-      <div className="w-px h-4 bg-(--color-border) mx-1" />
-
       {/* Screenshot button */}
       <div ref={cameraRef} className="relative self-stretch flex items-center">
         <button
           onClick={() => setCameraOpen((o) => !o)}
-          className={`h-full flex items-center justify-center rounded hover:bg-(--color-border) transition-colors ${
-            copied
-              ? 'text-green-400'
-              : cameraOpen
-                ? 'text-(--color-text)'
-                : 'text-(--color-text-muted) hover:text-(--color-text)'
-          }`}
+          className={`h-full flex items-center justify-center rounded hover:bg-(--color-border) transition-colors ${copied ? 'text-green-400' : 'text-(--color-text)'}`}
           style={{ paddingLeft: 12, paddingRight: 12 }}
           title="Chart screenshot"
         >
           {copied ? (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M20 6L9 17l-5-5" />
             </svg>
           ) : (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+            <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
               <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
               <circle cx="12" cy="13" r="4" />
             </svg>
@@ -731,7 +718,7 @@ export function ChartToolbar() {
               className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-border) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
+              <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="9" y="9" width="13" height="13" rx="2" />
                 <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
               </svg>
@@ -743,7 +730,7 @@ export function ChartToolbar() {
               className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-border) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
+              <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
@@ -753,30 +740,25 @@ export function ChartToolbar() {
         )}
       </div>
 
-      <div className="w-px h-4 bg-(--color-border) mx-1" />
 
       {/* Record button */}
       <button
         onClick={handleToggleRecording}
-        className={`h-full flex items-center justify-center rounded transition-colors ${
-          isRecording
-            ? 'text-(--color-sell) hover:bg-(--color-border)'
-            : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-border)'
-        }`}
+        className={`self-stretch flex items-center justify-center rounded transition-colors hover:bg-(--color-border) ${isRecording ? 'text-(--color-sell)' : 'text-(--color-text)'}`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title={isRecording ? 'Stop recording' : 'Record chart'}
       >
         {isRecording ? (
           <RecordingIndicator elapsed={elapsed} />
         ) : (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <svg width={CHART_ICON_SIZE} height={CHART_ICON_SIZE} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <rect x="2" y="4" width="15" height="16" rx="2" />
             <path d="M17 9l5-3v12l-5-3V9z" />
           </svg>
         )}
       </button>
 
-      <div className="w-px h-4 bg-(--color-border) mx-1" />
+      </div>{/* end right icon group */}
 
       {/* NY clock + market status */}
       <div className="flex items-center gap-1.5" style={{ marginRight: '8px' }}>
@@ -792,7 +774,7 @@ export function ChartToolbar() {
             }}
           />
         )}
-        <span className="text-xs text-(--color-text-muted)" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span className="text-xs text-(--color-text)" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {nyClock}
         </span>
       </div>

@@ -58,6 +58,9 @@ export const SHADOW = {
   ring: (color: string) => `0 0 0 1px ${color}`,
 } as const;
 
+// ── Icon Sizes ──
+export const CHART_ICON_SIZE = 16; // standard size for all chart toolbar icons
+
 // ── Border Radius ──
 export const RADIUS = {
   XS: 1,
