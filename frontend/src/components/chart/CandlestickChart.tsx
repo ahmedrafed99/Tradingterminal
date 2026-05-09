@@ -1,4 +1,4 @@
-import { memo, forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
+import { memo, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { FONT_FAMILY, RADIUS, Z } from '../../constants/layout';
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, CandlestickData, UTCTimestamp } from 'lightweight-charts';
@@ -11,6 +11,7 @@ import { ChartSettingsButton } from './ChartSettingsButton';
 import { DrawingsPrimitive } from './drawings/DrawingsPrimitive';
 import { CountdownPrimitive } from './CountdownPrimitive';
 import { CrosshairLabelPrimitive } from './CrosshairLabelPrimitive';
+import { GoToMarkerPrimitive } from './GoToMarkerPrimitive';
 import { registerChart, unregisterChart } from './screenshot/chartRegistry';
 import { TradeZonePrimitive } from './TradeZonePrimitive';
 import { MarketDepthPrimitive } from './MarketDepthPrimitive';
@@ -23,6 +24,8 @@ import { useChartBars } from './hooks/useChartBars';
 import { useChartDrawings } from './hooks/useChartDrawings';
 import { useChartContextMenu } from './hooks/useChartContextMenu';
 import { ChartContextMenu } from './ChartContextMenu';
+import { ChartTimeScaleContextMenu } from './ChartTimeScaleContextMenu';
+import { GoToModal } from './GoToModal';
 import { useQuickOrder } from './hooks/useQuickOrder';
 import { useOrderLines } from './hooks/useOrderLines';
 import { useOverlayLabels } from './hooks/useOverlayLabels';
@@ -66,6 +69,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const drawingsPrimitiveRef = useRef<DrawingsPrimitive | null>(null);
   const countdownRef = useRef<CountdownPrimitive | null>(null);
   const crosshairLabelRef = useRef<CrosshairLabelPrimitive | null>(null);
+  const goToMarkerRef = useRef<GoToMarkerPrimitive | null>(null);
   const whitespaceSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const tradeZonePrimitiveRef = useRef<TradeZonePrimitive | null>(null);
   const domPrimitiveRef = useRef<MarketDepthPrimitive | null>(null);
@@ -236,6 +240,10 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     const crosshairLabel = new CrosshairLabelPrimitive();
     series.attachPrimitive(crosshairLabel);
     crosshairLabelRef.current = crosshairLabel;
+
+    const goToMarker = new GoToMarkerPrimitive();
+    series.attachPrimitive(goToMarker);
+    goToMarkerRef.current = goToMarker;
     drawingsPrimitive.setCrosshairSuppressor((b) => crosshairLabel.suppress(b));
 
     // Selection click — mark this chart as selected in dual-chart mode
@@ -335,7 +343,40 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const showFps = chartSettings.showFpsCounter;
   const fps = useFpsCounter(showFps);
 
-  const { menuState, closeMenu } = useChartContextMenu(refs, timeframe);
+  const { menuState, closeMenu, timeScaleMenuState, closeTimeScaleMenu } = useChartContextMenu(refs, timeframe);
+  const [goToOpen, setGoToOpen] = useState(false);
+  const [goToTarget, setGoToTarget] = useState<number | null>(null);
+
+  // Sync go-to target with the primitive
+  useEffect(() => {
+    goToMarkerRef.current?.setTarget(goToTarget);
+  }, [goToTarget]);
+
+  // Dismiss marker on next click anywhere in the chart
+  useEffect(() => {
+    if (goToTarget === null) return;
+    const container = refs.container.current;
+    if (!container) return;
+    const dismiss = () => setGoToTarget(null);
+    container.addEventListener('mousedown', dismiss);
+    return () => container.removeEventListener('mousedown', dismiss);
+  }, [goToTarget, refs.container]);
+
+  function goToTime(utcSeconds: number) {
+    const chart = chartRef.current;
+    if (!chart) return;
+    const ts = chart.timeScale();
+    const range = ts.getVisibleRange();
+    const windowSec = range
+      ? (range.to as number) - (range.from as number)
+      : 3600;
+    const half = Math.floor(windowSec / 2);
+    ts.setVisibleRange({
+      from: (utcSeconds - half) as UTCTimestamp,
+      to: (utcSeconds + half) as UTCTimestamp,
+    });
+    setGoToTarget(utcSeconds);
+  }
 
   function drillIntoCandle(candleTime: number, targetTf: Timeframe) {
     const store = useStore.getState();
@@ -456,6 +497,20 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
           candleSeconds={menuState.candleSeconds}
           onSelectTimeframe={(tf) => drillIntoCandle(menuState.candleTime, tf)}
           onClose={closeMenu}
+        />
+      )}
+      {timeScaleMenuState && (
+        <ChartTimeScaleContextMenu
+          x={timeScaleMenuState.x}
+          y={timeScaleMenuState.y}
+          onGoTo={() => setGoToOpen(true)}
+          onClose={closeTimeScaleMenu}
+        />
+      )}
+      {goToOpen && (
+        <GoToModal
+          onClose={() => setGoToOpen(false)}
+          onGoTo={goToTime}
         />
       )}
     </div>
