@@ -65,16 +65,17 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-panel) border border-(--color-border) rounded-md shadow-lg py-1 animate-dropdown-in"
-          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG }}
+          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-panel) border border-(--color-border) rounded-lg py-1 px-1.5 animate-dropdown-in"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
         >
           {UNIT_OPTIONS.map((u) => (
             <button
               key={u.value}
               onClick={() => { onChange(u.value); setOpen(false); }}
-              className={`w-full text-center text-xs font-medium px-2 py-1 transition-colors rounded-sm mx-0 hover:bg-(--color-panel) ${
+              className={`w-full text-center text-xs font-medium transition-colors rounded-md hover:bg-(--color-border) ${
                 u.value === value ? 'text-(--color-warning)' : 'text-(--color-text)'
               }`}
+              style={{ padding: '8px 10px' }}
             >
               {u.label}
             </button>
@@ -136,7 +137,7 @@ function IndicatorsDropdown() {
     <div ref={ref} className="relative self-stretch flex items-center">
       <button
         onClick={() => { setOpen((o) => !o); setEditingDom(false); }}
-        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-panel) transition-colors ${
+        className={`h-full flex items-center gap-1 text-xs font-medium rounded hover:bg-(--color-border) transition-colors ${
           open ? 'text-(--color-text)' : 'text-(--color-text-muted) hover:text-(--color-text)'
         }`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
@@ -159,7 +160,7 @@ function IndicatorsDropdown() {
             <div style={{ padding: 6 }}>
               {/* Market Depth row */}
               <div
-                className="flex items-center hover:bg-(--color-panel) transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-border) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 {/* Checkbox */}
@@ -213,7 +214,7 @@ function IndicatorsDropdown() {
 
               {/* Bid/Ask Footprint row */}
               <div
-                className="flex items-center hover:bg-(--color-panel) transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-border) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 <button
@@ -583,7 +584,7 @@ export function ChartToolbar() {
                     return (
                       <div
                         key={tf.label}
-                        className={`group relative flex items-center hover:bg-(--color-panel) transition-colors rounded-md mx-1.5 ${
+                        className={`group relative flex items-center hover:bg-(--color-border) transition-colors rounded-md mx-1.5 ${
                           active ? 'bg-(--color-panel)' : ''
                         }`}
                         style={{ padding: '8px 10px' }}
@@ -672,7 +673,7 @@ export function ChartToolbar() {
           setDualChart(next);
           if (next) setSelectedChart('left');
         }}
-        className={`self-stretch flex items-center rounded hover:bg-(--color-panel) transition-colors ${
+        className={`self-stretch flex items-center rounded hover:bg-(--color-border) transition-colors ${
           dualChart
             ? 'text-(--color-text)'
             : 'text-(--color-text-muted) hover:text-(--color-text)'
@@ -698,7 +699,7 @@ export function ChartToolbar() {
       <div ref={cameraRef} className="relative self-stretch flex items-center">
         <button
           onClick={() => setCameraOpen((o) => !o)}
-          className={`h-full flex items-center justify-center rounded hover:bg-(--color-panel) transition-colors ${
+          className={`h-full flex items-center justify-center rounded hover:bg-(--color-border) transition-colors ${
             copied
               ? 'text-green-400'
               : cameraOpen
@@ -727,7 +728,7 @@ export function ChartToolbar() {
           >
             <button
               onClick={handleCopyChartImage}
-              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-panel) transition-colors rounded-lg"
+              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-border) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
@@ -739,7 +740,7 @@ export function ChartToolbar() {
             <div className="border-t border-(--color-border)/40 my-1 mx-2" />
             <button
               onClick={handleCustomSnapshot}
-              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-panel) transition-colors rounded-lg"
+              className="w-full flex items-center gap-2.5 text-xs text-(--color-text) hover:bg-(--color-border) transition-colors rounded-lg"
               style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
@@ -759,8 +760,8 @@ export function ChartToolbar() {
         onClick={handleToggleRecording}
         className={`h-full flex items-center justify-center rounded transition-colors ${
           isRecording
-            ? 'text-(--color-sell) hover:bg-(--color-panel)'
-            : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-panel)'
+            ? 'text-(--color-sell) hover:bg-(--color-border)'
+            : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-border)'
         }`}
         style={{ paddingLeft: 12, paddingRight: 12 }}
         title={isRecording ? 'Stop recording' : 'Record chart'}

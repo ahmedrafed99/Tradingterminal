@@ -34,7 +34,7 @@ export function TimeframePicker({ onSelect, maxSeconds }: Props) {
             {all.map((tf) => (
               <div
                 key={tf.label}
-                className="flex items-center hover:bg-(--color-surface) transition-colors rounded-md mx-1.5"
+                className="flex items-center hover:bg-(--color-border) transition-colors rounded-md mx-1.5"
                 style={{ padding: '8px 10px' }}
               >
                 <button

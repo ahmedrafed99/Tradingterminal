@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RADIUS, SHADOW, Z } from '../../constants/layout';
+import { FONT_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 
 const NY_TZ = 'America/New_York';
 
@@ -95,7 +95,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
             onClick={onClose}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 22, height: 22, borderRadius: RADIUS.MD,
+              width: 24, height: 24, borderRadius: RADIUS.MD,
               border: 'none', background: 'transparent', cursor: 'pointer',
               color: 'var(--color-text-muted)',
               transition: 'background var(--transition-fast), color var(--transition-fast)',
@@ -103,8 +103,8 @@ export function GoToModal({ onClose, onGoTo }: Props) {
             onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
@@ -113,7 +113,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
         <div style={{ padding: '0 20px', borderBottom: '1px solid var(--color-border)' }}>
           <div style={{ display: 'flex', gap: 16 }}>
             <span style={{
-              fontSize: 12, fontWeight: 500, color: 'var(--color-text)',
+              fontSize: FONT_SIZE.OVERLAY, fontWeight: 500, color: 'var(--color-text)',
               paddingBottom: 10, paddingTop: 4,
               borderBottom: '2px solid var(--color-accent)',
               cursor: 'default',
@@ -133,7 +133,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
               type="text"
               value={dateStr}
               onChange={(e) => setDateStr(e.target.value)}
-              style={{ flex: 1, fontSize: 12, color: 'var(--color-text)', background: 'transparent', border: 'none', outline: 'none' }}
+              style={{ flex: 1, fontSize: FONT_SIZE.OVERLAY, color: 'var(--color-text)', background: 'transparent', border: 'none', outline: 'none' }}
               placeholder="YYYY-MM-DD"
             />
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style={{ color: 'var(--color-text-muted)', flexShrink: 0 }}>
@@ -149,7 +149,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
               type="text"
               value={timeStr}
               onChange={(e) => setTimeStr(e.target.value)}
-              style={{ width: '100%', fontSize: 12, color: 'var(--color-text)', background: 'transparent', border: 'none', outline: 'none' }}
+              style={{ width: '100%', fontSize: FONT_SIZE.OVERLAY, color: 'var(--color-text)', background: 'transparent', border: 'none', outline: 'none' }}
               placeholder="HH:MM"
             />
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ color: 'var(--color-text-muted)', flexShrink: 0 }}>
@@ -171,7 +171,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
               <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text)' }}>{MONTHS[calMonth - 1]} {calYear}</span>
+          <span style={{ fontSize: FONT_SIZE.OVERLAY, fontWeight: 500, color: 'var(--color-text)' }}>{MONTHS[calMonth - 1]} {calYear}</span>
           <button
             onClick={nextMonth}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--color-text-muted)', borderRadius: RADIUS.MD, transition: 'color var(--transition-fast)' }}
@@ -189,7 +189,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
           {/* Day headers */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 4 }}>
             {DAYS.map(d => (
-              <div key={d} style={{ textAlign: 'center', fontSize: 11, fontWeight: 500, color: 'var(--color-text-muted)', padding: '4px 0' }}>{d}</div>
+              <div key={d} style={{ textAlign: 'center', fontSize: FONT_SIZE.OVERLAY, fontWeight: 500, color: 'var(--color-text-muted)', padding: '4px 0' }}>{d}</div>
             ))}
           </div>
           {/* Day cells */}
@@ -204,7 +204,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
                   key={i}
                   onClick={() => selectDay(calYear, calMonth, day)}
                   style={{
-                    fontSize: 12,
+                    fontSize: FONT_SIZE.OVERLAY,
                     textAlign: 'center',
                     padding: '6px 0',
                     borderRadius: RADIUS.MD,
@@ -234,7 +234,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
           <button
             onClick={onClose}
             style={{
-              fontSize: 12, fontWeight: 500, padding: '7px 16px', borderRadius: RADIUS.XL,
+              fontSize: FONT_SIZE.OVERLAY, fontWeight: 500, padding: '7px 16px', borderRadius: RADIUS.XL,
               border: '1px solid var(--color-border)', background: 'transparent',
               color: 'var(--color-text)', cursor: 'pointer',
               transition: 'background var(--transition-fast)',
@@ -247,7 +247,7 @@ export function GoToModal({ onClose, onGoTo }: Props) {
           <button
             onClick={handleGoTo}
             style={{
-              fontSize: 12, fontWeight: 500, padding: '7px 16px', borderRadius: RADIUS.XL,
+              fontSize: FONT_SIZE.OVERLAY, fontWeight: 500, padding: '7px 16px', borderRadius: RADIUS.XL,
               border: 'none', background: 'var(--color-text)',
               color: 'var(--color-bg)', cursor: 'pointer',
               transition: 'opacity var(--transition-fast)',

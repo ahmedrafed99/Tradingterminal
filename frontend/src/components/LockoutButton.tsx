@@ -5,8 +5,11 @@ import { useClickOutside } from '../hooks/useClickOutside';
 import { getNextSessionStartMs } from '../utils/marketHours';
 import { showToast } from '../utils/toast';
 import api from '../services/api';
-import { Z } from '../constants/layout';
+import { FONT_SIZE, Z } from '../constants/layout';
 import { SpinnerInput } from './SpinnerInput';
+import { Popover } from './shared/Popover';
+import { MenuItem } from './shared/MenuItem';
+import { Button } from './shared/Button';
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -182,7 +185,7 @@ export function LockoutButton() {
         <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, transform: 'translateY(-2px)' }}>
           <LockIcon size={26} />
         </span>
-        <span style={{ fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
+        <span style={{ fontSize: FONT_SIZE.OVERLAY, fontWeight: 600, lineHeight: 1 }}>
           Locked-out: {formatCountdown(expiryMs)}
         </span>
       </div>
@@ -207,7 +210,7 @@ export function LockoutButton() {
       </button>
 
       {open && (
-        <div
+        <Popover
           style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
@@ -215,10 +218,6 @@ export function LockoutButton() {
             transform: 'translateX(-50%)',
             zIndex: Z.DROPDOWN,
             width: 200,
-            background: 'var(--color-panel)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
             overflow: 'hidden',
           }}
         >
@@ -241,7 +240,7 @@ export function LockoutButton() {
                 <ChevronLeftIcon />
               </button>
             )}
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>
+            <span style={{ fontSize: FONT_SIZE.OVERLAY, fontWeight: 600, color: 'var(--color-text)' }}>
               Lock account
             </span>
           </div>
@@ -250,14 +249,9 @@ export function LockoutButton() {
           {step === 'menu' && (
             <div style={{ padding: '4px 0' }}>
               {durationOptions.map((opt) => (
-                <button
-                  key={opt.label}
-                  onClick={() => handleOptionClick(opt)}
-                  className="w-full text-left text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-surface) transition-colors"
-                  style={{ padding: '8px 14px', fontSize: 12, display: 'block' }}
-                >
+                <MenuItem key={opt.label} onClick={() => handleOptionClick(opt)}>
                   {opt.label}
-                </button>
+                </MenuItem>
               ))}
             </div>
           )}
@@ -275,25 +269,16 @@ export function LockoutButton() {
                   <SpinnerInput value={customMinutes} onChange={setCustomMinutes} min={0} max={59} step={5} height={28} />
                 </div>
               </div>
-              <button
+              <Button
+                variant="filled"
+                tone="default"
+                fullWidth
+                style={{ marginTop: 2, fontWeight: 600 }}
                 onClick={handleCustomContinue}
                 disabled={customHours * 60 + customMinutes <= 0}
-                className="transition-colors"
-                style={{
-                  marginTop: 2,
-                  padding: '7px 0',
-                  borderRadius: 4,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  background: 'var(--color-surface)',
-                  color: 'var(--color-text)',
-                  border: '1px solid var(--color-border)',
-                  cursor: 'pointer',
-                  width: '100%',
-                }}
               >
                 Continue
-              </button>
+              </Button>
             </div>
           )}
 
@@ -310,46 +295,28 @@ export function LockoutButton() {
                 This cannot be undone.
               </p>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button
+                <Button
+                  variant="ghost"
+                  tone="default"
+                  style={{ flex: 1 }}
                   onClick={closePopover}
                   disabled={submitting}
-                  className="transition-colors hover:bg-(--color-surface)"
-                  style={{
-                    flex: 1,
-                    padding: '7px 0',
-                    borderRadius: 4,
-                    fontSize: 12,
-                    background: 'transparent',
-                    color: 'var(--color-text-muted)',
-                    border: '1px solid var(--color-border)',
-                    cursor: 'pointer',
-                  }}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="filled"
+                  tone="danger"
+                  style={{ flex: 1, fontWeight: 600, opacity: submitting ? 0.6 : 1 }}
                   onClick={handleConfirm}
                   disabled={submitting}
-                  className="transition-colors"
-                  style={{
-                    flex: 1,
-                    padding: '7px 0',
-                    borderRadius: 4,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    background: 'var(--color-error)',
-                    color: '#fff',
-                    border: 'none',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    opacity: submitting ? 0.6 : 1,
-                  }}
                 >
                   {submitting ? '…' : 'Lock'}
-                </button>
+                </Button>
               </div>
             </div>
           )}
-        </div>
+        </Popover>
       )}
     </div>
   );

@@ -403,7 +403,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       <div ref={containerRef} className="w-full h-full" />
       {contract && (
         <div className="absolute top-2 left-2 pointer-events-none select-none flex items-center gap-2" style={{ zIndex: Z.HEADER, fontFamily: FONT_FAMILY, maxWidth: 'calc(100% - 90px)' }}>
-          <div ref={instrumentLabelRef} className="text-(--color-text-muted) text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: RADIUS.SM, padding: '1px 3px' }}>
+          <div ref={instrumentLabelRef} className="text-(--color-text) text-xs font-medium leading-tight whitespace-nowrap shrink-0" style={{ background: '#00000080', borderRadius: RADIUS.SM, padding: '1px 3px' }}>
             {contract.name.replace(/[FGHJKMNQUVXZ]\d{2}$/, '')} · {timeframe.label}
           </div>
           <MarketStatusBadge contract={contract} />

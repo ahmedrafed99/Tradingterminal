@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { IChartApi } from 'lightweight-charts';
 import { ChartSettingsModal } from './ChartSettingsModal';
 import { useStore } from '../../store/useStore';
-import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
+import { FONT_FAMILY, FONT_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 
 interface Props {
   chartRef: React.RefObject<IChartApi | null>;
@@ -208,12 +208,12 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <polygon
             points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
-            stroke="var(--color-text-muted)"
+            stroke="var(--color-text)"
             strokeWidth="1.3"
             strokeLinejoin="round"
             fill="none"
           />
-          <circle cx="8" cy="8" r="2.5" stroke="var(--color-text-muted)" strokeWidth="1.3" fill="none" />
+          <circle cx="8" cy="8" r="2.5" stroke="var(--color-text)" strokeWidth="1.3" fill="none" />
         </svg>
       </button>
 
@@ -243,7 +243,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               border: 'none',
               color: 'var(--color-text)',
-              fontSize: 13,
+              fontSize: FONT_SIZE.OVERLAY,
               fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
@@ -278,7 +278,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               border: 'none',
               color: 'var(--color-text)',
-              fontSize: 13,
+              fontSize: FONT_SIZE.OVERLAY,
               fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
@@ -315,7 +315,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
               padding: '6px 12px',
               border: 'none',
               color: 'var(--color-text)',
-              fontSize: 13,
+              fontSize: FONT_SIZE.OVERLAY,
               fontFamily: FONT_FAMILY,
               textAlign: 'left',
               whiteSpace: 'nowrap',
@@ -325,12 +325,12 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
               <polygon
                 points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25"
-                stroke="var(--color-text-muted)"
+                stroke="var(--color-text)"
                 strokeWidth="1.3"
                 strokeLinejoin="round"
                 fill="none"
               />
-              <circle cx="8" cy="8" r="2.5" stroke="var(--color-text-muted)" strokeWidth="1.3" fill="none" />
+              <circle cx="8" cy="8" r="2.5" stroke="var(--color-text)" strokeWidth="1.3" fill="none" />
             </svg>
             <span>More settings</span>
           </button>

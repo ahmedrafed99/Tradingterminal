@@ -88,6 +88,7 @@
   --font-size-lg: 14px;
   --font-size-xl: 16px;
   --font-size-xxl: 18px;
+  --font-size-overlay: 14px; /* standard for all modals and popovers */
 
   /* ── Backdrop ── */
   --color-backdrop: rgba(0, 0, 0, 0.65);

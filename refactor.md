@@ -1,77 +1,44 @@
-# DOM → Canvas Migration
+# Refactor Plan
 
-## Status
-Phases A–H and F8 complete and committed.
+## Shared UI Primitives
 
----
+### Problem
+New UI components (popovers, buttons) get added with no shared shell — each one invents its own padding, margin, border-radius, and hover handling from scratch. Result: visually inconsistent UI across 60+ components.
 
-## Phase F8 — Axis label collision avoidance for order lines
+### Root cause
+`shared/` has a `Modal` primitive but nothing for popovers or buttons. So every context menu, dropdown, and button re-implements the same shell and interactive styles differently.
 
-The stacking logic in `DrawingsPrimitive.ts` (`priceAxisViews()`) currently only de-overlaps `hline` drawing labels and avoids the countdown/current-price zone. `PriceLevelPrimitive` axis labels are not included, so order line price badges overlap freely with each other and with drawings.
+### Missing primitives
 
-- Extract the de-overlapping pass into a shared utility.
-- Feed order line prices into the same pass so all axis labels (drawings + order lines + current price) are stacked together.
+#### 1. `shared/Popover.tsx`
+The shell used by all floating overlays (context menus, color pickers, dropdowns).  
+Standardizes: `bg-(--color-panel)`, `border-(--color-border)`, `SHADOW.XL`, `rounded-lg`, `py-1`.
 
----
+#### 2. `shared/MenuItem.tsx`
+A single row inside a popover/menu.  
+Standardizes: `px-3 py-2`, `hover:bg-(--color-surface)`, `text-xs`, icon+label layout, `cursor-default`.
 
-## Phase H — Quick Order `+` button → `QuickOrderPrimitive` (complete)
+#### 3. `shared/Button.tsx`
+Button with variants:
+- `ghost` — transparent bg, optional border, `hover:bg-(--color-surface)`
+- `primary` — filled `bg-(--color-accent)`, white text
+- `danger` — filled `bg-(--color-error)`, white text
+- `icon` — square, no label, `p-1.5`
 
-**Files:** `primitives/QuickOrderPrimitive.ts` (new), `hooks/useQuickOrder.ts`, `CandlestickChart.tsx`
+Standardizes: padding (sm/md/lg), font-size `text-xs`, `rounded`, `transition-colors`, `disabled:opacity-50 disabled:cursor-not-allowed`.
 
-The QO DOM widget (`data-qo-wrap/label/size/text/plus`) is replaced with a canvas primitive that LWC positions in the same render frame as the crosshair, eliminating the lag. All interactive behaviours (hover-expand, size −/+, drag, click-to-place) are preserved.
+### Components to migrate after primitives are built
 
-#### H1 — Create `primitives/QuickOrderPrimitive.ts`
-
-New class implementing `ISeriesPrimitive`. Internally reuses the cell + zone rendering logic from `PriceLevelPrimitive` (extract shared canvas-drawing helpers if needed, or duplicate the small draw pass).
-
-**State:**
-- `_price: number | null` — current snapped crosshair price; `null` = hidden.
-- `_isBuy: boolean` — determines cell colors.
-- `_expanded: boolean` — false = only `+` cell visible; true = size + label cells also visible.
-- `_orderSize: number`, `_maxSize: number | null` — for −/+ zone disable logic.
-- `_sizeButtonsActive: boolean` — true while cursor is inside the size cell.
-
-**Public API (called from `useQuickOrder`):**
-- `setCrosshair(price: number | null, isBuy: boolean)` — updates price/side, calls `_requestUpdate()`.
-- `setOrderSize(size: number, max: number | null)` — refreshes size cell text and zone states.
-- `setExpanded(expanded: boolean)` — toggles collapsed/expanded layout.
-- `onExecute: (price: number, isBuy: boolean) => void` — callback fired on click / drag-then-click.
-- `onDragUpdate: (price: number) => void` — fired every drag step (update preview lines).
-- `onDragEnd: (price: number, didDrag: boolean) => void` — fired on mouse-up.
-- `onSizeChange: (delta: 1 | -1) => void` — fired by −/+ zone clicks.
-
-**Cells (collapsed):**
-- `plus` — draws the `+` circle icon; background `COLOR_BORDER`, hover brightens. Click triggers execute / drag.
-
-**Cells (expanded, prepended via `setCellOrder`):**
-- `size` — order size number; `leftText: '−'` / `rightText: '+'` inline zones (disabled = `transparent`); hover reveals zones (`leftColor`/`rightColor` brighten).
-- `label` — "Buy Limit" / "Sell Limit" text; hover highlight.
-
-**`priceAxisViews()`** — returns an axis badge at `_price` when visible (same style as crosshair badge), so the axis price label moves with the `+` button as a unit.
-
-**Drag:** uses the same window-mousemove / mouseup pattern as `PriceLevelPrimitive`, gated on a 3px threshold. `onDrag` calls `_requestUpdate()` + `onDragUpdate`.
-
-**Hover tracking:** `setChartElement` wires the same `mousemove` listener used by `PriceLevelPrimitive`. Hover over the `plus` cell → `setExpanded(true)`; leave the whole primitive → `setExpanded(false)`.
-
-#### H2 — Rewrite `useQuickOrder.ts`
-- Remove all DOM queries (`data-qo-*`), `sizeMinusEl`/`sizePlusEl`/`sizeCountEl` creation, and manual `el.style` updates.
-- Create `QuickOrderPrimitive` once; `series.attachPrimitive` on mount, `series.detachPrimitive` on cleanup.
-- `crosshairMove` handler calls `primitive.setCrosshair(snappedPrice, isBuy)`.
-- Wire `onExecute` → `placeQuickOrder`, `onDragUpdate` → `updatePreviewPrices`, `onDragEnd` → drag-complete logic, `onSizeChange` → `st.setOrderSize` + `refreshLabel` + `createPreviewLines`.
-- `onEnter`/`onLeave` logic (preview line creation/removal, `refs.qoHovered`) moves into `setExpanded` callback.
-- `suppress` from `drawingHandlers` calls `primitive.setCrosshair(null, isBuy)`.
-
-#### H3 — `CandlestickChart.tsx`
-- Remove the `data-qo-*` JSX block entirely.
-- Remove `quickOrderRef` (the ref is no longer needed; the primitive is owned by `useQuickOrder`).
-
----
-
-## Key files
-
-```
-frontend/src/components/chart/
-  primitives/QuickOrderPrimitive.ts     ← H1 (new)
-  hooks/useQuickOrder.ts                ← H2
-  CandlestickChart.tsx                  ← H3
-```
+| Component | Uses |
+|---|---|
+| `ChartContextMenu` | Popover shell + MenuItem |
+| `ChartTimeScaleContextMenu` | Popover shell + MenuItem |
+| `ColorPopover` | Popover shell |
+| `InstrumentSelectorPopover` | Popover shell |
+| `LockoutButton` | Popover shell + Button (ghost, danger) |
+| `DatePresetSelector` | Popover shell + MenuItem |
+| `ChartToolbar` | Button (icon, ghost) |
+| `DrawingEditToolbar` | Button (icon) |
+| `BuySellButtons` | Button (primary) |
+| `ConditionModal` | Button (primary, ghost) |
+| `BracketSettingsModal` | Button (primary, ghost) |

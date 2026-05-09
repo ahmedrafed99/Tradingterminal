@@ -244,15 +244,18 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           onClick={handleCancel}
           onMouseDown={(e) => e.stopPropagation()}
           style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 24, height: 24, borderRadius: RADIUS.MD,
             background: 'transparent', border: 'none',
-            color: 'var(--color-text-muted)', fontSize: 18,
-            cursor: 'pointer', lineHeight: 1, padding: '0 2px',
-            transition: 'color var(--transition-fast)',
+            color: 'var(--color-text-muted)', cursor: 'pointer',
+            transition: 'background var(--transition-fast), color var(--transition-fast)',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
         >
-          &times;
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
         </button>
       </div>
 

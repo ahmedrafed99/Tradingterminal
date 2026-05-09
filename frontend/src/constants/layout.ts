@@ -31,6 +31,7 @@ export const FONT_SIZE = {
   LG: px('--font-size-lg') || 14,      // buttons, subheadings
   XL: px('--font-size-xl') || 16,      // section titles
   XXL: px('--font-size-xxl') || 18,    // modal titles, large headings
+  OVERLAY: px('--font-size-overlay') || 14, // modals and popovers
 };
 
 // ── Z-Index Stack ──

@@ -209,8 +209,8 @@ export function InstrumentSelectorPopover() {
               return (
                 <div
                   key={c.id}
-                  className={`flex items-center hover:bg-(--color-hover-row) transition-colors cursor-pointer`}
-                  style={{ padding: '10px 12px', borderRadius: RADIUS.LG, background: active ? 'var(--color-hover-row)' : 'transparent' }}
+                  className={`flex items-center hover:bg-(--color-hover-row) transition-colors cursor-pointer ${active ? 'bg-(--color-hover-row)' : ''}`}
+                  style={{ padding: '10px 12px', borderRadius: RADIUS.LG }}
                   onClick={() => handleSelect(c)}
                 >
                   <button
