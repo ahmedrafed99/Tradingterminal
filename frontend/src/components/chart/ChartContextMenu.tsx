@@ -61,14 +61,14 @@ export function ChartContextMenu({ x, y, candleSeconds, onSelectTimeframe, onClo
           <div
             style={{
               position: 'absolute',
-              top: 0,
-              left: '100%',
-              marginLeft: -1,
+              top: '100%',
+              left: 0,
+              marginTop: 2,
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: RADIUS.LG,
               boxShadow: SHADOW.MD,
-              minWidth: 140,
+              minWidth: '100%',
               zIndex: Z.DROPDOWN + 11,
             }}
           >
