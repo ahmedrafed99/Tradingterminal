@@ -43,7 +43,7 @@ export function useChartContextMenu(
       const timeScaleRow = chart.chartElement().querySelector('table tr:last-child');
       if (timeScaleRow && e.clientY >= timeScaleRow.getBoundingClientRect().top) {
         setMenuState(null);
-        setTimeScaleMenuState({ x: e.clientX, y: e.clientY });
+        setTimeScaleMenuState({ x: e.clientX, y: timeScaleRow.getBoundingClientRect().top });
         return;
       }
 
