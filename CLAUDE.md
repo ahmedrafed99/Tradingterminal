@@ -10,7 +10,7 @@ don't commit unless user tests
 if a feature changes, always update its relevant documentation
 
 # when debugging
-don't log in console, log into a file. use `debugLog.log(tag, data)` from `src/utils/debugLog.ts` — auto-writes to `debug-YYYY-MM-DD.log` in the configured log directory.
+don't log in console, log into a file. use `debugLog.log(tag, data)` from `src/utils/debugLog.ts` — auto-sends to the backend which writes to `log/debug-YYYY-MM-DD.log`. No setup needed.
 
 ## Architecture principles
 always look for modularity, nothing is to be harcoded.
