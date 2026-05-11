@@ -671,7 +671,7 @@ Any open order gets `−` / `+` on size cell. Calls `orderService.modifyOrder()`
 
 ## Trail Toggle on SL Order Label
 
-**Status**: Backend implemented and tested. UI pending.
+**Status**: Implemented
 
 Converts a working Stop Loss order to a Trailing Stop (and back) directly from the chart label — no preset editing required. `OrderType.TrailingStop = 5` is already wired to ProjectX.
 
