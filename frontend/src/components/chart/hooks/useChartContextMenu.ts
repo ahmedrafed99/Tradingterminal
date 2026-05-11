@@ -47,6 +47,16 @@ export function useChartContextMenu(
         return;
       }
 
+      // Check if click is on the price scale (right column — last td when 2+ tds exist)
+      const firstRow = chart.chartElement().querySelector('table tr:first-child');
+      if (firstRow) {
+        const cells = firstRow.querySelectorAll('td');
+        if (cells.length >= 2) {
+          const priceScaleCell = cells[cells.length - 1];
+          if (e.clientX >= priceScaleCell.getBoundingClientRect().left) return;
+        }
+      }
+
       const rect = container!.getBoundingClientRect();
       const localX = e.clientX - rect.left;
       const time = chart.timeScale().coordinateToTime(localX);

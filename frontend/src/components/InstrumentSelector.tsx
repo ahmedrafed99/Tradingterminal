@@ -92,10 +92,14 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
 
       {open && (
         <div
-          className="absolute top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg max-h-60 overflow-y-auto py-2 animate-dropdown-in"
+          className="absolute top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg overflow-y-auto py-2 animate-dropdown-in"
           style={{
             zIndex: Z.DROPDOWN,
             boxShadow: SHADOW.XL,
+            maxHeight: 240,
+            overflowX: 'hidden',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'var(--color-border) transparent',
             ...dropdownStyle,
           }}
         >
@@ -104,9 +108,6 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
           )}
           {showingSearch && !searching && results.length === 0 && (
             <div className="px-3 py-2 text-xs text-(--color-text-muted) text-center">No results</div>
-          )}
-          {!showingSearch && bookmarks.length === 0 && (
-            <div className="px-3 py-2 text-xs text-(--color-text-muted) text-center">Type to search instruments</div>
           )}
 
           {displayList.map((c) => {
