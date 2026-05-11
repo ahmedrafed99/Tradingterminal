@@ -75,4 +75,41 @@ router.get('/open', validateQuery(OpenOrdersQuery), withConnection(async (req, r
   res.json(data);
 }));
 
+const TrailToggleSchema = z.object({
+  accountId: z.string().min(1),
+  orderId: z.string().min(1),
+  contractId: z.string().min(1),
+  side: z.nativeEnum(OrderSide),
+  size: z.number().positive(),
+  stopPrice: z.number(),
+  trailPrice: z.number().positive().optional(),
+  targetType: z.union([z.literal(OrderType.Stop), z.literal(OrderType.TrailingStop)]),
+});
+
+// POST /orders/trail-toggle
+// Converts a Stop ↔ TrailingStop: places the new order first, then cancels the old one.
+// If placement fails the original order is untouched — position is never unprotected.
+router.post('/trail-toggle', validateBody(TrailToggleSchema), withConnection(async (req, res) => {
+  const adapter = resolveAdapter(req);
+  const { accountId, orderId, contractId, side, size, stopPrice, trailPrice, targetType } = req.body;
+
+  const data = await adapter.orders.place({
+    accountId,
+    contractId,
+    type: targetType,
+    side,
+    size,
+    stopPrice: targetType === OrderType.Stop ? stopPrice : undefined,
+    trailPrice: targetType === OrderType.TrailingStop ? trailPrice : undefined,
+  }) as { success: boolean; errorMessage?: string };
+
+  if (!data.success) {
+    throw new Error(data.errorMessage || 'Failed to place order');
+  }
+
+  await adapter.orders.cancel({ accountId, orderId });
+
+  res.json(data);
+}));
+
 export default router;

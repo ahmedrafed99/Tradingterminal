@@ -671,9 +671,9 @@ Any open order gets `−` / `+` on size cell. Calls `orderService.modifyOrder()`
 
 ## Trail Toggle on SL Order Label
 
-**Status**: TODO
+**Status**: Backend implemented and tested. UI pending.
 
-Converts a working Stop Loss order to a Trailing Stop (and back) directly from the chart label — no preset editing required. `OrderType.TrailingStop = 5` is already wired to ProjectX; only the UI is missing.
+Converts a working Stop Loss order to a Trailing Stop (and back) directly from the chart label — no preset editing required. `OrderType.TrailingStop = 5` is already wired to ProjectX.
 
 ### UI Behavior
 
@@ -691,17 +691,36 @@ Cell layout: `[SL -$50 | 2 | trail cell | ✕]`
 
 ### Action on click
 
-Cancel + replace (ProjectX does not support order-type change via modify):
-1. Record `stopPrice`, `size`, `side`, `contractId` from the existing SL order
-2. Optimistically remove the old order from the store
-3. Call `cancelOrder()` then `placeOrder()` with same price/size/side but opposite type
-4. On error: restore original order, show toast
+Single backend call to `POST /orders/trail-toggle`. Place-first ordering — the new order is placed before the old one is cancelled, so the position is never unprotected.
+
+1. Optimistically remove the old order from the store
+2. Call `POST /orders/trail-toggle` with `targetType` set to the opposite type
+3. On success: store already updated (old order removed, SignalR delivers new order)
+4. On error: restore original order in store, show toast
+
+### Backend endpoint
+
+`POST /orders/trail-toggle`
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `accountId` | string | |
+| `orderId` | string | The SL/TrailingStop order to replace |
+| `contractId` | string | |
+| `side` | 0\|1 | Same as existing order |
+| `size` | number | Same as existing order |
+| `stopPrice` | number | Current stop price level |
+| `trailPrice` | number | Required when `targetType=5`. Pass `order.stopPrice` — ProjectX interprets this as the initial trail price level (not a distance). Trail distance = market_price − trailPrice at placement time. Max trail distance = 1000 points. |
+| `targetType` | 4\|5 | 4 = Stop, 5 = TrailingStop |
 
 ### Implementation
 
 **Files:**
+- `backend/src/routes/orderRoutes.ts` — `POST /orders/trail-toggle` handler (done)
+- `backend/src/adapters/types.ts` — `trailPrice` added to `PlaceOrderParams` (done)
 - `frontend/src/components/chart/primitives/PriceLevelPrimitive.ts` — extend `PriceLevelCell` with `hoverText?: string` and `hoverColor?: string`; use `max(text, hoverText)` for cell width so it never shifts on hover; swap to hoverText/hoverColor when `_hoveredKey` matches
 - `frontend/src/components/chart/hooks/buildOrderLabels.ts` — add `trail` cell and `handleTrailToggle` handler on working SL orders; update `setCellOrder` to `['pnl', 'size', 'trail', 'close']`
+- `frontend/src/services/orderService.ts` — add `trailToggle()` method
 
 **No store changes needed** — the toggle acts directly on the live order.
 
@@ -718,5 +737,6 @@ When toggling TrailingStop → Stop, `order.stopPrice` is the last exchange-repo
 | Place order | POST /orders/place | POST /api/Order/place |
 | Cancel order | POST /orders/cancel | POST /api/Order/cancel |
 | Modify order | PATCH /orders/modify | POST /api/Order/modify |
+| Convert SL ↔ TrailingStop | POST /orders/trail-toggle | POST /api/Order/place → POST /api/Order/cancel (place-first) |
 | Open orders (for lines) | Zustand (fed by SignalR) | /hubs/user -> GotOrder |
 | Search open orders | GET /orders/open?accountId= | POST /api/Order/searchOpen |

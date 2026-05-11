@@ -57,6 +57,7 @@ export interface PlaceOrderParams {
   size: number;
   limitPrice?: number;
   stopPrice?: number;
+  trailPrice?: number;
   stopLossBracket?: BracketParam;
   /** Array of TP legs. Adapters convert to exchange-specific format. */
   takeProfitBrackets?: BracketParam[];
