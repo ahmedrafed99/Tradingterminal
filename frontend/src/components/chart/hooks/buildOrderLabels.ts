@@ -324,7 +324,8 @@ export function buildOrderLabels(
       if (!acct) return;
       _trailTogglingIds.add(orderId);
       const targetType = oType === OrderType.Stop ? OrderType.TrailingStop : OrderType.Stop;
-      useStore.getState().removeOrder(orderId);
+      // Keep the label visible during the roundtrip — show new type immediately on same ID.
+      useStore.getState().upsertOrder({ ...order, type: targetType });
       const offsetAtToggle = Math.abs((refs.lastBar.current?.close ?? 0) - price!);
       orderService.trailToggle({
         accountId: acct,
@@ -336,10 +337,17 @@ export function buildOrderLabels(
         trailPrice: targetType === OrderType.TrailingStop ? price! : undefined,
         targetType,
       }).then(({ orderId: newId }) => {
+        const st = useStore.getState();
+        // Swap the optimistic entry (old ID) for the real server order (new ID).
+        st.removeOrder(orderId);
+        if (!st.openOrders.find((o) => o.id === newId)) {
+          st.upsertOrder({ ...order, id: newId, type: targetType });
+        }
         if (targetType === OrderType.TrailingStop) {
-          useStore.getState().setTrailOffset(newId, offsetAtToggle);
+          st.setTrailOffset(newId, offsetAtToggle);
         }
       }).catch((err) => {
+        // Revert the optimistic type change.
         useStore.getState().upsertOrder(order);
         showToast('error', 'Failed to toggle trail', errorMessage(err));
       }).finally(() => {
