@@ -39,6 +39,8 @@ export interface PriceLevelCell {
   fontSize?: number;
   /** When true, hoverText does not contribute to cell width measurement. */
   skipHoverTextSize?: boolean;
+  /** Cell is always at least as wide as this string (measured at render font). */
+  minWidthText?: string;
 }
 
 export type PriceLevelCells = Record<string, PriceLevelCell>;
@@ -553,6 +555,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
       const textMeasure = Math.max(
         ctx.measureText(cell.text).width,
         (!cell.skipHoverTextSize && cell.hoverText) ? ctx.measureText(cell.hoverText).width : 0,
+        cell.minWidthText ? ctx.measureText(cell.minWidthText).width : 0,
       );
       if (cell.fontSize) ctx.font = FONT;
       const mainW = Math.ceil(textMeasure) + mainPad * 2;
@@ -567,7 +570,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     if (this._labelFraction != null) startX = Math.max(4, this._labelFraction * plotWidth - totalNormalW / 2);
     else if (this._labelPos === 'left') startX = 4;
     else if (this._labelPos === 'right') startX = Math.max(4, plotWidth * 0.88 - totalNormalW);
-    else startX = (plotWidth - totalNormalW) / 2;
+    else startX = plotWidth / 2 - totalNormalW;
 
     const top = y - CELL_HEIGHT / 2;
     const rects: CellRect[] = [];

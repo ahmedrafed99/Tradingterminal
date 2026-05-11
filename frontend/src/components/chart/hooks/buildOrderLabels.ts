@@ -355,7 +355,7 @@ export function buildOrderLabels(
       oType === OrderType.Limit &&
       oSide === (pos.type === PositionType.Long ? OrderSide.Sell : OrderSide.Buy);
 
-    primitive.setCell('pnl', { text: initPnlText, bg: initPnlBg, color: contrastText(initPnlBg) });
+    primitive.setCell('pnl', { text: initPnlText, bg: initPnlBg, color: contrastText(initPnlBg), minWidthText: '-100.00 pts' });
     primitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleCancel });
 
     if (isLiveTP) {
