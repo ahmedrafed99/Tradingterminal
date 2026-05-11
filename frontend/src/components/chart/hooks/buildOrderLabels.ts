@@ -7,7 +7,6 @@ import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, contrastText, classifyOrderLine } from './labelUtils';
-import { COLOR_WARNING, COLOR_TEXT_BRIGHT, COLOR_TEXT_DIM } from '../../../constants/colors';
 import { isBracketLegPrice } from '../../../utils/bracketUtils';
 
 // Guard against double-clicks firing two place calls before the optimistic remove re-renders.
@@ -326,15 +325,20 @@ export function buildOrderLabels(
       _trailTogglingIds.add(orderId);
       const targetType = oType === OrderType.Stop ? OrderType.TrailingStop : OrderType.Stop;
       useStore.getState().removeOrder(orderId);
+      const offsetAtToggle = Math.abs((refs.lastBar.current?.close ?? 0) - price!);
       orderService.trailToggle({
         accountId: acct,
         orderId,
         contractId: String(order.contractId),
         side: oSide,
         size: oSize,
-        stopPrice: price,
-        trailPrice: targetType === OrderType.TrailingStop ? price : undefined,
+        stopPrice: price!,
+        trailPrice: targetType === OrderType.TrailingStop ? price! : undefined,
         targetType,
+      }).then(({ orderId: newId }) => {
+        if (targetType === OrderType.TrailingStop) {
+          useStore.getState().setTrailOffset(newId, offsetAtToggle);
+        }
       }).catch((err) => {
         useStore.getState().upsertOrder(order);
         showToast('error', 'Failed to toggle trail', errorMessage(err));
@@ -410,20 +414,44 @@ export function buildOrderLabels(
       });
     }
 
+    const trailArrow = oSide === OrderSide.Sell ? '▲' : '▼';
+    function getTrailText(): string {
+      const offset = useStore.getState().trailOffsets[orderId] ?? 0;
+      return `${trailArrow} ${offset.toFixed(2)}`;
+    }
+
     if (isWorkingSl) {
       const isTrail = oType === OrderType.TrailingStop;
-      primitive.setCell('trail', {
-        text: isTrail ? (oSide === OrderSide.Sell ? '↑' : '↓') : '—',
-        bg: CLOSE_BG,
-        color: isTrail ? COLOR_WARNING : COLOR_TEXT_DIM,
-        hoverText: isTrail ? 'Untrail' : 'Trail',
-        hoverColor: isTrail ? COLOR_TEXT_BRIGHT : COLOR_WARNING,
-        hoverBg: isTrail ? COLOR_WARNING : undefined,
-        onClick: handleTrailToggle,
-      });
-      primitive.setCellOrder(['pnl', 'size', 'trail', 'close']);
+      if (isTrail) {
+        // Seed the store once for orders that were already trailing at session start
+        if (useStore.getState().trailOffsets[orderId] === undefined) {
+          const fallback = roundToTick(Math.abs((refs.lastBar.current?.close ?? 0) - getOrderRefPrice()), contract.tickSize);
+          useStore.getState().setTrailOffset(orderId, fallback);
+        }
+        // Compact always-visible arrow + live offset — clicking converts back to regular Stop
+        primitive.setCell('trail', {
+          text: getTrailText(),
+          bg: initPnlBg,
+          color: contrastText(initPnlBg),
+          hoverText: 'Untrail',
+          onClick: handleTrailToggle,
+        });
+        primitive.setCellOrder(['trail', 'pnl', 'size', 'close']);
+        primitive.setHoverPrefixOrder([]);
+      } else {
+        // "Trail" button hidden at rest, revealed to the left on label hover
+        primitive.setCell('trail', {
+          text: 'Trail',
+          bg: SELL_COLOR,
+          color: SELL_TEXT,
+          onClick: handleTrailToggle,
+        });
+        primitive.setCellOrder(['pnl', 'size', 'close']);
+        primitive.setHoverPrefixOrder(['trail']);
+      }
     } else {
       primitive.setCellOrder(['pnl', 'size', 'close']);
+      primitive.setHoverPrefixOrder([]);
     }
 
     // ── P&L updater ───────────────────────────────────────────────────────
@@ -431,9 +459,18 @@ export function buildOrderLabels(
     if (orderPnlCompute) {
       const compute = orderPnlCompute;
       const capturedPrimitive = primitive;
+      const isTrailOrder = oType === OrderType.TrailingStop;
       pnlUpdaters.push(() => {
         const result = compute();
         capturedPrimitive.setCell('pnl', { text: result.text, bg: result.bg, color: contrastText(result.bg) });
+        if (isTrailOrder) {
+          const isDraggingThis = refs.draggingKey.current === `o:${orderId}`;
+          capturedPrimitive.setCell('trail', {
+            ...(isDraggingThis ? {} : { text: getTrailText() }),
+            bg: result.bg,
+            color: contrastText(result.bg),
+          });
+        }
       });
     }
   }

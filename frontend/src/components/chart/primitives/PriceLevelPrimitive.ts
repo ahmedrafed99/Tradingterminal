@@ -35,6 +35,10 @@ export interface PriceLevelCell {
   rightText?: string;
   rightColor?: string;
   rightClick?: () => void;
+  /** Override font size (px) for this cell's main text only. Defaults to FONT_PX. */
+  fontSize?: number;
+  /** When true, hoverText does not contribute to cell width measurement. */
+  skipHoverTextSize?: boolean;
 }
 
 export type PriceLevelCells = Record<string, PriceLevelCell>;
@@ -60,6 +64,8 @@ export interface PriceLevelPrimitiveOptions {
   onDragEnd?: (newPrice: number) => void;
   /** When false, drag fires callbacks but the line's own price doesn't move (e.g. position line). */
   allowPriceMove?: boolean;
+  /** Cells rendered to the LEFT of the normal label only while any cell is hovered. */
+  hoverPrefixCells?: string[];
 }
 
 type CellKey = string;
@@ -227,8 +233,10 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
         const mainW = r.w - r.leftZoneW - r.rightZoneW;
         const displayText = isHover && c.hoverText != null ? c.hoverText : c.text;
         const displayColor = isHover && c.hoverColor != null ? c.hoverColor : c.color;
+        if (c.fontSize) ctx.font = `bold ${c.fontSize}px ${FONT_FAMILY}`;
         ctx.fillStyle = displayColor;
         ctx.fillText(displayText, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+        if (c.fontSize) ctx.font = FONT;
 
         // Right zone
         if (r.rightZoneW > 0) {
@@ -330,6 +338,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _onDrag?: (price: number) => void;
   private _onDragEnd?: (price: number) => void;
   private _allowPriceMove: boolean;
+  private _hoverPrefixOrder: string[] = [];
 
   private _coordinator: IAxisCoordinator | null = null;
   private _coordinatorId = '';
@@ -369,6 +378,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._onDrag = opts.onDrag;
     this._onDragEnd = opts.onDragEnd;
     this._allowPriceMove = opts.allowPriceMove ?? true;
+    this._hoverPrefixOrder = opts.hoverPrefixCells ?? [];
   }
 
   // ── Lifecycle ──
@@ -484,6 +494,11 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  setHoverPrefixOrder(order: string[]): void {
+    this._hoverPrefixOrder = order;
+    this._requestUpdate?.();
+  }
+
   // ── ISeriesPrimitive ──
   paneViews(): readonly IPrimitivePaneView[] {
     if (!this.visible || !this._series || !this._chart) return [];
@@ -523,37 +538,53 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     const ctx = _measureCtx();
     ctx.font = FONT;
     const ZONE_PAD = 4;
-    const items = this._cellOrder.map((key) => {
+
+    const measureItem = (key: string) => {
       const cell = this._cells[key];
       const hasLeft = cell.leftText != null;
       const hasRight = cell.rightText != null;
-      // Measure each zone independently
       const leftRaw = hasLeft ? Math.ceil(ctx.measureText(cell.leftText!).width) + ZONE_PAD * 2 : 0;
       const rightRaw = hasRight ? Math.ceil(ctx.measureText(cell.rightText!).width) + ZONE_PAD * 2 : 0;
-      // When both zones exist, use the same width for each so the digit stays centred
       const symW = (hasLeft && hasRight) ? Math.max(leftRaw, rightRaw) : 0;
       const leftZoneW = hasLeft ? (symW || leftRaw) : 0;
       const rightZoneW = hasRight ? (symW || rightRaw) : 0;
       const mainPad = (hasLeft || hasRight) ? 4 : CELL_PAD_H;
+      if (cell.fontSize) ctx.font = `bold ${cell.fontSize}px ${FONT_FAMILY}`;
       const textMeasure = Math.max(
         ctx.measureText(cell.text).width,
-        cell.hoverText ? ctx.measureText(cell.hoverText).width : 0,
+        (!cell.skipHoverTextSize && cell.hoverText) ? ctx.measureText(cell.hoverText).width : 0,
       );
+      if (cell.fontSize) ctx.font = FONT;
       const mainW = Math.ceil(textMeasure) + mainPad * 2;
       return { key, w: mainW + leftZoneW + rightZoneW, leftZoneW, rightZoneW };
-    });
-    const totalW = items.reduce((a, b) => a + b.w, 0);
+    };
 
+    const normalItems = this._cellOrder.map(measureItem);
+    const totalNormalW = normalItems.reduce((a, b) => a + b.w, 0);
+
+    // startX is always anchored to the normal cells so they never shift on hover
     let startX: number;
-    if (this._labelFraction != null) startX = Math.max(4, this._labelFraction * plotWidth - totalW / 2);
+    if (this._labelFraction != null) startX = Math.max(4, this._labelFraction * plotWidth - totalNormalW / 2);
     else if (this._labelPos === 'left') startX = 4;
-    else if (this._labelPos === 'right') startX = Math.max(4, plotWidth * 0.88 - totalW);
-    else startX = (plotWidth - totalW) / 2;
+    else if (this._labelPos === 'right') startX = Math.max(4, plotWidth * 0.88 - totalNormalW);
+    else startX = (plotWidth - totalNormalW) / 2;
 
     const top = y - CELL_HEIGHT / 2;
     const rects: CellRect[] = [];
+
+    // Prefix cells grow to the LEFT of startX when any cell is hovered
+    if (this._hoveredKey !== null && this._hoverPrefixOrder.length > 0) {
+      const prefixItems = this._hoverPrefixOrder.map(measureItem);
+      const totalPrefixW = prefixItems.reduce((a, b) => a + b.w, 0);
+      let px = startX - totalPrefixW;
+      for (const item of prefixItems) {
+        rects.push({ key: item.key, x: px, y: top, w: item.w, h: CELL_HEIGHT, leftZoneW: item.leftZoneW, rightZoneW: item.rightZoneW });
+        px += item.w;
+      }
+    }
+
     let x = startX;
-    for (const item of items) {
+    for (const item of normalItems) {
       rects.push({ key: item.key, x, y: top, w: item.w, h: CELL_HEIGHT, leftZoneW: item.leftZoneW, rightZoneW: item.rightZoneW });
       x += item.w;
     }

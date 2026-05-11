@@ -5,7 +5,7 @@ import { useStore } from '../../../store/useStore';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../../types/enums';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import type { PriceLevelCell } from '../primitives/PriceLevelPrimitive';
-import { calcPnl, pointsToPrice } from '../../../utils/instrument';
+import { calcPnl, pointsToPrice, roundToTick } from '../../../utils/instrument';
 import { COLOR_LABEL_BG, COLOR_TEXT_MUTED } from '../../../constants/colors';
 import { classifyOrderLine, BUY_COLOR, SELL_COLOR, LABEL_TEXT, LABEL_BG, CLOSE_BG } from './labelUtils';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
@@ -116,6 +116,14 @@ function buildDragCallbacks(
       (p) => p.accountId === st.activeAccountId
         && String(p.contractId) === String(contract.id) && p.size > 0,
     );
+
+    // Live trail offset preview during drag
+    if (meta.kind === 'order' && meta.order.type === OrderType.TrailingStop) {
+      const marketPrice = refs.lastBar.current?.close ?? 0;
+      const offset = roundToTick(Math.abs(marketPrice - snapped), contract.tickSize);
+      const arrow = meta.order.side === OrderSide.Sell ? '▲' : '▼';
+      entry.line.setCell('trail', { text: `${arrow} ${offset.toFixed(2)}` });
+    }
 
     // Update color relative to position
     if (pos && meta.kind === 'order') {
@@ -285,6 +293,8 @@ function buildDragCallbacks(
       params.stopPrice = snapped;
     } else if (order.type === OrderType.TrailingStop) {
       params.trailPrice = snapped;
+      const marketPrice = refs.lastBar.current?.close ?? 0;
+      useStore.getState().setTrailOffset(order.id, Math.abs(marketPrice - snapped));
     } else if (order.type === OrderType.Limit) {
       params.limitPrice = snapped;
     }

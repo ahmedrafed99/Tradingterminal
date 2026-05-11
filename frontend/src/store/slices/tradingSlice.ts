@@ -11,6 +11,9 @@ export interface OrdersState {
   setOpenOrders: (orders: Order[]) => void;
   upsertOrder: (order: Order) => void;
   removeOrder: (orderId: string) => void;
+  trailOffsets: Record<string, number>;
+  setTrailOffset: (orderId: string, offset: number) => void;
+  clearTrailOffset: (orderId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +94,15 @@ type Set = {
 export const createTradingSlice = (set: Set): TradingSlice => ({
   // Orders
   openOrders: [],
+  trailOffsets: {},
+  setTrailOffset: (orderId, offset) =>
+    set((s) => ({ trailOffsets: { ...s.trailOffsets, [orderId]: offset } })),
+  clearTrailOffset: (orderId) =>
+    set((s) => {
+      const next = { ...s.trailOffsets };
+      delete next[orderId];
+      return { trailOffsets: next };
+    }),
   setOpenOrders: (openOrders) => set({ openOrders }),
   upsertOrder: (order) =>
     set((s) => {
@@ -130,7 +142,11 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
       return { openOrders: updated };
     }),
   removeOrder: (orderId) =>
-    set((s) => ({ openOrders: s.openOrders.filter((o) => o.id !== orderId) })),
+    set((s) => {
+      const trailOffsets = { ...s.trailOffsets };
+      delete trailOffsets[orderId];
+      return { openOrders: s.openOrders.filter((o) => o.id !== orderId), trailOffsets };
+    }),
 
   // Positions
   positions: [],
