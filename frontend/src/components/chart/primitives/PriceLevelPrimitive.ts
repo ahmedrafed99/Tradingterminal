@@ -151,11 +151,17 @@ function brighten(color: string, factor = 1.25): string {
 // ── Renderer ─────────────────────────────────────────────────────────
 const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
 
-function drawCellIcon(ctx: CanvasRenderingContext2D, icon: 'arrow-up' | 'arrow-down', cx: number, cy: number, color: string): void {
+interface CellAnimation {
+  startMs: number;
+  duration: number;
+  flashColor: string;
+}
+
+function drawCellIcon(ctx: CanvasRenderingContext2D, icon: 'arrow-up' | 'arrow-down', cx: number, cy: number, color: string, scale = 1): void {
   // Stroke-based arrow: shaft + open chevron head (matches SVG arrow style)
-  const shaftH = 8;   // length of the shaft
-  const wingL = 3;    // length of each chevron wing (horizontal offset)
-  const wingH = 3;    // height of each chevron wing (vertical offset)
+  const shaftH = 8 * scale;
+  const wingL = 3 * scale;
+  const wingH = 3 * scale;
   ctx.save();
   ctx.strokeStyle = color;
   ctx.lineWidth = 1.5;
@@ -193,6 +199,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
   private _cells: PriceLevelCells;
   private _hoveredKey: CellKey | null;
   private _hoveredZone: 'left' | 'right' | null;
+  private _cellAnimations: Map<string, CellAnimation>;
 
   constructor(
     y: number | null,
@@ -204,6 +211,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
     cells: PriceLevelCells,
     hoveredKey: CellKey | null,
     hoveredZone: 'left' | 'right' | null,
+    cellAnimations: Map<string, CellAnimation>,
   ) {
     this._y = y;
     this._plotWidth = plotWidth;
@@ -214,6 +222,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
     this._cells = cells;
     this._hoveredKey = hoveredKey;
     this._hoveredZone = hoveredZone;
+    this._cellAnimations = cellAnimations;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -238,14 +247,31 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
       ctx.font = FONT;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
+      const now = performance.now();
       for (let i = 0; i < this._cellRects.length; i++) {
         const r = this._cellRects[i];
         const c = this._cells[r.key];
         const isHover = r.key === this._hoveredKey;
         const bg = isHover ? (c.hoverBg ?? brighten(c.bg, 1.25)) : c.bg;
 
+        // Animation state for this cell
+        const anim = this._cellAnimations.get(r.key);
+        let animEased = 1;
+        if (anim) {
+          const t = Math.min(1, (now - anim.startMs) / anim.duration);
+          animEased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        }
+
         ctx.fillStyle = bg;
         ctx.fillRect(r.x, r.y, r.w, r.h);
+
+        // Flash overlay: fades from flashColor → transparent as animation progresses
+        if (anim && animEased < 1) {
+          ctx.globalAlpha = (1 - animEased) * 0.55;
+          ctx.fillStyle = anim.flashColor;
+          ctx.fillRect(r.x, r.y, r.w, r.h);
+          ctx.globalAlpha = 1;
+        }
 
         if (i > 0) {
           ctx.fillStyle = COLOR_LABEL_TEXT;
@@ -271,13 +297,14 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
         const displayText = isHover && c.hoverText != null ? c.hoverText : c.text;
         const displayColor = isHover && c.hoverColor != null ? c.hoverColor : c.color;
         const showIcon = c.icon != null && !(isHover && c.hoverText != null);
+        const arrowScale = anim ? (1 + 0.6 * (1 - animEased)) : 1; // 1.6× → 1.0×
         if (c.fontSize) ctx.font = `bold ${c.fontSize}px ${FONT_FAMILY}`;
         ctx.fillStyle = displayColor;
         if (showIcon) {
           const textW = ctx.measureText(displayText).width;
           const contentW = ICON_SLOT + textW;
           const contentStart = mainLeft + (mainW - contentW) / 2;
-          drawCellIcon(ctx, c.icon!, contentStart + ICON_SLOT / 2 - 1, r.y + r.h / 2, displayColor);
+          drawCellIcon(ctx, c.icon!, contentStart + ICON_SLOT / 2 - 1, r.y + r.h / 2, displayColor, arrowScale);
           ctx.textAlign = 'left';
           ctx.fillText(displayText, contentStart + ICON_SLOT, r.y + r.h / 2 + 0.5);
           ctx.textAlign = 'center';
@@ -315,6 +342,7 @@ class PriceLevelPaneView implements IPrimitivePaneView {
   private _cells!: PriceLevelCells;
   private _hoveredKey: CellKey | null = null;
   private _hoveredZone: 'left' | 'right' | null = null;
+  private _cellAnimations: Map<string, CellAnimation> = new Map();
 
   update(
     y: number | null,
@@ -326,6 +354,7 @@ class PriceLevelPaneView implements IPrimitivePaneView {
     cells: PriceLevelCells,
     hoveredKey: CellKey | null,
     hoveredZone: 'left' | 'right' | null,
+    cellAnimations: Map<string, CellAnimation>,
   ): void {
     this._y = y;
     this._plotWidth = plotWidth;
@@ -336,12 +365,13 @@ class PriceLevelPaneView implements IPrimitivePaneView {
     this._cells = cells;
     this._hoveredKey = hoveredKey;
     this._hoveredZone = hoveredZone;
+    this._cellAnimations = cellAnimations;
   }
 
   renderer(): IPrimitivePaneRenderer {
     return new PriceLevelRenderer(
       this._y, this._plotWidth, this._lineColor, this._lineWidth, this._lineStyle,
-      this._cellRects, this._cells, this._hoveredKey, this._hoveredZone,
+      this._cellRects, this._cells, this._hoveredKey, this._hoveredZone, this._cellAnimations,
     );
   }
 
@@ -405,6 +435,10 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _dragCellKey: CellKey | null = null;
   private _cachedRect: DOMRect | null = null;
 
+  // Animation state
+  private _cellAnimations = new Map<string, CellAnimation>();
+  private _animRafId: number | null = null;
+
   /** When false, paneViews() returns empty — used to exclude lines from screenshots */
   visible = true;
 
@@ -442,6 +476,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._removeListeners();
     if (this._cursorActive) { removeCursorOverride(); this._cursorActive = false; }
     this._removeWindowListeners();
+    if (this._animRafId !== null) { cancelAnimationFrame(this._animRafId); this._animRafId = null; }
     this._series = null;
     this._chart = null;
     this._chartEl = null;
@@ -547,6 +582,31 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  triggerCellAnimation(key: string, flashColor: string, duration = 650): void {
+    this._cellAnimations.set(key, { startMs: performance.now(), duration, flashColor });
+    this._startAnimLoop();
+  }
+
+  private _startAnimLoop(): void {
+    if (this._animRafId !== null) return;
+    const tick = () => {
+      this._requestUpdate?.();
+      const now = performance.now();
+      let anyActive = false;
+      for (const [, a] of this._cellAnimations) {
+        if (now - a.startMs < a.duration) { anyActive = true; break; }
+      }
+      if (anyActive) {
+        this._animRafId = requestAnimationFrame(tick);
+      } else {
+        this._cellAnimations.clear();
+        this._animRafId = null;
+        this._requestUpdate?.();
+      }
+    };
+    this._animRafId = requestAnimationFrame(tick);
+  }
+
   // ── ISeriesPrimitive ──
   paneViews(): readonly IPrimitivePaneView[] {
     if (!this.visible || !this._series || !this._chart) return [];
@@ -562,6 +622,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._paneView.update(
       y, plotWidth, this._lineColor, this._lineWidth, this._lineStyle,
       this._cellRects, this._cells, this._hoveredKey, this._hoveredZone,
+      this._cellAnimations,
     );
     return this._paneViewsArr;
   }

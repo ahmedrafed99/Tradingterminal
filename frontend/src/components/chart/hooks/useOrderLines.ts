@@ -6,7 +6,7 @@ import { OrderType, OrderSide, OrderStatus, PositionType } from '../../../types/
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import type { PriceLevelCell } from '../primitives/PriceLevelPrimitive';
 import { calcPnl, pointsToPrice, roundToTick } from '../../../utils/instrument';
-import { COLOR_LABEL_BG, COLOR_TEXT_MUTED } from '../../../constants/colors';
+import { COLOR_LABEL_BG, COLOR_TEXT_MUTED, COLOR_ACCENT } from '../../../constants/colors';
 import { classifyOrderLine, BUY_COLOR, SELL_COLOR, LABEL_TEXT, LABEL_BG, CLOSE_BG } from './labelUtils';
 import { resolvePreviewConfig } from './resolvePreviewConfig';
 import { orderService } from '../../../services/orderService';
@@ -687,8 +687,12 @@ function reconcileOrderEntries(
 
     if (existing) {
       if (!isDragging) {
+        const priceChanged = d.price !== existing.price;
         existing.line.setPrice(d.price);
         existing.price = d.price;
+        if (priceChanged && d.meta.kind === 'order' && d.meta.order.type === OrderType.TrailingStop) {
+          existing.line.triggerCellAnimation('trail', COLOR_ACCENT);
+        }
       }
       existing.line.setLineColor(d.color);
       existing.line.setLineStyle(d.lineStyle);

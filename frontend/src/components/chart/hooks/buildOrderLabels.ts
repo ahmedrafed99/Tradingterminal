@@ -433,6 +433,7 @@ export function buildOrderLabels(
       const isTrail = oType === OrderType.TrailingStop;
       if (isTrail) {
         // Seed the store once for orders that were already trailing at session start
+        // Seed the store once for orders that were already trailing at session start
         if (useStore.getState().trailOffsets[orderId] === undefined) {
           const fallback = roundToTick(Math.abs((refs.lastBar.current?.close ?? 0) - getOrderRefPrice()), contract.tickSize);
           useStore.getState().setTrailOffset(orderId, fallback);
