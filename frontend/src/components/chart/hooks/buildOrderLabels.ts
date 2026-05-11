@@ -6,7 +6,8 @@ import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/
 import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, BUY_HOVER, SELL_HOVER, contrastText, classifyOrderLine } from './labelUtils';
+import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, contrastText, classifyOrderLine } from './labelUtils';
+import { COLOR_ACCENT, COLOR_TEXT_BRIGHT, COLOR_TRAIL_HOVER } from '../../../constants/colors';
 import { isBracketLegPrice } from '../../../utils/bracketUtils';
 
 // Guard against double-clicks firing two place calls before the optimistic remove re-renders.
@@ -439,9 +440,9 @@ export function buildOrderLabels(
         // Compact always-visible arrow + live offset — clicking converts back to regular Stop
         primitive.setCell('trail', {
           text: getTrailText(),
-          bg: initPnlBg,
-          color: contrastText(initPnlBg),
-          hoverBg: initPnlBg === BUY_COLOR ? BUY_HOVER : SELL_HOVER,
+          bg: COLOR_TEXT_BRIGHT,
+          color: COLOR_ACCENT,
+          hoverBg: COLOR_TRAIL_HOVER,
           hoverText: 'Untrail',
           onClick: handleTrailToggle,
         });
@@ -451,9 +452,9 @@ export function buildOrderLabels(
         // "Trail" button hidden at rest, revealed to the left on label hover
         primitive.setCell('trail', {
           text: 'Trail',
-          bg: SELL_COLOR,
-          color: SELL_TEXT,
-          hoverBg: SELL_HOVER,
+          bg: COLOR_TEXT_BRIGHT,
+          color: COLOR_ACCENT,
+          hoverBg: COLOR_TRAIL_HOVER,
           onClick: handleTrailToggle,
         });
         primitive.setCellOrder(['pnl', 'size', 'close']);
@@ -477,9 +478,9 @@ export function buildOrderLabels(
           const isDraggingThis = refs.draggingKey.current === `o:${orderId}`;
           capturedPrimitive.setCell('trail', {
             ...(isDraggingThis ? {} : { text: getTrailText() }),
-            bg: result.bg,
-            hoverBg: result.bg === BUY_COLOR ? BUY_HOVER : SELL_HOVER,
-            color: contrastText(result.bg),
+            bg: COLOR_TEXT_BRIGHT,
+            hoverBg: COLOR_TRAIL_HOVER,
+            color: COLOR_ACCENT,
           });
         }
       });
