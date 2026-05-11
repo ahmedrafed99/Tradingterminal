@@ -7,7 +7,11 @@ import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, contrastText, classifyOrderLine } from './labelUtils';
+import { COLOR_WARNING, COLOR_TEXT_BRIGHT, COLOR_TEXT_DIM } from '../../../constants/colors';
 import { isBracketLegPrice } from '../../../utils/bracketUtils';
+
+// Guard against double-clicks firing two place calls before the optimistic remove re-renders.
+const _trailTogglingIds = new Set<string>();
 
 interface Position {
   accountId: string;
@@ -311,6 +315,34 @@ export function buildOrderLabels(
       }
     }
 
+    // ── Trail toggle (working Stop ↔ TrailingStop only) ───────────────────
+
+    const isWorkingSl = !isSuspended && (oType === OrderType.Stop || oType === OrderType.TrailingStop);
+
+    function handleTrailToggle(): void {
+      if (_trailTogglingIds.has(orderId)) return;
+      const acct = useStore.getState().activeAccountId;
+      if (!acct) return;
+      _trailTogglingIds.add(orderId);
+      const targetType = oType === OrderType.Stop ? OrderType.TrailingStop : OrderType.Stop;
+      useStore.getState().removeOrder(orderId);
+      orderService.trailToggle({
+        accountId: acct,
+        orderId,
+        contractId: String(order.contractId),
+        side: oSide,
+        size: oSize,
+        stopPrice: price,
+        trailPrice: targetType === OrderType.TrailingStop ? price : undefined,
+        targetType,
+      }).catch((err) => {
+        useStore.getState().upsertOrder(order);
+        showToast('error', 'Failed to toggle trail', errorMessage(err));
+      }).finally(() => {
+        _trailTogglingIds.delete(orderId);
+      });
+    }
+
     // ── TP size redistribution cells ──────────────────────────────────────
 
     const isLiveTP =
@@ -377,7 +409,22 @@ export function buildOrderLabels(
         rightClick: undefined,
       });
     }
-    primitive.setCellOrder(['pnl', 'size', 'close']);
+
+    if (isWorkingSl) {
+      const isTrail = oType === OrderType.TrailingStop;
+      primitive.setCell('trail', {
+        text: isTrail ? (oSide === OrderSide.Sell ? '↑' : '↓') : '—',
+        bg: CLOSE_BG,
+        color: isTrail ? COLOR_WARNING : COLOR_TEXT_DIM,
+        hoverText: isTrail ? 'Untrail' : 'Trail',
+        hoverColor: isTrail ? COLOR_TEXT_BRIGHT : COLOR_WARNING,
+        hoverBg: isTrail ? COLOR_WARNING : undefined,
+        onClick: handleTrailToggle,
+      });
+      primitive.setCellOrder(['pnl', 'size', 'trail', 'close']);
+    } else {
+      primitive.setCellOrder(['pnl', 'size', 'close']);
+    }
 
     // ── P&L updater ───────────────────────────────────────────────────────
 

@@ -26,6 +26,8 @@ export interface PriceLevelCell {
   bg: string;
   color: string;
   hoverBg?: string;
+  hoverText?: string;
+  hoverColor?: string;
   onClick?: () => void;
   leftText?: string;
   leftColor?: string;
@@ -223,8 +225,10 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
         // Main text centered between zones
         const mainLeft = r.x + r.leftZoneW;
         const mainW = r.w - r.leftZoneW - r.rightZoneW;
-        ctx.fillStyle = c.color;
-        ctx.fillText(c.text, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+        const displayText = isHover && c.hoverText != null ? c.hoverText : c.text;
+        const displayColor = isHover && c.hoverColor != null ? c.hoverColor : c.color;
+        ctx.fillStyle = displayColor;
+        ctx.fillText(displayText, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
 
         // Right zone
         if (r.rightZoneW > 0) {
@@ -531,7 +535,11 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
       const leftZoneW = hasLeft ? (symW || leftRaw) : 0;
       const rightZoneW = hasRight ? (symW || rightRaw) : 0;
       const mainPad = (hasLeft || hasRight) ? 4 : CELL_PAD_H;
-      const mainW = Math.ceil(ctx.measureText(cell.text).width) + mainPad * 2;
+      const textMeasure = Math.max(
+        ctx.measureText(cell.text).width,
+        cell.hoverText ? ctx.measureText(cell.hoverText).width : 0,
+      );
+      const mainW = Math.ceil(textMeasure) + mainPad * 2;
       return { key, w: mainW + leftZoneW + rightZoneW, leftZoneW, rightZoneW };
     });
     const totalW = items.reduce((a, b) => a + b.w, 0);

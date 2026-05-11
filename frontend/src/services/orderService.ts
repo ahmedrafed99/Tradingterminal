@@ -43,6 +43,17 @@ export interface ModifyOrderParams {
   trailPrice?: number;
 }
 
+export interface TrailToggleParams {
+  accountId: string;
+  orderId: string;
+  contractId: string;
+  side: OrderSide;
+  size: number;
+  stopPrice: number;
+  trailPrice?: number;
+  targetType: OrderType.Stop | OrderType.TrailingStop;
+}
+
 interface GatewayResponse {
   success: boolean;
   errorMessage?: string;
@@ -94,6 +105,18 @@ export const orderService = {
       copyTracker.onModifyOrder(params.accountId, params.orderId, params);
     } catch (e) { ok = false; throw e; }
     finally { metricCollector.onApiCall('PATCH', '/orders/modify', performance.now() - t, ok); }
+  },
+
+  async trailToggle(params: TrailToggleParams): Promise<{ orderId: string }> {
+    const t = performance.now();
+    let ok = true;
+    try {
+      // No retryAsync — place-first ordering means a timeout retry could land two new orders.
+      const res = await api.post<GatewayResponse & { orderId: number | string }>('/orders/trail-toggle', params);
+      assertSuccess(res.data);
+      return { orderId: String(res.data.orderId) };
+    } catch (e) { ok = false; throw e; }
+    finally { metricCollector.onApiCall('POST', '/orders/trail-toggle', performance.now() - t, ok); }
   },
 
   async searchOpenOrders(accountId: string): Promise<Order[]> {
