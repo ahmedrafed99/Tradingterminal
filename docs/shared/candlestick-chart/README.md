@@ -304,6 +304,7 @@ Contract ID format: `CON.F.US.<PRODUCT>.<MONTH><YY>` (e.g. `CON.F.US.ENQ.M26`).
   dependency (e.g. `useConditionPreview`, `useConditionLinesSync`) to re-run
   and destroy/recreate state — most visibly, condition preview lines snapping
   back to their default positions during drag.
+- **Go to date/time** (time scale right-click → "Go to…"): `ChartTimeScaleContextMenu` opens `GoToModal` (date picker + time input in NY timezone). On confirm, `goToTime()` in `CandlestickChart` re-enables `autoScale` on the right price scale, then calls `ts.setVisibleRange()` centered on the target timestamp (±half the current visible window). Re-enabling `autoScale` first is required — after initial bar load `autoScale` is disabled so users can drag vertically immediately, but without re-enabling it `setVisibleRange` only moves horizontally and the candles are off-screen. A `GoToMarkerPrimitive` renders a marker at the target time and is dismissed on the next chart click.
 - **Background-tab candle backfill**: When the browser tab is backgrounded,
   `requestAnimationFrame` is throttled (≤1 fps) or paused entirely.
   `handleQuote()` now synchronously flushes the previous `pendingBar` to the

@@ -371,6 +371,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
       ? (range.to as number) - (range.from as number)
       : 3600;
     const half = Math.floor(windowSec / 2);
+    chart.priceScale('right').applyOptions({ autoScale: true });
     ts.setVisibleRange({
       from: (utcSeconds - half) as UTCTimestamp,
       to: (utcSeconds + half) as UTCTimestamp,
