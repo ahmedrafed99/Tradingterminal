@@ -277,12 +277,14 @@ function buildDragCallbacks(
       }
     }
 
-    const params: { accountId: string; orderId: string; stopPrice?: number; limitPrice?: number } = {
+    const params: { accountId: string; orderId: string; stopPrice?: number; limitPrice?: number; trailPrice?: number } = {
       accountId,
       orderId: order.id,
     };
-    if (order.type === OrderType.Stop || order.type === OrderType.TrailingStop) {
+    if (order.type === OrderType.Stop) {
       params.stopPrice = snapped;
+    } else if (order.type === OrderType.TrailingStop) {
+      params.trailPrice = snapped;
     } else if (order.type === OrderType.Limit) {
       params.limitPrice = snapped;
     }
