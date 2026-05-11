@@ -6,7 +6,7 @@ import { OrderType, OrderSide, PositionType, OrderStatus } from '../../../types/
 import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, contrastText, classifyOrderLine } from './labelUtils';
+import { LABEL_TEXT, LABEL_BG, CLOSE_BG, BUY_COLOR, SELL_COLOR, SELL_TEXT, BUY_TEXT, BUY_HOVER, SELL_HOVER, contrastText, classifyOrderLine } from './labelUtils';
 import { isBracketLegPrice } from '../../../utils/bracketUtils';
 
 // Guard against double-clicks firing two place calls before the optimistic remove re-renders.
@@ -433,6 +433,7 @@ export function buildOrderLabels(
           text: getTrailText(),
           bg: initPnlBg,
           color: contrastText(initPnlBg),
+          hoverBg: initPnlBg === BUY_COLOR ? BUY_HOVER : SELL_HOVER,
           hoverText: 'Untrail',
           onClick: handleTrailToggle,
         });
@@ -444,6 +445,7 @@ export function buildOrderLabels(
           text: 'Trail',
           bg: SELL_COLOR,
           color: SELL_TEXT,
+          hoverBg: SELL_HOVER,
           onClick: handleTrailToggle,
         });
         primitive.setCellOrder(['pnl', 'size', 'close']);
@@ -468,6 +470,7 @@ export function buildOrderLabels(
           capturedPrimitive.setCell('trail', {
             ...(isDraggingThis ? {} : { text: getTrailText() }),
             bg: result.bg,
+            hoverBg: result.bg === BUY_COLOR ? BUY_HOVER : SELL_HOVER,
             color: contrastText(result.bg),
           });
         }
