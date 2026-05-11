@@ -423,10 +423,10 @@ export function buildOrderLabels(
       });
     }
 
-    const trailArrow = oSide === OrderSide.Sell ? '▲' : '▼';
+    const trailIcon = oSide === OrderSide.Sell ? 'arrow-up' as const : 'arrow-down' as const;
     function getTrailText(): string {
       const offset = useStore.getState().trailOffsets[orderId] ?? 0;
-      return `${trailArrow} ${offset.toFixed(2)}`;
+      return offset.toFixed(2);
     }
 
     if (isWorkingSl) {
@@ -440,6 +440,7 @@ export function buildOrderLabels(
         // Compact always-visible arrow + live offset — clicking converts back to regular Stop
         primitive.setCell('trail', {
           text: getTrailText(),
+          icon: trailIcon,
           bg: COLOR_TEXT_BRIGHT,
           color: COLOR_ACCENT,
           hoverBg: COLOR_TRAIL_HOVER,

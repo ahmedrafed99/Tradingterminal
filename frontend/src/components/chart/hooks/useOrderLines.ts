@@ -121,8 +121,7 @@ function buildDragCallbacks(
     if (meta.kind === 'order' && meta.order.type === OrderType.TrailingStop) {
       const marketPrice = refs.lastBar.current?.close ?? 0;
       const offset = roundToTick(Math.abs(marketPrice - snapped), contract.tickSize);
-      const arrow = meta.order.side === OrderSide.Sell ? '▲' : '▼';
-      entry.line.setCell('trail', { text: `${arrow} ${offset.toFixed(2)}` });
+      entry.line.setCell('trail', { text: offset.toFixed(2) });
     }
 
     // Update color relative to position

@@ -41,6 +41,8 @@ export interface PriceLevelCell {
   skipHoverTextSize?: boolean;
   /** Cell is always at least as wide as this string (measured at render font). */
   minWidthText?: string;
+  /** Draws a canvas arrow icon to the left of the text. Hidden when hoverText is showing. */
+  icon?: 'arrow-up' | 'arrow-down';
 }
 
 export type PriceLevelCells = Record<string, PriceLevelCell>;
@@ -87,6 +89,7 @@ const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
 const FONT = `bold ${FONT_PX}px ${FONT_FAMILY}`;
+const ICON_SLOT = 11; // px reserved for arrow icon + gap
 
 // Cursor override (single style tag, shared across all primitive instances)
 const CURSOR_STYLE_ID = 'pricelevel-primitive-cursor-style';
@@ -147,6 +150,38 @@ function brighten(color: string, factor = 1.25): string {
 
 // ── Renderer ─────────────────────────────────────────────────────────
 const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
+
+function drawCellIcon(ctx: CanvasRenderingContext2D, icon: 'arrow-up' | 'arrow-down', cx: number, cy: number, color: string): void {
+  // Stroke-based arrow: shaft + open chevron head (matches SVG arrow style)
+  const shaftH = 8;   // length of the shaft
+  const wingL = 3;    // length of each chevron wing (horizontal offset)
+  const wingH = 3;    // height of each chevron wing (vertical offset)
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (icon === 'arrow-up') {
+    const tip = cy - shaftH / 2;
+    const base = cy + shaftH / 2;
+    ctx.moveTo(cx, base);
+    ctx.lineTo(cx, tip);
+    ctx.moveTo(cx - wingL, tip + wingH);
+    ctx.lineTo(cx, tip);
+    ctx.lineTo(cx + wingL, tip + wingH);
+  } else {
+    const tip = cy + shaftH / 2;
+    const base = cy - shaftH / 2;
+    ctx.moveTo(cx, base);
+    ctx.lineTo(cx, tip);
+    ctx.moveTo(cx - wingL, tip - wingH);
+    ctx.lineTo(cx, tip);
+    ctx.lineTo(cx + wingL, tip - wingH);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
 
 class PriceLevelRenderer implements IPrimitivePaneRenderer {
   private _y: number | null;
@@ -230,14 +265,25 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
           if (zoneHot) ctx.font = FONT;
         }
 
-        // Main text centered between zones
+        // Main text (+ optional icon) centered between zones
         const mainLeft = r.x + r.leftZoneW;
         const mainW = r.w - r.leftZoneW - r.rightZoneW;
         const displayText = isHover && c.hoverText != null ? c.hoverText : c.text;
         const displayColor = isHover && c.hoverColor != null ? c.hoverColor : c.color;
+        const showIcon = c.icon != null && !(isHover && c.hoverText != null);
         if (c.fontSize) ctx.font = `bold ${c.fontSize}px ${FONT_FAMILY}`;
         ctx.fillStyle = displayColor;
-        ctx.fillText(displayText, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+        if (showIcon) {
+          const textW = ctx.measureText(displayText).width;
+          const contentW = ICON_SLOT + textW;
+          const contentStart = mainLeft + (mainW - contentW) / 2;
+          drawCellIcon(ctx, c.icon!, contentStart + ICON_SLOT / 2 - 1, r.y + r.h / 2, displayColor);
+          ctx.textAlign = 'left';
+          ctx.fillText(displayText, contentStart + ICON_SLOT, r.y + r.h / 2 + 0.5);
+          ctx.textAlign = 'center';
+        } else {
+          ctx.fillText(displayText, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+        }
         if (c.fontSize) ctx.font = FONT;
 
         // Right zone
@@ -552,10 +598,11 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
       const rightZoneW = hasRight ? (symW || rightRaw) : 0;
       const mainPad = (hasLeft || hasRight) ? 4 : CELL_PAD_H;
       if (cell.fontSize) ctx.font = `bold ${cell.fontSize}px ${FONT_FAMILY}`;
+      const iconSlot = cell.icon ? ICON_SLOT : 0;
       const textMeasure = Math.max(
-        ctx.measureText(cell.text).width,
+        ctx.measureText(cell.text).width + iconSlot,
         (!cell.skipHoverTextSize && cell.hoverText) ? ctx.measureText(cell.hoverText).width : 0,
-        cell.minWidthText ? ctx.measureText(cell.minWidthText).width : 0,
+        cell.minWidthText ? (ctx.measureText(cell.minWidthText).width + iconSlot) : 0,
       );
       if (cell.fontSize) ctx.font = FONT;
       const mainW = Math.ceil(textMeasure) + mainPad * 2;
