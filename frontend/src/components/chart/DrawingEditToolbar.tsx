@@ -1102,6 +1102,12 @@ export function DrawingEditToolbar({
   const removeDrawing = useStore((s) => s.removeDrawing);
   const removeDrawings = useStore((s) => s.removeDrawings);
   const setSelectedDrawingIds = useStore((s) => s.setSelectedDrawingIds);
+  const contract = useStore((s) => {
+    if (s.contract?.id === contractId) return s.contract;
+    if (s.secondContract?.id === contractId) return s.secondContract;
+    return null;
+  });
+  const autoTickSize = contract?.tickSize ?? 0.25;
 
   const [showColor, setShowColor] = useState(false);
   const [showFillColor, setShowFillColor] = useState(false);
@@ -1111,15 +1117,23 @@ export function DrawingEditToolbar({
   const [showPocColor, setShowPocColor] = useState(false);
   const [frvpTab, setFrvpTab] = useState<'input' | 'style' | null>(null);
   const [showRectSettings, setShowRectSettings] = useState(false);
+  const [showFrvpModeDD, setShowFrvpModeDD] = useState(false);
+  const [showFrvpRowDD, setShowFrvpRowDD] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const frvpModeRef = useRef<HTMLDivElement>(null);
+  const frvpRowRef = useRef<HTMLDivElement>(null);
+  const closeFrvpModeDD = useCallback(() => setShowFrvpModeDD(false), []);
+  const closeFrvpRowDD = useCallback(() => setShowFrvpRowDD(false), []);
+  useClickOutside(frvpModeRef, showFrvpModeDD, closeFrvpModeDD);
+  useClickOutside(frvpRowRef, showFrvpRowDD, closeFrvpRowDD);
 
   const isMulti = selectedIds.length > 1;
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowRectSettings(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowRectSettings(false); setShowFrvpModeDD(false); setShowFrvpRowDD(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -1243,102 +1257,133 @@ export function DrawingEditToolbar({
             >
                 {frvpTab === 'input' && (
                   <>
-                    {/* Mode toggle: anchor vs range */}
+                    {/* Mode dropdown */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Mode</span>
-                      <div style={{ display: 'flex', gap: 2, background: 'var(--color-surface)', borderRadius: RADIUS.MD, padding: 2 }}>
-                        {(['anchor', 'range'] as const).map((m) => {
-                          const active = (frvp.mode ?? 'anchor') === m;
-                          return (
-                            <button
-                              key={m}
-                              onClick={() => {
-                                if (active) return;
-                                if (m === 'range') {
-                                  const latestBar = useStore.getState().lastBarTime;
-                                  const defaultT2 = latestBar ?? (frvp.anchorTime + 3600);
-                                  updateDrawing(drawing.id, { mode: 'range', t2: defaultT2, t2Auto: true } as Partial<Drawing>);
-                                } else {
-                                  // Switch back to anchor: clear t2
-                                  updateDrawing(drawing.id, { mode: 'anchor', t2: undefined } as Partial<Drawing>);
-                                }
-                              }}
-                              style={{
-                                fontSize: 12, fontWeight: 600, padding: '2px 10px',
-                                borderRadius: RADIUS.SM, border: 'none', cursor: 'pointer',
-                                background: active ? 'var(--color-hover-toolbar)' : 'transparent',
-                                color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
-                                transition: 'background var(--transition-fast), color var(--transition-fast)',
-                              }}
-                            >
-                              {m === 'anchor' ? 'Anchor' : 'Range'}
-                            </button>
-                          );
-                        })}
+                      <div ref={frvpModeRef} className="relative">
+                        <button
+                          onClick={() => { setShowFrvpRowDD(false); setShowFrvpModeDD((v) => !v); }}
+                          className="focus:outline-none focus:ring-0"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                            background: 'var(--color-surface)', color: 'var(--color-text)',
+                            border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+                            padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', minWidth: 90,
+                            transition: 'border-color var(--transition-fast)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                        >
+                          <span>{(frvp.mode ?? 'anchor') === 'anchor' ? 'Anchor' : 'Range'}</span>
+                          <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showFrvpModeDD ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+                            <path d="M0 0l4 5 4-5z" />
+                          </svg>
+                        </button>
+                        {showFrvpModeDD && (
+                          <div
+                            className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+                            style={{ zIndex: Z.DROPDOWN + 1, top: '100%', right: 0, marginTop: 4, background: 'var(--color-surface)', boxShadow: SHADOW.LG, padding: '2px 0', minWidth: 100 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {(['anchor', 'range'] as const).map((m) => {
+                              const active = (frvp.mode ?? 'anchor') === m;
+                              return (
+                                <button
+                                  key={m}
+                                  onClick={() => {
+                                    if (!active) {
+                                      if (m === 'range') {
+                                        const latestBar = useStore.getState().lastBarTime;
+                                        const defaultT2 = latestBar ?? (frvp.anchorTime + 3600);
+                                        updateDrawing(drawing.id, { mode: 'range', t2: defaultT2, t2Auto: true } as Partial<Drawing>);
+                                      } else {
+                                        updateDrawing(drawing.id, { mode: 'anchor', t2: undefined } as Partial<Drawing>);
+                                      }
+                                    }
+                                    setShowFrvpModeDD(false);
+                                  }}
+                                  className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
+                                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+                                >
+                                  {m === 'anchor' ? 'Anchor' : 'Range'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    {/* Row Size — mode toggle + spinner */}
+                    {/* Row Layout dropdown + spinner */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row Size</span>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row Layout</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {/* Count | Price pill */}
-                        <div style={{ display: 'flex', gap: 1, background: 'var(--color-surface)', borderRadius: RADIUS.MD, padding: 2 }}>
-                          {(['count', 'price'] as const).map((m) => {
-                            const active = (frvp.rowSizeMode ?? 'count') === m;
-                            return (
-                              <button
-                                key={m}
-                                onClick={() => {
-                                  const patch: Partial<FRVPDrawing> = { rowSizeMode: m };
-                                  if (m === 'price' && !(frvp.rowSizePrice! > 0)) patch.rowSizePrice = 1;
-                                  updateDrawing(drawing.id, patch as Partial<Drawing>);
-                                }}
-                                style={{
-                                  fontSize: 11, fontWeight: 600, padding: '2px 8px',
-                                  borderRadius: RADIUS.SM, border: 'none', cursor: 'pointer',
-                                  background: active ? 'var(--color-hover-toolbar)' : 'transparent',
-                                  color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
-                                  transition: 'background var(--transition-fast), color var(--transition-fast)',
-                                }}
-                              >
-                                {m === 'count' ? 'Count' : 'Price'}
-                              </button>
-                            );
-                          })}
+                        <div ref={frvpRowRef} className="relative">
+                          <button
+                            onClick={() => { setShowFrvpModeDD(false); setShowFrvpRowDD((v) => !v); }}
+                            className="focus:outline-none focus:ring-0"
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                              background: 'var(--color-surface)', color: 'var(--color-text)',
+                              border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+                              padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', minWidth: 80,
+                              transition: 'border-color var(--transition-fast)',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                          >
+                            <span>{(frvp.rowSizeMode ?? 'count') === 'count' ? 'By Count' : 'By Ticks'}</span>
+                            <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showFrvpRowDD ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+                              <path d="M0 0l4 5 4-5z" />
+                            </svg>
+                          </button>
+                          {showFrvpRowDD && (
+                            <div
+                              className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+                              style={{ zIndex: Z.DROPDOWN + 1, top: '100%', right: 0, marginTop: 4, background: 'var(--color-surface)', boxShadow: SHADOW.LG, padding: '2px 0', minWidth: 90 }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {([['count', 'By Count'], ['price', 'By Ticks']] as [string, string][]).map(([m, label]) => {
+                                const active = (frvp.rowSizeMode ?? 'count') === m;
+                                return (
+                                  <button
+                                    key={m}
+                                    onClick={() => {
+                                      if (!active) {
+                                        const patch: Partial<FRVPDrawing> = { rowSizeMode: m as 'count' | 'price' };
+                                        if (m === 'price' && !(frvp.rowSizePrice! > 0)) patch.rowSizePrice = autoTickSize * 5;
+                                        updateDrawing(drawing.id, patch as Partial<Drawing>);
+                                      }
+                                      setShowFrvpRowDD(false);
+                                    }}
+                                    className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
+                                    style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+                                  >
+                                    {label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                         {(frvp.rowSizeMode ?? 'count') === 'count' ? (
                           <SpinnerInput
-                            value={frvp.numBars ?? 0}
+                            value={frvp.numBars ?? 20}
                             onChange={(v) => updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>)}
-                            min={0}
+                            min={1}
                             max={500}
                             step={1}
                           />
                         ) : (
                           <SpinnerInput
-                            value={frvp.rowSizePrice ?? 1}
-                            onChange={(v) => updateDrawing(drawing.id, { rowSizePrice: v } as Partial<Drawing>)}
-                            min={frvp.rowTickSize ?? 0.01}
+                            value={Math.max(1, Math.round((frvp.rowSizePrice ?? autoTickSize * 5) / autoTickSize))}
+                            onChange={(v) => updateDrawing(drawing.id, { rowSizePrice: Math.max(1, v) * autoTickSize } as Partial<Drawing>)}
+                            min={1}
                             max={10000}
-                            step={frvp.rowTickSize ?? 0.25}
+                            step={1}
                           />
                         )}
                       </div>
                     </div>
-                    {/* Tick Size — visible only in price mode */}
-                    {(frvp.rowSizeMode ?? 'count') === 'price' && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                        <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Tick Size</span>
-                        <SpinnerInput
-                          value={frvp.rowTickSize ?? 0.25}
-                          onChange={(v) => updateDrawing(drawing.id, { rowTickSize: Math.max(0.0001, v) } as Partial<Drawing>)}
-                          min={0.0001}
-                          max={10000}
-                          step={0.0001}
-                          inputWidth={64}
-                        />
-                      </div>
-                    )}
                   </>
                 )}
 
