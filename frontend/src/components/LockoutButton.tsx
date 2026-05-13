@@ -185,7 +185,7 @@ export function LockoutButton() {
         <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, transform: 'translateY(-2px)' }}>
           <LockIcon size={26} />
         </span>
-        <span style={{ fontSize: FONT_SIZE.OVERLAY, fontWeight: 600, lineHeight: 1 }}>
+        <span style={{ fontSize: FONT_SIZE.BASE, lineHeight: 1 }}>
           Locked-out: {formatCountdown(expiryMs)}
         </span>
       </div>
