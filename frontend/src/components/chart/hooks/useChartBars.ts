@@ -33,6 +33,7 @@ export function useChartBars(
 
   // Accumulated trade volume map for anchor-mode FRVP drawings (price → contracts traded)
   const tradeAnchorMapRef = useRef(new Map<number, number>());
+  const prevContractIdRef = useRef<number | null>(null);
 
   // Historical load-more state
   const earliestLoadedTimeRef = useRef<string | null>(null);
@@ -66,6 +67,11 @@ export function useChartBars(
     isLoadingMoreRef.current = false;
     reachedHistoryStartRef.current = false;
     const gen = ++loadGenerationRef.current;
+
+    const isNewContract = prevContractIdRef.current !== contract.id;
+    prevContractIdRef.current = contract.id;
+    // Save horizontal scroll position so same-instrument timeframe changes can restore it
+    const savedScrollPos = !isNewContract ? (refs.chart.current?.timeScale().scrollPosition() ?? null) : null;
 
     let rangeUnsub: (() => void) | null = null;
 
@@ -148,10 +154,12 @@ export function useChartBars(
 
         if (cancelled) return;
 
-        // Re-enable autoScale before loading new data so the price axis
-        // resets to the new instrument's range (it may still be locked to
-        // the previous instrument's scale from the last load).
-        refs.chart.current?.priceScale('right').applyOptions({ autoScale: true });
+        // Re-enable autoScale for new instruments so the price axis resets to
+        // the new instrument's range. Skip for same-instrument timeframe changes
+        // to preserve the user's vertical scroll position.
+        if (isNewContract) {
+          refs.chart.current?.priceScale('right').applyOptions({ autoScale: true });
+        }
 
         const sorted = sortBarsAscending(bars);
         refs.bars.current = sorted;
@@ -184,7 +192,7 @@ export function useChartBars(
         }
 
         // If a drill-down target is pending, scroll to that candle's open time;
-        // otherwise show the last ~100 bars with right padding.
+        // otherwise restore the user's view (same instrument) or show default last ~100 bars.
         const drillTarget = useStore.getState().pendingDrillTarget;
         if (drillTarget && drillTarget.chartId === chartId) {
           useStore.getState().clearPendingDrillTarget();
@@ -195,6 +203,11 @@ export function useChartBars(
             from: fromIdx,
             to: fromIdx + 100,
           });
+        } else if (!isNewContract && savedScrollPos !== null && candles.length > 0) {
+          // Same instrument, timeframe changed — restore saved horizontal scroll
+          // so the current price stays at the same visual position.
+          // Vertical scale is preserved automatically since autoScale stayed false.
+          refs.chart.current?.timeScale().scrollToPosition(savedScrollPos, false);
         } else {
           const totalBars = candles.length;
           const visibleBars = Math.min(100, totalBars);
@@ -204,11 +217,13 @@ export function useChartBars(
           });
         }
 
-        // Disable auto-scale so user can drag vertically immediately
-        // (must happen after data load so the chart knows the initial price range)
-        autoScaleTimer = setTimeout(() => {
-          refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
-        }, 0);
+        // Disable auto-scale so user can drag vertically immediately.
+        // Only needed for new instruments (where we re-enabled it above).
+        if (isNewContract) {
+          autoScaleTimer = setTimeout(() => {
+            refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
+          }, 0);
+        }
 
         // Configure series price format to snap crosshair label to tick size
         if (contract) {
