@@ -213,6 +213,20 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     };
     container.addEventListener('mousedown', onOverlayHitTest);
 
+    // ── Price scale guard: block drawing interactions when clicking on the right price scale ──
+    const handlePriceScaleGuard = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const firstRow = chart.chartElement().querySelector('table tr:first-child');
+      if (!firstRow) return;
+      const cells = firstRow.querySelectorAll('td');
+      if (cells.length < 2) return;
+      const priceScaleCell = cells[cells.length - 1];
+      if (e.clientX >= priceScaleCell.getBoundingClientRect().left) {
+        e.stopImmediatePropagation();
+      }
+    };
+    container.addEventListener('mousedown', handlePriceScaleGuard);
+
     // ── Mousedown handlers (ordered by priority) ──
     const handleCtrlSelect = (e: MouseEvent) => onCtrlDragSelectDown(e, ctx);
     const handleResize = (e: MouseEvent) => onResizeMouseDown(e, ctx);
@@ -325,6 +339,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       window.removeEventListener('keyup', onCtrlUp);
       window.removeEventListener('blur', onWindowBlur);
       chart.applyOptions({ crosshair: { mode: CrosshairMode.Normal } });
+      container.removeEventListener('mousedown', handlePriceScaleGuard);
       container.removeEventListener('mousedown', handleCtrlSelect);
       container.removeEventListener('mousedown', handleResize);
       container.removeEventListener('mousedown', handleDragDown);

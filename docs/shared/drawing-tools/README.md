@@ -332,6 +332,7 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 ### Event listener priority
 
 ```
+0. handlePriceScaleGuard  — blocks all drawing interactions when click is on the right price scale
 1. onOverlayHitTest       — overlay label hit testing (order lines, position lines)
 2. onCtrlDragSelectDown   — Ctrl+drag area selection for multi-select
 3. onResizeMouseDown      — resize handles on selected rect/oval/ruler (most specific)
@@ -341,7 +342,9 @@ All drawing interactions are in the first `useEffect` (drawings effect). Event h
 7. onFreeDrawMouseDown    — free draw creation when tool is 'freedraw'
 ```
 
-Overlay hit testing is first so order/position line drags take priority over drawing interactions when they overlap. It uses `stopImmediatePropagation()` to prevent subsequent drawing handlers from firing on the same mousedown event.
+The price scale guard fires first and calls `stopImmediatePropagation()` if `e.clientX >= priceScaleCell.getBoundingClientRect().left` (same check used in `useChartContextMenu`). This prevents drawings from being selected or moved when the user clicks and drags on the price scale to rescale it.
+
+Overlay hit testing is next so order/position line drags take priority over drawing interactions when they overlap. It uses `stopImmediatePropagation()` to prevent subsequent drawing handlers from firing on the same mousedown event.
 
 Plus shared `mousemove` and `mouseup` on `window` for all interactions. Arrow path, rect, and ruler use click-based state machines in `onMouseUp`.
 
