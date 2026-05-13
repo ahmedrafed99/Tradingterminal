@@ -75,12 +75,13 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
               key={p}
               onClick={() => handleSelect(p)}
               className={`flex w-full items-center text-xs cursor-pointer ${
-                p === preset ? 'text-(--color-warning)' : 'text-(--color-text) hover:bg-(--color-hover-row)'
+                p === preset ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'
               }`}
               style={{
                 padding: '6px 12px',
                 gap: 10,
                 transition: 'background var(--transition-fast), color var(--transition-fast)',
+                ...(p === preset ? { background: 'var(--color-text)', color: 'var(--color-bg)' } : {}),
               }}
             >
               <span>{DATE_PRESET_LABELS[p]}</span>
@@ -89,7 +90,8 @@ export function DatePresetSelector({ counts }: DatePresetSelectorProps) {
                   className="ml-auto"
                   style={{
                     fontSize: 12,
-                    color: p === preset ? 'rgba(240, 168, 48, 0.6)' : 'var(--color-text-dim)',
+                    color: p === preset ? 'var(--color-bg)' : 'var(--color-text-dim)',
+                    opacity: p === preset ? 0.6 : 1,
                     transition: 'color var(--transition-fast)',
                   }}
                 >

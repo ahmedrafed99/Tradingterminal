@@ -278,12 +278,13 @@ function TextPopover({
                 <button
                   key={s}
                   onClick={() => { setFontSize(s); setShowFontSizes(false); }}
-                  className="w-full text-left text-xs transition-colors bg-transparent hover:bg-(--color-hover-row)"
+                  className={`w-full text-left text-xs transition-colors ${s === fontSize ? '' : 'bg-transparent hover:bg-(--color-hover-row)'}`}
                   style={{
                     padding: '5px 10px',
                     border: 'none',
                     cursor: 'pointer',
-                    color: s === fontSize ? 'var(--color-warning)' : 'var(--color-text)',
+                    background: s === fontSize ? 'var(--color-text)' : 'transparent',
+                    color: s === fontSize ? 'var(--color-surface)' : 'var(--color-text)',
                     fontWeight: s === fontSize ? 600 : 400,
                   }}
                 >
@@ -515,8 +516,8 @@ function StrokePopover({
           <button
             key={w}
             onClick={() => { onChange({ strokeWidth: w }); onClose(); }}
-            className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
-            style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+            className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+            style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
           >
             <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
               <line x1="0" y1="5" x2="50" y2="5" stroke="currentColor" strokeWidth={w} />
@@ -534,8 +535,8 @@ function StrokePopover({
           <button
             key={style}
             onClick={() => { onChange({ lineStyle: style }); onClose(); }}
-            className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
-            style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+            className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+            style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
           >
             <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
               <line
@@ -1026,8 +1027,8 @@ function RectSettingsPopover({
                     <button
                       key={style}
                       onClick={() => { onUpdate({ middleLineStyle: style }); setShowMlStyle(false); }}
-                      className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
-                      style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+                      className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                      style={{ padding: '7px 10px', gap: 10, border: 'none', cursor: 'pointer', ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
                     >
                       <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
                         <line
@@ -1268,7 +1269,7 @@ export function DrawingEditToolbar({
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
                             background: 'var(--color-surface)', color: 'var(--color-text)',
                             border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
-                            padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', minWidth: 90,
+                            padding: '4px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', minWidth: 90,
                             transition: 'border-color var(--transition-fast)',
                           }}
                           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
@@ -1302,8 +1303,8 @@ export function DrawingEditToolbar({
                                     }
                                     setShowFrvpModeDD(false);
                                   }}
-                                  className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
-                                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
+                                  className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
                                 >
                                   {m === 'anchor' ? 'Anchor' : 'Range'}
                                 </button>
@@ -1313,76 +1314,79 @@ export function DrawingEditToolbar({
                         )}
                       </div>
                     </div>
-                    {/* Row Layout dropdown + spinner */}
+                    {/* Row Layout dropdown */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row Layout</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div ref={frvpRowRef} className="relative">
-                          <button
-                            onClick={() => { setShowFrvpModeDD(false); setShowFrvpRowDD((v) => !v); }}
-                            className="focus:outline-none focus:ring-0"
-                            style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-                              background: 'var(--color-surface)', color: 'var(--color-text)',
-                              border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
-                              padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', minWidth: 80,
-                              transition: 'border-color var(--transition-fast)',
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                      <div ref={frvpRowRef} className="relative">
+                        <button
+                          onClick={() => { setShowFrvpModeDD(false); setShowFrvpRowDD((v) => !v); }}
+                          className="focus:outline-none focus:ring-0"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                            background: 'var(--color-surface)', color: 'var(--color-text)',
+                            border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+                            padding: '4px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: 140,
+                            transition: 'border-color var(--transition-fast)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                        >
+                          <span>{(frvp.rowSizeMode ?? 'count') === 'count' ? 'Number of Rows' : 'Ticks per Row'}</span>
+                          <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showFrvpRowDD ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+                            <path d="M0 0l4 5 4-5z" />
+                          </svg>
+                        </button>
+                        {showFrvpRowDD && (
+                          <div
+                            className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+                            style={{ zIndex: Z.DROPDOWN + 1, top: '100%', right: 0, marginTop: 4, background: 'var(--color-surface)', boxShadow: SHADOW.LG, padding: '2px 0', width: 140 }}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <span>{(frvp.rowSizeMode ?? 'count') === 'count' ? 'By Count' : 'By Ticks'}</span>
-                            <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showFrvpRowDD ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
-                              <path d="M0 0l4 5 4-5z" />
-                            </svg>
-                          </button>
-                          {showFrvpRowDD && (
-                            <div
-                              className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
-                              style={{ zIndex: Z.DROPDOWN + 1, top: '100%', right: 0, marginTop: 4, background: 'var(--color-surface)', boxShadow: SHADOW.LG, padding: '2px 0', minWidth: 90 }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {([['count', 'By Count'], ['price', 'By Ticks']] as [string, string][]).map(([m, label]) => {
-                                const active = (frvp.rowSizeMode ?? 'count') === m;
-                                return (
-                                  <button
-                                    key={m}
-                                    onClick={() => {
-                                      if (!active) {
-                                        const patch: Partial<FRVPDrawing> = { rowSizeMode: m as 'count' | 'price' };
-                                        if (m === 'price' && !(frvp.rowSizePrice! > 0)) patch.rowSizePrice = autoTickSize * 5;
-                                        updateDrawing(drawing.id, patch as Partial<Drawing>);
-                                      }
-                                      setShowFrvpRowDD(false);
-                                    }}
-                                    className={`flex items-center w-full rounded-lg transition-colors hover:bg-(--color-hover-row) text-left ${active ? 'text-(--color-warning)' : 'text-(--color-text)'}`}
-                                    style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, ...(active ? { backgroundColor: 'var(--color-table-stripe)' } : {}) }}
-                                  >
-                                    {label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        {(frvp.rowSizeMode ?? 'count') === 'count' ? (
-                          <SpinnerInput
-                            value={frvp.numBars ?? 20}
-                            onChange={(v) => updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>)}
-                            min={1}
-                            max={500}
-                            step={1}
-                          />
-                        ) : (
-                          <SpinnerInput
-                            value={Math.max(1, Math.round((frvp.rowSizePrice ?? autoTickSize * 5) / autoTickSize))}
-                            onChange={(v) => updateDrawing(drawing.id, { rowSizePrice: Math.max(1, v) * autoTickSize } as Partial<Drawing>)}
-                            min={1}
-                            max={10000}
-                            step={1}
-                          />
+                            {([['count', 'Number of Rows'], ['price', 'Ticks per Row']] as [string, string][]).map(([m, label]) => {
+                              const active = (frvp.rowSizeMode ?? 'count') === m;
+                              return (
+                                <button
+                                  key={m}
+                                  onClick={() => {
+                                    if (!active) {
+                                      const patch: Partial<FRVPDrawing> = { rowSizeMode: m as 'count' | 'price' };
+                                      if (m === 'price' && !(frvp.rowSizePrice! > 0)) patch.rowSizePrice = autoTickSize * 5;
+                                      updateDrawing(drawing.id, patch as Partial<Drawing>);
+                                    }
+                                    setShowFrvpRowDD(false);
+                                  }}
+                                  className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
+                    </div>
+
+                    {/* Row size */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Row size</span>
+                      {(frvp.rowSizeMode ?? 'count') === 'count' ? (
+                        <SpinnerInput
+                          value={frvp.numBars ?? 20}
+                          onChange={(v) => updateDrawing(drawing.id, { numBars: v } as Partial<Drawing>)}
+                          min={1}
+                          max={500}
+                          step={1}
+                        />
+                      ) : (
+                        <SpinnerInput
+                          value={Math.max(1, Math.round((frvp.rowSizePrice ?? autoTickSize * 5) / autoTickSize))}
+                          onChange={(v) => updateDrawing(drawing.id, { rowSizePrice: Math.max(1, v) * autoTickSize } as Partial<Drawing>)}
+                          min={1}
+                          max={10000}
+                          step={1}
+                        />
+                      )}
                     </div>
                   </>
                 )}

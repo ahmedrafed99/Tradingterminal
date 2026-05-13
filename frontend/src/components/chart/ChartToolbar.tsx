@@ -33,13 +33,13 @@ function TrashIcon() {
   );
 }
 
-function StarIcon({ filled }: { filled: boolean }) {
+function StarIcon({ filled, color }: { filled: boolean; color?: string }) {
   return filled ? (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className={color ? '' : 'text-yellow-400'} style={color ? { color } : undefined}>
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   ) : (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-(--color-text-muted)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={color ? '' : 'text-(--color-text-muted)'} style={color ? { color } : undefined}>
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
     </svg>
   );
@@ -72,10 +72,10 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
             <button
               key={u.value}
               onClick={() => { onChange(u.value); setOpen(false); }}
-              className={`w-full text-center text-xs font-medium transition-colors rounded-md hover:bg-(--color-border) ${
-                u.value === value ? 'text-(--color-warning)' : 'text-(--color-text)'
+              className={`w-full text-center text-xs font-medium transition-colors rounded-md ${
+                u.value === value ? '' : 'text-(--color-text) hover:bg-(--color-border)'
               }`}
-              style={{ padding: '8px 10px' }}
+              style={{ padding: '8px 10px', ...(u.value === value ? { background: 'var(--color-text)', color: 'var(--color-panel)' } : {}) }}
             >
               {u.label}
             </button>
@@ -359,10 +359,12 @@ export function ChartToolbar() {
   });
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [customNumber, setCustomNumber] = useState(1);
   const [customUnit, setCustomUnit] = useState<number>(2); // default: Minutes
   const [showDupeError, setShowDupeError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dropdownTriggerRef = useRef<HTMLButtonElement>(null);
   const marketType = useStore((s) => s.contract?.marketType ?? 'futures') as MarketType;
   const { time: nyClock, marketOpen, is24h } = useNYClock(marketType);
 
@@ -546,7 +548,15 @@ export function ChartToolbar() {
       {/* Dropdown trigger */}
       <div ref={dropdownRef} className="relative">
         <button
-          onClick={() => setDropdownOpen((o) => !o)}
+          ref={dropdownTriggerRef}
+          onClick={() => {
+            const next = !dropdownOpen;
+            if (next && dropdownTriggerRef.current) {
+              const rect = dropdownTriggerRef.current.getBoundingClientRect();
+              setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+            }
+            setDropdownOpen(next);
+          }}
           className="flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors text-(--color-text)"
         >
           {!isActivePinned && <span>{timeframe.label}</span>}
@@ -554,9 +564,9 @@ export function ChartToolbar() {
         </button>
 
         {/* Dropdown menu */}
-        {dropdownOpen && (
-          <div className="absolute top-full left-0 mt-1 w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-2 animate-dropdown-in"
-            style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
+        {dropdownOpen && dropdownPos && (
+          <div className="w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-2 animate-dropdown-in"
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
           >
             {/* Timeframes grouped by section */}
             {[
@@ -580,10 +590,8 @@ export function ChartToolbar() {
                     return (
                       <div
                         key={tf.label}
-                        className={`group relative flex items-center hover:bg-(--color-border) transition-colors rounded-md mx-1.5 ${
-                          active ? 'bg-(--color-border)' : ''
-                        }`}
-                        style={{ padding: '8px 10px' }}
+                        className={`group relative flex items-center transition-colors rounded-md mx-1.5 ${active ? '' : 'hover:bg-(--color-border)'}`}
+                        style={{ padding: '8px 10px', ...(active ? { background: 'var(--color-text)' } : {}) }}
                       >
                         {isCustom && (
                           <button
@@ -596,7 +604,8 @@ export function ChartToolbar() {
                         )}
                         <button
                           onClick={() => handleSelectMore(tf)}
-                          className="text-xs flex-1 text-center font-medium text-(--color-text)"
+                          className={`text-xs flex-1 text-center font-medium ${active ? '' : 'text-(--color-text)'}`}
+                          style={active ? { color: 'var(--color-panel)' } : undefined}
                         >
                           {tf.label}
                         </button>
@@ -604,7 +613,7 @@ export function ChartToolbar() {
                           onClick={(e) => { e.stopPropagation(); pinned ? unpinTimeframe(tf) : pinTimeframe(tf); }}
                           className="ml-2 p-0.5 hover:opacity-80 transition-opacity"
                         >
-                          <StarIcon filled={pinned} />
+                          <StarIcon filled={pinned} color={active ? 'var(--color-panel)' : undefined} />
                         </button>
                       </div>
                     );

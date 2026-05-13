@@ -128,12 +128,13 @@ export function CustomSelect({
               <button
                 key={o.value}
                 onClick={() => { onChange(o.value); setOpen(false); }}
-                className="w-full text-left text-xs transition-colors bg-transparent hover:bg-(--color-hover-row)"
+                className={`w-full text-left text-xs transition-colors ${active ? '' : 'bg-transparent hover:bg-(--color-hover-row)'}`}
                 style={{
                   padding: '6px 10px',
                   border: 'none',
                   cursor: 'pointer',
-                  color: active ? 'var(--color-warning)' : 'var(--color-text)',
+                  background: active ? 'var(--color-text)' : 'transparent',
+                  color: active ? dropdownBg : 'var(--color-text)',
                   fontWeight: active ? 600 : 400,
                 }}
               >
