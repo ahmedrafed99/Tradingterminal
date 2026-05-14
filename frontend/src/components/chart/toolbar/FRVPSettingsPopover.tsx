@@ -299,94 +299,83 @@ export function FRVPSettingsPopover({
 
         {tab === 'style' && (
           <>
-            <span className={`${SECTION_LABEL} block text-center`}>Bars</span>
-
-            {/* Color */}
-            <div style={rowStyle}>
-              <span style={labelStyle}>Color</span>
+            {/* Volume Profile — main row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
+              >
+                <span style={checkboxSpan(!!frvp.showBarValues)}>{frvp.showBarValues && <Checkmark />}</span>
+                <span style={labelStyle}>Volume Profile</span>
+              </label>
               <ColorSwatchButton color={frvp.color} onChange={(color) => updateDrawing(drawingId, { color } as Partial<Drawing>)} />
             </div>
 
-            {/* Placement */}
-            <div style={rowStyle}>
-              <span style={labelStyle}>Placement</span>
-              <div ref={placementRef} className="relative">
-                <button
-                  style={{ ...ddBtnStyle, minWidth: 90, textTransform: 'capitalize' }}
-                  onClick={() => setShowPlacementDD((v) => !v)}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                  className="focus:outline-none focus:ring-0"
-                >
-                  <span style={{ textTransform: 'capitalize' }}>{frvp.barPlacement ?? 'left'}</span>
-                  <ChevronDown open={showPlacementDD} />
-                </button>
-                {showPlacementDD && (
-                  <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
-                    {(['left', 'right', 'middle'] as const).map((p) => {
-                      const active = (frvp.barPlacement ?? 'left') === p;
-                      return (
-                        <button
-                          key={p}
-                          onClick={() => { if (!active) updateDrawing(drawingId, { barPlacement: p } as Partial<Drawing>); setShowPlacementDD(false); }}
-                          className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
-                          style={{ ...ddItemStyle(active), textTransform: 'capitalize' }}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+            {/* Sub-rows */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 21 }}>
+              {/* Highlight on Hover */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}
+              >
+                <span style={checkboxSpan(frvp.highlightOnHover !== false)}>{frvp.highlightOnHover !== false && <Checkmark />}</span>
+                <span style={labelStyle}>Highlight on Hover</span>
+              </label>
+
+              {/* Placement */}
+              <div style={rowStyle}>
+                <span style={labelStyle}>Placement</span>
+                <div ref={placementRef} className="relative">
+                  <button
+                    style={{ ...ddBtnStyle, minWidth: 90 }}
+                    onClick={() => setShowPlacementDD((v) => !v)}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                    className="focus:outline-none focus:ring-0"
+                  >
+                    <span style={{ textTransform: 'capitalize' }}>{frvp.barPlacement ?? 'left'}</span>
+                    <ChevronDown open={showPlacementDD} />
+                  </button>
+                  {showPlacementDD && (
+                    <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
+                      {(['left', 'right', 'middle'] as const).map((p) => {
+                        const active = (frvp.barPlacement ?? 'left') === p;
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => { if (!active) updateDrawing(drawingId, { barPlacement: p } as Partial<Drawing>); setShowPlacementDD(false); }}
+                            className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                            style={{ ...ddItemStyle(active), textTransform: 'capitalize' }}
+                          >
+                            {p}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Offset */}
+              <div style={rowStyle}>
+                <span style={labelStyle}>Offset</span>
+                <SpinnerInput value={frvp.barOffset ?? 0} onChange={(v) => updateDrawing(drawingId, { barOffset: Math.max(0, v) } as Partial<Drawing>)} min={0} max={200} step={1} />
+              </div>
+
+              {/* Length % */}
+              <div style={rowStyle}>
+                <span style={labelStyle}>Length %</span>
+                <SpinnerInput value={frvp.barLength ?? 50} onChange={(v) => updateDrawing(drawingId, { barLength: Math.min(100, Math.max(1, v)) } as Partial<Drawing>)} min={1} max={100} step={1} />
               </div>
             </div>
 
-            {/* Offset */}
-            <div style={rowStyle}>
-              <span style={labelStyle}>Offset</span>
-              <SpinnerInput value={frvp.barOffset ?? 0} onChange={(v) => updateDrawing(drawingId, { barOffset: Math.max(0, v) } as Partial<Drawing>)} min={0} max={200} step={1} />
-            </div>
-
-            {/* Length % */}
-            <div style={rowStyle}>
-              <span style={labelStyle}>Length %</span>
-              <SpinnerInput value={frvp.barLength ?? 50} onChange={(v) => updateDrawing(drawingId, { barLength: Math.min(100, Math.max(1, v)) } as Partial<Drawing>)} min={1} max={100} step={1} />
-            </div>
-
-            {/* Show Values */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
-            >
-              <span style={checkboxSpan(!!frvp.showBarValues)}>{frvp.showBarValues && <Checkmark />}</span>
-              <span style={labelStyle}>Show Values</span>
-            </label>
-
-            {/* Highlight on Hover */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}
-            >
-              <span style={checkboxSpan(frvp.highlightOnHover !== false)}>{frvp.highlightOnHover !== false && <Checkmark />}</span>
-              <span style={labelStyle}>Highlight on Hover</span>
-            </label>
-
             <div style={{ borderTop: '1px solid var(--color-border)', margin: '2px 0' }} />
-            <span className={`${SECTION_LABEL} block text-center`}>POC</span>
 
-            {/* Extend POC */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => updateDrawing(drawingId, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}
-            >
-              <span style={checkboxSpan(!!frvp.extendPoc)}>{frvp.extendPoc && <Checkmark />}</span>
-              <span style={labelStyle}>Extend</span>
-            </label>
-
-            {/* POC color + visibility */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
+            {/* POC visibility + color swatch */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => updateDrawing(drawingId, { showPoc: !pocVisible } as Partial<Drawing>)}
               >
                 <span style={checkboxSpan(pocVisible)}>{pocVisible && <Checkmark />}</span>
-                <span style={labelStyle}>Color</span>
+                <span style={labelStyle}>POC</span>
               </label>
               <ColorSwatchButton
                 color={frvp.pocColor ?? COLOR_ACCENT}
@@ -394,6 +383,14 @@ export function FRVPSettingsPopover({
                 disabled={!pocVisible}
               />
             </div>
+
+            {/* Extend — sub-row */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', paddingLeft: 21, opacity: pocVisible ? 1 : 0.4, pointerEvents: pocVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}
+              onClick={() => updateDrawing(drawingId, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}
+            >
+              <span style={checkboxSpan(!!frvp.extendPoc)}>{frvp.extendPoc && <Checkmark />}</span>
+              <span style={labelStyle}>Extend</span>
+            </label>
           </>
         )}
       </div>
