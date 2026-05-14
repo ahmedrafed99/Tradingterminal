@@ -53,10 +53,28 @@
         "FRVPToolbarPanel (FRVP-specific tab panel, lives in FRVP component)"
       ],
       "notes": [
-        "closeAll() resets every popover/tab state — always call it before opening a new one",
-        "FRVP branch renders FRVPToolbarPanel which owns its own dropdown state; closeAll sets frvpTab=null which triggers panel's useEffect to self-reset those dropdowns",
+        "closeAll() resets every popover state — always call it before opening a new one",
+        "FRVP branch renders FRVPToolbarPanel (just a settings button); settings live in FRVPSettingsPopover modal",
         "lineStyleDefs.ts is shared between StrokePopover and RectSettingsPopover — edit there, not inline",
         "TextColorGrid was removed (was dead code — never rendered)"
+      ]
+    }
+    ,{
+      "name": "ColorPopover",
+      "description": "Color picker popover with palette, custom colors, opacity slider. ColorSwatchButton renders a fixed portal anchored to the swatch button. Used by all drawing style controls.",
+      "keywords": ["color", "picker", "swatch", "opacity", "palette", "custom colors", "popover"],
+      "files": [
+        "frontend/src/components/chart/ColorPopover.tsx"
+      ],
+      "dependencies": [
+        "useStore (customColors, addCustomColor, removeCustomColor)",
+        "useClickOutside"
+      ],
+      "notes": [
+        "ColorSwatchButton computes portal position synchronously in onClick (not useEffect) to avoid stale position on first open",
+        "Position clamped: left = Math.min(r.left, window.innerWidth - 290 - 8) so picker never overflows right edge",
+        "mousemove listener active while open to reposition when parent modal is dragged (useDraggable)",
+        "useClickOutside uses capture phase (addEventListener 3rd arg = true) so modal stopPropagation doesn't block it"
       ]
     }
     ,{

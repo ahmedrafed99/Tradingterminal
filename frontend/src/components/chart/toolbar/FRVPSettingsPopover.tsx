@@ -306,12 +306,10 @@ export function FRVPSettingsPopover({
           <>
             {/* Volume Profile — main row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => updateDrawing(drawingId, { showProfile: !profileVisible } as Partial<Drawing>)}
-              >
-                <span style={checkboxSpan(profileVisible)}>{profileVisible && <Checkmark />}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}>
+                <span style={{ ...checkboxSpan(profileVisible), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { showProfile: !profileVisible } as Partial<Drawing>)}>{profileVisible && <Checkmark />}</span>
                 <span style={labelStyle}>Volume Profile</span>
-              </label>
+              </div>
               <ColorSwatchButton color={frvp.color} onChange={(color) => updateDrawing(drawingId, { color } as Partial<Drawing>)} />
             </div>
 
@@ -319,12 +317,10 @@ export function FRVPSettingsPopover({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 21, opacity: profileVisible ? 1 : 0.35, pointerEvents: profileVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
               {/* Values toggle + color swatch + mode dropdown */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
-                  onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
-                >
-                  <span style={checkboxSpan(!!frvp.showBarValues)}>{frvp.showBarValues && <Checkmark />}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none', flex: 1 }}>
+                  <span style={{ ...checkboxSpan(!!frvp.showBarValues), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}>{frvp.showBarValues && <Checkmark />}</span>
                   <span style={labelStyle}>Values</span>
-                </label>
+                </div>
                 <div style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ColorSwatchButton
                     color={frvp.valuesColor ?? '#ffffff'}
@@ -363,12 +359,10 @@ export function FRVPSettingsPopover({
               </div>
               {/* Background color */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
-                  onClick={() => updateDrawing(drawingId, { valuesBgColor: frvp.valuesBgColor ? undefined : 'rgba(0,0,0,0.55)' } as Partial<Drawing>)}
-                >
-                  <span style={checkboxSpan(!!frvp.valuesBgColor)}>{frvp.valuesBgColor && <Checkmark />}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none', flex: 1 }}>
+                  <span style={{ ...checkboxSpan(!!frvp.valuesBgColor), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { valuesBgColor: frvp.valuesBgColor ? undefined : 'rgba(0,0,0,0.55)' } as Partial<Drawing>)}>{frvp.valuesBgColor && <Checkmark />}</span>
                   <span style={labelStyle}>Background</span>
-                </label>
+                </div>
                 <div style={{ opacity: frvp.valuesBgColor ? 1 : 0.35, pointerEvents: frvp.valuesBgColor ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
                   <ColorSwatchButton
                     color={frvp.valuesBgColor ?? 'rgba(0,0,0,0.55)'}
@@ -378,12 +372,10 @@ export function FRVPSettingsPopover({
               </div>
 
               {/* Highlight on Hover */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}
-              >
-                <span style={checkboxSpan(frvp.highlightOnHover !== false)}>{frvp.highlightOnHover !== false && <Checkmark />}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}>
+                <span style={{ ...checkboxSpan(frvp.highlightOnHover !== false), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}>{frvp.highlightOnHover !== false && <Checkmark />}</span>
                 <span style={labelStyle}>Highlight on Hover</span>
-              </label>
+              </div>
 
               {/* Placement */}
               <div style={rowStyle}>
@@ -436,12 +428,10 @@ export function FRVPSettingsPopover({
 
             {/* POC visibility + color swatch */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => updateDrawing(drawingId, { showPoc: !pocVisible } as Partial<Drawing>)}
-              >
-                <span style={checkboxSpan(pocVisible)}>{pocVisible && <Checkmark />}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}>
+                <span style={{ ...checkboxSpan(pocVisible), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { showPoc: !pocVisible } as Partial<Drawing>)}>{pocVisible && <Checkmark />}</span>
                 <span style={labelStyle}>POC</span>
-              </label>
+              </div>
               <ColorSwatchButton
                 color={frvp.pocColor ?? COLOR_ACCENT}
                 onChange={(color) => updateDrawing(drawingId, { pocColor: color } as Partial<Drawing>)}
@@ -450,12 +440,10 @@ export function FRVPSettingsPopover({
             </div>
 
             {/* Extend — sub-row */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', paddingLeft: 21, opacity: pocVisible ? 1 : 0.4, pointerEvents: pocVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}
-              onClick={() => updateDrawing(drawingId, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}
-            >
-              <span style={checkboxSpan(!!frvp.extendPoc)}>{frvp.extendPoc && <Checkmark />}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none', paddingLeft: 21, opacity: pocVisible ? 1 : 0.4, pointerEvents: pocVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+              <span style={{ ...checkboxSpan(!!frvp.extendPoc), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { extendPoc: !frvp.extendPoc } as Partial<Drawing>)}>{frvp.extendPoc && <Checkmark />}</span>
               <span style={labelStyle}>Extend</span>
-            </label>
+            </div>
           </>
         )}
       </div>
