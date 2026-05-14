@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ChartRefs } from './types';
 import { getCandlePeriodSeconds } from '../barUtils';
-import type { Timeframe } from '../../../store/useStore';
+import { useStore, type Timeframe } from '../../../store/useStore';
 
 export interface ContextMenuState {
   x: number;
@@ -36,6 +36,8 @@ export function useChartContextMenu(
 
     function handleContextMenu(e: MouseEvent) {
       e.preventDefault();
+      // Suppress chart menu while any drawing tool is active
+      if (useStore.getState().activeTool !== 'select') return;
       const chart = refs.chart.current;
       if (!chart) return;
 

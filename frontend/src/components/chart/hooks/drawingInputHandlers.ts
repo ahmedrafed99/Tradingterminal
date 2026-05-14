@@ -41,7 +41,7 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
 
   // Arrow path in progress: finalize it
   if (state.arrowPathCreation) {
-    e.stopPropagation();
+    e.stopImmediatePropagation();
     const { x, y: rawY } = getMousePos(e, container);
     // Ctrl = snap to horizontal (lock Y to last placed node)
     const y = e.ctrlKey
@@ -88,6 +88,16 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     e.stopImmediatePropagation();
     state.rulerDisplayActive = false;
     primitive.clearRulerDragPreview();
+    return;
+  }
+
+  // Oval drag in progress: cancel
+  if (state.ovalDrag) {
+    e.stopImmediatePropagation();
+    state.ovalDrag = null;
+    primitive.clearDragPreview();
+    resetChartInteraction(ctx);
+    setActiveTool('select');
     return;
   }
 
@@ -144,8 +154,9 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
-  // Any other drawing tool active: cancel to select
+  // Any other drawing tool active: cancel to select and suppress chart menu
   if (activeTool !== 'select') {
+    e.stopImmediatePropagation();
     setActiveTool('select');
   }
 }

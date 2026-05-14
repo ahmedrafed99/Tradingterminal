@@ -1026,6 +1026,13 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
 
   // Oval creation drag end
   if (!state.ovalDrag) return;
+  if (e.button !== 0) {
+    // Right-click during drag: cancel without creating
+    state.ovalDrag = null;
+    primitive.clearDragPreview();
+    chart.applyOptions({ handleScroll: true, handleScale: true });
+    return;
+  }
   const { x, y } = getMousePos(e, container);
   const endData = pixelToAnchoredPoint(chart, series, x, y);
 
