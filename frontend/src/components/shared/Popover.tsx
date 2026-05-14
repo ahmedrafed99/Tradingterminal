@@ -29,7 +29,7 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
     if (persistKey) setPopoverPosition(persistKey, pos);
   }, [persistKey, setPopoverPosition]);
 
-  const { ref, onDragMouseDown, dragStyle } = useDraggable<HTMLDivElement>({
+  const { ref, onDragMouseDown, dragStyle, isDragging } = useDraggable<HTMLDivElement>({
     initialPos: savedPos,
     onDragEnd: persistKey ? onDragEnd : undefined,
   });
@@ -44,7 +44,7 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px', cursor: 'grab' }} onMouseDown={onDragMouseDown}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px', cursor: isDragging ? 'grabbing' : 'grab' }} onMouseDown={onDragMouseDown}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>{title}</span>
         <button
           onClick={onClose}

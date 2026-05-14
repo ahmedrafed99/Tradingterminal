@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
 import type { Drawing, HLineTemplate, LineStyle, RectDrawing, FRVPDrawing } from '../../types/drawing';
@@ -8,16 +9,40 @@ import { StrokePopover } from './toolbar/StrokePopover';
 import { TemplatePopover } from './toolbar/TemplatePopover';
 import { RectSettingsPopover } from './toolbar/RectSettingsPopover';
 import { FRVPToolbarPanel } from './toolbar/FRVPToolbarPanel';
+import { useDraggable } from '../../hooks/useDraggable';
 
 function Divider() {
   return <div style={{ width: 1, height: 20, background: 'var(--color-text-dim)', flexShrink: 0 }} />;
 }
 
-export function DrawingEditToolbar({
-  contractId,
-}: {
+function GripIcon() {
+  return (
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+      <circle cx="3" cy="2.5" r="1.2" />
+      <circle cx="7" cy="2.5" r="1.2" />
+      <circle cx="3" cy="7" r="1.2" />
+      <circle cx="7" cy="7" r="1.2" />
+      <circle cx="3" cy="11.5" r="1.2" />
+      <circle cx="7" cy="11.5" r="1.2" />
+    </svg>
+  );
+}
+
+interface DrawingEditToolbarProps {
   contractId: string | undefined;
-}) {
+  containerRef?: React.RefObject<HTMLDivElement>;
+}
+
+export function DrawingEditToolbar(props: DrawingEditToolbarProps) {
+  const selectedIds = useStore((s) => s.selectedDrawingIds);
+  if (selectedIds.length === 0) return null;
+  return <DrawingEditToolbarInner key={selectedIds.join(',')} {...props} />;
+}
+
+function DrawingEditToolbarInner({
+  contractId,
+  containerRef,
+}: DrawingEditToolbarProps) {
   const selectedIds = useStore((s) => s.selectedDrawingIds);
   const drawings = useStore((s) => s.drawings);
   const updateDrawing = useStore((s) => s.updateDrawing);
@@ -42,7 +67,31 @@ export function DrawingEditToolbar({
   const frvpSettingsOpen = useStore((s) => s.frvpSettingsOpen);
   const setFrvpSettingsOpen = useStore((s) => s.setFrvpSettingsOpen);
 
-  const toolbarRef = useRef<HTMLDivElement>(null);
+  const savedPos = useStore((s) => s.popoverPositions['toolbar-drawing-edit']);
+  const setPopoverPosition = useStore((s) => s.setPopoverPosition);
+
+  const [initialPos] = useState(() => {
+    if (savedPos) {
+      return {
+        x: Math.min(Math.max(8, savedPos.x), window.innerWidth - 200),
+        y: Math.min(Math.max(8, savedPos.y), window.innerHeight - 40),
+      };
+    }
+    if (containerRef?.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      return { x: rect.left + 16, y: rect.top + 16 };
+    }
+    return undefined;
+  });
+
+  const onDragEnd = useCallback((pos: { x: number; y: number }) => {
+    setPopoverPosition('toolbar-drawing-edit', pos);
+  }, [setPopoverPosition]);
+
+  const { ref: toolbarRef, onDragMouseDown, dragStyle, isDragging } = useDraggable<HTMLDivElement>({
+    initialPos,
+    onDragEnd,
+  });
 
   const isMulti = selectedIds.length > 1;
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
@@ -73,35 +122,55 @@ export function DrawingEditToolbar({
   const btnHover = 'hover:bg-(--color-border)/50 hover:text-(--color-text)';
   const btnActive = 'bg-(--color-hover-toolbar) text-white hover:bg-(--color-border)/50';
 
-  const toolbarStyle = {
+  const toolbarBaseStyle: React.CSSProperties = {
+    position: 'fixed',
     zIndex: Z.TOOLBAR_EDIT,
-    left: '10%',
-    top: '10%',
     padding: '4px 6px',
     gap: 4,
     background: 'var(--color-surface)',
     border: '1px solid var(--color-border)',
     borderRadius: RADIUS.XL,
     boxShadow: SHADOW.LG,
-  } as const;
+    ...dragStyle,
+  };
 
   const onMouseDownToolbar = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!(e.target as HTMLElement).closest('button, input, select, textarea')) {
+    if (!(e.target as HTMLElement).closest('button, input, select, textarea, [data-drag-handle]')) {
       setSelectedDrawingIds([]);
     }
   };
 
+  const gripHandle = (
+    <div
+      data-drag-handle=""
+      onMouseDown={onDragMouseDown}
+      style={{
+        cursor: isDragging ? 'grabbing' : 'grab',
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 2px',
+        color: 'var(--color-text-dim)',
+        userSelect: 'none',
+        flexShrink: 0,
+      }}
+    >
+      <GripIcon />
+    </div>
+  );
+
   // Multi-selection toolbar
   if (isMulti) {
-    return (
+    return createPortal(
       <div
         ref={toolbarRef}
-        className="absolute flex items-center pointer-events-auto animate-toolbar-in"
-        style={toolbarStyle}
+        className="flex items-center pointer-events-auto animate-toolbar-in"
+        style={toolbarBaseStyle}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={onMouseDownToolbar}
       >
+        {gripHandle}
+        <Divider />
         <span className="text-xs text-(--color-text-muted)" style={{ padding: '0 8px' }}>
           {multiDrawings.length} selected
         </span>
@@ -113,20 +182,23 @@ export function DrawingEditToolbar({
         >
           <TrashIcon />
         </button>
-      </div>
+      </div>,
+      document.body
     );
   }
 
   if (!drawing) return null;
 
-  return (
+  return createPortal(
     <div
       ref={toolbarRef}
-      className="absolute flex items-center pointer-events-auto animate-toolbar-in"
-      style={toolbarStyle}
+      className="flex items-center pointer-events-auto animate-toolbar-in"
+      style={toolbarBaseStyle}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={onMouseDownToolbar}
     >
+      {gripHandle}
+      <Divider />
       {drawing.type === 'frvp' ? (
         <FRVPToolbarPanel
           frvp={drawing as FRVPDrawing}
@@ -355,7 +427,8 @@ export function DrawingEditToolbar({
       >
         <TrashIcon />
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }
 

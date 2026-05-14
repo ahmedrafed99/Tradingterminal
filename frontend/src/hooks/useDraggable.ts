@@ -8,6 +8,7 @@ interface UseDraggableOptions {
 export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: UseDraggableOptions) {
   const ref = useRef<T>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(options?.initialPos ?? null);
+  const [isDragging, setIsDragging] = useState(false);
   const latestPosRef = useRef<{ x: number; y: number } | null>(null);
   const onDragEndRef = useRef(options?.onDragEnd);
   onDragEndRef.current = options?.onDragEnd;
@@ -27,6 +28,7 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: U
 
     document.body.style.cursor = 'grabbing';
     document.body.style.userSelect = 'none';
+    setIsDragging(true);
 
     const onMove = (ev: MouseEvent) => {
       const newPos = {
@@ -40,6 +42,7 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: U
     const onUp = () => {
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      setIsDragging(false);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
       if (latestPosRef.current) onDragEndRef.current?.(latestPosRef.current);
@@ -53,5 +56,5 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: U
     ? { left: pos.x, top: pos.y, transform: 'none' }
     : {};
 
-  return { ref, onDragMouseDown, dragStyle };
+  return { ref, onDragMouseDown, dragStyle, isDragging };
 }

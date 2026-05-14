@@ -495,7 +495,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
           <line x1="11" y1="2" x2="11" y2="12" stroke="var(--color-text)" strokeWidth="2" strokeLinecap="round"/>
         </svg>
       </button>
-      <DrawingEditToolbar contractId={contract ? String(contract.id) : undefined} />
+      <DrawingEditToolbar contractId={contract ? String(contract.id) : undefined} containerRef={containerRef} />
       <ChartSettingsButton chartRef={chartRef} containerRef={containerRef} />
       {menuState && (
         <ChartContextMenu
