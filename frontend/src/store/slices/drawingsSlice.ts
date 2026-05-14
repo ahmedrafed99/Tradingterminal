@@ -30,6 +30,9 @@ interface DrawingStyleDefaults {
   showPoc?: boolean;
   extendPoc?: boolean;
   showBarValues?: boolean;
+  barPlacement?: 'left' | 'right' | 'middle';
+  barOffset?: number;
+  volumeType?: 'total' | 'delta' | 'updown';
 }
 
 export interface DrawingsState {
@@ -164,6 +167,15 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           }
           if ('showBarValues' in patch || cur.showBarValues !== undefined) {
             updated.showBarValues = (p.showBarValues as boolean) ?? cur.showBarValues;
+          }
+          if ('barPlacement' in patch || cur.barPlacement !== undefined) {
+            updated.barPlacement = (p.barPlacement as 'left' | 'right' | 'middle') ?? cur.barPlacement;
+          }
+          if ('barOffset' in patch || cur.barOffset !== undefined) {
+            updated.barOffset = (p.barOffset as number) ?? cur.barOffset;
+          }
+          if ('volumeType' in patch || cur.volumeType !== undefined) {
+            updated.volumeType = (p.volumeType as 'total' | 'delta' | 'updown') ?? cur.volumeType;
           }
           // Rect-specific defaults
           if ('extendMode' in patch || cur.extendMode !== undefined) {

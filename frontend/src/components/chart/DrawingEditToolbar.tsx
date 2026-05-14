@@ -1120,21 +1120,29 @@ export function DrawingEditToolbar({
   const [showRectSettings, setShowRectSettings] = useState(false);
   const [showFrvpModeDD, setShowFrvpModeDD] = useState(false);
   const [showFrvpRowDD, setShowFrvpRowDD] = useState(false);
+  const [showFrvpPlacementDD, setShowFrvpPlacementDD] = useState(false);
+  const [showFrvpVolTypeDD, setShowFrvpVolTypeDD] = useState(false);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
   const frvpModeRef = useRef<HTMLDivElement>(null);
   const frvpRowRef = useRef<HTMLDivElement>(null);
+  const frvpPlacementRef = useRef<HTMLDivElement>(null);
+  const frvpVolTypeRef = useRef<HTMLDivElement>(null);
   const closeFrvpModeDD = useCallback(() => setShowFrvpModeDD(false), []);
   const closeFrvpRowDD = useCallback(() => setShowFrvpRowDD(false), []);
+  const closeFrvpPlacementDD = useCallback(() => setShowFrvpPlacementDD(false), []);
+  const closeFrvpVolTypeDD = useCallback(() => setShowFrvpVolTypeDD(false), []);
   useClickOutside(frvpModeRef, showFrvpModeDD, closeFrvpModeDD);
   useClickOutside(frvpRowRef, showFrvpRowDD, closeFrvpRowDD);
+  useClickOutside(frvpPlacementRef, showFrvpPlacementDD, closeFrvpPlacementDD);
+  useClickOutside(frvpVolTypeRef, showFrvpVolTypeDD, closeFrvpVolTypeDD);
 
   const isMulti = selectedIds.length > 1;
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
-  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowRectSettings(false); setShowFrvpModeDD(false); setShowFrvpRowDD(false); };
+  const closeAll = () => { setShowColor(false); setShowFillColor(false); setShowText(false); setShowStroke(false); setShowTemplate(false); setShowPocColor(false); setFrvpTab(null); setShowRectSettings(false); setShowFrvpModeDD(false); setShowFrvpRowDD(false); setShowFrvpPlacementDD(false); setShowFrvpVolTypeDD(false); };
 
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
@@ -1388,6 +1396,51 @@ export function DrawingEditToolbar({
                         />
                       )}
                     </div>
+                    {/* Volume type dropdown */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Volume</span>
+                      <div ref={frvpVolTypeRef} className="relative">
+                        <button
+                          onClick={() => { setShowFrvpModeDD(false); setShowFrvpRowDD(false); setShowFrvpVolTypeDD((v) => !v); }}
+                          className="focus:outline-none focus:ring-0"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                            background: 'var(--color-surface)', color: 'var(--color-text)',
+                            border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+                            padding: '4px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', width: 140,
+                            transition: 'border-color var(--transition-fast)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                        >
+                          <span>Total Volume</span>
+                          <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showFrvpVolTypeDD ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+                            <path d="M0 0l4 5 4-5z" />
+                          </svg>
+                        </button>
+                        {showFrvpVolTypeDD && (
+                          <div
+                            className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+                            style={{ zIndex: Z.DROPDOWN + 1, top: '100%', right: 0, marginTop: 4, background: 'var(--color-surface)', boxShadow: SHADOW.LG, padding: '2px 0', width: 140 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {([['total', 'Total Volume', true], ['delta', 'Delta', false], ['updown', 'Up/Down Volume', false]] as [string, string, boolean][]).map(([val, label, enabled]) => {
+                              const active = (frvp.volumeType ?? 'total') === val;
+                              return (
+                                <button
+                                  key={val}
+                                  onClick={() => { if (enabled && !active) { updateDrawing(drawing.id, { volumeType: val as 'total' | 'delta' | 'updown' } as Partial<Drawing>); } if (enabled) setShowFrvpVolTypeDD(false); }}
+                                  className={`flex items-center w-full rounded-lg text-left ${active ? '' : enabled ? 'text-(--color-text) hover:bg-(--color-hover-row)' : ''}`}
+                                  style={{ padding: '7px 10px', border: 'none', cursor: enabled ? 'pointer' : 'default', fontSize: 13, fontWeight: 600, ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : !enabled ? { opacity: 0.4, pointerEvents: 'none' } : {}) }}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </>
                 )}
 
@@ -1401,6 +1454,62 @@ export function DrawingEditToolbar({
                       <ColorSwatchButton
                         color={frvp.color}
                         onChange={(color) => updateDrawing(drawing.id, { color } as Partial<Drawing>)}
+                      />
+                    </div>
+                    {/* Placement dropdown */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Placement</span>
+                      <div ref={frvpPlacementRef} className="relative">
+                        <button
+                          onClick={() => { setShowFrvpPlacementDD((v) => !v); }}
+                          className="focus:outline-none focus:ring-0"
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                            background: 'var(--color-surface)', color: 'var(--color-text)',
+                            border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
+                            padding: '4px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer', minWidth: 80,
+                            transition: 'border-color var(--transition-fast)',
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                        >
+                          <span style={{ textTransform: 'capitalize' }}>{frvp.barPlacement ?? 'left'}</span>
+                          <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showFrvpPlacementDD ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
+                            <path d="M0 0l4 5 4-5z" />
+                          </svg>
+                        </button>
+                        {showFrvpPlacementDD && (
+                          <div
+                            className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+                            style={{ zIndex: Z.DROPDOWN + 1, top: '100%', right: 0, marginTop: 4, background: 'var(--color-surface)', boxShadow: SHADOW.LG, padding: '2px 0', minWidth: 80 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {(['left', 'right', 'middle'] as const).map((p) => {
+                              const active = (frvp.barPlacement ?? 'left') === p;
+                              return (
+                                <button
+                                  key={p}
+                                  onClick={() => { if (!active) updateDrawing(drawing.id, { barPlacement: p } as Partial<Drawing>); setShowFrvpPlacementDD(false); }}
+                                  className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                                  style={{ padding: '7px 10px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, textTransform: 'capitalize', ...(active ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
+                                >
+                                  {p}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {/* Offset spinner */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Offset</span>
+                      <SpinnerInput
+                        value={frvp.barOffset ?? 0}
+                        onChange={(v) => updateDrawing(drawing.id, { barOffset: Math.max(0, v) } as Partial<Drawing>)}
+                        min={0}
+                        max={200}
+                        step={1}
                       />
                     </div>
                     {/* Show Values */}

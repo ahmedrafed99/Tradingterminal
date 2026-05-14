@@ -38,6 +38,7 @@ const MAX_BAR_WIDTH_CSS = 180;
 
 interface HoveredBarInfo {
   cssAnchorX: number;
+  cssRightEdge: number;
   cssCenterY: number;
   volume: number;
 }
@@ -112,9 +113,11 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         ctx.fillRect(rectLeft, topY, rectRight - rectLeft, bottomY - topY);
       }
 
-      const result = this._drawBars(ctx, anchorX, topY, bottomY, maxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
+      const t2BitmapX = cssT2X !== null ? cssT2X * hpr : null;
+      const cssRightEdge = cssT2X ?? (cssAnchorX + maxBarW / hpr);
+      const result = this._drawBars(ctx, anchorX, t2BitmapX, topY, bottomY, maxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
       if (result) {
-        hoveredBar = { cssAnchorX, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
+        hoveredBar = { cssAnchorX, cssRightEdge, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
       }
 
       // Vertical anchor line (t1 only)
@@ -157,7 +160,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
     // Draw value label in media space so font is crisp
     if (hoveredBar && this._drawing.showBarValues) {
-      const { cssAnchorX, cssCenterY, volume } = hoveredBar as HoveredBarInfo;
+      const { cssAnchorX, cssRightEdge, cssCenterY, volume } = hoveredBar as HoveredBarInfo;
       target.useMediaCoordinateSpace(({ context: ctx }) => {
         const volText = volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : String(Math.round(volume));
         ctx.font = `11px ${FONT_FAMILY}`;
@@ -165,7 +168,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         const pad = 5;
         const labelW = textW + pad * 2;
         const labelH = 18;
-        const labelX = cssAnchorX + 4;
+        const barPlacementLabel = this._drawing.barPlacement ?? 'left';
+        const barOffsetLabel = this._drawing.barOffset ?? 0;
+        const labelX = barPlacementLabel === 'right' ? cssRightEdge - barOffsetLabel - labelW - 4 : cssAnchorX + barOffsetLabel + 4;
         const labelY = cssCenterY - labelH / 2;
 
         ctx.fillStyle = COLOR_CHART_LABEL_OVERLAY;
@@ -184,10 +189,11 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
   private _drawBars(
     ctx: CanvasRenderingContext2D,
     anchorX: number,
+    t2BitmapX: number | null,
     topY: number,
     bottomY: number,
     maxBarW: number,
-    _hpr: number,
+    hpr: number,
     vpr: number,
     highlightOnHover: boolean,
   ): { bitmapCenterY: number; volume: number } | null {
@@ -202,6 +208,10 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     const showPoc = this._drawing.showPoc !== false;
     const pocColor = this._drawing.pocColor ?? COLOR_ACCENT;
     const extendPoc = this._drawing.extendPoc === true;
+    const placement = this._drawing.barPlacement ?? 'left';
+    const offsetBitmap = (this._drawing.barOffset ?? 0) * hpr;
+    const rightEdge = t2BitmapX ?? (anchorX + maxBarW);
+    const centerX = (anchorX + rightEdge) / 2;
 
     const [r, g, b] = parseColor(this._drawing.color);
     const barColor = rgba(r, g, b, 0.45);
@@ -269,8 +279,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
 
         const barW = (buckets[i] / maxVol) * maxBarW;
+        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX - barW / 2 : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
-        ctx.fillRect(anchorX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
+        ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
         if (i === pocIdx) pocLine = { y: barCenterY, w: barW };
         if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: buckets[i] };
@@ -328,8 +339,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
 
         const barW = (buckets[i] / maxVol) * maxBarW;
+        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX - barW / 2 : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
-        ctx.fillRect(anchorX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
+        ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
         if (i === pocIdx) pocLine = { y: barCenterY, w: barW };
         if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: buckets[i] };
@@ -375,8 +387,9 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
 
         const barW = (vol / maxVol) * maxBarW;
+        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX - barW / 2 : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
-        ctx.fillRect(anchorX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
+        ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
         if (Math.abs(price - pocPrice) < tickSize * 0.5) pocLine = { y: barCenterY, w: barW };
         if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: vol };
@@ -385,12 +398,14 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
     // ── POC line: thin horizontal line centered on the POC bar, drawn on top ──
     if (showPoc && pocLine) {
+      const pocStartX = placement === 'right' ? rightEdge - pocLine.w - offsetBitmap : placement === 'middle' ? centerX - pocLine.w / 2 : anchorX + offsetBitmap;
+      const pocEndX = extendPoc ? rightEdge : (placement === 'right' ? rightEdge - offsetBitmap : placement === 'middle' ? centerX + pocLine.w / 2 : anchorX + offsetBitmap + pocLine.w);
       ctx.strokeStyle = pocColor;
       ctx.lineWidth = Math.max(Math.round(2 * vpr), 2);
       ctx.setLineDash([]);
       ctx.beginPath();
-      ctx.moveTo(anchorX, pocLine.y);
-      ctx.lineTo(extendPoc ? ctx.canvas.width : anchorX + pocLine.w, pocLine.y);
+      ctx.moveTo(pocStartX, pocLine.y);
+      ctx.lineTo(pocEndX, pocLine.y);
       ctx.stroke();
     }
 

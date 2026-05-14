@@ -154,6 +154,9 @@ export interface FRVPDrawing extends DrawingBase {
   extendPoc?: boolean;     // extend POC line to right edge; undefined/false = bar width only
   showBarValues?: boolean; // show volume label on hover; undefined/false = hidden
   highlightOnHover?: boolean; // highlight bar on crosshair hover; undefined/true = enabled
+  barPlacement?: 'left' | 'right' | 'middle'; // which side of anchor bars grow from; undefined/'left' = right of anchor
+  barOffset?: number;      // CSS pixel gap between anchor line and bar start; undefined/0 = flush
+  volumeType?: 'total' | 'delta' | 'updown'; // volume data source; only 'total' is active currently
 }
 
 // ---------------------------------------------------------------------------
