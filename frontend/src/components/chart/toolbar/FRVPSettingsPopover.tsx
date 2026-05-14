@@ -5,6 +5,7 @@ import { RADIUS, Z, SHADOW } from '../../../constants/layout';
 import type { Drawing, FRVPDrawing } from '../../../types/drawing';
 import { ColorSwatchButton } from '../ColorPopover';
 import { COLOR_ACCENT } from '../../../constants/colors';
+import { DropdownButton } from '../../shared/DropdownButton';
 import { SpinnerInput } from '../../SpinnerInput';
 import { Popover } from '../../shared/Popover';
 
@@ -80,19 +81,6 @@ export function FRVPSettingsPopover({
       <path d="M1 3.5L3.5 6L8 1" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-  const ChevronDown = ({ open }: { open: boolean }) => (
-    <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
-      <path d="M0 0l4 5 4-5z" />
-    </svg>
-  );
-
-  const ddBtnStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-    background: 'var(--color-surface)', color: 'var(--color-text)',
-    border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
-    padding: '4px 10px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-    transition: 'border-color var(--transition-fast)',
-  };
   const ddPanelStyle: React.CSSProperties = {
     position: 'absolute', zIndex: Z.DROPDOWN + 1,
     top: '100%', right: 0, marginTop: 4,
@@ -131,16 +119,9 @@ export function FRVPSettingsPopover({
             <div style={rowStyle}>
               <span style={labelStyle}>Mode</span>
               <div ref={modeRef} className="relative">
-                <button
-                  style={{ ...ddBtnStyle, minWidth: 100 }}
-                  onClick={() => { setShowRowDD(false); setShowModeDD((v) => !v); }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                  className="focus:outline-none focus:ring-0"
-                >
+                <DropdownButton open={showModeDD} onClick={() => { setShowRowDD(false); setShowModeDD((v) => !v); }} minWidth={100}>
                   <span>{(frvp.mode ?? 'anchor') === 'anchor' ? 'Anchor' : 'Range'}</span>
-                  <ChevronDown open={showModeDD} />
-                </button>
+                </DropdownButton>
                 {showModeDD && (
                   <div style={{ ...ddPanelStyle, minWidth: 100 }} onClick={(e) => e.stopPropagation()}>
                     {(['anchor', 'range'] as const).map((m) => {
@@ -176,16 +157,9 @@ export function FRVPSettingsPopover({
             <div style={rowStyle}>
               <span style={labelStyle}>Row Layout</span>
               <div ref={rowRef} className="relative">
-                <button
-                  style={{ ...ddBtnStyle, width: 150 }}
-                  onClick={() => { setShowModeDD(false); setShowRowDD((v) => !v); }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                  className="focus:outline-none focus:ring-0"
-                >
+                <DropdownButton open={showRowDD} onClick={() => { setShowModeDD(false); setShowRowDD((v) => !v); }} width={150}>
                   <span>{(frvp.rowSizeMode ?? 'count') === 'count' ? 'Number of Rows' : 'Ticks per Row'}</span>
-                  <ChevronDown open={showRowDD} />
-                </button>
+                </DropdownButton>
                 {showRowDD && (
                   <div style={{ ...ddPanelStyle, width: 150 }} onClick={(e) => e.stopPropagation()}>
                     {([['count', 'Number of Rows'], ['price', 'Ticks per Row']] as [string, string][]).map(([m, label]) => {
@@ -235,16 +209,9 @@ export function FRVPSettingsPopover({
             <div style={rowStyle}>
               <span style={labelStyle}>Volume</span>
               <div ref={volTypeRef} className="relative">
-                <button
-                  style={{ ...ddBtnStyle, width: 150 }}
-                  onClick={() => { setShowModeDD(false); setShowRowDD(false); setShowVolTypeDD((v) => !v); }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                  className="focus:outline-none focus:ring-0"
-                >
+                <DropdownButton open={showVolTypeDD} onClick={() => { setShowModeDD(false); setShowRowDD(false); setShowVolTypeDD((v) => !v); }} width={150}>
                   <span>Total Volume</span>
-                  <ChevronDown open={showVolTypeDD} />
-                </button>
+                </DropdownButton>
                 {showVolTypeDD && (
                   <div style={{ ...ddPanelStyle, width: 150 }} onClick={(e) => e.stopPropagation()}>
                     {([['total', 'Total Volume', true], ['delta', 'Delta', false], ['updown', 'Up/Down Volume', false]] as [string, string, boolean][]).map(([val, label, enabled]) => {
@@ -293,16 +260,9 @@ export function FRVPSettingsPopover({
                   />
                 </div>
                 <div ref={valuesModeRef} className="relative" style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
-                  <button
-                    style={{ ...ddBtnStyle, minWidth: 90 }}
-                    onClick={() => setShowValuesModeDD((v) => !v)}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                    className="focus:outline-none focus:ring-0"
-                  >
+                  <DropdownButton open={showValuesModeDD} onClick={() => setShowValuesModeDD((v) => !v)} minWidth={90}>
                     <span>{(frvp.valuesMode ?? 'hover') === 'always' ? 'Always' : 'On Hover'}</span>
-                    <ChevronDown open={showValuesModeDD} />
-                  </button>
+                  </DropdownButton>
                   {showValuesModeDD && (
                     <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
                       {(['hover', 'always'] as const).map((m) => {
@@ -346,16 +306,9 @@ export function FRVPSettingsPopover({
               <div style={rowStyle}>
                 <span style={labelStyle}>Placement</span>
                 <div ref={placementRef} className="relative">
-                  <button
-                    style={{ ...ddBtnStyle, minWidth: 90 }}
-                    onClick={() => setShowPlacementDD((v) => !v)}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-                    className="focus:outline-none focus:ring-0"
-                  >
+                  <DropdownButton open={showPlacementDD} onClick={() => setShowPlacementDD((v) => !v)} minWidth={90}>
                     <span style={{ textTransform: 'capitalize' }}>{frvp.barPlacement ?? 'left'}</span>
-                    <ChevronDown open={showPlacementDD} />
-                  </button>
+                  </DropdownButton>
                   {showPlacementDD && (
                     <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
                       {(['left', 'right', 'middle'] as const).map((p) => {

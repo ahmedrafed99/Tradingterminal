@@ -45,12 +45,14 @@
         "frontend/src/components/chart/toolbar/TextPopover.tsx",
         "frontend/src/components/chart/toolbar/TemplatePopover.tsx",
         "frontend/src/components/chart/toolbar/RectSettingsPopover.tsx",
-        "frontend/src/components/chart/toolbar/lineStyleDefs.ts"
+        "frontend/src/components/chart/toolbar/lineStyleDefs.ts",
+        "frontend/src/components/shared/DropdownButton.tsx"
       ],
       "dependencies": [
         "drawingsSlice (updateDrawing, removeDrawing, selectedDrawingIds)",
         "ColorPopover (color picker popover)",
-        "FRVPToolbarPanel (FRVP-specific tab panel, lives in FRVP component)"
+        "FRVPToolbarPanel (FRVP-specific tab panel, lives in FRVP component)",
+        "DropdownButton (shared dropdown trigger button)"
       ],
       "notes": [
         "closeAll() resets every popover state — always call it before opening a new one",

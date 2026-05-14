@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { FONT_FAMILY, RADIUS, Z, SHADOW } from '../../../constants/layout';
+import { DropdownButton } from '../../shared/DropdownButton';
 import type { Drawing, TextHAlign, TextVAlign } from '../../../types/drawing';
 import { FONT_SIZE_OPTIONS } from '../../../types/drawing';
 import { ColorSwatchButton } from '../ColorPopover';
@@ -78,34 +79,9 @@ export function TextPopover({
           <ColorSwatchButton color={color} onChange={setColor} />
           {/* Font size dropdown */}
           <div ref={fontSizeRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setShowFontSizes((o) => !o)}
-              className="focus:outline-none focus:ring-0"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-text)',
-                border: '1px solid var(--color-border)',
-                outline: 'none',
-                borderRadius: RADIUS.XL,
-                padding: '4px 10px',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                width: 56,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                transition: 'border-color var(--transition-fast)',
-              }}
-              title="Font size"
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-            >
+            <DropdownButton open={showFontSizes} onClick={() => setShowFontSizes((o) => !o)} width={56} title="Font size">
               {fontSize}
-              <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5 }}>
-                <path d="M0 0l4 5 4-5z" />
-              </svg>
-            </button>
+            </DropdownButton>
             {showFontSizes && (
               <div
                 className="border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
@@ -117,8 +93,6 @@ export function TextPopover({
                   background: 'var(--color-surface)',
                   boxShadow: SHADOW.LG,
                   minWidth: 56,
-                  maxHeight: 160,
-                  overflowY: 'auto',
                   padding: '2px 0',
                 }}
                 onClick={(e) => e.stopPropagation()}

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { RADIUS, Z, SHADOW } from '../../../constants/layout';
+import { DropdownButton } from '../../shared/DropdownButton';
 import type { RectDrawing } from '../../../types/drawing';
 import { ColorSwatchButton } from '../ColorPopover';
 import { LINE_STYLE_DEFS } from './lineStyleDefs';
@@ -67,24 +68,9 @@ export function RectSettingsPopover({
         <div className="flex items-center" style={{ minHeight: 34, gap: 10 }}>
           <span style={{ ...labelStyle, flexShrink: 0, width: 90 }}>Extend</span>
           <div ref={extendRef} className="relative" style={{ flex: 1 }}>
-            <button
-              onClick={() => setShowExtend((v) => !v)}
-              className="focus:outline-none focus:ring-0"
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: 'var(--color-surface)', color: 'var(--color-text)',
-                border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
-                padding: '4px 10px', fontSize: 13, cursor: 'pointer',
-                transition: 'border-color var(--transition-fast)',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
-            >
+            <DropdownButton open={showExtend} onClick={() => setShowExtend((v) => !v)} className="w-full">
               <span>{extendRight && extendLeft ? 'Both' : extendRight ? 'Extend right' : extendLeft ? 'Extend left' : 'None'}</span>
-              <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, transform: showExtend ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
-                <path d="M0 0l4 5 4-5z" />
-              </svg>
-            </button>
+            </DropdownButton>
             {showExtend && (
               <div
                 className="absolute border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
