@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
 import { useDraggable } from '../../hooks/useDraggable';
 import { useClickOutside } from '../../hooks/useClickOutside';
+import { useStore } from '../../store/useStore';
 
 export interface PopoverProps {
   title: string;
@@ -8,11 +10,29 @@ export interface PopoverProps {
   onCancel?: () => void;
   width?: number;
   minHeight?: number;
+  persistKey?: string;
   children: React.ReactNode;
 }
 
-export function Popover({ title, onClose, onCancel, width = 440, minHeight, children }: PopoverProps) {
-  const { ref, onDragMouseDown, dragStyle } = useDraggable<HTMLDivElement>();
+export function Popover({ title, onClose, onCancel, width = 440, minHeight, persistKey, children }: PopoverProps) {
+  const rawSavedPos = useStore((s) => persistKey ? s.popoverPositions[persistKey] : undefined);
+  const setPopoverPosition = useStore((s) => s.setPopoverPosition);
+
+  const savedPos = rawSavedPos
+    ? {
+        x: Math.min(rawSavedPos.x, window.innerWidth - width - 8),
+        y: Math.min(Math.max(0, rawSavedPos.y), window.innerHeight - 40),
+      }
+    : undefined;
+
+  const onDragEnd = useCallback((pos: { x: number; y: number }) => {
+    if (persistKey) setPopoverPosition(persistKey, pos);
+  }, [persistKey, setPopoverPosition]);
+
+  const { ref, onDragMouseDown, dragStyle } = useDraggable<HTMLDivElement>({
+    initialPos: savedPos,
+    onDragEnd: persistKey ? onDragEnd : undefined,
+  });
   useClickOutside(ref, true, onClose);
 
   return (

@@ -71,7 +71,7 @@ export function TextPopover({
   });
 
   return (
-    <Popover title="Text" onClose={onClose} onCancel={cancel} width={460} minHeight={540}>
+    <Popover title="Text" onClose={onClose} onCancel={cancel} width={460} minHeight={540} persistKey="popover-text">
       {/* Body */}
       <div style={{ flex: 1, padding: '4px 24px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
         {/* Row 1: Color swatch + Font size + Bold + Italic */}

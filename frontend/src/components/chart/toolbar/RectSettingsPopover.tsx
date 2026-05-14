@@ -61,7 +61,7 @@ export function RectSettingsPopover({
   };
 
   return (
-    <Popover title="Rectangle" onClose={onClose} onCancel={handleCancel} width={440} minHeight={360}>
+    <Popover title="Rectangle" onClose={onClose} onCancel={handleCancel} width={440} minHeight={360} persistKey="popover-rect">
       {/* Body */}
       <div style={{ flex: 1, padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
         {/* Extend row */}

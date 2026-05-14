@@ -132,7 +132,15 @@ export interface OrderPanelPositionState {
   setOrderPanelSide: (side: 'left' | 'right') => void;
 }
 
-export type LayoutSlice = UiState & BottomPanelState & DualChartState & MarketDepthState & BidAskFootprintState & NewsState & OrderPanelPositionState;
+// ---------------------------------------------------------------------------
+// Popover Positions
+// ---------------------------------------------------------------------------
+export interface PopoverPositionsState {
+  popoverPositions: Record<string, { x: number; y: number }>;
+  setPopoverPosition: (key: string, pos: { x: number; y: number }) => void;
+}
+
+export type LayoutSlice = UiState & BottomPanelState & DualChartState & MarketDepthState & BidAskFootprintState & NewsState & OrderPanelPositionState & PopoverPositionsState;
 
 type Set = {
   (partial: Partial<LayoutSlice>): void;
@@ -255,4 +263,8 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   newsImpactFilter: { high: true, medium: false, low: false } as NewsImpactFilter,
   setNewsEvents: (newsEvents) => set({ newsEvents }),
   setNewsImpactFilter: (newsImpactFilter) => set({ newsImpactFilter }),
+
+  // Popover Positions
+  popoverPositions: {} as Record<string, { x: number; y: number }>,
+  setPopoverPosition: (key, pos) => set((s) => ({ popoverPositions: { ...s.popoverPositions, [key]: pos } })),
 });

@@ -103,7 +103,7 @@ export function FRVPSettingsPopover({
   });
 
   return (
-    <Popover title="FRVP Settings" onClose={onClose} onCancel={handleCancel} width={440}>
+    <Popover title="FRVP Settings" onClose={onClose} onCancel={handleCancel} width={440} persistKey="popover-frvp">
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 16, padding: '8px 24px 0' }}>
         <button style={tabBtn('input')} onClick={() => setTab('input')}>Input</button>

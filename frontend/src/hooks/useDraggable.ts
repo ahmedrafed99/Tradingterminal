@@ -1,8 +1,16 @@
 import { useState, useRef, useCallback } from 'react';
 
-export function useDraggable<T extends HTMLElement = HTMLDivElement>() {
+interface UseDraggableOptions {
+  initialPos?: { x: number; y: number };
+  onDragEnd?: (pos: { x: number; y: number }) => void;
+}
+
+export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: UseDraggableOptions) {
   const ref = useRef<T>(null);
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(options?.initialPos ?? null);
+  const latestPosRef = useRef<{ x: number; y: number } | null>(null);
+  const onDragEndRef = useRef(options?.onDragEnd);
+  onDragEndRef.current = options?.onDragEnd;
 
   const onDragMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -21,10 +29,12 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>() {
     document.body.style.userSelect = 'none';
 
     const onMove = (ev: MouseEvent) => {
-      setPos({
+      const newPos = {
         x: startPos.x + ev.clientX - startMouse.x,
         y: startPos.y + ev.clientY - startMouse.y,
-      });
+      };
+      latestPosRef.current = newPos;
+      setPos(newPos);
     };
 
     const onUp = () => {
@@ -32,6 +42,7 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>() {
       document.body.style.userSelect = '';
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
+      if (latestPosRef.current) onDragEndRef.current?.(latestPosRef.current);
     };
 
     window.addEventListener('mousemove', onMove);
