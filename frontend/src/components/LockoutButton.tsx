@@ -5,9 +5,8 @@ import { useClickOutside } from '../hooks/useClickOutside';
 import { getNextSessionStartMs } from '../utils/marketHours';
 import { showToast } from '../utils/toast';
 import api from '../services/api';
-import { FONT_SIZE, Z } from '../constants/layout';
+import { FONT_SIZE, SHADOW, Z } from '../constants/layout';
 import { SpinnerInput } from './SpinnerInput';
-import { Popover } from './shared/Popover';
 import { MenuItem } from './shared/MenuItem';
 import { Button } from './shared/Button';
 
@@ -210,7 +209,8 @@ export function LockoutButton() {
       </button>
 
       {open && (
-        <Popover
+        <div
+          className="bg-(--color-panel) border border-(--color-border) rounded-lg"
           style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
@@ -219,6 +219,7 @@ export function LockoutButton() {
             zIndex: Z.DROPDOWN,
             width: 200,
             overflow: 'hidden',
+            boxShadow: SHADOW.XL,
           }}
         >
           {/* Header */}
@@ -316,7 +317,7 @@ export function LockoutButton() {
               </div>
             </div>
           )}
-        </Popover>
+        </div>
       )}
     </div>
   );

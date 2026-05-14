@@ -78,6 +78,24 @@
       ]
     }
     ,{
+      "name": "Popover",
+      "description": "Shared draggable modal popover shell. Handles drag (useDraggable), click-outside close (useClickOutside), stop propagation, fixed centered positioning, header with title + X button, and footer with Cancel/Ok buttons. Used by all settings modals.",
+      "keywords": ["popover", "modal", "draggable", "settings", "header", "footer", "cancel", "ok"],
+      "files": [
+        "frontend/src/components/shared/Popover.tsx"
+      ],
+      "dependencies": [
+        "useDraggable",
+        "useClickOutside"
+      ],
+      "notes": [
+        "onCancel prop — cancel button handler; falls back to onClose if not provided",
+        "children render between the two hr dividers (after header, before footer) — bring your own body padding",
+        "onMouseDown stopPropagation on root div is required for drag to work without collapsing the popover",
+        "LockoutButton previously used Popover as a dropdown shell — now inlines its own div; Popover is modal-only"
+      ]
+    }
+    ,{
       "name": "SpinnerInput",
       "description": "Compact numeric input with hover-reveal up/down chevron arrows. Supports click (±step) and click-hold-drag (scrub up/down at 2px/step). Used across all style toolbars.",
       "keywords": ["spinner", "numeric input", "scrub", "drag", "stepper", "arrows"],
