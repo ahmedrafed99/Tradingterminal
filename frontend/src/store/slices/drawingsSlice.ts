@@ -30,6 +30,7 @@ interface DrawingStyleDefaults {
   showPoc?: boolean;
   extendPoc?: boolean;
   showBarValues?: boolean;
+  valuesBgColor?: string;
   barPlacement?: 'left' | 'right' | 'middle';
   barOffset?: number;
   barLength?: number;
@@ -168,6 +169,9 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           }
           if ('showBarValues' in patch || cur.showBarValues !== undefined) {
             updated.showBarValues = (p.showBarValues as boolean) ?? cur.showBarValues;
+          }
+          if ('valuesBgColor' in patch || cur.valuesBgColor !== undefined) {
+            updated.valuesBgColor = (p.valuesBgColor as string | undefined) ?? cur.valuesBgColor;
           }
           if ('barPlacement' in patch || cur.barPlacement !== undefined) {
             updated.barPlacement = (p.barPlacement as 'left' | 'right' | 'middle') ?? cur.barPlacement;

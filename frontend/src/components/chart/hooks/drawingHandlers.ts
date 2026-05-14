@@ -864,6 +864,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
             showPoc: frvpDef?.showPoc,
             extendPoc: frvpDef?.extendPoc,
             showBarValues: frvpDef?.showBarValues,
+            valuesBgColor: frvpDef?.valuesBgColor ?? 'rgba(0,0,0,0.55)',
             text: null,
             contractId: String(contract.id),
           });
@@ -897,6 +898,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
             showPoc: frvpDef?.showPoc,
             extendPoc: frvpDef?.extendPoc,
             showBarValues: frvpDef?.showBarValues,
+            valuesBgColor: frvpDef?.valuesBgColor ?? 'rgba(0,0,0,0.55)',
             text: null,
             contractId: String(contract.id),
           });

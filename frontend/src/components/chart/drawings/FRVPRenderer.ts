@@ -231,6 +231,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     const placement = this._drawing.barPlacement ?? 'left';
     const offsetBitmap = (this._drawing.barOffset ?? 0) * hpr;
     const rightEdge = t2BitmapX ?? (anchorX + maxBarW);
+    const effectiveMaxBarW = Math.max(maxBarW - offsetBitmap, 0);
     const centerX = (anchorX + rightEdge) / 2;
 
     const [r, g, b] = parseColor(this._drawing.color);
@@ -300,7 +301,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
           needsAnim = true;
         }
 
-        const barW = (buckets[i] / maxVol) * maxBarW;
+        const barW = (buckets[i] / maxVol) * effectiveMaxBarW;
         const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
@@ -361,7 +362,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
           needsAnim = true;
         }
 
-        const barW = (buckets[i] / maxVol) * maxBarW;
+        const barW = (buckets[i] / maxVol) * effectiveMaxBarW;
         const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
@@ -410,7 +411,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
           needsAnim = true;
         }
 
-        const barW = (vol / maxVol) * maxBarW;
+        const barW = (vol / maxVol) * effectiveMaxBarW;
         const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
