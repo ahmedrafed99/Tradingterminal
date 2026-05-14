@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { SECTION_LABEL } from '../../../constants/styles';
 import { FONT_FAMILY, RADIUS, Z, SHADOW } from '../../../constants/layout';
 import type { Drawing, TextHAlign, TextVAlign } from '../../../types/drawing';
 import { FONT_SIZE_OPTIONS } from '../../../types/drawing';
@@ -49,7 +48,7 @@ export function TextPopover({
     outline: 'none',
     cursor: 'pointer',
     background: active ? 'var(--color-input)' : 'transparent',
-    color: active ? 'var(--color-warning)' : 'var(--color-text-muted)',
+    color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -83,14 +82,14 @@ export function TextPopover({
               onClick={() => setShowFontSizes((o) => !o)}
               className="focus:outline-none focus:ring-0"
               style={{
-                background: 'var(--color-input)',
+                background: 'var(--color-surface)',
                 color: 'var(--color-text)',
                 border: '1px solid var(--color-border)',
                 outline: 'none',
-                borderRadius: RADIUS.LG,
-                padding: '0 6px',
-                fontSize: 12,
-                height: 34,
+                borderRadius: RADIUS.XL,
+                padding: '4px 10px',
+                fontSize: 13,
+                fontWeight: 600,
                 cursor: 'pointer',
                 width: 56,
                 display: 'flex',
@@ -128,14 +127,14 @@ export function TextPopover({
                   <button
                     key={s}
                     onClick={() => { setFontSize(s); setShowFontSizes(false); }}
-                    className={`w-full text-left text-xs transition-colors ${s === fontSize ? '' : 'bg-transparent hover:bg-(--color-hover-row)'}`}
+                    className={`flex items-center w-full rounded-lg transition-colors text-left ${s === fontSize ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
                     style={{
-                      padding: '5px 10px',
+                      padding: '7px 10px',
                       border: 'none',
                       cursor: 'pointer',
-                      background: s === fontSize ? 'var(--color-text)' : 'transparent',
-                      color: s === fontSize ? 'var(--color-surface)' : 'var(--color-text)',
-                      fontWeight: s === fontSize ? 600 : 400,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      ...(s === fontSize ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}),
                     }}
                   >
                     {s}
@@ -188,7 +187,7 @@ export function TextPopover({
 
         {/* Row 3: Text position */}
         <div>
-          <div className={SECTION_LABEL} style={{ marginBottom: 14 }}>Text position</div>
+          <div style={{ fontSize: 13, color: 'var(--color-text)', marginBottom: 14 }}>Text position</div>
           <div style={{
             position: 'relative',
             width: '100%',
