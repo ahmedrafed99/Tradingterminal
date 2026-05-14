@@ -51,6 +51,7 @@ export interface DrawingState {
     origStartTime: number;
   } | null;
   drawingDragOccurred: boolean;
+  drawingJustSelected: boolean;
 
   arrowPathCreation: {
     anchorTime: number;
@@ -111,6 +112,7 @@ export function createDrawingState(): DrawingState {
     ovalResize: null,
     drawingDrag: null,
     drawingDragOccurred: false,
+    drawingJustSelected: false,
     arrowPathCreation: null,
     arrowPathNodeDrag: null,
     rectCreation: null,

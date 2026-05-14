@@ -94,6 +94,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     // Click handler for hline placement + selection
     const handleClick = (param: { point?: { x: number; y: number }; hoveredObjectId?: unknown }) => {
       if (state.drawingDragOccurred) { state.drawingDragOccurred = false; return; }
+      if (state.drawingJustSelected) { state.drawingJustSelected = false; return; }
       const { activeTool, addDrawing, setActiveTool, setSelectedDrawingIds, drawingDefaults } = useStore.getState();
       if (!param.point) {
         // Click was on the price scale or time scale (outside the main pane).

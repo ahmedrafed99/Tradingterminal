@@ -269,6 +269,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
   }
 
   st.setSelectedDrawingIds([drawing.id]);
+  state.drawingJustSelected = true;
   container.style.cursor = 'grabbing';
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.preventDefault();
@@ -749,6 +750,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     refs.crosshairLabel.current?.suppress(false);
     state.drawingDrag = null;
     state.drawingDragOccurred = false;
+    state.drawingJustSelected = false;
     container.style.cursor = CROSSHAIR_CURSOR;
     chart.applyOptions({ handleScroll: true, handleScale: true, crosshair: { horzLine: { labelVisible: true } } });
     return;
