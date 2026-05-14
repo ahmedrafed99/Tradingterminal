@@ -439,6 +439,9 @@ export class FRVPPaneView implements IPrimitivePaneView {
     return true;
   }
 
+  getExpandMap(): Map<number, number> { return this._expandMap; }
+  setExpandMap(map: Map<number, number>): void { this._expandMap = map; }
+
   zOrder(): 'normal' {
     return 'normal';
   }

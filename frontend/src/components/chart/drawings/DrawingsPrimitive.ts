@@ -832,6 +832,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   // Shared VP VolumeMap ref for all FRVP drawings (real trade ticks, session-scoped)
   private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
+  // Cached hover price and expand maps — restored after _rebuildViews so ticks don't blink
+  private _frvpHoverPrice: number | null = null;
+  private _frvpExpandCache: Map<string, Map<number, number>> = new Map();
   // Raw bars for range-mode pMin/pMax computation
   private _barsRef: Bar[] = [];
   private _tickSize = 0.01;
@@ -1023,6 +1026,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   /** Forward hover price to all FRVP pane views for bar highlight + label */
   setFRVPHoverPrice(price: number | null): void {
+    this._frvpHoverPrice = price;
     let changed = false;
     for (const v of this._paneViews) {
       if (v instanceof FRVPPaneView) {
@@ -1110,6 +1114,12 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       this._paneViews = [];
       return;
     }
+    // Snapshot expand maps before wiping views so animation state survives the rebuild
+    for (const v of this._paneViews) {
+      if (v instanceof FRVPPaneView) {
+        this._frvpExpandCache.set(v.drawingId, v.getExpandMap());
+      }
+    }
     this._paneViews = this._drawings.map((d) => {
       const selected = this._selectedIds.includes(d.id);
       if (d.type === 'hline') {
@@ -1156,6 +1166,14 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }
     });
+    // Restore hover price and expand maps so ticks don't cause a one-frame blink
+    for (const v of this._paneViews) {
+      if (v instanceof FRVPPaneView) {
+        if (this._frvpHoverPrice !== null) v.setHoverPrice(this._frvpHoverPrice);
+        const cached = this._frvpExpandCache.get(v.drawingId);
+        if (cached) v.setExpandMap(cached);
+      }
+    }
   }
 
   updateAllViews(): void {
