@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useDraggable } from '../../../hooks/useDraggable';
 import { SECTION_LABEL } from '../../../constants/styles';
 import { FONT_FAMILY, RADIUS, Z, SHADOW } from '../../../constants/layout';
 import type { Drawing, TextHAlign, TextVAlign } from '../../../types/drawing';
@@ -15,7 +16,7 @@ export function TextPopover({
   onUpdate: (patch: Partial<Drawing>) => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const { ref, onDragMouseDown, dragStyle } = useDraggable<HTMLDivElement>();
   const [content, setContent] = useState(drawing.text?.content ?? '');
   const [color, setColor] = useState(drawing.text?.color ?? '#ffffff');
   const [fontSize, setFontSize] = useState(drawing.text?.fontSize ?? 12);
@@ -81,11 +82,11 @@ export function TextPopover({
     <div
       ref={ref}
       className="fixed border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width: 460, minHeight: 540, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)' }}
+      style={{ zIndex: Z.DROPDOWN, width: 460, minHeight: 540, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', ...dragStyle }}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 24px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 24px 16px', cursor: 'grab' }} onMouseDown={onDragMouseDown}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>Text</span>
         <button
           onClick={onClose}

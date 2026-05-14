@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useDraggable } from '../../../hooks/useDraggable';
 import { useStore } from '../../../store/useStore';
 import { SECTION_LABEL } from '../../../constants/styles';
 import { RADIUS, Z, SHADOW } from '../../../constants/layout';
@@ -23,7 +24,7 @@ export function FRVPSettingsPopover({
   autoTickSize,
   onClose,
 }: FRVPSettingsPopoverProps) {
-  const ref = useRef<HTMLDivElement>(null);
+  const { ref, onDragMouseDown, dragStyle } = useDraggable<HTMLDivElement>();
   useClickOutside(ref, true, onClose);
 
   const [tab, setTab] = useState<'input' | 'style'>('input');
@@ -105,24 +106,23 @@ export function FRVPSettingsPopover({
   });
 
   const tabBtn = (t: 'input' | 'style'): React.CSSProperties => ({
-    flex: 1, padding: '6px 0', fontSize: 13, fontWeight: 600,
-    border: 'none', cursor: 'pointer',
-    background: tab === t ? 'var(--color-hover-toolbar)' : 'transparent',
+    padding: '6px 4px', fontSize: 13, fontWeight: 600,
+    border: 'none', borderBottom: tab === t ? '2px solid var(--color-text)' : '2px solid transparent',
+    cursor: 'pointer', background: 'transparent',
     color: tab === t ? 'var(--color-text)' : 'var(--color-text-muted)',
-    borderRadius: RADIUS.LG,
-    transition: 'background var(--transition-fast), color var(--transition-fast)',
+    transition: 'color var(--transition-fast), border-color var(--transition-fast)',
   });
 
   return (
     <div
       ref={ref}
       className="fixed bg-(--color-surface) border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width: 440, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column' }}
+      style={{ zIndex: Z.DROPDOWN, width: 440, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', ...dragStyle }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px', cursor: 'grab' }} onMouseDown={onDragMouseDown}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>FRVP Settings</span>
         <button
           onClick={onClose}
@@ -147,7 +147,7 @@ export function FRVPSettingsPopover({
       <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, padding: '8px 16px 0' }}>
+      <div style={{ display: 'flex', gap: 16, padding: '8px 24px 0' }}>
         <button style={tabBtn('input')} onClick={() => setTab('input')}>Input</button>
         <button style={tabBtn('style')} onClick={() => setTab('style')}>Style</button>
       </div>

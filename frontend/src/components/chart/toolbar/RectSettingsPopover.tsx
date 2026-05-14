@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
+import { useDraggable } from '../../../hooks/useDraggable';
 import { RADIUS, Z, SHADOW } from '../../../constants/layout';
 import type { RectDrawing } from '../../../types/drawing';
 import { ColorSwatchButton } from '../ColorPopover';
@@ -14,7 +15,7 @@ export function RectSettingsPopover({
   onUpdate: (patch: Partial<RectDrawing>) => void;
   onClose: () => void;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const { ref, onDragMouseDown, dragStyle } = useDraggable<HTMLDivElement>();
   useClickOutside(ref, true, onClose);
 
   const snapshot = useRef<Partial<RectDrawing>>({
@@ -65,7 +66,7 @@ export function RectSettingsPopover({
     <div
       ref={ref}
       className="fixed bg-(--color-surface) border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column' }}
+      style={{ zIndex: Z.DROPDOWN, width: 440, minHeight: 360, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', ...dragStyle }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => {
         e.stopPropagation();
@@ -75,7 +76,7 @@ export function RectSettingsPopover({
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px', cursor: 'grab' }} onMouseDown={onDragMouseDown}>
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>Rectangle</span>
         <button
           onClick={onClose}
