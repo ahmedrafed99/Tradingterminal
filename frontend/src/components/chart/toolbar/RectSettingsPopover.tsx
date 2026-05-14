@@ -150,7 +150,7 @@ export function RectSettingsPopover({
               <svg width="44" height="10" viewBox="0 0 44 10" style={{ flexShrink: 0 }} shapeRendering="crispEdges">
                 <line
                   x1="2" y1="5" x2="42" y2="5"
-                  stroke="currentColor" strokeWidth="1"
+                  stroke={mlColor} strokeWidth="1"
                   strokeDasharray={currentStyleDef.dasharray}
                   strokeLinecap={(currentStyleDef.linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
                 />
@@ -186,7 +186,7 @@ export function RectSettingsPopover({
                       <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
                         <line
                           x1="0" y1="5" x2="50" y2="5"
-                          stroke="currentColor" strokeWidth="1"
+                          stroke={mlColor} strokeWidth="1"
                           strokeDasharray={dasharray}
                           strokeLinecap={(linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
                         />
