@@ -153,5 +153,25 @@
         "valueRef tracks current value for drag start capture; avoids stale closure in mousemove handler"
       ]
     }
+    ,{
+      "name": "OHLCTooltip",
+      "description": "Inline OHLC tooltip rendered in the chart's top-left overlay. Shows O/H/L/C values and change for the hovered candle (falls back to last bar). Labels (O H L C) use --color-text; values use --color-text-medium (bullish) or teal (#0097a6) (bearish). DOM built once with pre-created spans for perf — no innerHTML per frame.",
+      "keywords": ["ohlc", "tooltip", "crosshair", "hover", "candle", "open", "high", "low", "close", "change", "top-left"],
+      "files": [
+        "frontend/src/components/chart/hooks/useChartWidgets.ts",
+        "frontend/src/components/chart/CandlestickChart.tsx"
+      ],
+      "dependencies": [
+        "COLOR_TEXT, COLOR_TEXT_MEDIUM (constants/colors)",
+        "refs.ohlc (HTMLDivElement, mounted in CandlestickChart)",
+        "refs.series / refs.chart (LightweightCharts instances)",
+        "refs.lastBar (fallback candle data)"
+      ],
+      "notes": [
+        "Label color (O H L C) = COLOR_TEXT = var(--color-text), matching symbol/timeframe text in the same overlay row",
+        "Value color switches only when bullish/bearish direction changes — avoids per-frame style recalc",
+        "Spans are created once in useEffect; effect reruns on contract/timeframe change (new decimal precision needed)"
+      ]
+    }
   ]
 }
