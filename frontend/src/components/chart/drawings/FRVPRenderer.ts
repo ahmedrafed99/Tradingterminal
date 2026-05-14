@@ -279,7 +279,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
 
         const barW = (buckets[i] / maxVol) * maxBarW;
-        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX - barW / 2 : anchorX + offsetBitmap;
+        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
@@ -339,7 +339,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
 
         const barW = (buckets[i] / maxVol) * maxBarW;
-        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX - barW / 2 : anchorX + offsetBitmap;
+        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
@@ -387,7 +387,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         }
 
         const barW = (vol / maxVol) * maxBarW;
-        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX - barW / 2 : anchorX + offsetBitmap;
+        const barX = placement === 'right' ? rightEdge - barW - offsetBitmap : placement === 'middle' ? centerX : anchorX + offsetBitmap;
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
@@ -398,8 +398,8 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
     // ── POC line: thin horizontal line centered on the POC bar, drawn on top ──
     if (showPoc && pocLine) {
-      const pocStartX = placement === 'right' ? rightEdge - pocLine.w - offsetBitmap : placement === 'middle' ? centerX - pocLine.w / 2 : anchorX + offsetBitmap;
-      const pocEndX = extendPoc ? rightEdge : (placement === 'right' ? rightEdge - offsetBitmap : placement === 'middle' ? centerX + pocLine.w / 2 : anchorX + offsetBitmap + pocLine.w);
+      const pocStartX = extendPoc ? anchorX : (placement === 'right' ? rightEdge - pocLine.w - offsetBitmap : anchorX + offsetBitmap);
+      const pocEndX = extendPoc ? rightEdge : (placement === 'right' ? rightEdge - offsetBitmap : (placement === 'middle' ? centerX : anchorX + offsetBitmap) + pocLine.w);
       ctx.strokeStyle = pocColor;
       ctx.lineWidth = Math.max(Math.round(2 * vpr), 2);
       ctx.setLineDash([]);

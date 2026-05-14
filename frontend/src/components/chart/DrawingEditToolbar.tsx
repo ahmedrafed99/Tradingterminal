@@ -1571,7 +1571,7 @@ export function DrawingEditToolbar({
                           </svg>
                         )}
                       </span>
-                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Extend Right</span>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Extend</span>
                     </label>
                     {/* POC color + visibility toggle */}
                     <div className="relative" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
