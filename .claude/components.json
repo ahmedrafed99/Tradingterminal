@@ -78,6 +78,26 @@
       ]
     }
     ,{
+      "name": "Dropdown",
+      "description": "Shared dropdown styling conventions. No single shell component — dropdowns inline the container div. Standard style: bg --color-surface, SHADOW.LG, border --color-border, rounded-lg. Items: hover:bg-(--color-hover-row), active: bg --color-text + color --color-surface. CustomSelect covers option-list dropdowns; complex/multi-step dropdowns inline their own container.",
+      "keywords": ["dropdown", "menu", "hover", "selected", "active", "color-hover-row", "color-surface", "CustomSelect"],
+      "files": [
+        "frontend/src/components/shared/CustomSelect.tsx",
+        "frontend/src/components/shared/MenuItem.tsx",
+        "frontend/src/components/chart/ChartToolbar.tsx",
+        "frontend/src/components/LockoutButton.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "Container: bg-(--color-surface), SHADOW.LG, border border-(--color-border), rounded-lg",
+        "Item hover: hover:bg-(--color-hover-row)",
+        "Item active/selected: background var(--color-text), color var(--color-surface)",
+        "Toolbar buttons use hover:bg-(--color-border) — different from dropdown items, intentional",
+        "Camera screenshot dropdown (ChartToolbar) is intentionally styled differently: rounded-xl, SHADOW.XXL",
+        "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg"
+      ]
+    }
+    ,{
       "name": "Popover",
       "description": "Shared draggable modal popover shell. Handles drag (useDraggable), click-outside close (useClickOutside), stop propagation, fixed centered positioning, header with title + X button, and footer with Cancel/Ok buttons. Used by all settings modals.",
       "keywords": ["popover", "modal", "draggable", "settings", "header", "footer", "cancel", "ok"],
