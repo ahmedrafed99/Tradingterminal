@@ -391,11 +391,6 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   return (
     <div className="flex-1 relative min-h-0 min-w-0 overflow-hidden">
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-(--color-bg)/80" style={{ zIndex: Z.HEADER }}>
-          <span className="text-xs text-(--color-text-muted)">Loading bars...</span>
-        </div>
-      )}
       {error && !loading && (
         <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: Z.HEADER }}>
           <span className="text-xs text-red-400">{error}</span>
@@ -413,6 +408,17 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
             className="text-xs font-medium leading-tight overflow-hidden whitespace-nowrap min-w-0"
             style={{ background: '#00000080', borderRadius: RADIUS.SM, padding: '1px 3px' }}
           />
+          {loading && (
+            <span className="flex items-center gap-[3px]">
+              {[0, 200, 400].map((delay) => (
+                <span
+                  key={delay}
+                  className="chart-loading-dot rounded-full bg-(--color-text-muted)"
+                  style={{ width: 3, height: 3, display: 'inline-block', animationDelay: `${delay}ms` }}
+                />
+              ))}
+            </span>
+          )}
         </div>
       )}
       {showFps && (

@@ -27,6 +27,7 @@ NQ · 1m   ●   O24,886.75 H24,886.75 L24,881.00 C24,883.25 -3.50
 - **Font**: `-apple-system, BlinkMacSystemFont, sans-serif`, `text-xs font-medium`
 - **Number format**: `toLocaleString('en-US')` with decimal places derived from `contract.tickSize`
 - **Overflow**: Parent container capped at `max-width: calc(100% - 90px)` to reserve space for the price scale. Instrument label is `shrink-0`; OHLC values div uses `overflow-hidden whitespace-nowrap min-w-0` so it clips cleanly when the chart is narrow (e.g. resized in dual-chart mode).
+- **Loading indicator**: While bars are fetching, 3 small dots appear inline to the right of the OHLC tooltip. Each dot is 3×3px, muted color, animated with a staggered wave (`chart-dot-wave` keyframe in `index.css`, 200ms delay between dots). No overlay, no text — disappears as soon as bars load.
 
 ---
 
