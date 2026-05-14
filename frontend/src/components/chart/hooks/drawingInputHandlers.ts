@@ -160,14 +160,18 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
   e.stopPropagation();
   e.preventDefault();
 
-  // Remove duplicate last point from double-click
+  // Remove the point added by the second click of the double-click if it's within 10px
+  // of the previous point (covers normal mouse shake between the two clicks).
   const pts = state.arrowPathCreation.points;
-  if (pts.length >= 2) {
-    const last = pts[pts.length - 1];
-    const prev = pts[pts.length - 2];
-    if (Math.abs(last.barOffset - prev.barOffset) < 0.01 && Math.abs(last.price - prev.price) < 0.0001) {
+  const cssPts = state.arrowPathCreation.cssPoints;
+  if (cssPts.length >= 2) {
+    const lastCss = cssPts[cssPts.length - 1];
+    const prevCss = cssPts[cssPts.length - 2];
+    const dx = lastCss.x - prevCss.x;
+    const dy = lastCss.y - prevCss.y;
+    if (dx * dx + dy * dy < 100) { // within ~10px
       pts.pop();
-      state.arrowPathCreation.cssPoints.pop();
+      cssPts.pop();
     }
   }
 

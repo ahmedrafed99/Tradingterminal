@@ -70,11 +70,18 @@ class ArrowPathRendererImpl implements IPrimitivePaneRenderer {
       // Draw arrowhead on last segment
       const last = devPts[devPts.length - 1];
       const prev = devPts[devPts.length - 2];
-      const dx = last.x - prev.x;
-      const dy = last.y - prev.y;
+      let dx = last.x - prev.x;
+      let dy = last.y - prev.y;
       const segLen = Math.sqrt(dx * dx + dy * dy);
-      if (segLen > 1) {
-        const arrowSize = Math.min(segLen * 0.4, Math.max(8, 4 * this._drawing.strokeWidth) * Math.min(hpr, vpr));
+      // If last segment is tiny (e.g. mouse shake on double-click), borrow direction from previous segment
+      if (segLen < 8 && devPts.length >= 3) {
+        const pprev = devPts[devPts.length - 3];
+        dx = prev.x - pprev.x;
+        dy = prev.y - pprev.y;
+      }
+      const dirLen = Math.sqrt(dx * dx + dy * dy);
+      if (dirLen > 0.5) {
+        const arrowSize = Math.max(8, 4 * this._drawing.strokeWidth) * Math.min(hpr, vpr);
         const angle = Math.atan2(dy, dx);
         const halfAngle = 0.70; // ~40 degrees
 
