@@ -2,7 +2,7 @@ import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-ch
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE, COLOR_TEXT, COLOR_CHART_LABEL_OVERLAY } from '../../../constants/colors';
+import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE, COLOR_TEXT } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { applyLineDash } from './rendererUtils';
 import { hitTestRect } from './hitTesting';
@@ -191,12 +191,14 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
               : cssAnchorX + barOffsetLabel + 4;
             const labelY = cssCenterY - labelH / 2;
 
-            ctx.fillStyle = COLOR_CHART_LABEL_OVERLAY;
-            ctx.beginPath();
-            ctx.roundRect(labelX, labelY, labelW, labelH, 3);
-            ctx.fill();
+            if (this._drawing.valuesBgColor) {
+              ctx.fillStyle = this._drawing.valuesBgColor;
+              ctx.beginPath();
+              ctx.roundRect(labelX, labelY, labelW, labelH, 3);
+              ctx.fill();
+            }
 
-            ctx.fillStyle = COLOR_TEXT;
+            ctx.fillStyle = this._drawing.valuesColor ?? COLOR_TEXT;
             ctx.fillText(volText, labelX + pad, cssCenterY);
           }
         });

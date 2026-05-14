@@ -193,17 +193,33 @@ export function ColorSwatchButton({
   const ref = useRef<HTMLButtonElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  useEffect(() => {
-    if (!open || !ref.current) return;
+  const computePos = () => {
+    if (!ref.current) return;
+    const popoverW = 290;
     const r = ref.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 4, left: r.left });
+    const left = Math.min(r.left, window.innerWidth - popoverW - 8);
+    setPos((prev) => {
+      if (prev && Math.abs(prev.top - (r.bottom + 4)) < 0.5 && Math.abs(prev.left - left) < 0.5) return prev;
+      return { top: r.bottom + 4, left };
+    });
+  };
+
+  // Keep position in sync while open (handles parent drag)
+  useEffect(() => {
+    if (!open) return;
+    window.addEventListener('mousemove', computePos);
+    return () => window.removeEventListener('mousemove', computePos);
   }, [open]);
 
   return (
     <div style={{ display: 'inline-flex', alignItems: 'center' }}>
       <button
         ref={ref}
-        onClick={() => !disabled && setOpen((v) => !v)}
+        onClick={() => {
+          if (disabled) return;
+          if (!open) computePos(); // compute synchronously before state flip
+          setOpen((v) => !v);
+        }}
         className="focus:outline-none focus:ring-0"
         style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',

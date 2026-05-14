@@ -35,7 +35,7 @@ export function FRVPSettingsPopover({
     volumeType: frvp.volumeType,
     showProfile: frvp.showProfile, color: frvp.color, barPlacement: frvp.barPlacement,
     barOffset: frvp.barOffset, barLength: frvp.barLength,
-    showBarValues: frvp.showBarValues, valuesMode: frvp.valuesMode, highlightOnHover: frvp.highlightOnHover,
+    showBarValues: frvp.showBarValues, valuesMode: frvp.valuesMode, valuesColor: frvp.valuesColor, valuesBgColor: frvp.valuesBgColor, highlightOnHover: frvp.highlightOnHover,
     extendPoc: frvp.extendPoc, showPoc: frvp.showPoc, pocColor: frvp.pocColor,
   });
 
@@ -317,14 +317,20 @@ export function FRVPSettingsPopover({
 
             {/* Sub-rows — greyed when profile hidden */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 21, opacity: profileVisible ? 1 : 0.35, pointerEvents: profileVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
-              {/* Values toggle + mode dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
+              {/* Values toggle + color swatch + mode dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
                   onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
                 >
                   <span style={checkboxSpan(!!frvp.showBarValues)}>{frvp.showBarValues && <Checkmark />}</span>
                   <span style={labelStyle}>Values</span>
                 </label>
+                <div style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ColorSwatchButton
+                    color={frvp.valuesColor ?? '#ffffff'}
+                    onChange={(color) => updateDrawing(drawingId, { valuesColor: color } as Partial<Drawing>)}
+                  />
+                </div>
                 <div ref={valuesModeRef} className="relative" style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
                   <button
                     style={{ ...ddBtnStyle, minWidth: 90 }}
@@ -355,6 +361,22 @@ export function FRVPSettingsPopover({
                   )}
                 </div>
               </div>
+              {/* Background color */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none', flex: 1 }}
+                  onClick={() => updateDrawing(drawingId, { valuesBgColor: frvp.valuesBgColor ? undefined : 'rgba(0,0,0,0.55)' } as Partial<Drawing>)}
+                >
+                  <span style={checkboxSpan(!!frvp.valuesBgColor)}>{frvp.valuesBgColor && <Checkmark />}</span>
+                  <span style={labelStyle}>Background</span>
+                </label>
+                <div style={{ opacity: frvp.valuesBgColor ? 1 : 0.35, pointerEvents: frvp.valuesBgColor ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+                  <ColorSwatchButton
+                    color={frvp.valuesBgColor ?? 'rgba(0,0,0,0.55)'}
+                    onChange={(color) => updateDrawing(drawingId, { valuesBgColor: color } as Partial<Drawing>)}
+                  />
+                </div>
+              </div>
+
               {/* Highlight on Hover */}
               <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}
