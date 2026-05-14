@@ -189,7 +189,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
       if (!dragging.current) return;
       setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
     };
-    const onUp = () => { dragging.current = false; };
+    const onUp = () => { dragging.current = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
@@ -201,6 +201,8 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   const handleTitleMouseDown = (e: React.MouseEvent) => {
     dragging.current = true;
     dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
     e.preventDefault();
   };
 
@@ -236,7 +238,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 20px', borderBottom: '1px solid var(--color-border)',
-          cursor: 'move', userSelect: 'none', flexShrink: 0,
+          cursor: 'grab', userSelect: 'none', flexShrink: 0,
         }}
       >
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-bright)' }}>Settings</span>

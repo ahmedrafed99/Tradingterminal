@@ -116,6 +116,27 @@
       ]
     }
     ,{
+      "name": "ChartSettingsModal",
+      "description": "Full-screen settings modal for chart configuration. Sidebar with 4 categories (Bars, Canvas, Trading, Events). Inline drag logic (not useDraggable) with grab/grabbing cursor. Cancel snapshots settings on open and reverts on cancel. Escape key triggers cancel.",
+      "keywords": ["chart settings", "settings modal", "bars", "canvas", "trading", "events", "draggable", "modal"],
+      "files": [
+        "frontend/src/components/chart/ChartSettingsModal.tsx",
+        "frontend/src/components/chart/ChartSettingsButton.tsx",
+        "frontend/src/store/slices/chartSettingsSlice.ts"
+      ],
+      "dependencies": [
+        "useStore (chartSettings, setChartSettings)",
+        "useClickOutside",
+        "ColorSwatchButton (ColorPopover)",
+        "CustomSelect"
+      ],
+      "notes": [
+        "Uses inline drag (dragging ref + dragOffset ref) instead of useDraggable — sets document.body.style.cursor grabbing on mousedown, clears on mouseup",
+        "snapshotRef captures settings on mount; handleCancel restores snapshot then closes",
+        "Category sidebar: 'bars' | 'canvas' | 'trading' | 'events'"
+      ]
+    }
+    ,{
       "name": "SpinnerInput",
       "description": "Compact numeric input with hover-reveal up/down chevron arrows. Supports click (±step) and click-hold-drag (scrub up/down at 2px/step). Used across all style toolbars.",
       "keywords": ["spinner", "numeric input", "scrub", "drag", "stepper", "arrows"],
