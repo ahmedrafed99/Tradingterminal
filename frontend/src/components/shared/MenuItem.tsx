@@ -24,7 +24,7 @@ export function MenuItem({ onClick, icon, children, disabled, danger, hasSubmenu
       className={`flex items-center gap-2.5 text-left font-medium transition-colors cursor-default rounded-md
         ${danger
           ? 'text-(--color-error) hover:bg-red-500/10'
-          : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-surface)'}
+          : 'text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-hover-row)'}
         ${disabled ? 'opacity-40 pointer-events-none' : ''}
       `}
       style={{ padding: '8px 12px', width: 'calc(100% - 8px)', margin: '0 4px', display: 'flex', fontSize: 'var(--font-size-overlay)' }}

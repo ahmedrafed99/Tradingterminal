@@ -37,7 +37,7 @@ export function CustomSelect({
   title,
   dropUp = false,
   bg = 'var(--color-input)',
-  dropdownBg = 'var(--color-panel)',
+  dropdownBg = 'var(--color-surface)',
   padding: btnPadding = '6px 10px',
   fontSize: btnFontSize = 12,
 }: CustomSelectProps) {

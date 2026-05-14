@@ -65,17 +65,17 @@ function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number
       </button>
       {open && (
         <div
-          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-panel) border border-(--color-border) rounded-lg py-1 px-1.5 animate-dropdown-in"
-          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
+          className="absolute bottom-full left-0 mb-1 w-full bg-(--color-surface) border border-(--color-border) rounded-lg py-1 px-1.5"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG }}
         >
           {UNIT_OPTIONS.map((u) => (
             <button
               key={u.value}
               onClick={() => { onChange(u.value); setOpen(false); }}
               className={`w-full text-center text-xs font-medium transition-colors rounded-md ${
-                u.value === value ? '' : 'text-(--color-text) hover:bg-(--color-border)'
+                u.value === value ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'
               }`}
-              style={{ padding: '8px 10px', ...(u.value === value ? { background: 'var(--color-text)', color: 'var(--color-panel)' } : {}) }}
+              style={{ padding: '8px 10px', ...(u.value === value ? { background: 'var(--color-text)', color: 'var(--color-surface)' } : {}) }}
             >
               {u.label}
             </button>
@@ -151,14 +151,14 @@ function IndicatorsDropdown() {
 
       {open && (
         <div
-          className="absolute top-full left-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
-          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, minWidth: 220 }}
+          className="absolute top-full left-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg"
+          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, minWidth: 220 }}
         >
           {!editingDom ? (
             <div style={{ padding: 6 }}>
               {/* Market Depth row */}
               <div
-                className="flex items-center hover:bg-(--color-border) transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-hover-row) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 {/* Checkbox */}
@@ -212,7 +212,7 @@ function IndicatorsDropdown() {
 
               {/* Bid/Ask Footprint row */}
               <div
-                className="flex items-center hover:bg-(--color-border) transition-colors rounded-lg"
+                className="flex items-center hover:bg-(--color-hover-row) transition-colors rounded-lg"
                 style={{ padding: '8px 10px' }}
               >
                 <button
@@ -565,8 +565,8 @@ export function ChartToolbar() {
 
         {/* Dropdown menu */}
         {dropdownOpen && dropdownPos && (
-          <div className="w-56 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-lg py-2 animate-dropdown-in"
-            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL }}
+          <div className="w-56 bg-(--color-surface) border border-(--color-border) rounded-lg py-2"
+            style={{ position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG }}
           >
             {/* Timeframes grouped by section */}
             {[
@@ -590,7 +590,7 @@ export function ChartToolbar() {
                     return (
                       <div
                         key={tf.label}
-                        className={`group relative flex items-center transition-colors rounded-md mx-1.5 ${active ? '' : 'hover:bg-(--color-border)'}`}
+                        className={`group relative flex items-center transition-colors rounded-md mx-1.5 ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
                         style={{ padding: '8px 10px', ...(active ? { background: 'var(--color-text)' } : {}) }}
                       >
                         {isCustom && (
@@ -605,7 +605,7 @@ export function ChartToolbar() {
                         <button
                           onClick={() => handleSelectMore(tf)}
                           className={`text-xs flex-1 text-center font-medium ${active ? '' : 'text-(--color-text)'}`}
-                          style={active ? { color: 'var(--color-panel)' } : undefined}
+                          style={active ? { color: 'var(--color-surface)' } : undefined}
                         >
                           {tf.label}
                         </button>

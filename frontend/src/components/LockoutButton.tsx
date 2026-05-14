@@ -210,7 +210,7 @@ export function LockoutButton() {
 
       {open && (
         <div
-          className="bg-(--color-panel) border border-(--color-border) rounded-lg"
+          className="bg-(--color-surface) border border-(--color-border) rounded-lg"
           style={{
             position: 'absolute',
             top: 'calc(100% + 8px)',
@@ -219,7 +219,7 @@ export function LockoutButton() {
             zIndex: Z.DROPDOWN,
             width: 200,
             overflow: 'hidden',
-            boxShadow: SHADOW.XL,
+            boxShadow: SHADOW.LG,
           }}
         >
           {/* Header */}
