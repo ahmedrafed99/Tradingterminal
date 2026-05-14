@@ -152,7 +152,9 @@ export interface FRVPDrawing extends DrawingBase {
   showPoc?: boolean;       // show POC line; undefined/true = visible
   pocColor?: string;       // POC line color; undefined = COLOR_ACCENT
   extendPoc?: boolean;     // extend POC line to right edge; undefined/false = bar width only
-  showBarValues?: boolean; // show volume label on hover; undefined/false = hidden
+  showProfile?: boolean;   // render volume bars; undefined/true = visible
+  showBarValues?: boolean; // show volume label; undefined/false = hidden
+  valuesMode?: 'hover' | 'always'; // when to show label: 'hover' = crosshair over bar, 'always' = POC bar always visible; undefined = 'hover'
   highlightOnHover?: boolean; // highlight bar on crosshair hover; undefined/true = enabled
   barPlacement?: 'left' | 'right' | 'middle'; // which side of anchor bars grow from; undefined/'left' = right of anchor
   barOffset?: number;      // CSS pixel gap between anchor line and bar start; undefined/0 = flush

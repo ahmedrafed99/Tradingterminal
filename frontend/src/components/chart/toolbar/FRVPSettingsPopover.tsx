@@ -33,8 +33,9 @@ export function FRVPSettingsPopover({
     mode: frvp.mode, t2: frvp.t2, t2Auto: frvp.t2Auto,
     numBars: frvp.numBars, rowSizeMode: frvp.rowSizeMode, rowSizePrice: frvp.rowSizePrice,
     volumeType: frvp.volumeType,
-    color: frvp.color, barPlacement: frvp.barPlacement, barOffset: frvp.barOffset,
-    barLength: frvp.barLength, showBarValues: frvp.showBarValues, highlightOnHover: frvp.highlightOnHover,
+    showProfile: frvp.showProfile, color: frvp.color, barPlacement: frvp.barPlacement,
+    barOffset: frvp.barOffset, barLength: frvp.barLength,
+    showBarValues: frvp.showBarValues, valuesMode: frvp.valuesMode, highlightOnHover: frvp.highlightOnHover,
     extendPoc: frvp.extendPoc, showPoc: frvp.showPoc, pocColor: frvp.pocColor,
   });
 
@@ -48,17 +49,21 @@ export function FRVPSettingsPopover({
   const [showRowDD, setShowRowDD] = useState(false);
   const [showVolTypeDD, setShowVolTypeDD] = useState(false);
   const [showPlacementDD, setShowPlacementDD] = useState(false);
+  const [showValuesModeDD, setShowValuesModeDD] = useState(false);
 
   const modeRef = useRef<HTMLDivElement>(null);
   const rowRef = useRef<HTMLDivElement>(null);
   const volTypeRef = useRef<HTMLDivElement>(null);
   const placementRef = useRef<HTMLDivElement>(null);
+  const valuesModeRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(modeRef, showModeDD, useCallback(() => setShowModeDD(false), []));
   useClickOutside(rowRef, showRowDD, useCallback(() => setShowRowDD(false), []));
   useClickOutside(volTypeRef, showVolTypeDD, useCallback(() => setShowVolTypeDD(false), []));
   useClickOutside(placementRef, showPlacementDD, useCallback(() => setShowPlacementDD(false), []));
+  useClickOutside(valuesModeRef, showValuesModeDD, useCallback(() => setShowValuesModeDD(false), []));
 
+  const profileVisible = frvp.showProfile !== false;
   const pocVisible = frvp.showPoc !== false;
 
   const labelStyle: React.CSSProperties = {
@@ -302,16 +307,54 @@ export function FRVPSettingsPopover({
             {/* Volume Profile — main row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
+                onClick={() => updateDrawing(drawingId, { showProfile: !profileVisible } as Partial<Drawing>)}
               >
-                <span style={checkboxSpan(!!frvp.showBarValues)}>{frvp.showBarValues && <Checkmark />}</span>
+                <span style={checkboxSpan(profileVisible)}>{profileVisible && <Checkmark />}</span>
                 <span style={labelStyle}>Volume Profile</span>
               </label>
               <ColorSwatchButton color={frvp.color} onChange={(color) => updateDrawing(drawingId, { color } as Partial<Drawing>)} />
             </div>
 
-            {/* Sub-rows */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 21 }}>
+            {/* Sub-rows — greyed when profile hidden */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 21, opacity: profileVisible ? 1 : 0.35, pointerEvents: profileVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+              {/* Values toggle + mode dropdown */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
+                  onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
+                >
+                  <span style={checkboxSpan(!!frvp.showBarValues)}>{frvp.showBarValues && <Checkmark />}</span>
+                  <span style={labelStyle}>Values</span>
+                </label>
+                <div ref={valuesModeRef} className="relative" style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+                  <button
+                    style={{ ...ddBtnStyle, minWidth: 90 }}
+                    onClick={() => setShowValuesModeDD((v) => !v)}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                    className="focus:outline-none focus:ring-0"
+                  >
+                    <span>{(frvp.valuesMode ?? 'hover') === 'always' ? 'Always' : 'On Hover'}</span>
+                    <ChevronDown open={showValuesModeDD} />
+                  </button>
+                  {showValuesModeDD && (
+                    <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
+                      {(['hover', 'always'] as const).map((m) => {
+                        const active = (frvp.valuesMode ?? 'hover') === m;
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => { updateDrawing(drawingId, { valuesMode: m } as Partial<Drawing>); setShowValuesModeDD(false); }}
+                            className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                            style={ddItemStyle(active)}
+                          >
+                            {m === 'always' ? 'Always' : 'On Hover'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
               {/* Highlight on Hover */}
               <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}

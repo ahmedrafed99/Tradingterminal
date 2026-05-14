@@ -78,6 +78,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
   draw(target: CanvasRenderingTarget2D): void {
     let hoveredBar: HoveredBarInfo | null = null;
+    let allBarsInfo: HoveredBarInfo[] = [];
 
     target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
       const cssAnchorX = this._chart.timeScale().timeToCoordinate(this._drawing.anchorTime as unknown as Time);
@@ -116,9 +117,15 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       const scaledMaxBarW = maxBarW * barLengthScale;
       const t2BitmapX = cssT2X !== null ? cssT2X * hpr : null;
       const cssRightEdge = cssT2X ?? (cssAnchorX + scaledMaxBarW / hpr);
-      const result = this._drawBars(ctx, anchorX, t2BitmapX, topY, bottomY, scaledMaxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
-      if (result) {
-        hoveredBar = { cssAnchorX, cssRightEdge, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
+
+      if (this._drawing.showProfile !== false) {
+        const result = this._drawBars(ctx, anchorX, t2BitmapX, topY, bottomY, scaledMaxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
+        if (result?.hovered) {
+          hoveredBar = { cssAnchorX, cssRightEdge, cssCenterY: result.hovered.bitmapCenterY / vpr, volume: result.hovered.volume };
+        }
+        if (result?.allBars) {
+          allBarsInfo = result.allBars.map((b) => ({ cssAnchorX, cssRightEdge, cssCenterY: b.bitmapCenterY / vpr, volume: b.volume }));
+        }
       }
 
       // Vertical anchor line (t1 only)
@@ -159,31 +166,41 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
       }
     });
 
-    // Draw value label in media space so font is crisp
-    if (hoveredBar && this._drawing.showBarValues) {
-      const { cssAnchorX, cssRightEdge, cssCenterY, volume } = hoveredBar as HoveredBarInfo;
-      target.useMediaCoordinateSpace(({ context: ctx }) => {
-        const volText = volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : String(Math.round(volume));
-        ctx.font = `11px ${FONT_FAMILY}`;
-        const textW = ctx.measureText(volText).width;
-        const pad = 5;
-        const labelW = textW + pad * 2;
-        const labelH = 18;
+    // Draw value labels in media space so font is crisp
+    if (this._drawing.showBarValues) {
+      const barsToLabel: HoveredBarInfo[] = this._drawing.valuesMode === 'always'
+        ? allBarsInfo
+        : (hoveredBar ? [hoveredBar] : []);
+
+      if (barsToLabel.length > 0) {
         const barPlacementLabel = this._drawing.barPlacement ?? 'left';
         const barOffsetLabel = this._drawing.barOffset ?? 0;
-        const labelX = barPlacementLabel === 'right' ? cssRightEdge - barOffsetLabel - labelW - 4 : cssAnchorX + barOffsetLabel + 4;
-        const labelY = cssCenterY - labelH / 2;
+        const pad = 5;
+        const labelH = 18;
 
-        ctx.fillStyle = COLOR_CHART_LABEL_OVERLAY;
-        ctx.beginPath();
-        ctx.roundRect(labelX, labelY, labelW, labelH, 3);
-        ctx.fill();
+        target.useMediaCoordinateSpace(({ context: ctx }) => {
+          ctx.font = `11px ${FONT_FAMILY}`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
 
-        ctx.fillStyle = COLOR_TEXT;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(volText, labelX + pad, cssCenterY);
-      });
+          for (const { cssAnchorX, cssRightEdge, cssCenterY, volume } of barsToLabel) {
+            const volText = volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : String(Math.round(volume));
+            const labelW = ctx.measureText(volText).width + pad * 2;
+            const labelX = barPlacementLabel === 'right'
+              ? cssRightEdge - barOffsetLabel - labelW - 4
+              : cssAnchorX + barOffsetLabel + 4;
+            const labelY = cssCenterY - labelH / 2;
+
+            ctx.fillStyle = COLOR_CHART_LABEL_OVERLAY;
+            ctx.beginPath();
+            ctx.roundRect(labelX, labelY, labelW, labelH, 3);
+            ctx.fill();
+
+            ctx.fillStyle = COLOR_TEXT;
+            ctx.fillText(volText, labelX + pad, cssCenterY);
+          }
+        });
+      }
     }
   }
 
@@ -197,7 +214,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     hpr: number,
     vpr: number,
     highlightOnHover: boolean,
-  ): { bitmapCenterY: number; volume: number } | null {
+  ): { hovered: { bitmapCenterY: number; volume: number } | null; poc: { bitmapCenterY: number; volume: number } | null; allBars: { bitmapCenterY: number; volume: number }[] } | null {
     const vmap = this._volumeMapRef.current;
     if (vmap.size === 0) return null;
 
@@ -223,6 +240,8 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     // pocLine: { y, w } in bitmap pixels — filled during bar loop, drawn after
     let pocLine: { y: number; w: number } | null = null;
     let hoveredResult: { bitmapCenterY: number; volume: number } | null = null;
+    let pocResult: { bitmapCenterY: number; volume: number } | null = null;
+    const allBars: { bitmapCenterY: number; volume: number }[] = [];
 
     let needsAnim = false;
 
@@ -284,7 +303,8 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
-        if (i === pocIdx) pocLine = { y: barCenterY, w: barW };
+        allBars.push({ bitmapCenterY: barCenterY, volume: buckets[i] });
+        if (i === pocIdx) { pocLine = { y: barCenterY, w: barW }; pocResult = { bitmapCenterY: barCenterY, volume: buckets[i] }; }
         if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: buckets[i] };
       }
     } else if (numBars > 0) {
@@ -344,7 +364,8 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
-        if (i === pocIdx) pocLine = { y: barCenterY, w: barW };
+        allBars.push({ bitmapCenterY: barCenterY, volume: buckets[i] });
+        if (i === pocIdx) { pocLine = { y: barCenterY, w: barW }; pocResult = { bitmapCenterY: barCenterY, volume: buckets[i] }; }
         if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: buckets[i] };
       }
     } else {
@@ -392,7 +413,8 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         ctx.fillStyle = isHovered ? hoverColor : barColor;
         ctx.fillRect(barX, barCenterY - barH / 2 - expand, barW, barH + expand * 2);
 
-        if (Math.abs(price - pocPrice) < tickSize * 0.5) pocLine = { y: barCenterY, w: barW };
+        allBars.push({ bitmapCenterY: barCenterY, volume: vol });
+        if (Math.abs(price - pocPrice) < tickSize * 0.5) { pocLine = { y: barCenterY, w: barW }; pocResult = { bitmapCenterY: barCenterY, volume: vol }; }
         if (isHovered) hoveredResult = { bitmapCenterY: barCenterY, volume: vol };
       }
     }
@@ -411,7 +433,7 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
     }
 
     if (needsAnim) this._requestUpdate?.();
-    return hoveredResult;
+    return { hovered: hoveredResult, poc: pocResult, allBars };
   }
 }
 
