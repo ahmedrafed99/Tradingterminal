@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
@@ -196,11 +197,15 @@ export function ColorSwatchButton({
   const computePos = () => {
     if (!ref.current) return;
     const popoverW = 290;
+    const popoverH = 350;
     const r = ref.current.getBoundingClientRect();
     const left = Math.min(r.left, window.innerWidth - popoverW - 8);
+    const top = r.bottom + 4 + popoverH > window.innerHeight
+      ? Math.max(4, r.top - popoverH - 4)
+      : r.bottom + 4;
     setPos((prev) => {
-      if (prev && Math.abs(prev.top - (r.bottom + 4)) < 0.5 && Math.abs(prev.left - left) < 0.5) return prev;
-      return { top: r.bottom + 4, left };
+      if (prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.left - left) < 0.5) return prev;
+      return { top, left };
     });
   };
 
@@ -235,10 +240,11 @@ export function ColorSwatchButton({
       >
         <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: color }} />
       </button>
-      {open && !disabled && pos && (
+      {open && !disabled && pos && createPortal(
         <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: Z.TOAST }}>
           <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
