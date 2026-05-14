@@ -1,0 +1,36 @@
+{
+  "components": [
+    {
+      "name": "FRVP",
+      "description": "Fixed Range Volume Profile drawing — renders horizontal volume bars anchored to a time/price range on the chart. Two modes: anchor (single time point + manual price range) and range (two time points + auto price range from candles).",
+      "keywords": ["frvp", "rfvp", "volume profile", "fixed range", "poc", "anchor", "range", "placement", "offset", "volume bars"],
+      "files": [
+        "frontend/src/types/drawing.ts",
+        "frontend/src/components/chart/drawings/FRVPRenderer.ts",
+        "frontend/src/components/chart/drawings/DrawingsPrimitive.ts",
+        "frontend/src/components/chart/DrawingEditToolbar.tsx",
+        "frontend/src/components/chart/hooks/drawingHandlers.ts",
+        "frontend/src/components/chart/hooks/drawingInputHandlers.ts",
+        "frontend/src/components/chart/hooks/drawingInteraction.ts",
+        "frontend/src/components/chart/hooks/useChartBars.ts",
+        "frontend/src/store/slices/drawingsSlice.ts"
+      ],
+      "dependencies": [
+        "drawingsSlice (drawing defaults, updateDrawing, selectedDrawingIds)",
+        "useChartBars (live volume map accumulation from trade ticks)",
+        "DrawingsPrimitive (pane view registration, preview renderers, hover price relay)"
+      ],
+      "notes": [
+        "rightEdge = t2BitmapX ?? (anchorX + maxBarW) — key formula for all placement/POC logic; t2BitmapX is null in anchor mode",
+        "Three bar-drawing modes inside _drawBars: price (rowSizeMode='price' + rowSizePrice), count (numBars buckets), raw (one bar per tick level when numBars=0)",
+        "Volume map is a live Map<price, volume> accumulated from trade ticks in useChartBars; range mode filters it via computeRangeBounds()",
+        "Preview renderers (FRVPPreviewRenderer, FRVPRangePreviewRenderer) only draw dashed lines — no bar rendering, no placement logic needed",
+        "STORE_VERSION is auto-bumped by pre-commit hook (.git/hooks/pre-commit) whenever any file in frontend/src/store/ is staged — never bump manually",
+        "barPlacement ('left'|'right'|'middle') and barOffset (CSS px gap) are style settings; 'middle' starts bars at centerX and grows right — not mirrored",
+        "extendPoc=true spans the POC line across the full rectangle (anchorX → rightEdge) regardless of placement or offset",
+        "volumeType field is reserved for future delta/up-down volume; only 'total' is wired up — greyed out in UI",
+        "Expand animation uses _expandMap (price → current expand px) with EXPAND_LERP=0.25 lerp per frame; _requestUpdate triggers redraws"
+      ]
+    }
+  ]
+}
