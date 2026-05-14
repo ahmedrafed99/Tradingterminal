@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { Drawing, FRVPDrawing } from '../../../types/drawing';
 import { FRVPSettingsPopover } from './FRVPSettingsPopover';
 
@@ -7,6 +6,8 @@ interface FRVPToolbarPanelProps {
   drawingId: string;
   updateDrawing: (id: string, patch: Partial<Drawing>) => void;
   autoTickSize: number;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
 }
 
 export function FRVPToolbarPanel({
@@ -14,8 +15,9 @@ export function FRVPToolbarPanel({
   drawingId,
   updateDrawing,
   autoTickSize,
+  open: showSettings,
+  onOpenChange: setShowSettings,
 }: FRVPToolbarPanelProps) {
-  const [showSettings, setShowSettings] = useState(false);
 
   const btnBase = 'relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text) transition-colors duration-150';
   const btnHover = 'hover:bg-(--color-border)/50 hover:text-(--color-text)';

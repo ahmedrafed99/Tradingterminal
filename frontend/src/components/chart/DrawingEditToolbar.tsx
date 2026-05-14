@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
 import type { Drawing, HLineTemplate, LineStyle, RectDrawing, FRVPDrawing } from '../../types/drawing';
@@ -37,6 +37,10 @@ export function DrawingEditToolbar({
   const [showStroke, setShowStroke] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [showRectSettings, setShowRectSettings] = useState(false);
+  const [showFrvpSettings, setShowFrvpSettings] = useState(false);
+
+  const frvpSettingsOpen = useStore((s) => s.frvpSettingsOpen);
+  const setFrvpSettingsOpen = useStore((s) => s.setFrvpSettingsOpen);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -45,6 +49,13 @@ export function DrawingEditToolbar({
   const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
   const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
 
+  useEffect(() => {
+    if (frvpSettingsOpen && drawing?.type === 'frvp') {
+      setShowFrvpSettings(true);
+      setFrvpSettingsOpen(false);
+    }
+  }, [frvpSettingsOpen, drawing?.type, setFrvpSettingsOpen]);
+
   const closeAll = useCallback(() => {
     setShowColor(false);
     setShowFillColor(false);
@@ -52,6 +63,7 @@ export function DrawingEditToolbar({
     setShowStroke(false);
     setShowTemplate(false);
     setShowRectSettings(false);
+    setShowFrvpSettings(false);
   }, []);
 
   if (!drawing && !isMulti) return null;
@@ -121,6 +133,8 @@ export function DrawingEditToolbar({
           drawingId={drawing.id}
           updateDrawing={updateDrawing}
           autoTickSize={autoTickSize}
+          open={showFrvpSettings}
+          onOpenChange={setShowFrvpSettings}
         />
       ) : (
         <>

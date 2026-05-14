@@ -167,7 +167,18 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
 
 export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, primitive, contract } = ctx;
-  if (!state.arrowPathCreation) return;
+
+  if (!state.arrowPathCreation) {
+    const { activeTool, selectedDrawingIds, drawings, setFrvpSettingsOpen } = useStore.getState();
+    if (activeTool === 'select' && selectedDrawingIds.length === 1) {
+      const sel = drawings.find((d) => d.id === selectedDrawingIds[0]);
+      if (sel?.type === 'frvp') {
+        e.stopPropagation();
+        setFrvpSettingsOpen(true);
+      }
+    }
+    return;
+  }
   e.stopPropagation();
   e.preventDefault();
 
