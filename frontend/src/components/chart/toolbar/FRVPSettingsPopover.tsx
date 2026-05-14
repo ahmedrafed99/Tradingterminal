@@ -64,10 +64,10 @@ export function FRVPSettingsPopover({
   const pocVisible = frvp.showPoc !== false;
 
   const labelStyle: React.CSSProperties = {
-    fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap',
+    fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap', width: 90, flexShrink: 0,
   };
   const rowStyle: React.CSSProperties = {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+    display: 'flex', alignItems: 'center', gap: 8,
   };
   const checkboxSpan = (checked: boolean): React.CSSProperties => ({
     width: 14, height: 14, borderRadius: 3,
@@ -83,7 +83,7 @@ export function FRVPSettingsPopover({
   );
   const ddPanelStyle: React.CSSProperties = {
     position: 'absolute', zIndex: Z.DROPDOWN + 1,
-    top: '100%', right: 0, marginTop: 4,
+    top: '100%', left: 0, marginTop: 4,
     background: 'var(--color-surface)', boxShadow: SHADOW.LG,
     border: '1px solid var(--color-border)', borderRadius: RADIUS.LG,
     padding: '2px 0',
@@ -245,21 +245,17 @@ export function FRVPSettingsPopover({
               <ColorSwatchButton color={frvp.color} onChange={(color) => updateDrawing(drawingId, { color } as Partial<Drawing>)} />
             </div>
 
-            {/* Sub-rows — greyed when profile hidden */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingLeft: 21, opacity: profileVisible ? 1 : 0.35, pointerEvents: profileVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
-              {/* Values toggle + color swatch + mode dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none', flex: 1 }}>
-                  <span style={{ ...checkboxSpan(!!frvp.showBarValues), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}>{frvp.showBarValues && <Checkmark />}</span>
-                  <span style={labelStyle}>Values</span>
-                </div>
-                <div style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ColorSwatchButton
-                    color={frvp.valuesColor ?? '#ffffff'}
-                    onChange={(color) => updateDrawing(drawingId, { valuesColor: color } as Partial<Drawing>)}
-                  />
-                </div>
-                <div ref={valuesModeRef} className="relative" style={{ opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+            {/* Sub-rows — single grid so every right-column item shares the same left edge */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', rowGap: 14, columnGap: 8, alignItems: 'center', paddingLeft: 21, opacity: profileVisible ? 1 : 0.35, pointerEvents: profileVisible ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+
+              {/* Values */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}>
+                <span style={{ ...checkboxSpan(!!frvp.showBarValues), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}>{frvp.showBarValues && <Checkmark />}</span>
+                <span style={labelStyle}>Values</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+                <ColorSwatchButton color={frvp.valuesColor ?? '#ffffff'} onChange={(color) => updateDrawing(drawingId, { valuesColor: color } as Partial<Drawing>)} />
+                <div ref={valuesModeRef} className="relative">
                   <DropdownButton open={showValuesModeDD} onClick={() => setShowValuesModeDD((v) => !v)} minWidth={90}>
                     <span>{(frvp.valuesMode ?? 'hover') === 'always' ? 'Always' : 'On Hover'}</span>
                   </DropdownButton>
@@ -268,12 +264,9 @@ export function FRVPSettingsPopover({
                       {(['hover', 'always'] as const).map((m) => {
                         const active = (frvp.valuesMode ?? 'hover') === m;
                         return (
-                          <button
-                            key={m}
-                            onClick={() => { updateDrawing(drawingId, { valuesMode: m } as Partial<Drawing>); setShowValuesModeDD(false); }}
+                          <button key={m} onClick={() => { updateDrawing(drawingId, { valuesMode: m } as Partial<Drawing>); setShowValuesModeDD(false); }}
                             className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
-                            style={ddItemStyle(active)}
-                          >
+                            style={ddItemStyle(active)}>
                             {m === 'always' ? 'Always' : 'On Hover'}
                           </button>
                         );
@@ -282,18 +275,14 @@ export function FRVPSettingsPopover({
                   )}
                 </div>
               </div>
-              {/* Background color */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none', flex: 1 }}>
-                  <span style={{ ...checkboxSpan(!!frvp.valuesBgColor), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { valuesBgColor: frvp.valuesBgColor ? undefined : 'rgba(0,0,0,0.55)' } as Partial<Drawing>)}>{frvp.valuesBgColor && <Checkmark />}</span>
-                  <span style={labelStyle}>Background</span>
-                </div>
-                <div style={{ opacity: frvp.valuesBgColor ? 1 : 0.35, pointerEvents: frvp.valuesBgColor ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
-                  <ColorSwatchButton
-                    color={frvp.valuesBgColor ?? 'rgba(0,0,0,0.55)'}
-                    onChange={(color) => updateDrawing(drawingId, { valuesBgColor: color } as Partial<Drawing>)}
-                  />
-                </div>
+
+              {/* Background */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none', opacity: frvp.showBarValues ? 1 : 0.35, pointerEvents: frvp.showBarValues ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+                <span style={{ ...checkboxSpan(!!frvp.valuesBgColor), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { valuesBgColor: frvp.valuesBgColor ? undefined : 'rgba(0,0,0,0.55)' } as Partial<Drawing>)}>{frvp.valuesBgColor && <Checkmark />}</span>
+                <span style={labelStyle}>Background</span>
+              </div>
+              <div style={{ opacity: frvp.showBarValues && frvp.valuesBgColor ? 1 : 0.35, pointerEvents: frvp.showBarValues && frvp.valuesBgColor ? 'auto' : 'none', transition: 'opacity var(--transition-fast)' }}>
+                <ColorSwatchButton color={frvp.valuesBgColor ?? 'rgba(0,0,0,0.55)'} onChange={(color) => updateDrawing(drawingId, { valuesBgColor: color } as Partial<Drawing>)} />
               </div>
 
               {/* Highlight on Hover */}
@@ -301,44 +290,40 @@ export function FRVPSettingsPopover({
                 <span style={{ ...checkboxSpan(frvp.highlightOnHover !== false), cursor: 'pointer' }} onClick={() => updateDrawing(drawingId, { highlightOnHover: !(frvp.highlightOnHover !== false) } as Partial<Drawing>)}>{frvp.highlightOnHover !== false && <Checkmark />}</span>
                 <span style={labelStyle}>Highlight on Hover</span>
               </div>
+              <div />
 
               {/* Placement */}
-              <div style={rowStyle}>
-                <span style={labelStyle}>Placement</span>
-                <div ref={placementRef} className="relative">
-                  <DropdownButton open={showPlacementDD} onClick={() => setShowPlacementDD((v) => !v)} minWidth={90}>
-                    <span style={{ textTransform: 'capitalize' }}>{frvp.barPlacement ?? 'left'}</span>
-                  </DropdownButton>
-                  {showPlacementDD && (
-                    <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
-                      {(['left', 'right', 'middle'] as const).map((p) => {
-                        const active = (frvp.barPlacement ?? 'left') === p;
-                        return (
-                          <button
-                            key={p}
-                            onClick={() => { if (!active) updateDrawing(drawingId, { barPlacement: p } as Partial<Drawing>); setShowPlacementDD(false); }}
-                            className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
-                            style={{ ...ddItemStyle(active), textTransform: 'capitalize' }}
-                          >
-                            {p}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+              <span style={labelStyle}>Placement</span>
+              <div ref={placementRef} className="relative" style={{ justifySelf: 'end' }}>
+                <DropdownButton open={showPlacementDD} onClick={() => setShowPlacementDD((v) => !v)} minWidth={90}>
+                  <span style={{ textTransform: 'capitalize' }}>{frvp.barPlacement ?? 'left'}</span>
+                </DropdownButton>
+                {showPlacementDD && (
+                  <div style={{ ...ddPanelStyle, minWidth: 90 }} onClick={(e) => e.stopPropagation()}>
+                    {(['left', 'right', 'middle'] as const).map((p) => {
+                      const active = (frvp.barPlacement ?? 'left') === p;
+                      return (
+                        <button key={p} onClick={() => { if (!active) updateDrawing(drawingId, { barPlacement: p } as Partial<Drawing>); setShowPlacementDD(false); }}
+                          className={`flex items-center w-full rounded-lg transition-colors text-left ${active ? '' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
+                          style={{ ...ddItemStyle(active), textTransform: 'capitalize' }}>
+                          {p}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Offset */}
-              <div style={rowStyle}>
-                <span style={labelStyle}>Offset</span>
-                <SpinnerInput value={frvp.barOffset ?? 0} onChange={(v) => updateDrawing(drawingId, { barOffset: Math.max(0, v) } as Partial<Drawing>)} min={0} max={200} step={1} />
+              <span style={labelStyle}>Offset</span>
+              <div style={{ justifySelf: 'end' }}>
+                <SpinnerInput value={frvp.barOffset ?? 0} onChange={(v) => updateDrawing(drawingId, { barOffset: Math.max(0, v) } as Partial<Drawing>)} min={0} max={200} step={1} inputWidth={74} />
               </div>
 
               {/* Length % */}
-              <div style={rowStyle}>
-                <span style={labelStyle}>Length %</span>
-                <SpinnerInput value={frvp.barLength ?? 50} onChange={(v) => updateDrawing(drawingId, { barLength: Math.min(100, Math.max(1, v)) } as Partial<Drawing>)} min={1} max={100} step={1} />
+              <span style={labelStyle}>Length %</span>
+              <div style={{ justifySelf: 'end' }}>
+                <SpinnerInput value={frvp.barLength ?? 50} onChange={(v) => updateDrawing(drawingId, { barLength: Math.min(100, Math.max(1, v)) } as Partial<Drawing>)} min={1} max={100} step={1} inputWidth={74} />
               </div>
             </div>
 
