@@ -6,7 +6,7 @@ import { getCandlePeriodSeconds, getPriceScaleWidth } from '../barUtils';
 import { snapPriceToOHLC } from '../drawings/magnetSnap';
 import { matchTrades } from '../TradeZonePrimitive';
 import type { ChartRefs } from './types';
-import { COLOR_TEXT_MUTED, COLOR_TEXT_MEDIUM } from '../../../constants/colors';
+import { COLOR_TEXT, COLOR_TEXT_MEDIUM } from '../../../constants/colors';
 
 /**
  * Handles trade zones, OHLC tooltip, crosshair price label, and scroll-to-latest button.
@@ -84,7 +84,7 @@ export function useChartWidgets(
     const fmt = (v: number) => nf.format(v);
 
     // Pre-create spans once instead of rebuilding DOM via innerHTML every frame
-    const makeLabel = (text: string) => { const s = document.createElement('span'); s.style.color = COLOR_TEXT_MUTED; s.textContent = text; return s; };
+    const makeLabel = (text: string) => { const s = document.createElement('span'); s.style.color = COLOR_TEXT; s.textContent = text; return s; };
     const makeVal = () => { const s = document.createElement('span'); return s; };
     const oSpan = makeVal(); const hSpan = makeVal(); const lSpan = makeVal(); const cSpan = makeVal(); const chgSpan = makeVal();
     el.textContent = '';

@@ -138,6 +138,7 @@ export function useChartBars(
     async function loadBars() {
       setLoading(true);
       setError(null);
+      refs.lastBar.current = null;
       try {
         const startTime = computeStartTime(timeframe);
         const endTime = new Date().toISOString();
