@@ -192,20 +192,26 @@ export function ColorSwatchButton({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   const computePos = () => {
     if (!ref.current) return;
     const popoverW = 290;
-    const popoverH = 350;
+    const popoverH = 330;
     const r = ref.current.getBoundingClientRect();
     const left = Math.min(r.left, window.innerWidth - popoverW - 8);
-    const top = r.bottom + 4 + popoverH > window.innerHeight
-      ? Math.max(4, r.top - popoverH - 4)
-      : r.bottom + 4;
+    const opensAbove = r.bottom + 4 + popoverH > window.innerHeight;
+    const next = opensAbove
+      ? { bottom: window.innerHeight - r.top + 4, left }
+      : { top: r.bottom + 4, left };
     setPos((prev) => {
-      if (prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.left - left) < 0.5) return prev;
-      return { top, left };
+      if (prev) {
+        const topEq = Math.abs((prev.top ?? 0) - (next.top ?? 0)) < 0.5;
+        const botEq = Math.abs((prev.bottom ?? 0) - (next.bottom ?? 0)) < 0.5;
+        const leftEq = Math.abs(prev.left - next.left) < 0.5;
+        if (topEq && botEq && leftEq) return prev;
+      }
+      return next;
     });
   };
 
@@ -241,7 +247,7 @@ export function ColorSwatchButton({
         <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: color }} />
       </button>
       {open && !disabled && pos && createPortal(
-        <div style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: Z.TOAST }}>
+        <div style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}>
           <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
         </div>,
         document.body
@@ -295,7 +301,7 @@ export function ColorPopover({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg shadow-lg"
+      className="bg-(--color-surface) border border-(--color-border) rounded-lg shadow-lg"
       style={{ zIndex: Z.DROPDOWN, padding: 10, width: 290 }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
