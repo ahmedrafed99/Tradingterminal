@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface SpinnerInputProps {
   value: number;
@@ -10,8 +10,12 @@ interface SpinnerInputProps {
   height?: number;
 }
 
+const PX_PER_STEP = 2;
+const DRAG_THRESHOLD = 3;
+
 /**
  * Compact numeric input with hover-reveal up/down chevron arrows.
+ * Arrows support click (±1 step) and click-drag (scrub up/down).
  * Transparent background, custom border, no native browser spinners.
  */
 export function SpinnerInput({
@@ -24,14 +28,51 @@ export function SpinnerInput({
   height = 26,
 }: SpinnerInputProps) {
   const [hovered, setHovered] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [inputStr, setInputStr] = useState(String(value));
+  const valueRef = useRef(value);
+  const didDragRef = useRef(false);
 
-  // Sync display when parent value changes externally (e.g. undo, spinner buttons)
   useEffect(() => {
+    valueRef.current = value;
     setInputStr(String(value));
   }, [value]);
 
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
+
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startY = e.clientY;
+    const startValue = valueRef.current;
+    didDragRef.current = false;
+
+    const onMove = (me: MouseEvent) => {
+      const dy = startY - me.clientY;
+      if (Math.abs(dy) > DRAG_THRESHOLD) {
+        if (!didDragRef.current) {
+          didDragRef.current = true;
+          setDragging(true);
+          document.body.style.cursor = 'ns-resize';
+          document.body.style.userSelect = 'none';
+        }
+        const steps = Math.round(dy / PX_PER_STEP);
+        onChange(clamp(startValue + steps * step));
+      }
+    };
+
+    const onUp = () => {
+      setDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 
   return (
     <div
@@ -77,23 +118,24 @@ export function SpinnerInput({
         }}
       />
       <div
+        onMouseDown={startDrag}
         style={{
           display: 'flex',
           flexDirection: 'column',
           width: 16,
-          opacity: hovered ? 1 : 0,
+          opacity: hovered || dragging ? 1 : 0,
           transition: 'opacity 0.15s ease',
-          pointerEvents: hovered ? 'auto' : 'none',
+          pointerEvents: hovered || dragging ? 'auto' : 'none',
+          cursor: dragging ? 'ns-resize' : 'pointer',
         }}
       >
         <button
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onClick={() => onChange(clamp(value + step))}
+          onClick={() => { if (!didDragRef.current) onChange(clamp(value + step)); }}
           style={{
             flex: 1,
             border: 'none',
             background: 'transparent',
-            cursor: 'pointer',
+            cursor: 'inherit',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -107,13 +149,12 @@ export function SpinnerInput({
           </svg>
         </button>
         <button
-          onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onClick={() => onChange(clamp(value - step))}
+          onClick={() => { if (!didDragRef.current) onChange(clamp(value - step)); }}
           style={{
             flex: 1,
             border: 'none',
             background: 'transparent',
-            cursor: 'pointer',
+            cursor: 'inherit',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

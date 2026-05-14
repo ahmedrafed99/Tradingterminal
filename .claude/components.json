@@ -27,6 +27,7 @@
         "Preview renderers (FRVPPreviewRenderer, FRVPRangePreviewRenderer) only draw dashed lines — no bar rendering, no placement logic needed",
         "STORE_VERSION is auto-bumped by pre-commit hook (.git/hooks/pre-commit) whenever any file in frontend/src/store/ is staged — never bump manually",
         "barPlacement ('left'|'right'|'middle') and barOffset (CSS px gap) are style settings; 'middle' starts bars at centerX and grows right — not mirrored",
+        "barLength (1–100%) scales maxBarW before _drawBars — controls max bar width as % of rectangle width; applied after range-mode capping",
         "extendPoc=true spans the POC line across the full rectangle (anchorX → rightEdge) regardless of placement or offset",
         "volumeType field is reserved for future delta/up-down volume; only 'total' is wired up — greyed out in UI",
         "Expand animation uses _expandMap (price → current expand px) with EXPAND_LERP=0.25 lerp per frame; _requestUpdate triggers redraws"

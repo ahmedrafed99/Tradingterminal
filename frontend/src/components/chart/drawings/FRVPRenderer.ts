@@ -92,14 +92,13 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
 
       if (bottomY - topY < 1) return;
 
-      // In range mode, cap bar width at the pixel distance between t1 and t2
+      // In range mode maxBarW = full rectangle width; anchor mode capped at MAX_BAR_WIDTH_CSS
       let maxBarW = Math.min(MAX_BAR_WIDTH_CSS * hpr, ctx.canvas.width * 0.25);
       let cssT2X: number | null = null;
       if (this._drawing.mode === 'range' && this._drawing.t2 !== undefined) {
         cssT2X = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
         if (cssT2X !== null) {
-          const rangePx = Math.abs(cssT2X - cssAnchorX) * hpr;
-          maxBarW = Math.min(maxBarW, rangePx);
+          maxBarW = Math.abs(cssT2X - cssAnchorX) * hpr;
         }
       }
 
@@ -113,9 +112,11 @@ class FRVPRendererImpl implements IPrimitivePaneRenderer {
         ctx.fillRect(rectLeft, topY, rectRight - rectLeft, bottomY - topY);
       }
 
+      const barLengthScale = Math.min(Math.max((this._drawing.barLength ?? 50) / 100, 0.01), 1);
+      const scaledMaxBarW = maxBarW * barLengthScale;
       const t2BitmapX = cssT2X !== null ? cssT2X * hpr : null;
-      const cssRightEdge = cssT2X ?? (cssAnchorX + maxBarW / hpr);
-      const result = this._drawBars(ctx, anchorX, t2BitmapX, topY, bottomY, maxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
+      const cssRightEdge = cssT2X ?? (cssAnchorX + scaledMaxBarW / hpr);
+      const result = this._drawBars(ctx, anchorX, t2BitmapX, topY, bottomY, scaledMaxBarW, hpr, vpr, this._drawing.highlightOnHover !== false);
       if (result) {
         hoveredBar = { cssAnchorX, cssRightEdge, cssCenterY: result.bitmapCenterY / vpr, volume: result.volume };
       }

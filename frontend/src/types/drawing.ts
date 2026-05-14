@@ -156,6 +156,7 @@ export interface FRVPDrawing extends DrawingBase {
   highlightOnHover?: boolean; // highlight bar on crosshair hover; undefined/true = enabled
   barPlacement?: 'left' | 'right' | 'middle'; // which side of anchor bars grow from; undefined/'left' = right of anchor
   barOffset?: number;      // CSS pixel gap between anchor line and bar start; undefined/0 = flush
+  barLength?: number;      // max bar length as % of rectangle width (1–100); undefined/100 = full width
   volumeType?: 'total' | 'delta' | 'updown'; // volume data source; only 'total' is active currently
 }
 

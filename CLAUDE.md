@@ -5,6 +5,9 @@ don't mention technicalities (including code) unless user asks you
 ### When the user asks about a feature
 read root readme.md file and use quick lookup table.
 
+### When editing a component
+read `.claude/components.json` first — use it to locate relevant files instead of re-exploring the codebase. After editing, update the component's entry if description, keywords, or notes changed.
+
 ### After making code changes
 don't commit unless user tests
 if a feature changes, always update its relevant documentation

@@ -1512,6 +1512,17 @@ export function DrawingEditToolbar({
                         step={1}
                       />
                     </div>
+                    {/* Bar length spinner */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>Length %</span>
+                      <SpinnerInput
+                        value={frvp.barLength ?? 50}
+                        onChange={(v) => updateDrawing(drawing.id, { barLength: Math.min(100, Math.max(1, v)) } as Partial<Drawing>)}
+                        min={1}
+                        max={100}
+                        step={1}
+                      />
+                    </div>
                     {/* Show Values */}
                     <label style={{ display: 'flex', alignItems: 'center', gap: 7, cursor: 'pointer', userSelect: 'none' }}
                       onClick={() => updateDrawing(drawing.id, { showBarValues: !frvp.showBarValues } as Partial<Drawing>)}
