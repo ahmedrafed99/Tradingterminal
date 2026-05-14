@@ -32,6 +32,7 @@ interface DrawingStyleDefaults {
   showBarValues?: boolean;
   barPlacement?: 'left' | 'right' | 'middle';
   barOffset?: number;
+  barLength?: number;
   volumeType?: 'total' | 'delta' | 'updown';
 }
 
@@ -125,7 +126,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
         ].slice(-50);
 
         const rectKeys = ['extendMode', 'middleLine', 'middleLineColor', 'middleLineStyle'] as const;
-        const frvpKeys = ['numBars', 'rowSizeMode', 'rowSizePrice', 'rowTickSize', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues'] as const;
+        const frvpKeys = ['numBars', 'rowSizeMode', 'rowSizePrice', 'rowTickSize', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues', 'barLength'] as const;
         const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...rectKeys, ...frvpKeys] as const;
         if (existing && styleKeys.some((k) => k in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
@@ -173,6 +174,9 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           }
           if ('barOffset' in patch || cur.barOffset !== undefined) {
             updated.barOffset = (p.barOffset as number) ?? cur.barOffset;
+          }
+          if ('barLength' in patch || cur.barLength !== undefined) {
+            updated.barLength = (p.barLength as number) ?? cur.barLength;
           }
           if ('volumeType' in patch || cur.volumeType !== undefined) {
             updated.volumeType = (p.volumeType as 'total' | 'delta' | 'updown') ?? cur.volumeType;

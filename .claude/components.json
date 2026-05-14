@@ -33,5 +33,20 @@
         "Expand animation uses _expandMap (price → current expand px) with EXPAND_LERP=0.25 lerp per frame; _requestUpdate triggers redraws"
       ]
     }
+    ,{
+      "name": "SpinnerInput",
+      "description": "Compact numeric input with hover-reveal up/down chevron arrows. Supports click (±step) and click-hold-drag (scrub up/down at 2px/step). Used across all style toolbars.",
+      "keywords": ["spinner", "numeric input", "scrub", "drag", "stepper", "arrows"],
+      "files": [
+        "frontend/src/components/SpinnerInput.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "Drag activates only after DRAG_THRESHOLD (3px) movement — quick clicks are never treated as drags",
+        "didDragRef suppresses onClick on the arrow buttons after a real drag to prevent double-step at release",
+        "ns-resize cursor and userSelect:none applied to document.body only while dragging; cleaned up on mouseup",
+        "valueRef tracks current value for drag start capture; avoids stale closure in mousemove handler"
+      ]
+    }
   ]
 }
