@@ -10,11 +10,7 @@
         "frontend/src/components/chart/drawings/DrawingsPrimitive.ts",
         "frontend/src/components/chart/DrawingEditToolbar.tsx",
         "frontend/src/components/chart/toolbar/FRVPToolbarPanel.tsx",
-        "frontend/src/components/chart/toolbar/RectSettingsPopover.tsx",
-        "frontend/src/components/chart/toolbar/StrokePopover.tsx",
-        "frontend/src/components/chart/toolbar/TextPopover.tsx",
-        "frontend/src/components/chart/toolbar/TemplatePopover.tsx",
-        "frontend/src/components/chart/toolbar/lineStyleDefs.ts",
+        "frontend/src/components/chart/toolbar/FRVPSettingsPopover.tsx",
         "frontend/src/components/chart/hooks/drawingHandlers.ts",
         "frontend/src/components/chart/hooks/drawingInputHandlers.ts",
         "frontend/src/components/chart/hooks/drawingInteraction.ts",
@@ -37,6 +33,30 @@
         "extendPoc=true spans the POC line across the full rectangle (anchorX → rightEdge) regardless of placement or offset",
         "volumeType field is reserved for future delta/up-down volume; only 'total' is wired up — greyed out in UI",
         "Expand animation uses _expandMap (price → current expand px) with EXPAND_LERP=0.25 lerp per frame; _requestUpdate triggers redraws"
+      ]
+    }
+    ,{
+      "name": "DrawingEditToolbar",
+      "description": "Floating toolbar that appears when a drawing is selected. Shows type-specific controls: color, fill color, text, stroke width/style, hline extend/template, rect settings, FRVP input/style tabs. Multi-select shows count + delete only.",
+      "keywords": ["toolbar", "drawing", "edit", "selected", "color", "stroke", "text", "template", "rect", "hline", "frvp", "delete"],
+      "files": [
+        "frontend/src/components/chart/DrawingEditToolbar.tsx",
+        "frontend/src/components/chart/toolbar/StrokePopover.tsx",
+        "frontend/src/components/chart/toolbar/TextPopover.tsx",
+        "frontend/src/components/chart/toolbar/TemplatePopover.tsx",
+        "frontend/src/components/chart/toolbar/RectSettingsPopover.tsx",
+        "frontend/src/components/chart/toolbar/lineStyleDefs.ts"
+      ],
+      "dependencies": [
+        "drawingsSlice (updateDrawing, removeDrawing, selectedDrawingIds)",
+        "ColorPopover (color picker popover)",
+        "FRVPToolbarPanel (FRVP-specific tab panel, lives in FRVP component)"
+      ],
+      "notes": [
+        "closeAll() resets every popover/tab state — always call it before opening a new one",
+        "FRVP branch renders FRVPToolbarPanel which owns its own dropdown state; closeAll sets frvpTab=null which triggers panel's useEffect to self-reset those dropdowns",
+        "lineStyleDefs.ts is shared between StrokePopover and RectSettingsPopover — edit there, not inline",
+        "TextColorGrid was removed (was dead code — never rendered)"
       ]
     }
     ,{

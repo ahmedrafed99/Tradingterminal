@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
-import type { Drawing, FRVPDrawing, HLineTemplate, LineStyle, RectDrawing } from '../../types/drawing';
+import type { Drawing, HLineTemplate, LineStyle, RectDrawing, FRVPDrawing } from '../../types/drawing';
 import { ColorPopover } from './ColorPopover';
 import { TextPopover } from './toolbar/TextPopover';
 import { StrokePopover } from './toolbar/StrokePopover';
@@ -37,7 +37,6 @@ export function DrawingEditToolbar({
   const [showStroke, setShowStroke] = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [showRectSettings, setShowRectSettings] = useState(false);
-  const [frvpTab, setFrvpTab] = useState<'input' | 'style' | null>(null);
 
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +52,6 @@ export function DrawingEditToolbar({
     setShowStroke(false);
     setShowTemplate(false);
     setShowRectSettings(false);
-    setFrvpTab(null);
   }, []);
 
   if (!drawing && !isMulti) return null;
@@ -121,9 +119,6 @@ export function DrawingEditToolbar({
         <FRVPToolbarPanel
           frvp={drawing as FRVPDrawing}
           drawingId={drawing.id}
-          frvpTab={frvpTab}
-          setFrvpTab={setFrvpTab}
-          closeAll={closeAll}
           updateDrawing={updateDrawing}
           autoTickSize={autoTickSize}
         />
