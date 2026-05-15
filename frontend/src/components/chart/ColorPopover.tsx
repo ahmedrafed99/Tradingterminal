@@ -247,7 +247,7 @@ export function ColorSwatchButton({
         <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: color }} />
       </button>
       {open && !disabled && pos && createPortal(
-        <div style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}>
+        <div data-ignore-click-outside="" style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}>
           <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
         </div>,
         document.body

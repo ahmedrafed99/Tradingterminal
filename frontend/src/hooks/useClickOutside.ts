@@ -12,7 +12,13 @@ export function useClickOutside(
   useEffect(() => {
     if (!open) return;
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      if (!ref.current || ref.current.contains(e.target as Node)) return;
+      let el: Node | null = e.target as Node;
+      while (el) {
+        if (el instanceof HTMLElement && el.hasAttribute('data-ignore-click-outside')) return;
+        el = el.parentNode;
+      }
+      onClose();
     }
     document.addEventListener('mousedown', handler, true);
     return () => document.removeEventListener('mousedown', handler, true);
