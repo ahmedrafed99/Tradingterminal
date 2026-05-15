@@ -38,7 +38,7 @@
     ,{
       "name": "DrawingEditToolbar",
       "description": "Floating toolbar that appears when a drawing is selected. Shows type-specific controls: color, fill color, text, stroke width/style, hline extend/template, rect settings, FRVP input/style tabs. Multi-select shows count + delete only.",
-      "keywords": ["toolbar", "drawing", "edit", "selected", "color", "stroke", "text", "template", "rect", "hline", "frvp", "delete"],
+      "keywords": ["toolbar", "drawing", "edit", "selected", "color", "stroke", "text", "template", "rect", "hline", "frvp", "delete", "draggable", "bounds"],
       "files": [
         "frontend/src/components/chart/DrawingEditToolbar.tsx",
         "frontend/src/components/chart/toolbar/StrokePopover.tsx",
@@ -46,19 +46,23 @@
         "frontend/src/components/chart/toolbar/TemplatePopover.tsx",
         "frontend/src/components/chart/toolbar/RectSettingsPopover.tsx",
         "frontend/src/components/chart/toolbar/lineStyleDefs.ts",
-        "frontend/src/components/shared/DropdownButton.tsx"
+        "frontend/src/components/shared/DropdownButton.tsx",
+        "frontend/src/hooks/useDraggable.ts"
       ],
       "dependencies": [
         "drawingsSlice (updateDrawing, removeDrawing, selectedDrawingIds)",
         "ColorPopover (color picker popover)",
         "FRVPToolbarPanel (FRVP-specific tab panel, lives in FRVP component)",
-        "DropdownButton (shared dropdown trigger button)"
+        "DropdownButton (shared dropdown trigger button)",
+        "useDraggable (drag logic with optional bounds clamping)"
       ],
       "notes": [
         "closeAll() resets every popover state — always call it before opening a new one",
         "FRVP branch renders FRVPToolbarPanel (just a settings button); settings live in FRVPSettingsPopover modal",
         "lineStyleDefs.ts is shared between StrokePopover and RectSettingsPopover — edit there, not inline",
-        "TextColorGrid was removed (was dead code — never rendered)"
+        "TextColorGrid was removed (was dead code — never rendered)",
+        "Draggable via useDraggable; bounds=containerRef keeps toolbar clamped inside chart container (incl. scale) — drag cannot exit chart area",
+        "initialPos prefers container-relative top-left; saved position re-clamped to container bounds on open"
       ]
     }
     ,{

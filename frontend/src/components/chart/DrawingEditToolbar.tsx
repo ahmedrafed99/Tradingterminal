@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
@@ -71,15 +71,21 @@ function DrawingEditToolbarInner({
   const setPopoverPosition = useStore((s) => s.setPopoverPosition);
 
   const [initialPos] = useState(() => {
+    if (containerRef?.current) {
+      const b = containerRef.current.getBoundingClientRect();
+      if (savedPos) {
+        return {
+          x: Math.min(Math.max(savedPos.x, b.left), b.right - 200),
+          y: Math.min(Math.max(savedPos.y, b.top), b.bottom - 40),
+        };
+      }
+      return { x: b.left + 16, y: b.top + 16 };
+    }
     if (savedPos) {
       return {
         x: Math.min(Math.max(8, savedPos.x), window.innerWidth - 200),
         y: Math.min(Math.max(8, savedPos.y), window.innerHeight - 40),
       };
-    }
-    if (containerRef?.current) {
-      const rect = containerRef.current.getBoundingClientRect();
-      return { x: rect.left + 16, y: rect.top + 16 };
     }
     return undefined;
   });
@@ -91,6 +97,7 @@ function DrawingEditToolbarInner({
   const { ref: toolbarRef, onDragMouseDown, dragStyle, isDragging } = useDraggable<HTMLDivElement>({
     initialPos,
     onDragEnd,
+    bounds: containerRef as React.RefObject<HTMLElement> | undefined,
   });
 
   const isMulti = selectedIds.length > 1;

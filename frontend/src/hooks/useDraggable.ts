@@ -1,8 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
+import type React from 'react';
 
 interface UseDraggableOptions {
   initialPos?: { x: number; y: number };
   onDragEnd?: (pos: { x: number; y: number }) => void;
+  bounds?: React.RefObject<HTMLElement>;
 }
 
 export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: UseDraggableOptions) {
@@ -12,6 +14,8 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: U
   const latestPosRef = useRef<{ x: number; y: number } | null>(null);
   const onDragEndRef = useRef(options?.onDragEnd);
   onDragEndRef.current = options?.onDragEnd;
+  const boundsRef = useRef(options?.bounds);
+  boundsRef.current = options?.bounds;
 
   const onDragMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button !== 0) return;
@@ -31,10 +35,17 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: U
     setIsDragging(true);
 
     const onMove = (ev: MouseEvent) => {
-      const newPos = {
-        x: startPos.x + ev.clientX - startMouse.x,
-        y: startPos.y + ev.clientY - startMouse.y,
-      };
+      let x = startPos.x + ev.clientX - startMouse.x;
+      let y = startPos.y + ev.clientY - startMouse.y;
+
+      const boundsEl = boundsRef.current?.current;
+      if (boundsEl) {
+        const b = boundsEl.getBoundingClientRect();
+        x = Math.min(Math.max(x, b.left), b.right - rect.width);
+        y = Math.min(Math.max(y, b.top), b.bottom - rect.height);
+      }
+
+      const newPos = { x, y };
       latestPosRef.current = newPos;
       setPos(newPos);
     };
