@@ -373,19 +373,7 @@ class BracketEngine {
    * Called on every SignalR order event.
    */
   async onOrderEvent(order: RealtimeOrder): Promise<void> {
-    // Debug: log every order event when engine is active
-    if (DEV && (this.armedConfig || this.session)) {
-      console.log('[BracketEngine] onOrderEvent:', {
-        orderId: order.id,
-        status: order.status,
-        filledPrice: order.filledPrice,
-        type: order.type,
-        side: order.side,
-        armed: !!this.armedConfig,
-        confirmedId: this.confirmedOrderId,
-        hasSession: !!this.session,
-      });
-    }
+
 
     // --- Armed but orderId not yet confirmed: buffer fills ---
     if (this.armedConfig && this.confirmedOrderId === null) {
