@@ -179,6 +179,35 @@ export function useChartBars(
         series.setData(candles);
         earliestLoadedTimeRef.current = sorted.length > 0 ? sorted[0].t : null;
         refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
+
+        // If the last loaded bar is behind the current candle period (stale cache or API omission),
+        // fetch the partial bar explicitly so there's no gap at the right edge on load.
+        const currentPeriodStart = floorToCandlePeriod(Date.now() / 1000, periodSec);
+        if (refs.lastBar.current && (refs.lastBar.current.time as number) < currentPeriodStart) {
+          try {
+            const partialBars = await marketDataService.retrieveBars({
+              contractId: contract!.id,
+              live: false,
+              unit: timeframe.unit,
+              unitNumber: timeframe.unitNumber,
+              startTime: new Date(currentPeriodStart * 1000).toISOString(),
+              endTime: new Date().toISOString(),
+              limit: 5,
+              includePartialBar: true,
+            });
+            if (!cancelled && partialBars.length > 0) {
+              const partialSorted = sortBarsAscending(partialBars);
+              const partialCandles = partialSorted.map(barToCandle);
+              for (let i = 0; i < partialCandles.length; i++) {
+                series.update(partialCandles[i]);
+                refs.bars.current.push(partialSorted[i]);
+                refs.dataMap.current.set(partialCandles[i].time as number, partialCandles[i].close);
+              }
+              refs.lastBar.current = partialCandles[partialCandles.length - 1];
+            }
+          } catch { /* silent — real-time will fill */ }
+        }
+
         if (refs.lastBar.current) {
           useStore.getState().setLastBarTime(refs.lastBar.current.time as number);
           refs.drawingsPrimitive.current?.setLastBarTime(refs.lastBar.current.time as number);
