@@ -107,14 +107,12 @@ class BracketEngine {
   confirmEntryOrderId(orderId: string) {
     if (!this.armedConfig) return;
     this.confirmedOrderId = orderId;
-    if (DEV) console.log('[BracketEngine] Confirmed orderId', orderId);
 
     // Check if we already buffered a fill for this order
     const fill = this.bufferedFills.find(
       (o) => o.id === orderId && o.status === OrderStatus.Filled,
     );
     if (fill) {
-      if (DEV) console.log('[BracketEngine] Found buffered fill, processing now');
       const cfg = this.armedConfig;
       this.armedConfig = null;
       this.confirmedOrderId = null;
@@ -300,7 +298,6 @@ class BracketEngine {
       if (this.session.firedPriceTriggers.has(condition.id)) continue;
       if (profitPoints >= condition.trigger.points) {
         this.session.firedPriceTriggers.add(condition.id);
-        if (DEV) console.log(`[BracketEngine] profitReached triggered: ${profitPoints.toFixed(1)} pts >= ${condition.trigger.points} pts, action: ${condition.action.kind}`);
         this.executeAction(condition.action);
       }
     }
@@ -321,14 +318,12 @@ class BracketEngine {
     const found = this.findNativeSLInStore(oppositeSide);
     if (found) {
       this.session.slOrderId = found;
-      if (DEV) console.log('[BracketEngine] Native SL discovered immediately, orderId:', found);
       this.flushPendingActions();
       return;
     }
 
     // Not found yet — watch incoming order events
     this._awaitingNativeSL = { oppositeSide, slType };
-    if (DEV) console.log('[BracketEngine] Awaiting native SL discovery...');
 
     this._nativeSLTimer = setTimeout(() => {
       if (this._awaitingNativeSL && this.session) {
@@ -336,7 +331,6 @@ class BracketEngine {
         const lastChance = this.findNativeSLInStore(this._awaitingNativeSL.oppositeSide);
         if (lastChance) {
           this.session.slOrderId = lastChance;
-          if (DEV) console.log('[BracketEngine] Native SL discovered on timeout check, orderId:', lastChance);
           this.flushPendingActions();
         } else {
           showToast('warning', 'Could not track native SL order',
@@ -379,7 +373,6 @@ class BracketEngine {
     if (this.armedConfig && this.confirmedOrderId === null) {
       if (order.status === OrderStatus.Filled) {
         this.bufferedFills.push(order);
-        if (DEV) console.log('[BracketEngine] Buffered fill event, orderId:', order.id);
       }
       return;
     }
@@ -387,7 +380,6 @@ class BracketEngine {
     // --- Armed with confirmed orderId: check for entry fill ---
     if (this.armedConfig && this.confirmedOrderId !== null) {
       if (order.id === this.confirmedOrderId && order.status === OrderStatus.Filled) {
-        if (DEV) console.log('[BracketEngine] Entry filled! price:', order.filledPrice);
         const cfg = this.armedConfig;
         this.armedConfig = null;
         this.confirmedOrderId = null;
@@ -411,7 +403,6 @@ class BracketEngine {
         order.size === this.session.entrySize
       ) {
         this.session.slOrderId = order.id;
-        if (DEV) console.log('[BracketEngine] Native SL discovered via event, orderId:', order.id);
         if (this._nativeSLTimer) clearTimeout(this._nativeSLTimer);
         this._nativeSLTimer = null;
         this._awaitingNativeSL = null;
@@ -426,7 +417,6 @@ class BracketEngine {
     if (this.session.slOrderId !== null && order.id === this.session.slOrderId) {
       this.handledFillIds.add(order.id);
       audioService.play('stop_filled');
-      if (DEV) console.log('[BracketEngine] SL filled! Cancelling remaining TPs...');
       const snapshot = this.session;
       this.session = null; // Clear immediately so clearSession() won't double-cancel
       this.unsubscribeFromPrice();
@@ -456,7 +446,6 @@ class BracketEngine {
       entryPrice: this.session.entryPrice,
       entrySide: this.session.entrySide,
     });
-    if (DEV) console.log(`[BracketEngine] TP${filledTpIndex + 1} filled`);
     this.session.filledTPs.add(filledTpIndex);
 
     // Reduce SL size to match remaining position
@@ -464,7 +453,6 @@ class BracketEngine {
       const filledTpSize = this.getFilledTPSize();
       const remainingSize = this.session.entrySize - filledTpSize;
       if (remainingSize > 0) {
-        if (DEV) console.log(`[BracketEngine] Modifying SL size: ${this.session.entrySize} → ${remainingSize}`);
         const slOrderId = this.session.slOrderId;
         const accountId = this.session.accountId;
         try {
@@ -587,7 +575,6 @@ class BracketEngine {
     const origTotal = rawTps.reduce((s, t) => s + t.size, 0);
     const normTotal = normalizedTPs.reduce((s, t) => s + t.size, 0);
     if (origTotal !== normTotal && normalizedTPs.length > 0) {
-      if (DEV) console.log(`[BracketEngine] TP sizes normalized: ${origTotal} → ${normTotal} (entrySize=${entrySize})`);
       showToast('warning', 'TP sizes adjusted to match order size',
         `Total TP contracts (${origTotal}) normalized to entry size (${entrySize}).`);
     }
@@ -617,7 +604,6 @@ class BracketEngine {
 
     if (cfg.nativeSL && config.stopLoss.points >= 1) {
       // SL was attached as native bracket — discover the gateway-created order
-      if (DEV) console.log('[BracketEngine] Native SL used, discovering gateway-created SL order...');
       this.discoverNativeSL();
     } else if (config.stopLoss.points >= 1) {
       // Place SL as a separate stop order (with retry)
@@ -629,7 +615,6 @@ class BracketEngine {
 
       const slType = config.stopLoss.type === 'Stop' ? OrderType.Stop : OrderType.TrailingStop;
 
-      if (DEV) console.log(`[BracketEngine] Placing SL: side=${oppositeSide} stopPrice=${stopPrice} type=${slType}`);
 
       try {
         const { orderId } = await retryAsync(
@@ -655,7 +640,6 @@ class BracketEngine {
             },
           },
         );
-        if (DEV) console.log('[BracketEngine] SL placed, orderId:', orderId);
         if (this.session) {
           this.session.slOrderId = orderId;
         }
@@ -675,7 +659,6 @@ class BracketEngine {
           ? entryPrice + tpOffset
           : entryPrice - tpOffset;
 
-      if (DEV) console.log(`[BracketEngine] Placing TP${i + 1}: side=${oppositeSide} limitPrice=${limitPrice} size=${tp.size}`);
 
       return retryAsync(
         () => orderService.placeOrder({
@@ -695,7 +678,6 @@ class BracketEngine {
           },
         },
       ).then(({ orderId }) => {
-        if (DEV) console.log(`[BracketEngine] TP${i + 1} placed, orderId:`, orderId);
         this.session?.tpOrderIds.set(i, orderId);
       }).catch(() => {
         // Toast already shown by onExhausted
@@ -716,10 +698,8 @@ class BracketEngine {
     for (const [tpIdx, orderId] of tpOrderIds) {
       if (filledTPs.has(tpIdx)) continue;
       if (!this.isOrderStillOpen(orderId)) {
-        if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
         continue;
       }
-      if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
       cancels.push(
         orderService.cancelOrder(accountId, orderId).catch((err) => {
           showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
@@ -736,9 +716,7 @@ class BracketEngine {
     // Cancel SL
     if (slOrderId !== null) {
       if (!this.isOrderStillOpen(slOrderId)) {
-        if (DEV) console.log(`[BracketEngine] SL (orderId: ${slOrderId}) already gone, skipping cancel`);
       } else {
-        if (DEV) console.log(`[BracketEngine] Cancelling SL (orderId: ${slOrderId})`);
         cancels.push(
           orderService.cancelOrder(accountId, slOrderId).catch((err) => {
             showToast('warning', 'Failed to cancel Stop Loss order',
@@ -752,10 +730,8 @@ class BracketEngine {
     for (const [tpIdx, orderId] of tpOrderIds) {
       if (filledTPs.has(tpIdx)) continue;
       if (!this.isOrderStillOpen(orderId)) {
-        if (DEV) console.log(`[BracketEngine] TP${tpIdx + 1} (orderId: ${orderId}) already gone, skipping cancel`);
         continue;
       }
-      if (DEV) console.log(`[BracketEngine] Cancelling TP${tpIdx + 1} (orderId: ${orderId})`);
       cancels.push(
         orderService.cancelOrder(accountId, orderId).catch((err) => {
           showToast('warning', `Failed to cancel TP${tpIdx + 1}`, errorMessage(err), 4000);
