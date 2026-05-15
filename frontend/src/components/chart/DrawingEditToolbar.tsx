@@ -220,6 +220,7 @@ function DrawingEditToolbarInner({
           {/* Color picker */}
           <div className="relative">
             <button
+              data-ignore-click-outside=""
               onClick={() => { const v = !showColor; closeAll(); setShowColor(v); }}
               className={`${btnBase} ${showColor ? btnActive : btnHover}`}
               title="Color"
@@ -234,11 +235,13 @@ function DrawingEditToolbarInner({
               }} />
             </button>
             {showColor && (
-              <ColorPopover
-                current={drawing.color}
-                onChange={(color) => updateDrawing(drawing.id, { color })}
-                onClose={() => setShowColor(false)}
-              />
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: Z.DROPDOWN }}>
+                <ColorPopover
+                  current={drawing.color}
+                  onChange={(color) => updateDrawing(drawing.id, { color })}
+                  onClose={() => setShowColor(false)}
+                />
+              </div>
             )}
           </div>
 
@@ -248,6 +251,7 @@ function DrawingEditToolbarInner({
               <Divider />
               <div className="relative">
                 <button
+                  data-ignore-click-outside=""
                   onClick={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
                   className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
                   title="Fill color"
@@ -265,11 +269,13 @@ function DrawingEditToolbarInner({
                   }} />
                 </button>
                 {showFillColor && (
-                  <ColorPopover
-                    current={(drawing as any).fillColor || 'rgba(255,152,0,0.15)'}
-                    onChange={(color) => updateDrawing(drawing.id, { fillColor: color } as Partial<Drawing>)}
-                    onClose={() => setShowFillColor(false)}
-                  />
+                  <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: Z.DROPDOWN }}>
+                    <ColorPopover
+                      current={(drawing as any).fillColor || 'rgba(255,152,0,0.15)'}
+                      onChange={(color) => updateDrawing(drawing.id, { fillColor: color } as Partial<Drawing>)}
+                      onClose={() => setShowFillColor(false)}
+                    />
+                  </div>
                 )}
               </div>
             </>
@@ -281,6 +287,7 @@ function DrawingEditToolbarInner({
               <Divider />
               <div className="relative">
                 <button
+                  data-ignore-click-outside=""
                   onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
                   className={`${btnBase} ${showText ? btnActive : btnHover}`}
                   title="Text"
@@ -310,6 +317,7 @@ function DrawingEditToolbarInner({
           {/* Stroke width / style */}
           <div className="relative">
             <button
+              data-ignore-click-outside=""
               onClick={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
               className={`${btnBase} !w-auto ${showStroke ? btnActive : btnHover}`}
               style={{ padding: '0 8px', gap: 6 }}
@@ -373,6 +381,7 @@ function DrawingEditToolbarInner({
               <Divider />
               <div className="relative">
                 <button
+                  data-ignore-click-outside=""
                   onClick={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
                   className={`${btnBase} !w-auto ${showTemplate ? btnActive : btnHover}`}
                   style={{ padding: '0 8px', gap: 4, fontSize: 11, fontWeight: 500 }}
@@ -402,6 +411,7 @@ function DrawingEditToolbarInner({
               <Divider />
               <div className="relative">
                 <button
+                  data-ignore-click-outside=""
                   onClick={() => { const v = !showRectSettings; closeAll(); if (v) setShowRectSettings(true); }}
                   className={`${btnBase} ${showRectSettings ? btnActive : btnHover}`}
                   title="Rectangle settings"

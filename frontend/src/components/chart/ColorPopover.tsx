@@ -226,6 +226,7 @@ export function ColorSwatchButton({
     <div style={{ display: 'inline-flex', alignItems: 'center' }}>
       <button
         ref={ref}
+        data-ignore-click-outside=""
         onClick={() => {
           if (disabled) return;
           if (!open) computePos(); // compute synchronously before state flip
