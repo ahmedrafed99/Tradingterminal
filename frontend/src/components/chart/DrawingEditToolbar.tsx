@@ -11,6 +11,38 @@ import { RectSettingsPopover } from './toolbar/RectSettingsPopover';
 import { FRVPToolbarPanel } from './toolbar/FRVPToolbarPanel';
 import { useDraggable } from '../../hooks/useDraggable';
 
+const BTN_BASE = 'relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text) transition-colors duration-150';
+const BTN_HOVER = 'hover:bg-(--color-border)/50 hover:text-(--color-text)';
+const BTN_ACTIVE = 'bg-(--color-hover-toolbar) text-white hover:bg-(--color-border)/50';
+
+function PopoverToggleButton({
+  open,
+  onToggle,
+  title,
+  children,
+  className,
+  style,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <button
+      data-ignore-click-outside=""
+      onClick={onToggle}
+      className={`${BTN_BASE} ${open ? BTN_ACTIVE : BTN_HOVER}${className ? ' ' + className : ''}`}
+      style={style}
+      title={title}
+    >
+      {children}
+    </button>
+  );
+}
+
 function Divider() {
   return <div style={{ width: 1, height: 20, background: 'var(--color-text-dim)', flexShrink: 0 }} />;
 }
@@ -125,10 +157,6 @@ function DrawingEditToolbarInner({
   if (!drawing && !isMulti) return null;
   if (isMulti && multiDrawings.length === 0) return null;
 
-  const btnBase = 'relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text) transition-colors duration-150';
-  const btnHover = 'hover:bg-(--color-border)/50 hover:text-(--color-text)';
-  const btnActive = 'bg-(--color-hover-toolbar) text-white hover:bg-(--color-border)/50';
-
   const toolbarBaseStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: Z.TOOLBAR_EDIT,
@@ -184,7 +212,7 @@ function DrawingEditToolbarInner({
         <Divider />
         <button
           onClick={() => { removeDrawings(selectedIds); setSelectedDrawingIds([]); }}
-          className={`${btnBase} hover:bg-(--color-border)/50 hover:text-(--color-error)`}
+          className={`${BTN_BASE} hover:bg-(--color-border)/50 hover:text-(--color-error)`}
           title="Delete selected"
         >
           <TrashIcon />
@@ -219,10 +247,9 @@ function DrawingEditToolbarInner({
         <>
           {/* Color picker */}
           <div className="relative">
-            <button
-              data-ignore-click-outside=""
-              onClick={() => { const v = !showColor; closeAll(); setShowColor(v); }}
-              className={`${btnBase} ${showColor ? btnActive : btnHover}`}
+            <PopoverToggleButton
+              open={showColor}
+              onToggle={() => { const v = !showColor; closeAll(); setShowColor(v); }}
               title="Color"
             >
               <svg width="18" height="18" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
@@ -233,7 +260,7 @@ function DrawingEditToolbarInner({
                 width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
                 background: drawing.color, border: '1px solid var(--color-border)',
               }} />
-            </button>
+            </PopoverToggleButton>
             {showColor && (
               <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: Z.DROPDOWN }}>
                 <ColorPopover
@@ -250,10 +277,9 @@ function DrawingEditToolbarInner({
             <>
               <Divider />
               <div className="relative">
-                <button
-                  data-ignore-click-outside=""
-                  onClick={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
-                  className={`${btnBase} ${showFillColor ? btnActive : btnHover}`}
+                <PopoverToggleButton
+                  open={showFillColor}
+                  onToggle={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
                   title="Fill color"
                 >
                   <svg width="20" height="20" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
@@ -267,7 +293,7 @@ function DrawingEditToolbarInner({
                     background: (drawing as any).fillColor || 'transparent',
                     border: '1px solid var(--color-border)',
                   }} />
-                </button>
+                </PopoverToggleButton>
                 {showFillColor && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, zIndex: Z.DROPDOWN }}>
                     <ColorPopover
@@ -286,10 +312,9 @@ function DrawingEditToolbarInner({
             <>
               <Divider />
               <div className="relative">
-                <button
-                  data-ignore-click-outside=""
-                  onClick={() => { const v = !showText; closeAll(); setShowText(v); }}
-                  className={`${btnBase} ${showText ? btnActive : btnHover}`}
+                <PopoverToggleButton
+                  open={showText}
+                  onToggle={() => { const v = !showText; closeAll(); setShowText(v); }}
                   title="Text"
                 >
                   <svg width="14" height="16" viewBox="0 0 13 15" shapeRendering="geometricPrecision" fill="none">
@@ -300,7 +325,7 @@ function DrawingEditToolbarInner({
                     width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
                     background: drawing.text?.color ?? '#ffffff', border: '1px solid var(--color-border)',
                   }} />
-                </button>
+                </PopoverToggleButton>
                 {showText && (
                   <TextPopover
                     drawing={drawing}
@@ -316,10 +341,10 @@ function DrawingEditToolbarInner({
 
           {/* Stroke width / style */}
           <div className="relative">
-            <button
-              data-ignore-click-outside=""
-              onClick={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
-              className={`${btnBase} !w-auto ${showStroke ? btnActive : btnHover}`}
+            <PopoverToggleButton
+              open={showStroke}
+              onToggle={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
+              className="!w-auto"
               style={{ padding: '0 8px', gap: 6 }}
               title="Line style"
             >
@@ -340,7 +365,7 @@ function DrawingEditToolbarInner({
                 );
               })()}
               <span style={{ fontSize: 13, fontWeight: 500 }}>{drawing.strokeWidth}px</span>
-            </button>
+            </PopoverToggleButton>
             {showStroke && (
               <StrokePopover
                 currentWidth={drawing.strokeWidth}
@@ -357,7 +382,7 @@ function DrawingEditToolbarInner({
               <Divider />
               <button
                 onClick={() => updateDrawing(drawing.id, { extendLeft: drawing.extendLeft === false ? true : false })}
-                className={`${btnBase} ${drawing.extendLeft === false ? btnActive : btnHover}`}
+                className={`${BTN_BASE} ${drawing.extendLeft === false ? BTN_ACTIVE : BTN_HOVER}`}
                 title={drawing.extendLeft === false ? 'Extend to full width' : 'Start from click point'}
               >
                 {drawing.extendLeft === false ? (
@@ -380,10 +405,10 @@ function DrawingEditToolbarInner({
             <>
               <Divider />
               <div className="relative">
-                <button
-                  data-ignore-click-outside=""
-                  onClick={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
-                  className={`${btnBase} !w-auto ${showTemplate ? btnActive : btnHover}`}
+                <PopoverToggleButton
+                  open={showTemplate}
+                  onToggle={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
+                  className="!w-auto"
                   style={{ padding: '0 8px', gap: 4, fontSize: 11, fontWeight: 500 }}
                   title="Template"
                 >
@@ -393,7 +418,7 @@ function DrawingEditToolbarInner({
                   >
                     <path d="M2.5 4L5 6.5L7.5 4" />
                   </svg>
-                </button>
+                </PopoverToggleButton>
                 {showTemplate && (
                   <TemplatePopover
                     drawing={drawing}
@@ -410,17 +435,16 @@ function DrawingEditToolbarInner({
             <>
               <Divider />
               <div className="relative">
-                <button
-                  data-ignore-click-outside=""
-                  onClick={() => { const v = !showRectSettings; closeAll(); if (v) setShowRectSettings(true); }}
-                  className={`${btnBase} ${showRectSettings ? btnActive : btnHover}`}
+                <PopoverToggleButton
+                  open={showRectSettings}
+                  onToggle={() => { const v = !showRectSettings; closeAll(); if (v) setShowRectSettings(true); }}
                   title="Rectangle settings"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                     <polygon points="8,1 13.66,4.25 13.66,11.75 8,15 2.34,11.75 2.34,4.25" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="none" />
                     <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.3" fill="none" />
                   </svg>
-                </button>
+                </PopoverToggleButton>
                 {showRectSettings && (
                   <RectSettingsPopover
                     drawing={drawing as RectDrawing}
@@ -439,7 +463,7 @@ function DrawingEditToolbarInner({
       {/* Delete */}
       <button
         onClick={() => { removeDrawing(drawing.id); setSelectedDrawingIds([]); }}
-        className={`${btnBase} hover:bg-(--color-border)/50 hover:text-(--color-error)`}
+        className={`${BTN_BASE} hover:bg-(--color-border)/50 hover:text-(--color-error)`}
         title="Delete"
       >
         <TrashIcon />
