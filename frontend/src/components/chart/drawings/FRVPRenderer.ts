@@ -5,7 +5,7 @@ import type { FRVPDrawing } from '../../../types/drawing';
 import { COLOR_ACCENT, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE, COLOR_TEXT } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 import { applyLineDash } from './rendererUtils';
-import { hitTestRect } from './hitTesting';
+import { hitTestRectEdges } from './hitTesting';
 
 /** Vertical expansion (CSS px) added to hovered bar on each side */
 const EXPAND_PX = 3;
@@ -500,16 +500,141 @@ export class FRVPPaneView implements IPrimitivePaneView {
     const yPMax = this._series.priceToCoordinate(this._drawing.pMax);
     const yPMin = this._series.priceToCoordinate(this._drawing.pMin);
     if (ax === null || yPMax === null || yPMin === null) return false;
+
     const top = Math.min(yPMax, yPMin);
     const bottom = Math.max(yPMax, yPMin);
+    const barLengthScale = Math.min(Math.max((this._drawing.barLength ?? 50) / 100, 0.01), 1);
+
+    let cssT2X: number | null = null;
+    let rightEdgeCss: number;
+
     if (this._drawing.mode === 'range' && this._drawing.t2 !== undefined) {
-      const t2x = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
-      if (t2x === null) return false;
-      const left = Math.min(ax, t2x) - 6;
-      const right = Math.max(ax, t2x) + 6;
-      return hitTestRect(mouseX, mouseY, left, top, right, bottom);
+      cssT2X = this._chart.timeScale().timeToCoordinate(this._drawing.t2 as unknown as Time);
+      if (cssT2X === null) return false;
+      rightEdgeCss = Math.max(ax, cssT2X);
+    } else {
+      rightEdgeCss = ax + MAX_BAR_WIDTH_CSS * barLengthScale;
     }
-    return hitTestRect(mouseX, mouseY, ax - 6, top, ax + MAX_BAR_WIDTH_CSS, bottom);
+
+    const leftEdgeCss = cssT2X !== null ? Math.min(ax, cssT2X) : ax;
+
+    if (hitTestRectEdges(mouseX, mouseY, leftEdgeCss, top, rightEdgeCss, bottom, 6)) return true;
+
+    if (this._drawing.showProfile !== false) {
+      return this._hitTestBars(mouseX, mouseY, ax, cssT2X, top, bottom, rightEdgeCss, barLengthScale);
+    }
+
+    return false;
+  }
+
+  private _hitTestBars(
+    mouseX: number,
+    mouseY: number,
+    anchorXCss: number,
+    t2XCss: number | null,
+    top: number,
+    bottom: number,
+    rightEdgeCss: number,
+    barLengthScale: number,
+  ): boolean {
+    const vmap = this._volumeMapRef.current;
+    if (vmap.size === 0) return false;
+    if (mouseY < top - 6 || mouseY > bottom + 6) return false;
+
+    const pMin = Math.min(this._drawing.pMin, this._drawing.pMax);
+    const pMax = Math.max(this._drawing.pMin, this._drawing.pMax);
+
+    const maxBarWCss = t2XCss !== null ? Math.abs(t2XCss - anchorXCss) : MAX_BAR_WIDTH_CSS;
+    const scaledMaxBarWCss = maxBarWCss * barLengthScale;
+    const barOffsetCss = this._drawing.barOffset ?? 0;
+    const effectiveMaxBarWCss = Math.max(scaledMaxBarWCss - barOffsetCss, 0);
+    const placement = this._drawing.barPlacement ?? 'left';
+    const centerXCss = (anchorXCss + rightEdgeCss) / 2;
+    const TOL = 4;
+
+    const isPriceMode = this._drawing.rowSizeMode === 'price' && (this._drawing.rowSizePrice ?? 0) > 0;
+    const numBars = (!isPriceMode && this._drawing.numBars && this._drawing.numBars > 1) ? this._drawing.numBars : 0;
+
+    const checkBar = (cssY: number, barH: number, vol: number, maxVol: number): boolean => {
+      if (mouseY < cssY - barH / 2 - TOL || mouseY > cssY + barH / 2 + TOL) return false;
+      const barWCss = (vol / maxVol) * effectiveMaxBarWCss;
+      const barXCss = placement === 'right'
+        ? rightEdgeCss - barWCss - barOffsetCss
+        : placement === 'middle' ? centerXCss : anchorXCss + barOffsetCss;
+      return mouseX >= barXCss - TOL && mouseX <= barXCss + barWCss + TOL;
+    };
+
+    if (isPriceMode) {
+      const bucketSize = this._drawing.rowSizePrice!;
+      const numBucketsCalc = Math.ceil((pMax - pMin) / bucketSize);
+      if (numBucketsCalc < 1) return false;
+      const buckets = new Float64Array(numBucketsCalc);
+      let maxVol = 0;
+      for (const [price, vol] of vmap) {
+        if (price < pMin - 1e-9 || price > pMax + 1e-9) continue;
+        const idx = Math.min(Math.floor((price - pMin) / bucketSize), numBucketsCalc - 1);
+        buckets[idx] += vol;
+      }
+      for (let i = 0; i < numBucketsCalc; i++) { if (buckets[i] > maxVol) maxVol = buckets[i]; }
+      if (maxVol === 0) return false;
+      for (let i = 0; i < numBucketsCalc; i++) {
+        if (buckets[i] === 0) continue;
+        const cssY = this._series.priceToCoordinate(pMin + (i + 0.5) * bucketSize);
+        if (cssY === null) continue;
+        const yLo = this._series.priceToCoordinate(pMin + i * bucketSize);
+        const yHi = this._series.priceToCoordinate(pMin + (i + 1) * bucketSize);
+        const barH = yLo !== null && yHi !== null
+          ? Math.max(Math.abs(yHi - yLo) - 1, 1)
+          : Math.max((bottom - top) / numBucketsCalc - 1, 1);
+        if (checkBar(cssY, barH, buckets[i], maxVol)) return true;
+      }
+      return false;
+    }
+
+    if (numBars > 0) {
+      const bucketSize = (pMax - pMin) / numBars;
+      const buckets = new Float64Array(numBars);
+      let maxVol = 0;
+      for (const [price, vol] of vmap) {
+        if (price < pMin - 1e-9 || price > pMax + 1e-9) continue;
+        const idx = Math.min(Math.floor((price - pMin) / bucketSize), numBars - 1);
+        buckets[idx] += vol;
+      }
+      for (let i = 0; i < numBars; i++) { if (buckets[i] > maxVol) maxVol = buckets[i]; }
+      if (maxVol === 0) return false;
+      for (let i = 0; i < numBars; i++) {
+        if (buckets[i] === 0) continue;
+        const cssY = this._series.priceToCoordinate(pMin + (i + 0.5) * bucketSize);
+        if (cssY === null) continue;
+        const yLo = this._series.priceToCoordinate(pMin + i * bucketSize);
+        const yHi = this._series.priceToCoordinate(pMin + (i + 1) * bucketSize);
+        const barH = yLo !== null && yHi !== null
+          ? Math.max(Math.abs(yHi - yLo) - 1, 1)
+          : Math.max((bottom - top) / numBars - 1, 1);
+        if (checkBar(cssY, barH, buckets[i], maxVol)) return true;
+      }
+      return false;
+    }
+
+    // Raw mode: one bar per tick-level price
+    const tickSize = this._tickSize > 0 ? this._tickSize : 0.01;
+    let maxVol = 0;
+    const entries: { price: number; vol: number }[] = [];
+    for (const [price, vol] of vmap) {
+      if (price < pMin - 1e-9 || price > pMax + 1e-9) continue;
+      entries.push({ price, vol });
+      if (vol > maxVol) maxVol = vol;
+    }
+    if (maxVol === 0 || entries.length === 0) return false;
+    const yLo = this._series.priceToCoordinate(pMin);
+    const yHi = this._series.priceToCoordinate(pMin + tickSize);
+    const barHCss = yLo !== null && yHi !== null ? Math.max(Math.abs(yHi - yLo), 1) : 1;
+    for (const { price, vol } of entries) {
+      const cssY = this._series.priceToCoordinate(price);
+      if (cssY === null) continue;
+      if (checkBar(cssY, barHCss, vol, maxVol)) return true;
+    }
+    return false;
   }
 
   hitTestHandle(mx: number, my: number): string | null {
