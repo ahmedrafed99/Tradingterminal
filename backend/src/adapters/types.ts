@@ -75,6 +75,7 @@ export interface ExchangeOrders {
 // ---------------------------------------------------------------------------
 export interface ExchangePositions {
   searchOpen(accountId: string): Promise<unknown>;
+  closePosition?(params: { accountId: string; contractId: string }): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------

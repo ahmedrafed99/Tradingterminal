@@ -51,4 +51,15 @@ export const projectXPositions: ExchangePositions = {
     // All failed — return last result or empty
     return lastResult ?? { success: true, positions: [] };
   },
+
+  async closePosition({ accountId, contractId }) {
+    const n = Number(accountId);
+    if (!Number.isFinite(n)) throw new Error(`Invalid numeric ID: "${accountId}"`);
+    const response = await axios.post(
+      `${getBaseUrl()}/api/Position/closeContract`,
+      { accountId: n, contractId },
+      { headers: authHeaders() },
+    );
+    return response.data;
+  },
 };

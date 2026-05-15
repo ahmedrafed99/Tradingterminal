@@ -1,10 +1,10 @@
 import type { Contract } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED } from '../../../constants/colors';
 import { useStore } from '../../../store/useStore';
-import { orderService } from '../../../services/orderService';
-import { OrderType, OrderSide, PositionType } from '../../../types/enums';
+import { PositionType } from '../../../types/enums';
 import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { markAsManualClose } from '../../../services/manualCloseTracker';
+import { positionService } from '../../../services/positionService';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG, contrastText } from './labelUtils';
@@ -73,13 +73,7 @@ export function buildPositionLabel(
     const acct = useStore.getState().activeAccountId;
     if (!acct || !contract) return;
     markAsManualClose(contract.id);
-    orderService.placeOrder({
-      accountId: acct,
-      contractId: contract.id,
-      type: OrderType.Market,
-      side: isLong ? OrderSide.Sell : OrderSide.Buy,
-      size: pos.size,
-    }).catch((err) => {
+    positionService.closePosition(acct, contract.id).catch((err) => {
       showToast('error', 'Failed to close position', errorMessage(err));
     });
   }

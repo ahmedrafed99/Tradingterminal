@@ -9,6 +9,16 @@ interface GatewayResponse {
 }
 
 export const positionService = {
+  async closePosition(accountId: string, contractId: string): Promise<void> {
+    const res = await api.post<{ success: boolean; errorMessage?: string }>(
+      '/positions/close',
+      { accountId, contractId },
+    );
+    if (!res.data.success) {
+      throw new Error(res.data.errorMessage || 'Failed to close position');
+    }
+  },
+
   async searchOpenPositions(accountId: string): Promise<RealtimePosition[]> {
     const res = await api.get<GatewayResponse>(`/positions/open?accountId=${accountId}`);
     // Don't throw on success=false — the endpoint may not exist on all gateways.

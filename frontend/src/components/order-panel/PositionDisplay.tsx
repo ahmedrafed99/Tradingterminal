@@ -6,6 +6,7 @@ import { orderService } from '../../services/orderService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { markAsManualClose } from '../../services/manualCloseTracker';
+import { positionService } from '../../services/positionService';
 import { showToast, errorMessage } from '../../utils/toast';
 import { calcPnl, roundToTick } from '../../utils/instrument';
 import { formatPrice, getPnlColorClass } from '../../utils/formatters';
@@ -227,15 +228,8 @@ function ClosePositionButton({
     setBusy(true);
     try {
       markAsManualClose(contractId);
-      await orderService.placeOrder({
-        accountId,
-        contractId,
-        type: OrderType.Market,
-        side,
-        size,
-      });
+      await positionService.closePosition(accountId, contractId);
     } catch (err) {
-      console.error('Failed to close position:', err);
       showToast('error', 'Failed to close position', errorMessage(err));
     } finally {
       setBusy(false);

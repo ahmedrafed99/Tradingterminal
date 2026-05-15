@@ -50,6 +50,7 @@ export default defineConfig({
       '/accounts':{ target: BACKEND, changeOrigin: true },
       '/market':  { target: BACKEND, changeOrigin: true },
       '/orders':  { target: BACKEND, changeOrigin: true },
+      '/positions':{ target: BACKEND, changeOrigin: true },
       '/trades':  { target: BACKEND, changeOrigin: true },
       '/settings':{ target: BACKEND, changeOrigin: true },
       '/credentials':{ target: BACKEND, changeOrigin: true },
