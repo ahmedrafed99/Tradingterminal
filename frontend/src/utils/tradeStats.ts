@@ -77,20 +77,20 @@ export interface DirectionStats {
 /** Group raw trades into logical trades (multi-exit = 1 trade). */
 export function groupTrades(trades: Trade[]): GroupedTrade[] {
   const entryMap = buildEntryMap(trades);
-  const closingTrades = trades.filter((t) => t.profitAndLoss != null && !t.voided);
+  const closingTrades = trades.filter((trade) => trade.profitAndLoss != null && !trade.voided);
 
   const byEntry = new Map<number, Trade[]>();
   const unmatched: Trade[] = [];
 
-  for (const t of closingTrades) {
-    const entry = entryMap.get(t.id);
+  for (const trade of closingTrades) {
+    const entry = entryMap.get(trade.id);
     if (!entry) {
-      unmatched.push(t);
+      unmatched.push(trade);
       continue;
     }
     const key = entry.id;
     if (!byEntry.has(key)) byEntry.set(key, []);
-    byEntry.get(key)!.push(t);
+    byEntry.get(key)!.push(trade);
   }
 
   const result: GroupedTrade[] = [];
@@ -100,10 +100,10 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
       (a, b) => new Date(a.creationTimestamp).getTime() - new Date(b.creationTimestamp).getTime(),
     );
     const entry = entryMap.get(exits[0].id)!;
-    const totalPnl = exits.reduce((s, t) => s + t.profitAndLoss!, 0);
-    const totalFees = exits.reduce((s, t) => s + t.fees + t.commissions, 0) + entry.fees + entry.commissions;
-    const totalQty = exits.reduce((s, t) => s + t.size, 0);
-    const weightedPrice = exits.reduce((s, t) => s + t.price * t.size, 0) / totalQty;
+    const totalPnl = exits.reduce((sum, exit) => sum + exit.profitAndLoss!, 0);
+    const totalFees = exits.reduce((sum, exit) => sum + exit.fees + exit.commissions, 0) + entry.fees + entry.commissions;
+    const totalQty = exits.reduce((sum, exit) => sum + exit.size, 0);
+    const weightedPrice = exits.reduce((sum, exit) => sum + exit.price * exit.size, 0) / totalQty;
 
     result.push({
       entryId,
@@ -121,20 +121,20 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
     });
   }
 
-  for (const t of unmatched) {
+  for (const trade of unmatched) {
     result.push({
-      entryId: -t.id,
+      entryId: -trade.id,
       entry: null,
-      exits: [t],
-      totalQty: t.size,
-      totalPnl: t.profitAndLoss!,
-      totalFees: t.fees + t.commissions,
-      totalNet: t.profitAndLoss! - t.fees - t.commissions,
-      entryTime: t.creationTimestamp,
-      exitTime: t.creationTimestamp,
-      isLong: t.side !== OrderSide.Buy,
+      exits: [trade],
+      totalQty: trade.size,
+      totalPnl: trade.profitAndLoss!,
+      totalFees: trade.fees + trade.commissions,
+      totalNet: trade.profitAndLoss! - trade.fees - trade.commissions,
+      entryTime: trade.creationTimestamp,
+      exitTime: trade.creationTimestamp,
+      isLong: trade.side !== OrderSide.Buy,
       entryPrice: null,
-      exitPrice: t.price,
+      exitPrice: trade.price,
     });
   }
 
@@ -149,9 +149,9 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Net price points gained in the trade's direction. Null if entry price unknown. */
-function pointsGained(t: GroupedTrade): number | null {
-  if (t.entryPrice == null) return null;
-  return t.isLong ? t.exitPrice - t.entryPrice : t.entryPrice - t.exitPrice;
+function pointsGained(trade: GroupedTrade): number | null {
+  if (trade.entryPrice == null) return null;
+  return trade.isLong ? trade.exitPrice - trade.entryPrice : trade.entryPrice - trade.exitPrice;
 }
 
 // ── Stats ────────────────────────────────────────────────────────────────────
@@ -169,12 +169,12 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
     };
   }
 
-  const wins = grouped.filter((t) => t.totalNet > 0);
-  const losses = grouped.filter((t) => t.totalNet < 0);
-  const be = grouped.filter((t) => t.totalNet === 0);
+  const wins = grouped.filter((trade) => trade.totalNet > 0);
+  const losses = grouped.filter((trade) => trade.totalNet < 0);
+  const breakevenTrades = grouped.filter((trade) => trade.totalNet === 0);
 
-  const grossWins = wins.reduce((s, t) => s + t.totalNet, 0);
-  const grossLosses = Math.abs(losses.reduce((s, t) => s + t.totalNet, 0));
+  const grossWins = wins.reduce((sum, trade) => sum + trade.totalNet, 0);
+  const grossLosses = Math.abs(losses.reduce((sum, trade) => sum + trade.totalNet, 0));
 
   const avgWinner = wins.length > 0 ? grossWins / wins.length : 0;
   const avgLoser = losses.length > 0 ? grossLosses / losses.length : 0;
@@ -185,8 +185,8 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
   let peak = 0;
   let maxDD = 0;
 
-  for (const t of grouped) {
-    running += t.totalNet;
+  for (const trade of grouped) {
+    running += trade.totalNet;
     curve.push(running);
     if (running > peak) peak = running;
     const dd = peak - running;
@@ -195,12 +195,12 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
 
   // Streaks
   let winStreak = 0, lossStreak = 0, maxWin = 0, maxLoss = 0;
-  for (const t of grouped) {
-    if (t.totalNet > 0) {
+  for (const trade of grouped) {
+    if (trade.totalNet > 0) {
       winStreak++;
       lossStreak = 0;
       if (winStreak > maxWin) maxWin = winStreak;
-    } else if (t.totalNet < 0) {
+    } else if (trade.totalNet < 0) {
       lossStreak++;
       winStreak = 0;
       if (lossStreak > maxLoss) maxLoss = lossStreak;
@@ -213,25 +213,25 @@ export function computeStats(grouped: GroupedTrade[]): TradeStats {
   // Best / worst by dollar
   let best = grouped[0];
   let worst = grouped[0];
-  for (const t of grouped) {
-    if (t.totalNet > best.totalNet) best = t;
-    if (t.totalNet < worst.totalNet) worst = t;
+  for (const trade of grouped) {
+    if (trade.totalNet > best.totalNet) best = trade;
+    if (trade.totalNet < worst.totalNet) worst = trade;
   }
 
   // Best / worst by points (requires known entry price)
-  const withEntry = grouped.filter(t => t.entryPrice != null);
+  const withEntry = grouped.filter(trade => trade.entryPrice != null);
   let bestPts: GroupedTrade | null = withEntry[0] ?? null;
   let worstPts: GroupedTrade | null = withEntry[0] ?? null;
-  for (const t of withEntry) {
-    if (pointsGained(t)! > pointsGained(bestPts!)!) bestPts = t;
-    if (pointsGained(t)! < pointsGained(worstPts!)!) worstPts = t;
+  for (const trade of withEntry) {
+    if (pointsGained(trade)! > pointsGained(bestPts!)!) bestPts = trade;
+    if (pointsGained(trade)! < pointsGained(worstPts!)!) worstPts = trade;
   }
 
   return {
     totalTrades: grouped.length,
     winners: wins.length,
     losers: losses.length,
-    breakeven: be.length,
+    breakeven: breakevenTrades.length,
     winRate: grouped.length > 0 ? wins.length / grouped.length : 0,
     netPnl: running,
     grossWins,
@@ -264,12 +264,12 @@ const fmtNYHour = new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: fa
  * Trades from 6 PM–midnight ET open the next session, so advance to next day.
  */
 function getCmeSessionDay(isoStr: string): string {
-  const d = new Date(isoStr);
-  const nyHour = parseInt(fmtNYHour.format(d), 10);
+  const date = new Date(isoStr);
+  const nyHour = parseInt(fmtNYHour.format(date), 10);
   if (nyHour >= 18) {
-    return fmtNYDate.format(new Date(d.getTime() + 24 * 60 * 60 * 1000));
+    return fmtNYDate.format(new Date(date.getTime() + 24 * 60 * 60 * 1000));
   }
-  return fmtNYDate.format(d);
+  return fmtNYDate.format(date);
 }
 
 /** Group trades by CME session day (6 PM ET open → 4 PM ET close next day).
@@ -287,23 +287,23 @@ export function buildCalendarData(grouped: GroupedTrade[]): DayPnl[] {
     byDay.set(ny, { net: prev.net + net, count: prev.count + count });
   };
 
-  for (const t of grouped) {
+  for (const trade of grouped) {
     // Each exit: credit its own P&L minus its own fees to its day
-    for (const exit of t.exits) {
+    for (const exit of trade.exits) {
       add(exit.creationTimestamp, exit.profitAndLoss! - exit.fees - exit.commissions);
     }
     // Entry fees: credit to entry day
-    if (t.entry) {
-      add(t.entryTime, -(t.entry.fees + t.entry.commissions));
+    if (trade.entry) {
+      add(trade.entryTime, -(trade.entry.fees + trade.entry.commissions));
     }
     // Trade count: one trade closed on the last-exit day
-    add(t.exitTime, 0, 1);
+    add(trade.exitTime, 0, 1);
   }
 
   const result: DayPnl[] = [];
   for (const [date, { net, count }] of byDay) {
-    const d = new Date(date + 'T12:00:00'); // midday to avoid TZ issues
-    result.push({ date, net, tradeCount: count, dayOfWeek: d.getDay() });
+    const midDayDate = new Date(date + 'T12:00:00'); // midday to avoid TZ issues
+    result.push({ date, net, tradeCount: count, dayOfWeek: midDayDate.getDay() });
   }
 
   result.sort((a, b) => a.date.localeCompare(b.date));
@@ -316,11 +316,11 @@ export function buildCalendarData(grouped: GroupedTrade[]): DayPnl[] {
 export function buildHourlyData(grouped: GroupedTrade[]): HourPnl[] {
   const buckets = new Map<number, { total: number; count: number }>();
 
-  for (const t of grouped) {
-    const d = new Date(t.entryTime);
-    const hour = parseInt(fmtNYHour.format(d), 10);
+  for (const trade of grouped) {
+    const entryDate = new Date(trade.entryTime);
+    const hour = parseInt(fmtNYHour.format(entryDate), 10);
     const prev = buckets.get(hour) ?? { total: 0, count: 0 };
-    buckets.set(hour, { total: prev.total + t.totalNet, count: prev.count + 1 });
+    buckets.set(hour, { total: prev.total + trade.totalNet, count: prev.count + 1 });
   }
 
   const result: HourPnl[] = [];
@@ -336,19 +336,19 @@ export function buildHourlyData(grouped: GroupedTrade[]): HourPnl[] {
 
 export function buildDirectionStats(grouped: GroupedTrade[]): { long: DirectionStats; short: DirectionStats } {
   const build = (trades: GroupedTrade[]): DirectionStats => {
-    const w = trades.filter((t) => t.totalNet > 0);
-    const l = trades.filter((t) => t.totalNet < 0);
-    const grossWins = w.reduce((s, t) => s + t.totalNet, 0);
-    const grossLosses = Math.abs(l.reduce((s, t) => s + t.totalNet, 0));
+    const winners = trades.filter((trade) => trade.totalNet > 0);
+    const losers = trades.filter((trade) => trade.totalNet < 0);
+    const grossWins = winners.reduce((sum, trade) => sum + trade.totalNet, 0);
+    const grossLosses = Math.abs(losers.reduce((sum, trade) => sum + trade.totalNet, 0));
     return {
       count: trades.length,
-      winners: w.length,
-      losers: l.length,
-      winRate: trades.length > 0 ? w.length / trades.length : 0,
-      avgPnl: trades.length > 0 ? trades.reduce((s, t) => s + t.totalNet, 0) / trades.length : 0,
-      avgWinner: w.length > 0 ? grossWins / w.length : 0,
-      avgLoser: l.length > 0 ? grossLosses / l.length : 0,
-      totalNet: trades.reduce((s, t) => s + t.totalNet, 0),
+      winners: winners.length,
+      losers: losers.length,
+      winRate: trades.length > 0 ? winners.length / trades.length : 0,
+      avgPnl: trades.length > 0 ? trades.reduce((sum, trade) => sum + trade.totalNet, 0) / trades.length : 0,
+      avgWinner: winners.length > 0 ? grossWins / winners.length : 0,
+      avgLoser: losers.length > 0 ? grossLosses / losers.length : 0,
+      totalNet: trades.reduce((sum, trade) => sum + trade.totalNet, 0),
     };
   };
 
@@ -371,20 +371,20 @@ export function buildDayOfWeekData(calendarData: DayPnl[]): DayOfWeekPnl[] {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const buckets = new Map<number, { total: number; count: number }>();
 
-  for (const d of calendarData) {
-    const prev = buckets.get(d.dayOfWeek) ?? { total: 0, count: 0 };
-    buckets.set(d.dayOfWeek, { total: prev.total + d.net, count: prev.count + 1 });
+  for (const dayPnl of calendarData) {
+    const prev = buckets.get(dayPnl.dayOfWeek) ?? { total: 0, count: 0 };
+    buckets.set(dayPnl.dayOfWeek, { total: prev.total + dayPnl.net, count: prev.count + 1 });
   }
 
   const result: DayOfWeekPnl[] = [];
   // Sun–Fri (0=Sun, 1=Mon … 5=Fri) — CME opens Sunday 6pm ET
   for (const i of [0, 1, 2, 3, 4, 5]) {
-    const b = buckets.get(i);
+    const bucket = buckets.get(i);
     result.push({
       day: days[i],
-      avgNet: b ? b.total / b.count : 0,
-      totalNet: b?.total ?? 0,
-      count: b?.count ?? 0,
+      avgNet: bucket ? bucket.total / bucket.count : 0,
+      totalNet: bucket?.total ?? 0,
+      count: bucket?.count ?? 0,
     });
   }
   return result;
@@ -405,7 +405,7 @@ export function buildDurationComparison(grouped: GroupedTrade[]): DurationCompar
   const avgDur = (trades: GroupedTrade[]) => {
     if (trades.length === 0) return 0;
     const total = trades.reduce(
-      (s, t) => s + tradingDurationMs(t.entryTime, t.exitTime),
+      (sum, trade) => sum + tradingDurationMs(trade.entryTime, trade.exitTime),
       0,
     );
     return total / trades.length;

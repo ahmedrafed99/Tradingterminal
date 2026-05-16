@@ -193,21 +193,21 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
 
   priceAxisPaneViews(): readonly IPrimitivePaneView[] {
     if (!this._series || this._price === 0) return this._emptyPaneViews;
-    const y = this._series.priceToCoordinate(this._price);
-    if (y === null) return this._emptyPaneViews;
+    const yCoord = this._series.priceToCoordinate(this._price);
+    if (yCoord === null) return this._emptyPaneViews;
 
     const candleColor = (this._open === 0 || this._price >= this._open) ? this._upColor : this._downColor;
     const textColor = contrastText(candleColor, COLOR_BG);
-    this._axisPaneView.update(y as number, this._priceText, this._countdownText, candleColor, textColor);
+    this._axisPaneView.update(yCoord as number, this._priceText, this._countdownText, candleColor, textColor);
     return this._axisPaneViewArr;
   }
 
   priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
     if (!this._series || this._price === 0) return this._emptyAxisViews;
-    const y = this._series.priceToCoordinate(this._price);
-    if (y === null) return this._emptyAxisViews;
+    const yCoord = this._series.priceToCoordinate(this._price);
+    if (yCoord === null) return this._emptyAxisViews;
 
-    this._axisView.update(y as number, this._priceText);
+    this._axisView.update(yCoord as number, this._priceText);
     return this._axisViewsArr;
   }
 
@@ -234,13 +234,13 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
       return;
     }
 
-    const h = Math.floor(remaining / 3600);
-    const m = Math.floor((remaining % 3600) / 60);
-    const s = remaining % 60;
+    const hours = Math.floor(remaining / 3600);
+    const minutes = Math.floor((remaining % 3600) / 60);
+    const seconds = remaining % 60;
 
-    this._countdownText = h > 0
-      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-      : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    this._countdownText = hours > 0
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      : `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
   private _startTimer(): void {

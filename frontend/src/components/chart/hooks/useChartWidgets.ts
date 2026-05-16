@@ -84,8 +84,8 @@ export function useChartWidgets(
     const fmt = (v: number) => nf.format(v);
 
     // Pre-create spans once instead of rebuilding DOM via innerHTML every frame
-    const makeLabel = (text: string) => { const s = document.createElement('span'); s.style.color = COLOR_TEXT; s.textContent = text; return s; };
-    const makeVal = () => { const s = document.createElement('span'); return s; };
+    const makeLabel = (text: string) => { const spanEl = document.createElement('span'); spanEl.style.color = COLOR_TEXT; spanEl.textContent = text; return spanEl; };
+    const makeVal = () => { const spanEl = document.createElement('span'); return spanEl; };
     const oSpan = makeVal(); const hSpan = makeVal(); const lSpan = makeVal(); const cSpan = makeVal(); const chgSpan = makeVal();
     el.textContent = '';
     el.append(makeLabel('O'), oSpan, document.createTextNode(' '), makeLabel('H'), hSpan, document.createTextNode(' '), makeLabel('L'), lSpan, document.createTextNode(' '), makeLabel('C'), cSpan, document.createTextNode(' '), chgSpan);
@@ -122,8 +122,8 @@ export function useChartWidgets(
 
     const onMove = (param: { time?: unknown; seriesData?: Map<unknown, unknown> }) => {
       if (param.time && param.seriesData) {
-        const d = param.seriesData.get(series) as { open: number; high: number; low: number; close: number } | undefined;
-        if (d) { render(d.open, d.high, d.low, d.close); return; }
+        const candleData = param.seriesData.get(series) as { open: number; high: number; low: number; close: number } | undefined;
+        if (candleData) { render(candleData.open, candleData.high, candleData.low, candleData.close); return; }
       }
       // Fallback to last bar
       const lb = refs.lastBar.current;
@@ -208,10 +208,10 @@ export function useChartWidgets(
       const tsW = chart.timeScale().width();
       if (tsW <= 0) return;
       const P = container.clientWidth - tsW; // price scale width
-      const r = P + GAP;
-      const b = TS_HEIGHT + GAP;
+      const rightPos = P + GAP;
+      const bottomPos = TS_HEIGHT + GAP;
       setScrollBtnPos(prev =>
-        prev.right === r && prev.bottom === b ? prev : { right: r, bottom: b },
+        prev.right === rightPos && prev.bottom === bottomPos ? prev : { right: rightPos, bottom: bottomPos },
       );
     };
 

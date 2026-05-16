@@ -54,13 +54,13 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     primitive.setDrawings(filtered, storeState.selectedDrawingIds);
 
     // Subscribe to store changes for live sync
-    const unsub = useStore.subscribe((s, prev) => {
-      if (s.drawings !== prev.drawings || s.selectedDrawingIds !== prev.selectedDrawingIds) {
+    const unsub = useStore.subscribe((storeState, prev) => {
+      if (storeState.drawings !== prev.drawings || storeState.selectedDrawingIds !== prev.selectedDrawingIds) {
         const cid = contract?.id;
-        const f = cid != null
-          ? s.drawings.filter((d) => String(d.contractId) === String(cid))
+        const contractDrawings = cid != null
+          ? storeState.drawings.filter((drawing) => String(drawing.contractId) === String(cid))
           : [];
-        primitive.setDrawings(f, s.selectedDrawingIds);
+        primitive.setDrawings(contractDrawings, storeState.selectedDrawingIds);
       }
     });
 
@@ -189,8 +189,8 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       const _dl = (window as any).__debugLog;
       if (_dl) {
         const rects = targets.map(t => {
-          const r = t.el.getBoundingClientRect();
-          return { p: t.priority, x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), text: t.el.textContent?.slice(0,10) };
+          const elementRect = t.el.getBoundingClientRect();
+          return { p: t.priority, x: Math.round(elementRect.left), y: Math.round(elementRect.top), w: Math.round(elementRect.width), h: Math.round(elementRect.height), text: t.el.textContent?.slice(0,10) };
         });
         _dl.log('hitTest:fire', { targetCount: targets.length, click: { x: e.clientX, y: e.clientY }, rects });
       }

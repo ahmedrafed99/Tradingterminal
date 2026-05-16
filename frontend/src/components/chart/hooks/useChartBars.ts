@@ -610,8 +610,8 @@ export function useChartBars(
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           rafId = 0;
-          const p = refs.series.current?.coordinateToPrice(y) ?? null;
-          vp.setHoverPrice(p);
+          const price = refs.series.current?.coordinateToPrice(y) ?? null;
+          vp.setHoverPrice(price);
         });
       }
     }

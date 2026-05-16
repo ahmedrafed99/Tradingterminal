@@ -61,10 +61,10 @@ export function TemplatePopover({
     const json = JSON.stringify(templates, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'hline-templates.json';
-    a.click();
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = 'hline-templates.json';
+    downloadLink.click();
     URL.revokeObjectURL(url);
   };
 

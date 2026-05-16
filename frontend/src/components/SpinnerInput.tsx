@@ -96,12 +96,12 @@ export function SpinnerInput({
         onChange={(e) => {
           const raw = e.target.value;
           setInputStr(raw);
-          const v = parseFloat(raw);
-          if (!isNaN(v)) onChange(clamp(v));
+          const numericValue = parseFloat(raw);
+          if (!isNaN(numericValue)) onChange(clamp(numericValue));
         }}
         onBlur={() => {
-          const v = parseFloat(inputStr);
-          const clamped = isNaN(v) ? min : clamp(v);
+          const numericValue = parseFloat(inputStr);
+          const clamped = isNaN(numericValue) ? min : clamp(numericValue);
           onChange(clamped);
           setInputStr(String(clamped));
         }}

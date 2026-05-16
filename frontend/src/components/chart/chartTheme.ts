@@ -11,7 +11,7 @@ function utcToNY(utcSeconds: number): Date {
 }
 
 function nyParts(utcSeconds: number) {
-  const d = utcToNY(utcSeconds);
+  const nyDate = utcToNY(utcSeconds);
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: NY_TZ,
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -19,7 +19,7 @@ function nyParts(utcSeconds: number) {
     hour12: false,
   });
   const parts = Object.fromEntries(
-    fmt.formatToParts(d).map((p) => [p.type, p.value]),
+    fmt.formatToParts(nyDate).map((part) => [part.type, part.value]),
   );
   return parts;
 }
@@ -28,23 +28,23 @@ const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct',
 
 /** Pure formatter — accepts already-resolved real UTC seconds. */
 export function nyTimeFormatterRaw(utcSeconds: number): string {
-  const p = nyParts(utcSeconds);
-  const mon = MONTH_ABBR[parseInt(p.month, 10) - 1];
-  const yr = p.year.slice(-2);
-  return `${parseInt(p.day, 10)} ${mon} '${yr}  ${p.hour}:${p.minute}`;
+  const dateParts = nyParts(utcSeconds);
+  const mon = MONTH_ABBR[parseInt(dateParts.month, 10) - 1];
+  const yr = dateParts.year.slice(-2);
+  return `${parseInt(dateParts.day, 10)} ${mon} '${yr}  ${dateParts.hour}:${dateParts.minute}`;
 }
 
 /** Pure formatter — accepts already-resolved real UTC seconds. */
 export function nyTickMarkFormatterRaw(utcSeconds: number, tickMarkType: number): string {
-  const p = nyParts(utcSeconds);
+  const dateParts = nyParts(utcSeconds);
   // tickMarkType: 0=Year, 1=Month, 2=DayOfMonth, 3=Time, 4=TimeWithSeconds
   switch (tickMarkType) {
-    case 0: return p.year;
-    case 1: return `${p.month}/${p.year}`;
-    case 2: return `${p.month}/${p.day}`;
-    case 3: return `${p.hour}:${p.minute}`;
-    case 4: return `${p.hour}:${p.minute}:${p.second}`;
-    default: return `${p.hour}:${p.minute}`;
+    case 0: return dateParts.year;
+    case 1: return `${dateParts.month}/${dateParts.year}`;
+    case 2: return `${dateParts.month}/${dateParts.day}`;
+    case 3: return `${dateParts.hour}:${dateParts.minute}`;
+    case 4: return `${dateParts.hour}:${dateParts.minute}:${dateParts.second}`;
+    default: return `${dateParts.hour}:${dateParts.minute}`;
   }
 }
 

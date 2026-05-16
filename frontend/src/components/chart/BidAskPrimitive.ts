@@ -49,19 +49,19 @@ class FootprintRenderer implements IPrimitivePaneRenderer {
 
       ctx.globalAlpha = OPACITY;
 
-      for (const b of this._bars) {
-        const h = Math.max(b.height, 1);
+      for (const bidAskBar of this._bars) {
+        const barHeight = Math.max(bidAskBar.height, 1);
 
         // Bid bar — extends LEFT from candle center
-        if (b.bidWidth > 0) {
+        if (bidAskBar.bidWidth > 0) {
           ctx.fillStyle = COLOR_BUY;
-          ctx.fillRect(b.x - b.bidWidth, b.y, b.bidWidth, h);
+          ctx.fillRect(bidAskBar.x - bidAskBar.bidWidth, bidAskBar.y, bidAskBar.bidWidth, barHeight);
         }
 
         // Ask bar — extends RIGHT from candle center
-        if (b.askWidth > 0) {
+        if (bidAskBar.askWidth > 0) {
           ctx.fillStyle = COLOR_SELL;
-          ctx.fillRect(b.x, b.y, b.askWidth, h);
+          ctx.fillRect(bidAskBar.x, bidAskBar.y, bidAskBar.askWidth, barHeight);
         }
       }
 

@@ -87,27 +87,27 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
   // FRVP uses anchorTime/pMin/pMax — handle separately before p1/p2 reading
   if (drawing.type === 'frvp') {
-    const h = hit.handle;
+    const handle = hit.handle;
     const frvp = drawing as FRVPDrawing;
     if (frvp.mode === 'range' && frvp.t2 !== undefined) {
       // Range mode: 'w' moves t1, 'e' moves t2
-      if (h !== 'w' && h !== 'e') return;
+      if (handle !== 'w' && handle !== 'e') return;
       state.ovalResize = {
         drawingId: drawing.id,
-        handle: h,
-        fixedCorner: { time: h === 'w' ? frvp.t2 : frvp.anchorTime, price: frvp.pMax },
-        movingCorner: { time: h === 'w' ? frvp.anchorTime : frvp.t2, price: frvp.pMin },
+        handle: handle,
+        fixedCorner: { time: handle === 'w' ? frvp.t2 : frvp.anchorTime, price: frvp.pMax },
+        movingCorner: { time: handle === 'w' ? frvp.anchorTime : frvp.t2, price: frvp.pMin },
         origP1: { time: frvp.anchorTime, price: frvp.pMin },
         origP2: { time: frvp.t2, price: frvp.pMax },
       };
     } else {
       // Anchor mode: 'n'/'s' moves price boundaries
-      if (h !== 'n' && h !== 's') return;
-      const fixedPrice = h === 'n' ? drawing.pMin : drawing.pMax;
-      const movingPrice = h === 'n' ? drawing.pMax : drawing.pMin;
+      if (handle !== 'n' && handle !== 's') return;
+      const fixedPrice = handle === 'n' ? drawing.pMin : drawing.pMax;
+      const movingPrice = handle === 'n' ? drawing.pMax : drawing.pMin;
       state.ovalResize = {
         drawingId: drawing.id,
-        handle: h,
+        handle,
         fixedCorner: { time: drawing.anchorTime, price: fixedPrice },
         movingCorner: { time: drawing.anchorTime, price: movingPrice },
         origP1: { time: drawing.anchorTime, price: drawing.pMin },
@@ -134,19 +134,19 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const rightPt = sx1 < sx2 ? p2 : p1;
   const topPt = sy1 < sy2 ? p1 : p2;
   const bottomPt = sy1 < sy2 ? p2 : p1;
-  const h = hit.handle;
+  const handle = hit.handle;
 
   // Fixed corner: take X-axis data (anchorTime/barOffset/time) from one point, price from another
   // Moving corner: the original corner opposite to fixedCorner (used to constrain cardinal handles)
   let fixedCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
   let movingCorner: { time: number; price: number; anchorTime?: number; barOffset?: number };
-  if (h === 'n' || h === 'nw' || h === 'w') {
+  if (handle === 'n' || handle === 'nw' || handle === 'w') {
     fixedCorner = { ...rightPt, price: bottomPt.price };
     movingCorner = { ...leftPt, price: topPt.price };
-  } else if (h === 'ne') {
+  } else if (handle === 'ne') {
     fixedCorner = { ...leftPt, price: bottomPt.price };
     movingCorner = { ...rightPt, price: topPt.price };
-  } else if (h === 'sw') {
+  } else if (handle === 'sw') {
     fixedCorner = { ...rightPt, price: topPt.price };
     movingCorner = { ...leftPt, price: bottomPt.price };
   } else {
@@ -157,7 +157,7 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
 
   state.ovalResize = {
     drawingId: drawing.id,
-    handle: h,
+    handle: handle,
     fixedCorner,
     movingCorner,
     origP1: { ...p1 },
@@ -232,7 +232,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
       startX: x, startY: y, origPrice: 0,
       origP1: { time: 0, price: 0 }, origP2: { time: 0, price: 0 },
       origAnchorTime: drawing.anchorTime,
-      origBarOffsets: drawing.points.map((p) => ({ barOffset: p.barOffset, price: p.price })),
+      origBarOffsets: drawing.points.map((pt) => ({ barOffset: pt.barOffset, price: pt.price })),
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
   } else if (drawing.type === 'freedraw') {
@@ -243,7 +243,7 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
       startX: x, startY: y, origPrice: 0,
       origP1: { time: 0, price: 0 }, origP2: { time: 0, price: 0 },
       origAnchorTime: drawing.anchorTime,
-      origBarOffsets: drawing.points.map((p) => ({ barOffset: p.barOffset, price: p.price })),
+      origBarOffsets: drawing.points.map((pt) => ({ barOffset: pt.barOffset, price: pt.price })),
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
   } else if (drawing.type === 'frvp') {

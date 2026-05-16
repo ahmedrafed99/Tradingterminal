@@ -348,8 +348,8 @@ export function contrastText(color: string, darkColor = '#000000'): string {
   if (isNaN(r) || isNaN(g) || isNaN(b)) return '#fff';
 
   const toLinear = (c: number) => {
-    const s = c / 255;
-    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    const normalized = c / 255;
+    return normalized <= 0.04045 ? normalized / 12.92 : Math.pow((normalized + 0.055) / 1.055, 2.4);
   };
   const L = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
   return L > 0.3 ? darkColor : '#fff';
@@ -357,9 +357,9 @@ export function contrastText(color: string, darkColor = '#000000'): string {
 
 /** Darken a hex color by a factor (0–1, where 0.82 = 18% darker). */
 export function darken(hex: string, factor = 0.82): string {
-  const h = hex.replace('#', '');
-  const r = Math.round(parseInt(h.substring(0, 2), 16) * factor);
-  const g = Math.round(parseInt(h.substring(2, 4), 16) * factor);
-  const b = Math.round(parseInt(h.substring(4, 6), 16) * factor);
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  const hexColor = hex.replace('#', '');
+  const red = Math.round(parseInt(hexColor.substring(0, 2), 16) * factor);
+  const green = Math.round(parseInt(hexColor.substring(2, 4), 16) * factor);
+  const blue = Math.round(parseInt(hexColor.substring(4, 6), 16) * factor);
+  return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
 }

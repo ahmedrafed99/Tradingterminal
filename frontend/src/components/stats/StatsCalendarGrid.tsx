@@ -119,30 +119,30 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
               </div>
 
               {[0, 1, 2, 3, 4, 5].map((dow) => {
-                const d = days.get(dow);
+                const dayData = days.get(dow);
                 return (
                   <div
                     key={dow}
                     className="text-center transition-colors"
-                    title={d ? `${d.date} · ${d.tradeCount} ${d.tradeCount === 1 ? 'trade' : 'trades'} · Net: ${d.net > 0 ? '+' : d.net < 0 ? '-' : ''}$${Math.abs(d.net).toFixed(2)}` : undefined}
-                    onClick={d && onDayClick ? () => onDayClick(d.date) : undefined}
+                    title={dayData ? `${dayData.date} · ${dayData.tradeCount} ${dayData.tradeCount === 1 ? 'trade' : 'trades'} · Net: ${dayData.net > 0 ? '+' : dayData.net < 0 ? '-' : ''}$${Math.abs(dayData.net).toFixed(2)}` : undefined}
+                    onClick={dayData && onDayClick ? () => onDayClick(dayData.date) : undefined}
                     style={{
                       padding: '22px 10px',
-                      background: d ? cellBg(d.net, maxAbs) : 'transparent',
+                      background: dayData ? cellBg(dayData.net, maxAbs) : 'transparent',
                       borderLeft: '1px solid var(--color-border)',
-                      cursor: d && onDayClick ? 'pointer' : undefined,
+                      cursor: dayData && onDayClick ? 'pointer' : undefined,
                     }}
                   >
-                    {d ? (
+                    {dayData ? (
                       <>
                         <div
                           className="font-semibold"
-                          style={{ fontSize: 20, color: pnlColor(d.net), fontFeatureSettings: '"tnum"', lineHeight: 1.2 }}
+                          style={{ fontSize: 20, color: pnlColor(dayData.net), fontFeatureSettings: '"tnum"', lineHeight: 1.2 }}
                         >
-                          {d.net > 0 ? '+' : d.net < 0 ? '-' : ''}${Math.abs(d.net).toFixed(2)}
+                          {dayData.net > 0 ? '+' : dayData.net < 0 ? '-' : ''}${Math.abs(dayData.net).toFixed(2)}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                          {d.tradeCount} {d.tradeCount === 1 ? 'trade' : 'trades'}
+                          {dayData.tradeCount} {dayData.tradeCount === 1 ? 'trade' : 'trades'}
                         </div>
                       </>
                     ) : (

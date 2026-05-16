@@ -132,12 +132,12 @@ export function buildOrderLabels(
             (e) => e.meta.kind === 'order' && e.meta.order.id === pendingId,
           );
           const currentEp = entryOrdEntry?.price ?? ep;
-          const d = isSl
+          const priceDelta = isSl
             ? (pendingBracketInfo.side === OrderSide.Buy ? currentEp - curPrice : curPrice - currentEp)
             : (pendingBracketInfo.side === OrderSide.Buy ? curPrice - currentEp : currentEp - curPrice);
-          const p = calcPnl(d, contract, oSize);
+          const pnl = calcPnl(priceDelta, contract, oSize);
           return {
-            text: fmtMagPnl(d, p),
+            text: fmtMagPnl(priceDelta, pnl),
             bg: isSl ? SELL_COLOR : BUY_COLOR,
           };
         };
@@ -173,12 +173,12 @@ export function buildOrderLabels(
                 e.meta.order.id !== curPendingId,
             );
             const currentEp = siblingEntry2?.price ?? ep;
-            const d = isSl
+            const priceDelta = isSl
               ? (isEntryBuy ? currentEp - curPrice : curPrice - currentEp)
               : (isEntryBuy ? curPrice - currentEp : currentEp - curPrice);
-            const p = calcPnl(d, contract, oSize);
+            const pnl = calcPnl(priceDelta, contract, oSize);
             return {
-              text: fmtMagPnl(d, p),
+              text: fmtMagPnl(priceDelta, pnl),
               bg: isSl ? SELL_COLOR : BUY_COLOR,
             };
           };
@@ -196,8 +196,8 @@ export function buildOrderLabels(
 
       orderPnlCompute = () => {
         const curPrice = getOrderRefPrice();
-        const d = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
-        const pnl = calcPnl(d, contract, oSize);
+        const priceDelta = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
+        const pnl = calcPnl(priceDelta, contract, oSize);
         const bg = classifyOrderLine(order, {
           price: curPrice,
           pos,
@@ -236,12 +236,12 @@ export function buildOrderLabels(
               e.meta.order.side === entrySide,
           );
           const currentEp = siblingEntry2?.price ?? ep2;
-          const d = isSl2
+          const priceDelta = isSl2
             ? (isEntryBuy ? currentEp - curPrice : curPrice - currentEp)
             : (isEntryBuy ? curPrice - currentEp : currentEp - curPrice);
-          const p = calcPnl(d, contract, oSize);
+          const pnl = calcPnl(priceDelta, contract, oSize);
           return {
-            text: fmtMagPnl(d, p),
+            text: fmtMagPnl(priceDelta, pnl),
             bg: isSl2 ? SELL_COLOR : BUY_COLOR,
           };
         };
@@ -281,8 +281,8 @@ export function buildOrderLabels(
         function legMatchesBi(o: typeof openOrders[0]): boolean {
           if (!bi) return false;
           const isSl2 = o.type === OrderType.Stop || o.type === OrderType.TrailingStop;
-          const p = isSl2 ? (o.stopPrice ?? 0) : (o.limitPrice ?? 0);
-          return isBracketLegPrice(p, ts2, bi);
+          const orderPrice = isSl2 ? (o.stopPrice ?? 0) : (o.limitPrice ?? 0);
+          return isBracketLegPrice(orderPrice, ts2, bi);
         }
 
         if (isCancellingCurrentEntry && bi) {
@@ -538,16 +538,16 @@ export function buildOrderLabels(
           e.meta.order.status !== OrderStatus.Suspended,
       );
       const currentEntryPrice = entryOrdEntry?.price ?? capturedBi.entryPrice;
-      const d = capturedIsSl
+      const priceDelta = capturedIsSl
         ? (capturedBi.side === OrderSide.Buy
           ? currentEntryPrice - curPrice
           : curPrice - currentEntryPrice)
         : (capturedBi.side === OrderSide.Buy
           ? curPrice - currentEntryPrice
           : currentEntryPrice - curPrice);
-      const p = calcPnl(d, contract, capturedSize);
+      const pnl = calcPnl(priceDelta, contract, capturedSize);
       primitive.setCell('pnl', {
-        text: fmtMagPnl(d, p),
+        text: fmtMagPnl(priceDelta, pnl),
         bg: capturedIsSl ? SELL_COLOR : BUY_COLOR,
         color: capturedIsSl ? SELL_TEXT : BUY_TEXT,
       });

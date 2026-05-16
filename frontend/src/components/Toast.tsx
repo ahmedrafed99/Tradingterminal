@@ -29,8 +29,8 @@ function ToastEntry({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => v
 
   useEffect(() => {
     if (!exiting) return;
-    const t = setTimeout(onDismiss, 150);
-    return () => clearTimeout(t);
+    const timeoutId = setTimeout(onDismiss, 150);
+    return () => clearTimeout(timeoutId);
   }, [exiting, onDismiss]);
 
   function handleDismiss() {

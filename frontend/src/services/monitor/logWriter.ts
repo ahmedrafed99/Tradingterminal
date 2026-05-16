@@ -323,9 +323,9 @@ class LogWriter {
         : `${entry.tag}  session_${entry.tag}.log   incidents=${entry.incidentCount}  verdict=${entry.verdict}`;
 
       const fh = await this.dirHandle.getFileHandle('index.log', { create: true });
-      const w = await fh.createWritable();
-      await w.write(existing.trimEnd() + '\n' + summary + '\n');
-      await w.close();
+      const writableStream = await fh.createWritable();
+      await writableStream.write(existing.trimEnd() + '\n' + summary + '\n');
+      await writableStream.close();
     } catch (err) {
       console.error('[Monitor] Failed to update index.log:', err);
     }

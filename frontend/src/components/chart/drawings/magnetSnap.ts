@@ -14,9 +14,9 @@ function findBarIndex(bars: Bar[], targetTime: number): number {
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
     // Date.parse avoids object allocation vs new Date().getTime()
-    const t = Date.parse(bars[mid].t) / 1000 | 0;
-    if (t === targetTime) return mid;
-    if (t < targetTime) lo = mid + 1;
+    const barTimestamp = Date.parse(bars[mid].t) / 1000 | 0;
+    if (barTimestamp === targetTime) return mid;
+    if (barTimestamp < targetTime) lo = mid + 1;
     else hi = mid - 1;
   }
   return -1;
@@ -40,8 +40,8 @@ export function snapPriceToOHLCByTime(
   let bestPrice = mousePrice;
   let bestDist = Infinity;
 
-  const b = bars[centerIdx];
-  for (const level of [b.o, b.h, b.l, b.c]) {
+  const bar = bars[centerIdx];
+  for (const level of [bar.o, bar.h, bar.l, bar.c]) {
     const dist = Math.abs(level - mousePrice);
     if (dist < bestDist) {
       bestDist = dist;
@@ -77,8 +77,8 @@ export function snapPriceToOHLC(
   for (let di = -1; di <= 1; di++) {
     const idx = centerIdx + di;
     if (idx < 0 || idx >= bars.length) continue;
-    const b = bars[idx];
-    for (const level of [b.o, b.h, b.l, b.c]) {
+    const bar = bars[idx];
+    for (const level of [bar.o, bar.h, bar.l, bar.c]) {
       const dist = Math.abs(level - mousePrice);
       if (dist < bestDist) {
         bestDist = dist;

@@ -25,8 +25,8 @@ export function StatsDayDetail({ date, trades, onBack }: {
 
   // Format date for display
   const displayDate = useMemo(() => {
-    const d = new Date(date + 'T12:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const midDayDate = new Date(date + 'T12:00:00');
+    return midDayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   }, [date]);
 
   return (

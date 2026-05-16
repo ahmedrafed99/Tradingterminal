@@ -60,8 +60,8 @@ class DebugLog {
   download(filename = `debug-${Date.now()}.txt`) {
     const blob = new Blob([this.buffer.join('\n')], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
-    const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
-    a.click();
+    const anchor = Object.assign(document.createElement('a'), { href: url, download: filename });
+    anchor.click();
     URL.revokeObjectURL(url);
   }
 

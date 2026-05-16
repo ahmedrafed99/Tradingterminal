@@ -170,12 +170,12 @@ export const marketDataService = {
   },
 
   async listAvailableContracts(): Promise<Contract[]> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try {
       const res = await api.get<{ contracts: Contract[]; success: boolean }>('/market/contracts/available');
       return (res.data.contracts ?? []).map(normalizeContract);
     } catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('GET', '/market/contracts/available', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('GET', '/market/contracts/available', performance.now() - startTime, ok); }
   },
 };

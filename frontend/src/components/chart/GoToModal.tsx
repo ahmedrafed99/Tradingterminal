@@ -51,8 +51,8 @@ export function GoToModal({ onClose, onGoTo }: Props) {
   const [calMonth, setCalMonth] = useState(today.month);
 
   useEffect(() => {
-    const d = parseDate(dateStr);
-    if (d) { setCalYear(d.year); setCalMonth(d.month); }
+    const parsedDate = parseDate(dateStr);
+    if (parsedDate) { setCalYear(parsedDate.year); setCalMonth(parsedDate.month); }
   }, [dateStr]);
 
   function selectDay(year: number, month: number, day: number) {

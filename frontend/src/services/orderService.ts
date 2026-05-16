@@ -67,7 +67,7 @@ function assertSuccess(data: GatewayResponse) {
 
 export const orderService = {
   async placeOrder(params: PlaceOrderParams): Promise<{ orderId: string }> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try {
       const result = await retryAsync(async () => {
@@ -78,11 +78,11 @@ export const orderService = {
       copyTracker.onPlaceOrder(params.accountId, params, result.orderId);
       return result;
     } catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('POST', '/orders/place', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('POST', '/orders/place', performance.now() - startTime, ok); }
   },
 
   async cancelOrder(accountId: string, orderId: string): Promise<void> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try {
       await retryAsync(async () => {
@@ -91,11 +91,11 @@ export const orderService = {
       });
       copyTracker.onCancelOrder(accountId, orderId);
     } catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('POST', '/orders/cancel', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('POST', '/orders/cancel', performance.now() - startTime, ok); }
   },
 
   async modifyOrder(params: ModifyOrderParams): Promise<void> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try {
       await retryAsync(async () => {
@@ -104,11 +104,11 @@ export const orderService = {
       });
       copyTracker.onModifyOrder(params.accountId, params.orderId, params);
     } catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('PATCH', '/orders/modify', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('PATCH', '/orders/modify', performance.now() - startTime, ok); }
   },
 
   async trailToggle(params: TrailToggleParams): Promise<{ orderId: string }> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try {
       // No retryAsync — place-first ordering means a timeout retry could land two new orders.
@@ -116,11 +116,11 @@ export const orderService = {
       assertSuccess(res.data);
       return { orderId: String(res.data.orderId) };
     } catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('POST', '/orders/trail-toggle', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('POST', '/orders/trail-toggle', performance.now() - startTime, ok); }
   },
 
   async searchOpenOrders(accountId: string): Promise<Order[]> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try {
       const res = await retryAsync(() =>
@@ -129,6 +129,6 @@ export const orderService = {
       assertSuccess(res.data);
       return (res.data.orders ?? []).map((o) => ({ ...o, id: String(o.id) }));
     } catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('GET', '/orders/open', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('GET', '/orders/open', performance.now() - startTime, ok); }
   },
 };

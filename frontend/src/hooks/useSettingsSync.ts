@@ -10,38 +10,38 @@ let lastSavedSnapshot: string | null = null;
 
 /** Keys we persist to the backend file */
 function getPersistedState() {
-  const s = useStore.getState();
+  const store = useStore.getState();
   return {
-    baseUrl: s.baseUrl,
-    activeAccountId: s.activeAccountId,
-    timeframe: s.timeframe,
-    pinnedTimeframes: s.pinnedTimeframes,
-    pinnedInstruments: s.pinnedInstruments,
-    orderSize: s.orderSize,
-    bracketPresets: s.bracketPresets,
-    activePresetId: s.activePresetId,
-    drawings: s.drawings,
-    drawingToolbarOpen: s.drawingToolbarOpen,
-    drawingDefaults: s.drawingDefaults,
-    hlineTemplates: s.hlineTemplates,
-    dualChart: s.dualChart,
-    secondTimeframe: s.secondTimeframe,
-    splitRatio: s.splitRatio,
-    domEnabled: s.domEnabled,
-    domColor: s.domColor,
-    secondDomEnabled: s.secondDomEnabled,
-    secondDomColor: s.secondDomColor,
-    bottomPanelOpen: s.bottomPanelOpen,
-    bottomPanelRatio: s.bottomPanelRatio,
-    bottomPanelTab: s.bottomPanelTab,
-    contract: s.contract,
-    secondContract: s.secondContract,
-    orderContract: s.orderContract,
-    rememberCredentials: s.rememberCredentials,
-    hideBalance: s.hideBalance,
-    hideRpnl: s.hideRpnl,
-    hideUpnl: s.hideUpnl,
-    pnlMode: s.pnlMode,
+    baseUrl: store.baseUrl,
+    activeAccountId: store.activeAccountId,
+    timeframe: store.timeframe,
+    pinnedTimeframes: store.pinnedTimeframes,
+    pinnedInstruments: store.pinnedInstruments,
+    orderSize: store.orderSize,
+    bracketPresets: store.bracketPresets,
+    activePresetId: store.activePresetId,
+    drawings: store.drawings,
+    drawingToolbarOpen: store.drawingToolbarOpen,
+    drawingDefaults: store.drawingDefaults,
+    hlineTemplates: store.hlineTemplates,
+    dualChart: store.dualChart,
+    secondTimeframe: store.secondTimeframe,
+    splitRatio: store.splitRatio,
+    domEnabled: store.domEnabled,
+    domColor: store.domColor,
+    secondDomEnabled: store.secondDomEnabled,
+    secondDomColor: store.secondDomColor,
+    bottomPanelOpen: store.bottomPanelOpen,
+    bottomPanelRatio: store.bottomPanelRatio,
+    bottomPanelTab: store.bottomPanelTab,
+    contract: store.contract,
+    secondContract: store.secondContract,
+    orderContract: store.orderContract,
+    rememberCredentials: store.rememberCredentials,
+    hideBalance: store.hideBalance,
+    hideRpnl: store.hideRpnl,
+    hideUpnl: store.hideUpnl,
+    pnlMode: store.pnlMode,
   };
 }
 
@@ -64,9 +64,9 @@ export function useSettingsSync() {
           // to avoid re-triggering effects that depend on object identity.
           const current = useStore.getState() as unknown as Record<string, unknown>;
           const patch: Record<string, unknown> = {};
-          for (const [k, v] of Object.entries(saved)) {
-            if (JSON.stringify(current[k]) !== JSON.stringify(v)) {
-              patch[k] = v;
+          for (const [k, savedValue] of Object.entries(saved)) {
+            if (JSON.stringify(current[k]) !== JSON.stringify(savedValue)) {
+              patch[k] = savedValue;
             }
           }
           if (Object.keys(patch).length > 0) {

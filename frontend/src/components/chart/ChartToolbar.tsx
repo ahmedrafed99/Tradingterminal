@@ -439,18 +439,18 @@ export function ChartToolbar() {
         const leftCanvas = screenshotEntry(leftEntry, options);
         const rightCanvas = screenshotEntry(rightEntry, options);
         const gap = 2;
-        const w = leftCanvas.width + gap + rightCanvas.width;
-        const h = Math.max(leftCanvas.height, rightCanvas.height);
+        const canvasWidth = leftCanvas.width + gap + rightCanvas.width;
+        const canvasHeight = Math.max(leftCanvas.height, rightCanvas.height);
 
         chartCanvas = document.createElement('canvas');
-        chartCanvas.width = w;
-        chartCanvas.height = h;
+        chartCanvas.width = canvasWidth;
+        chartCanvas.height = canvasHeight;
         const ctx = chartCanvas.getContext('2d')!;
         ctx.fillStyle = COLOR_BG;
-        ctx.fillRect(0, 0, w, h);
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         ctx.drawImage(leftCanvas, 0, 0);
         ctx.fillStyle = COLOR_BORDER;
-        ctx.fillRect(leftCanvas.width, 0, gap, h);
+        ctx.fillRect(leftCanvas.width, 0, gap, canvasHeight);
         ctx.drawImage(rightCanvas, leftCanvas.width + gap, 0);
       }
     }

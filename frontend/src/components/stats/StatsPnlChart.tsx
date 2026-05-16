@@ -107,10 +107,10 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
     const duration = 700;
     const frame = (now: number) => {
       const elapsed = now - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      const progress = 1 - Math.pow(1 - t, 3);
+      const animationT = Math.min(elapsed / duration, 1);
+      const progress = 1 - Math.pow(1 - animationT, 3);
       draw(progress);
-      if (t < 1) animRef.current = requestAnimationFrame(frame);
+      if (animationT < 1) animRef.current = requestAnimationFrame(frame);
     };
     animRef.current = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(animRef.current);
@@ -360,21 +360,21 @@ const FONT = '13px -apple-system, BlinkMacSystemFont, sans-serif';
 
 function drawDailyBars(
   ctx: CanvasRenderingContext2D,
-  w: number,
+  canvasWidth: number,
   data: DayPnl[],
   hitPoints: HitPoint[],
   progress = 1,
   hoveredIdx = -1,
 ) {
   if (data.length === 0) {
-    drawEmpty(ctx, w, 'No daily data');
+    drawEmpty(ctx, canvasWidth, 'No daily data');
     return;
   }
 
-  const plotW = w - PAD.left - PAD.right;
+  const plotW = canvasWidth - PAD.left - PAD.right;
   const plotH = CHART_HEIGHT - PAD.top - PAD.bottom;
 
-  const vals = data.map((d) => d.net);
+  const vals = data.map((dayPnl) => dayPnl.net);
   const minY = Math.min(0, ...vals);
   const maxY = Math.max(0, ...vals);
   const rangeY = maxY - minY || 1;
@@ -384,10 +384,10 @@ function drawDailyBars(
   const totalGapSpace = plotW - totalBarSpace;
   const gap = totalGapSpace / (data.length + 1);
 
-  const toY = (v: number) => PAD.top + plotH - ((v - minY) / rangeY) * plotH;
+  const toY = (yValue: number) => PAD.top + plotH - ((yValue - minY) / rangeY) * plotH;
   const zeroY = toY(0);
 
-  drawHorizontalGrid(ctx, w, minY, maxY, toY);
+  drawHorizontalGrid(ctx, canvasWidth, minY, maxY, toY);
 
   // Zero line
   ctx.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -395,7 +395,7 @@ function drawDailyBars(
   ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(PAD.left, zeroY);
-  ctx.lineTo(w - PAD.right, zeroY);
+  ctx.lineTo(canvasWidth - PAD.right, zeroY);
   ctx.stroke();
   ctx.setLineDash([]);
 
@@ -404,7 +404,7 @@ function drawDailyBars(
     const x = PAD.left + gap + i * (barW + gap);
     const animNet = data[i].net * progress;
     const y = toY(animNet);
-    const h = Math.abs(y - zeroY);
+    const barHeight = Math.abs(y - zeroY);
     const top = animNet >= 0 ? y : zeroY;
     const barColor = data[i].net >= 0 ? COLOR_BUY : COLOR_SELL;
     const isHovered = hoveredIdx === i;
@@ -419,7 +419,7 @@ function drawDailyBars(
     ctx.globalAlpha = dimmed ? 0.35 : 1.0;
     ctx.fillStyle = barColor;
     ctx.beginPath();
-    ctx.roundRect(x, top, barW, Math.max(1, h), 3);
+    ctx.roundRect(x, top, barW, Math.max(1, barHeight), 3);
     ctx.fill();
     ctx.globalAlpha = 1.0;
 
@@ -446,7 +446,7 @@ function drawDailyBars(
 
 function drawHorizontalGrid(
   ctx: CanvasRenderingContext2D,
-  w: number,
+  canvasWidth: number,
   minY: number,
   maxY: number,
   toY: (v: number) => number,
@@ -461,19 +461,19 @@ function drawHorizontalGrid(
   ctx.textAlign = 'right';
 
   const start = Math.ceil(minY / step) * step;
-  for (let v = start; v <= maxY; v += step) {
-    const y = toY(v);
+  for (let gridValue = start; gridValue <= maxY; gridValue += step) {
+    const y = toY(gridValue);
     ctx.beginPath();
     ctx.moveTo(PAD.left, y);
-    ctx.lineTo(w - PAD.right, y);
+    ctx.lineTo(canvasWidth - PAD.right, y);
     ctx.stroke();
-    ctx.fillText(`${v.toFixed(0)}$`, PAD.left - 8, y + 3);
+    ctx.fillText(`${gridValue.toFixed(0)}$`, PAD.left - 8, y + 3);
   }
 }
 
-function drawEmpty(ctx: CanvasRenderingContext2D, w: number, text: string) {
+function drawEmpty(ctx: CanvasRenderingContext2D, canvasWidth: number, text: string) {
   ctx.fillStyle = TEXT_COLOR;
   ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(text, w / 2, CHART_HEIGHT / 2);
+  ctx.fillText(text, canvasWidth / 2, CHART_HEIGHT / 2);
 }

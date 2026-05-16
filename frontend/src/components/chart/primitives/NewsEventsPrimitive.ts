@@ -48,15 +48,15 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const y = this._paneHeight - BOTTOM_OFFSET;
+      const yCoord = this._paneHeight - BOTTOM_OFFSET;
 
       for (let i = 0; i < this._markers.length; i++) {
-        const m = this._markers[i];
+        const marker = this._markers[i];
         const isHovered = i === this._hoveredIdx;
 
         // Circle
         ctx.beginPath();
-        ctx.arc(m.x, y, MARKER_RADIUS, 0, Math.PI * 2);
+        ctx.arc(marker.x, yCoord, MARKER_RADIUS, 0, Math.PI * 2);
         ctx.fillStyle = isHovered ? COLOR_NEWS_EVENT + '4d' : MARKER_FILL; // 30% / 18% opacity
         ctx.fill();
         ctx.strokeStyle = isHovered ? COLOR_NEWS_EVENT_HOVER : COLOR_NEWS_EVENT;
@@ -65,7 +65,7 @@ class NewsMarkersRenderer implements IPrimitivePaneRenderer {
 
         // Lightning bolt — simple ⚡ shape, always purple
         ctx.save();
-        ctx.translate(m.x, y);
+        ctx.translate(marker.x, yCoord);
         ctx.beginPath();
         ctx.moveTo(1, -7);
         ctx.lineTo(-3, 1);
@@ -400,10 +400,10 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       `;
       // Inject webkit scrollbar styles once
       if (!document.getElementById('news-tooltip-style')) {
-        const s = document.createElement('style');
-        s.id = 'news-tooltip-style';
-        s.textContent = `.news-tooltip::-webkit-scrollbar{width:3px}.news-tooltip::-webkit-scrollbar-track{background:transparent}.news-tooltip::-webkit-scrollbar-thumb{background:rgba(155,89,182,0.3);border-radius:2px}.news-tooltip::-webkit-scrollbar-thumb:hover{background:rgba(155,89,182,0.5)}`;
-        document.head.appendChild(s);
+        const styleElement = document.createElement('style');
+        styleElement.id = 'news-tooltip-style';
+        styleElement.textContent = `.news-tooltip::-webkit-scrollbar{width:3px}.news-tooltip::-webkit-scrollbar-track{background:transparent}.news-tooltip::-webkit-scrollbar-thumb{background:rgba(155,89,182,0.3);border-radius:2px}.news-tooltip::-webkit-scrollbar-thumb:hover{background:rgba(155,89,182,0.5)}`;
+        document.head.appendChild(styleElement);
       }
       this._tooltipEl.className = 'news-tooltip';
       this._tooltipEl.addEventListener('click', (e) => e.stopPropagation());
@@ -520,8 +520,8 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   private _formatTime(iso: string): string {
-    const d = new Date(iso);
-    const etStr = d.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
+    const date = new Date(iso);
+    const etStr = date.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit', hour12: true });
     return `${etStr} ET`;
   }
 

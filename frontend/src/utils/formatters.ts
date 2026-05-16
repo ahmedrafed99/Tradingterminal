@@ -30,8 +30,8 @@ const fmtTimeOnly = new Intl.DateTimeFormat('en-US', {
 
 /** Format an ISO timestamp to HH:MM:SS (or MM/DD HH:MM if showDate) in New York time */
 export function formatTime(iso: string, showDate = false): string {
-  const d = new Date(iso);
-  return showDate ? fmtDateTime.format(d) : fmtTimeOnly.format(d);
+  const date = new Date(iso);
+  return showDate ? fmtDateTime.format(date) : fmtTimeOnly.format(date);
 }
 
 /** Duration between two ISO timestamps in milliseconds */
@@ -43,12 +43,12 @@ export function durationMs(entryIso: string, exitIso: string): number {
 export function formatDuration(ms: number): string {
   if (ms < 0) return '\u2014';
   const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 }
 
 /**

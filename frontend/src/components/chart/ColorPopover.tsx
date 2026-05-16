@@ -31,11 +31,11 @@ export const COLOR_PALETTE = [
 
 /** Parse hex (#rrggbb) to {r, g, b} */
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const h = hex.replace('#', '');
+  const hexColor = hex.replace('#', '');
   return {
-    r: parseInt(h.slice(0, 2), 16),
-    g: parseInt(h.slice(2, 4), 16),
-    b: parseInt(h.slice(4, 6), 16),
+    r: parseInt(hexColor.slice(0, 2), 16),
+    g: parseInt(hexColor.slice(2, 4), 16),
+    b: parseInt(hexColor.slice(4, 6), 16),
   };
 }
 
@@ -43,12 +43,12 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 export function parseColorWithOpacity(color: string): { hex: string; opacity: number } {
   const rgbaMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
   if (rgbaMatch) {
-    const r = parseInt(rgbaMatch[1]);
-    const g = parseInt(rgbaMatch[2]);
-    const b = parseInt(rgbaMatch[3]);
-    const a = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1;
-    const hex = '#' + [r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('');
-    return { hex, opacity: Math.round(a * 100) };
+    const red = parseInt(rgbaMatch[1]);
+    const green = parseInt(rgbaMatch[2]);
+    const blue = parseInt(rgbaMatch[3]);
+    const alpha = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1;
+    const hex = '#' + [red, green, blue].map((channel) => channel.toString(16).padStart(2, '0')).join('');
+    return { hex, opacity: Math.round(alpha * 100) };
   }
   // Already hex
   if (color.startsWith('#')) {
@@ -59,9 +59,9 @@ export function parseColorWithOpacity(color: string): { hex: string; opacity: nu
 
 /** Combine hex + opacity (0-100) → rgba() string */
 export function toRgba(hex: string, opacity: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  const a = Math.round(opacity) / 100;
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+  const { r: red, g: green, b: blue } = hexToRgb(hex);
+  const alphaValue = Math.round(opacity) / 100;
+  return `rgba(${red}, ${green}, ${blue}, ${alphaValue})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,11 +198,11 @@ export function ColorSwatchButton({
     if (!ref.current) return;
     const popoverW = 290;
     const popoverH = 330;
-    const r = ref.current.getBoundingClientRect();
-    const left = Math.min(r.left, window.innerWidth - popoverW - 8);
-    const opensAbove = r.bottom + 4 + popoverH > window.innerHeight;
+    const triggerRect = ref.current.getBoundingClientRect();
+    const left = Math.min(triggerRect.left, window.innerWidth - popoverW - 8);
+    const opensAbove = triggerRect.bottom + 4 + popoverH > window.innerHeight;
     const next = opensAbove
-      ? { bottom: window.innerHeight - r.top + 4, left }
+      ? { bottom: window.innerHeight - triggerRect.top + 4, left }
       : { top: r.bottom + 4, left };
     setPos((prev) => {
       if (prev) {

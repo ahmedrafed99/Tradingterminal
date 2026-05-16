@@ -54,13 +54,13 @@ const QO_CURSOR_ID = 'qo-primitive-cursor-style';
 let _cursorRefs = 0;
 
 function _cursorEl(): HTMLStyleElement {
-  let s = document.getElementById(QO_CURSOR_ID) as HTMLStyleElement | null;
-  if (!s) {
-    s = document.createElement('style');
-    s.id = QO_CURSOR_ID;
-    document.head.appendChild(s);
+  let styleElement = document.getElementById(QO_CURSOR_ID) as HTMLStyleElement | null;
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = QO_CURSOR_ID;
+    document.head.appendChild(styleElement);
   }
-  return s;
+  return styleElement;
 }
 
 function applyCursor(cursor: 'pointer' | 'grabbing'): void {
@@ -81,14 +81,14 @@ function removeCursor(): void {
 // ── brighten ───────────────────────────────────────────────────────────────────
 const _brightenCache = new Map<string, string>();
 function brighten(color: string, factor = 1.25): string {
-  const k = `${color}|${factor}`;
-  const cached = _brightenCache.get(k);
+  const cacheKey = `${color}|${factor}`;
+  const cached = _brightenCache.get(cacheKey);
   if (cached) return cached;
   let out = color;
   try {
-    const c = document.createElement('canvas');
-    c.width = 1; c.height = 1;
-    const ctx = c.getContext('2d');
+    const measureCanvas = document.createElement('canvas');
+    measureCanvas.width = 1; measureCanvas.height = 1;
+    const ctx = measureCanvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = color;
       ctx.fillRect(0, 0, 1, 1);
@@ -96,7 +96,7 @@ function brighten(color: string, factor = 1.25): string {
       out = `rgba(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))},${(a / 255).toFixed(3)})`;
     }
   } catch { /* keep original */ }
-  _brightenCache.set(k, out);
+  _brightenCache.set(cacheKey, out);
   return out;
 }
 
@@ -121,7 +121,7 @@ class QORenderer implements IPrimitivePaneRenderer {
   draw(target: CanvasRenderingTarget2D): void {
     if (this._y === null || this._cellRects.length === 0) return;
     target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const y = this._y!;
+      const yCoord = this._y!;
 
       // Cells
       ctx.save();
@@ -130,18 +130,18 @@ class QORenderer implements IPrimitivePaneRenderer {
       ctx.textAlign = 'center';
 
       for (let i = 0; i < this._cellRects.length; i++) {
-        const r = this._cellRects[i];
-        const c = this._cells.get(r.key)!;
-        const isHover = r.key === this._hoveredKey;
-        const bg = isHover ? (c.hoverBg ?? brighten(c.bg, 1.25)) : c.bg;
+        const cellRect = this._cellRects[i];
+        const cell = this._cells.get(cellRect.key)!;
+        const isHover = cellRect.key === this._hoveredKey;
+        const bg = isHover ? (cell.hoverBg ?? brighten(cell.bg, 1.25)) : cell.bg;
 
         ctx.fillStyle = bg;
-        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.fillRect(cellRect.x, cellRect.y, cellRect.w, cellRect.h);
 
-        if (r.key === 'plus') {
+        if (cellRect.key === 'plus') {
           // Circle + cross icon (mimics the DOM SVG version)
-          const cx = r.x + r.w / 2;
-          const cy = r.y + r.h / 2;
+          const cx = cellRect.x + cellRect.w / 2;
+          const cy = cellRect.y + cellRect.h / 2;
           ctx.strokeStyle = COLOR_TEXT;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -156,11 +156,11 @@ class QORenderer implements IPrimitivePaneRenderer {
           ctx.lineWidth = 1;
         } else {
           // Left zone — draw − only when size cell is hovered
-          if (r.leftZoneW > 0 && isHover) {
-            const cx = r.x + r.leftZoneW / 2;
-            const cy = Math.floor(r.y + r.h / 2) + 0.5;
+          if (cellRect.leftZoneW > 0 && isHover) {
+            const cx = cellRect.x + cellRect.leftZoneW / 2;
+            const cy = Math.floor(cellRect.y + cellRect.h / 2) + 0.5;
             const hot = this._hoveredZone === 'left';
-            ctx.strokeStyle = c.leftColor ?? c.color;
+            ctx.strokeStyle = cell.leftColor ?? cell.color;
             ctx.lineWidth = hot ? 1.5 : 1;
             ctx.lineCap = 'round';
             ctx.beginPath();
@@ -171,17 +171,17 @@ class QORenderer implements IPrimitivePaneRenderer {
           }
 
           // Main text
-          const mainLeft = r.x + r.leftZoneW;
-          const mainW = r.w - r.leftZoneW - r.rightZoneW;
-          ctx.fillStyle = c.color;
-          ctx.fillText(c.text, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+          const mainLeft = cellRect.x + cellRect.leftZoneW;
+          const mainW = cellRect.w - cellRect.leftZoneW - cellRect.rightZoneW;
+          ctx.fillStyle = cell.color;
+          ctx.fillText(cell.text, mainLeft + mainW / 2, cellRect.y + cellRect.h / 2 + 0.5);
 
           // Right zone — draw + only when size cell is hovered
-          if (r.rightZoneW > 0 && isHover) {
-            const cx = r.x + r.w - r.rightZoneW / 2;
-            const cy = Math.floor(r.y + r.h / 2) + 0.5;
+          if (cellRect.rightZoneW > 0 && isHover) {
+            const cx = cellRect.x + cellRect.w - cellRect.rightZoneW / 2;
+            const cy = Math.floor(cellRect.y + cellRect.h / 2) + 0.5;
             const hot = this._hoveredZone === 'right';
-            ctx.strokeStyle = c.rightColor ?? c.color;
+            ctx.strokeStyle = cell.rightColor ?? cell.color;
             ctx.lineWidth = hot ? 1.5 : 1;
             ctx.lineCap = 'round';
             ctx.beginPath();
@@ -309,7 +309,7 @@ export class QuickOrderPrimitive implements ISeriesPrimitive<Time> {
     if (!this._cachedRect) this._cachedRect = this._chartEl.getBoundingClientRect();
     const x = clientX - this._cachedRect.left;
     const y = clientY - this._cachedRect.top;
-    return this._cellRects.some((r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
+    return this._cellRects.some((cellRect) => x >= cellRect.x && x <= cellRect.x + cellRect.w && y >= cellRect.y && y <= cellRect.y + cellRect.h);
   }
 
   setChartElement(chartEl: HTMLElement): void {
@@ -348,17 +348,17 @@ export class QuickOrderPrimitive implements ISeriesPrimitive<Time> {
   paneViews(): readonly IPrimitivePaneView[] {
     if (!this._series || !this._chart) return [];
 
-    const y = this._price !== null ? this._series.priceToCoordinate(this._price) : null;
+    const yCoord = this._price !== null ? this._series.priceToCoordinate(this._price) : null;
     let psWidth = 0;
     try { psWidth = this._chart.priceScale('right').width(); } catch { /* */ }
     const tsWidth = this._chart.timeScale().width();
     const plotWidth = tsWidth || (this._chartEl?.clientWidth ?? 0) - psWidth;
 
     this._cellDefs = this._buildCellDefs();
-    this._cellRects = y !== null ? this._computeCellRects(y as number, plotWidth) : [];
+    this._cellRects = yCoord !== null ? this._computeCellRects(yCoord as number, plotWidth) : [];
 
     this._paneView.update(
-      y as number | null, plotWidth,
+      yCoord as number | null, plotWidth,
       this._cellRects, this._cellDefs,
       this._hoveredKey, this._hoveredZone,
     );
@@ -445,17 +445,17 @@ export class QuickOrderPrimitive implements ISeriesPrimitive<Time> {
   // ── Hit testing ─────────────────────────────────────────────────────────────
 
   private _hitTest(plotX: number, plotY: number): string | null {
-    for (const r of this._cellRects) {
-      if (plotX >= r.x && plotX <= r.x + r.w && plotY >= r.y && plotY <= r.y + r.h) return r.key;
+    for (const cellRect of this._cellRects) {
+      if (plotX >= cellRect.x && plotX <= cellRect.x + cellRect.w && plotY >= cellRect.y && plotY <= cellRect.y + cellRect.h) return cellRect.key;
     }
     return null;
   }
 
   private _detectZone(key: string, plotX: number): 'left' | 'right' | null {
-    const r = this._cellRects.find((rect) => rect.key === key);
-    if (!r) return null;
-    if (r.leftZoneW > 0 && plotX < r.x + r.leftZoneW) return 'left';
-    if (r.rightZoneW > 0 && plotX > r.x + r.w - r.rightZoneW) return 'right';
+    const cellRect = this._cellRects.find((rect) => rect.key === key);
+    if (!cellRect) return null;
+    if (cellRect.leftZoneW > 0 && plotX < cellRect.x + cellRect.leftZoneW) return 'left';
+    if (cellRect.rightZoneW > 0 && plotX > cellRect.x + cellRect.w - cellRect.rightZoneW) return 'right';
     return null;
   }
 

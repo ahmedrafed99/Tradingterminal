@@ -56,9 +56,9 @@ export function generateWhitespace(
   const result: { time: UTCTimestamp }[] = [];
   const limit = filter ? count * 6 : count; // extra headroom to skip closed slots
   for (let i = 1; i <= limit && result.length < count; i++) {
-    const t = lastTime + periodSec * i;
-    if (!filter || filter(t)) {
-      result.push({ time: t as UTCTimestamp });
+    const barTime = lastTime + periodSec * i;
+    if (!filter || filter(barTime)) {
+      result.push({ time: barTime as UTCTimestamp });
     }
   }
   return result;

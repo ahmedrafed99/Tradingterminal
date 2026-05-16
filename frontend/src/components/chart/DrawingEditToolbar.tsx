@@ -104,14 +104,14 @@ function DrawingEditToolbarInner({
 
   const [initialPos] = useState(() => {
     if (containerRef?.current) {
-      const b = containerRef.current.getBoundingClientRect();
+      const containerBounds = containerRef.current.getBoundingClientRect();
       if (savedPos) {
         return {
-          x: Math.min(Math.max(savedPos.x, b.left), b.right - 200),
-          y: Math.min(Math.max(savedPos.y, b.top), b.bottom - 40),
+          x: Math.min(Math.max(savedPos.x, containerBounds.left), containerBounds.right - 200),
+          y: Math.min(Math.max(savedPos.y, containerBounds.top), containerBounds.bottom - 40),
         };
       }
-      return { x: b.left + 16, y: b.top + 16 };
+      return { x: containerBounds.left + 16, y: containerBounds.top + 16 };
     }
     if (savedPos) {
       return {
@@ -134,8 +134,8 @@ function DrawingEditToolbarInner({
 
   const isMulti = selectedIds.length > 1;
   const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
-  const drawing = selectedId ? drawings.find((d) => d.id === selectedId && d.contractId === contractId) : null;
-  const multiDrawings = isMulti ? drawings.filter((d) => selectedIds.includes(d.id) && d.contractId === contractId) : [];
+  const drawing = selectedId ? drawings.find((item) => item.id === selectedId && item.contractId === contractId) : null;
+  const multiDrawings = isMulti ? drawings.filter((item) => selectedIds.includes(item.id) && item.contractId === contractId) : [];
 
   useEffect(() => {
     if (frvpSettingsOpen && drawing?.type === 'frvp') {
@@ -249,7 +249,7 @@ function DrawingEditToolbarInner({
           <div className="relative">
             <PopoverToggleButton
               open={showColor}
-              onToggle={() => { const v = !showColor; closeAll(); setShowColor(v); }}
+              onToggle={() => { const nextOpen = !showColor; closeAll(); setShowColor(nextOpen); }}
               title="Color"
             >
               <svg width="18" height="18" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
@@ -279,7 +279,7 @@ function DrawingEditToolbarInner({
               <div className="relative">
                 <PopoverToggleButton
                   open={showFillColor}
-                  onToggle={() => { const v = !showFillColor; closeAll(); setShowFillColor(v); }}
+                  onToggle={() => { const nextOpen = !showFillColor; closeAll(); setShowFillColor(nextOpen); }}
                   title="Fill color"
                 >
                   <svg width="20" height="20" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
@@ -314,7 +314,7 @@ function DrawingEditToolbarInner({
               <div className="relative">
                 <PopoverToggleButton
                   open={showText}
-                  onToggle={() => { const v = !showText; closeAll(); setShowText(v); }}
+                  onToggle={() => { const nextOpen = !showText; closeAll(); setShowText(nextOpen); }}
                   title="Text"
                 >
                   <svg width="14" height="16" viewBox="0 0 13 15" shapeRendering="geometricPrecision" fill="none">
@@ -343,21 +343,21 @@ function DrawingEditToolbarInner({
           <div className="relative">
             <PopoverToggleButton
               open={showStroke}
-              onToggle={() => { const v = !showStroke; closeAll(); setShowStroke(v); }}
+              onToggle={() => { const nextOpen = !showStroke; closeAll(); setShowStroke(nextOpen); }}
               className="!w-auto"
               style={{ padding: '0 8px', gap: 6 }}
               title="Line style"
             >
               {(() => {
-                const sw = drawing.strokeWidth;
-                const h = sw + 6;
-                const ls = (drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid';
-                const dasharray = ls === 'dashed' ? `${sw * 4} ${sw * 3}` : ls === 'dotted' ? `${sw * 1.2} ${sw * 2.5}` : undefined;
-                const linecap = ls === 'dotted' ? 'round' : 'butt';
+                const strokeWidth = drawing.strokeWidth;
+                const svgHeight = strokeWidth + 6;
+                const lineStyle = (drawing as { lineStyle?: LineStyle }).lineStyle ?? 'solid';
+                const dasharray = lineStyle === 'dashed' ? `${strokeWidth * 4} ${strokeWidth * 3}` : lineStyle === 'dotted' ? `${strokeWidth * 1.2} ${strokeWidth * 2.5}` : undefined;
+                const linecap = lineStyle === 'dotted' ? 'round' : 'butt';
                 return (
-                  <svg width="22" height={h} viewBox={`0 0 22 ${h}`} style={{ flexShrink: 0 }}>
-                    <line x1="0" y1={h / 2} x2="22" y2={h / 2}
-                      stroke="currentColor" strokeWidth={sw}
+                  <svg width="22" height={svgHeight} viewBox={`0 0 22 ${svgHeight}`} style={{ flexShrink: 0 }}>
+                    <line x1="0" y1={svgHeight / 2} x2="22" y2={svgHeight / 2}
+                      stroke="currentColor" strokeWidth={strokeWidth}
                       strokeDasharray={dasharray}
                       strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
                     />
@@ -407,7 +407,7 @@ function DrawingEditToolbarInner({
               <div className="relative">
                 <PopoverToggleButton
                   open={showTemplate}
-                  onToggle={() => { const v = !showTemplate; closeAll(); setShowTemplate(v); }}
+                  onToggle={() => { const nextOpen = !showTemplate; closeAll(); setShowTemplate(nextOpen); }}
                   className="!w-auto"
                   style={{ padding: '0 8px', gap: 4, fontSize: 11, fontWeight: 500 }}
                   title="Template"
@@ -437,7 +437,7 @@ function DrawingEditToolbarInner({
               <div className="relative">
                 <PopoverToggleButton
                   open={showRectSettings}
-                  onToggle={() => { const v = !showRectSettings; closeAll(); if (v) setShowRectSettings(true); }}
+                  onToggle={() => { const nextOpen = !showRectSettings; closeAll(); if (nextOpen) setShowRectSettings(true); }}
                   title="Rectangle settings"
                 >
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

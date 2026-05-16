@@ -11,19 +11,19 @@ export interface AuthStatus {
 
 export const authService = {
   async connect(userName: string, apiKey: string, baseUrl?: string, exchange = 'projectx'): Promise<void> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try { await api.post('/auth/connect', { exchange, userName, apiKey, baseUrl }); }
     catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('POST', '/auth/connect', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('POST', '/auth/connect', performance.now() - startTime, ok); }
   },
 
   async disconnect(exchange?: string): Promise<void> {
-    const t = performance.now();
+    const startTime = performance.now();
     let ok = true;
     try { await api.post('/auth/disconnect', exchange ? { exchange } : {}); }
     catch (e) { ok = false; throw e; }
-    finally { metricCollector.onApiCall('POST', '/auth/disconnect', performance.now() - t, ok); }
+    finally { metricCollector.onApiCall('POST', '/auth/disconnect', performance.now() - startTime, ok); }
   },
 
   getStatus: dedup(async (): Promise<AuthStatus> => {

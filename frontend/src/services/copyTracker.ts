@@ -159,17 +159,17 @@ export function onModifyOrder(
 
 // Initialize from persisted state
 {
-  const s = useStore.getState();
-  configure({ enabled: s.copyEnabled, masterAccountId: s.copyMasterAccountId, followerIds: s.copyFollowerIds });
+  const store = useStore.getState();
+  configure({ enabled: store.copyEnabled, masterAccountId: store.copyMasterAccountId, followerIds: store.copyFollowerIds });
 }
 
 // Keep in sync on changes
-useStore.subscribe((s) => {
+useStore.subscribe((state) => {
   const needsUpdate =
-    s.copyEnabled !== enabled ||
-    s.copyMasterAccountId !== masterAccountId ||
-    s.copyFollowerIds !== followerIds;
+    state.copyEnabled !== enabled ||
+    state.copyMasterAccountId !== masterAccountId ||
+    state.copyFollowerIds !== followerIds;
   if (needsUpdate) {
-    configure({ enabled: s.copyEnabled, masterAccountId: s.copyMasterAccountId, followerIds: s.copyFollowerIds });
+    configure({ enabled: state.copyEnabled, masterAccountId: state.copyMasterAccountId, followerIds: state.copyFollowerIds });
   }
 });

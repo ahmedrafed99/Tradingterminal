@@ -73,9 +73,9 @@ function TimeOfDay({ allData, filteredData, filterDay }: { allData: HourPnl[]; f
   // Build a map of hour → filtered entry so we can look up filtered values while iterating allData
   const filteredMap = useMemo(() => {
     if (!filteredData) return null;
-    const m = new Map<number, HourPnl>();
-    for (const h of filteredData) m.set(h.hour, h);
-    return m;
+    const hourMap = new Map<number, HourPnl>();
+    for (const hourData of filteredData) hourMap.set(hourData.hour, hourData);
+    return hourMap;
   }, [filteredData]);
 
   // Bar widths always scale relative to the active dataset's max so bars are meaningful
@@ -160,16 +160,16 @@ function TimeOfDay({ allData, filteredData, filterDay }: { allData: HourPnl[]; f
 // ── Long vs Short ────────────────────────────────────────────────────────────
 
 function MiniDonut({ rate, color, size = 40 }: { rate: number; color: string; size?: number }) {
-  const r = (size - 6) / 2;
-  const circ = 2 * Math.PI * r;
+  const radius = (size - 6) / 2;
+  const circ = 2 * Math.PI * radius;
   const arc = circ * rate;
   const [mounted, setMounted] = useState(false);
   useEffect(() => { requestAnimationFrame(() => setMounted(true)); }, []);
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-border)" strokeWidth={4} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-border)" strokeWidth={4} />
       <circle
-        cx={size / 2} cy={size / 2} r={r}
+        cx={size / 2} cy={size / 2} r={radius}
         fill="none" stroke={color} strokeWidth={4}
         strokeDasharray={`${mounted ? arc : 0} ${circ}`}
         strokeLinecap="round"

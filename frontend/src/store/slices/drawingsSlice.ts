@@ -135,16 +135,16 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
         const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...rectKeys, ...frvpKeys] as const;
         if (existing && styleKeys.some((k) => k in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
-          const p = patch as Record<string, unknown>;
+          const typedPatch = patch as Record<string, unknown>;
           const updated: DrawingStyleDefaults = {
-            color: (p.color as string) ?? cur.color,
-            strokeWidth: (p.strokeWidth as number) ?? cur.strokeWidth,
+            color: (typedPatch.color as string) ?? cur.color,
+            strokeWidth: (typedPatch.strokeWidth as number) ?? cur.strokeWidth,
           };
           if ('lineStyle' in patch || cur.lineStyle) {
-            updated.lineStyle = (p.lineStyle as LineStyle) ?? cur.lineStyle;
+            updated.lineStyle = (typedPatch.lineStyle as LineStyle) ?? cur.lineStyle;
           }
           if ('fillColor' in patch || cur.fillColor) {
-            updated.fillColor = (p.fillColor as string) ?? cur.fillColor;
+            updated.fillColor = (typedPatch.fillColor as string) ?? cur.fillColor;
           }
           if ('mode' in patch || cur.mode) {
             updated.mode = (p.mode as 'anchor' | 'range') ?? cur.mode;

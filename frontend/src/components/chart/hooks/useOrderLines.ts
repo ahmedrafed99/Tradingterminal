@@ -310,12 +310,12 @@ function buildDragCallbacks(
 
     // Optimistically update current bracket info and shift its Suspended legs
     if (prevBi) {
-      const d = snapped - originalPrice;
+      const priceDelta = snapped - originalPrice;
       useStore.getState().setPendingBracketInfo({
         ...prevBi,
-        entryPrice: prevBi.entryPrice + d,
-        slPrice: prevBi.slPrice != null ? prevBi.slPrice + d : null,
-        tpPrices: prevBi.tpPrices.map((p) => p + d),
+        entryPrice: prevBi.entryPrice + priceDelta,
+        slPrice: prevBi.slPrice != null ? prevBi.slPrice + priceDelta : null,
+        tpPrices: prevBi.tpPrices.map((tpPrice) => tpPrice + priceDelta),
       });
       const st = useStore.getState();
       st.upsertOrder({ ...order, limitPrice: snapped });
@@ -324,15 +324,15 @@ function buildDragCallbacks(
         const isSl = leg.type === OrderType.Stop || leg.type === OrderType.TrailingStop;
         st.upsertOrder(
           isSl
-            ? { ...leg, stopPrice: (leg.stopPrice ?? 0) + d }
-            : { ...leg, limitPrice: (leg.limitPrice ?? 0) + d },
+            ? { ...leg, stopPrice: (leg.stopPrice ?? 0) + priceDelta }
+            : { ...leg, limitPrice: (leg.limitPrice ?? 0) + priceDelta },
         );
       }
     }
 
     // Other-bracket entry drag: shift only its own Suspended legs (not current bracket's)
     if (isEntry && !isCurrentBracketEntry) {
-      const d = snapped - originalPrice;
+      const priceDelta = snapped - originalPrice;
       const st2 = useStore.getState();
       const bi2 = st2.pendingBracketInfo;
       const ts2 = contract.tickSize;
@@ -345,8 +345,8 @@ function buildDragCallbacks(
         const isSl2 = leg.type === OrderType.Stop || leg.type === OrderType.TrailingStop;
         st2.upsertOrder(
           isSl2
-            ? { ...leg, stopPrice: (leg.stopPrice ?? 0) + d }
-            : { ...leg, limitPrice: (leg.limitPrice ?? 0) + d },
+            ? { ...leg, stopPrice: (leg.stopPrice ?? 0) + priceDelta }
+            : { ...leg, limitPrice: (leg.limitPrice ?? 0) + priceDelta },
         );
       }
     }
@@ -702,7 +702,7 @@ function reconcileOrderEntries(
     }
 
     const { onDragStart, onDrag, onDragEnd } = buildDragCallbacks(d.key, d.meta, contract, refs);
-    const p = new PriceLevelPrimitive({
+    const primitive = new PriceLevelPrimitive({
       price: d.price,
       cellOrder: ['pnl', 'size', 'close'],
       cells: d.initialCells,
@@ -716,9 +716,9 @@ function reconcileOrderEntries(
       onDragEnd,
       allowPriceMove: true,
     });
-    attachPrimitive(p, series, refs, d.key);
+    attachPrimitive(primitive, series, refs, d.key);
 
-    return { key: d.key, line: p, meta: d.meta, price: d.price };
+    return { key: d.key, line: primitive, meta: d.meta, price: d.price };
   });
 }
 
@@ -786,7 +786,7 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
     }
 
     const { onDragStart, onDrag, onDragEnd } = buildDragCallbacks('pos', { kind: 'position' }, contract, refs);
-    const p = new PriceLevelPrimitive({
+    const primitive = new PriceLevelPrimitive({
       price: pos.averagePrice,
       cellOrder: ['pnl', 'size', 'close'],
       cells: {
@@ -804,10 +804,10 @@ export function useOrderLines(refs: ChartRefs, contract: Contract | null, isOrde
       onDragEnd,
       allowPriceMove: false,
     });
-    attachPrimitive(p, series, refs, 'pos');
+    attachPrimitive(primitive, series, refs, 'pos');
 
     refs.orderEntries.current = [
-      { key: 'pos', line: p, meta: { kind: 'position' }, price: pos.averagePrice },
+      { key: 'pos', line: primitive, meta: { kind: 'position' }, price: pos.averagePrice },
       ...refs.orderEntries.current,
     ];
   }, [isOrderChart, positions, activeAccountId, contract]);

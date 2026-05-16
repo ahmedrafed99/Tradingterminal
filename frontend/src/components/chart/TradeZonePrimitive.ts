@@ -28,10 +28,10 @@ const _nyHour = new Intl.DateTimeFormat('en-US', { hour: '2-digit', hour12: fals
 
 /** CME session day: trades from 6 PM–midnight ET belong to the next calendar day's session. */
 function cmeSessionDay(isoStr: string): string {
-  const d = new Date(isoStr);
-  if (parseInt(_nyHour.format(d), 10) >= 18)
-    return _nyDate.format(new Date(d.getTime() + 86_400_000));
-  return _nyDate.format(d);
+  const date = new Date(isoStr);
+  if (parseInt(_nyHour.format(date), 10) >= 18)
+    return _nyDate.format(new Date(date.getTime() + 86_400_000));
+  return _nyDate.format(date);
 }
 
 /**

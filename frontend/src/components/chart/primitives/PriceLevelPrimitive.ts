@@ -95,13 +95,13 @@ const ICON_SLOT = 11; // px reserved for arrow icon + gap
 const CURSOR_STYLE_ID = 'pricelevel-primitive-cursor-style';
 let _cursorRefs = 0;
 function _cursorStyleEl(): HTMLStyleElement {
-  let s = document.getElementById(CURSOR_STYLE_ID) as HTMLStyleElement | null;
-  if (!s) {
-    s = document.createElement('style');
-    s.id = CURSOR_STYLE_ID;
-    document.head.appendChild(s);
+  let styleElement = document.getElementById(CURSOR_STYLE_ID) as HTMLStyleElement | null;
+  if (!styleElement) {
+    styleElement = document.createElement('style');
+    styleElement.id = CURSOR_STYLE_ID;
+    document.head.appendChild(styleElement);
   }
-  return s;
+  return styleElement;
 }
 function applyCursorOverride(cursor: 'grab' | 'grabbing' | 'pointer'): void {
   _cursorRefs++;
@@ -118,22 +118,22 @@ function removeCursorOverride(): void {
 
 function decimalsFor(tickSize: number): number {
   if (!tickSize || tickSize >= 1) return 0;
-  const s = tickSize.toString();
-  const d = s.indexOf('.');
-  return d === -1 ? 0 : s.length - d - 1;
+  const tickSizeStr = tickSize.toString();
+  const dotIndex = tickSizeStr.indexOf('.');
+  return dotIndex === -1 ? 0 : tickSizeStr.length - dotIndex - 1;
 }
 
 // Brighten any CSS color via offscreen canvas — used for default hover.
 const _brightenCache = new Map<string, string>();
 function brighten(color: string, factor = 1.25): string {
-  const k = `${color}|${factor}`;
-  const cached = _brightenCache.get(k);
+  const cacheKey = `${color}|${factor}`;
+  const cached = _brightenCache.get(cacheKey);
   if (cached) return cached;
   let out = color;
   try {
-    const c = document.createElement('canvas');
-    c.width = 1; c.height = 1;
-    const ctx = c.getContext('2d');
+    const measureCanvas = document.createElement('canvas');
+    measureCanvas.width = 1; measureCanvas.height = 1;
+    const ctx = measureCanvas.getContext('2d');
     if (ctx) {
       ctx.fillStyle = color;
       ctx.fillRect(0, 0, 1, 1);
@@ -144,7 +144,7 @@ function brighten(color: string, factor = 1.25): string {
       out = `rgba(${br},${bg},${bb},${(a / 255).toFixed(3)})`;
     }
   } catch { /* keep original */ }
-  _brightenCache.set(k, out);
+  _brightenCache.set(cacheKey, out);
   return out;
 }
 
@@ -228,8 +228,8 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
   draw(target: CanvasRenderingTarget2D): void {
     if (this._y === null) return;
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
-      const w = this._plotWidth || mediaSize.width;
-      const y = this._y!;
+      const plotWidth = this._plotWidth || mediaSize.width;
+      const yCoord = this._y!;
 
       // Line
       ctx.save();
@@ -237,8 +237,8 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
       ctx.lineWidth = this._lineWidth;
       if (this._lineStyle === 'dashed') ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
+      ctx.moveTo(0, yCoord);
+      ctx.lineTo(plotWidth, yCoord);
       ctx.stroke();
       ctx.restore();
 
@@ -249,80 +249,80 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
       ctx.textAlign = 'center';
       const now = performance.now();
       for (let i = 0; i < this._cellRects.length; i++) {
-        const r = this._cellRects[i];
-        const c = this._cells[r.key];
-        const isHover = r.key === this._hoveredKey;
-        const bg = isHover ? (c.hoverBg ?? brighten(c.bg, 1.25)) : c.bg;
+        const cellRect = this._cellRects[i];
+        const cell = this._cells[cellRect.key];
+        const isHover = cellRect.key === this._hoveredKey;
+        const bg = isHover ? (cell.hoverBg ?? brighten(cell.bg, 1.25)) : cell.bg;
 
         // Animation state for this cell
-        const anim = this._cellAnimations.get(r.key);
+        const anim = this._cellAnimations.get(cellRect.key);
         let animEased = 1;
         if (anim) {
-          const t = Math.min(1, (now - anim.startMs) / anim.duration);
-          animEased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+          const animationT = Math.min(1, (now - anim.startMs) / anim.duration);
+          animEased = 1 - Math.pow(1 - animationT, 3); // ease-out cubic
         }
 
         ctx.fillStyle = bg;
-        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.fillRect(cellRect.x, cellRect.y, cellRect.w, cellRect.h);
 
         // Flash overlay: fades from flashColor → transparent as animation progresses
         if (anim && animEased < 1) {
           ctx.globalAlpha = (1 - animEased) * 0.55;
           ctx.fillStyle = anim.flashColor;
-          ctx.fillRect(r.x, r.y, r.w, r.h);
+          ctx.fillRect(cellRect.x, cellRect.y, cellRect.w, cellRect.h);
           ctx.globalAlpha = 1;
         }
 
         if (i > 0) {
           ctx.fillStyle = COLOR_LABEL_TEXT;
-          ctx.fillRect(r.x, r.y, 1, r.h);
+          ctx.fillRect(cellRect.x, cellRect.y, 1, cellRect.h);
         }
 
         // Left zone
-        if (r.leftZoneW > 0) {
+        if (cellRect.leftZoneW > 0) {
           const zoneHot = isHover && this._hoveredZone === 'left';
           if (zoneHot) {
             ctx.fillStyle = brighten(bg, 1.3);
-            ctx.fillRect(r.x, r.y, r.leftZoneW, r.h);
+            ctx.fillRect(cellRect.x, cellRect.y, cellRect.leftZoneW, cellRect.h);
             ctx.font = FONT_ZONE_HOVER;
           }
-          ctx.fillStyle = c.leftColor ?? c.color;
-          ctx.fillText(c.leftText!, r.x + r.leftZoneW / 2, r.y + r.h / 2 + 0.5);
+          ctx.fillStyle = cell.leftColor ?? cell.color;
+          ctx.fillText(cell.leftText!, cellRect.x + cellRect.leftZoneW / 2, cellRect.y + cellRect.h / 2 + 0.5);
           if (zoneHot) ctx.font = FONT;
         }
 
         // Main text (+ optional icon) centered between zones
-        const mainLeft = r.x + r.leftZoneW;
-        const mainW = r.w - r.leftZoneW - r.rightZoneW;
-        const displayText = isHover && c.hoverText != null ? c.hoverText : c.text;
-        const displayColor = isHover && c.hoverColor != null ? c.hoverColor : c.color;
-        const showIcon = c.icon != null && !(isHover && c.hoverText != null);
+        const mainLeft = cellRect.x + cellRect.leftZoneW;
+        const mainW = cellRect.w - cellRect.leftZoneW - cellRect.rightZoneW;
+        const displayText = isHover && cell.hoverText != null ? cell.hoverText : cell.text;
+        const displayColor = isHover && cell.hoverColor != null ? cell.hoverColor : cell.color;
+        const showIcon = cell.icon != null && !(isHover && cell.hoverText != null);
         const arrowScale = anim ? (1 + 0.6 * (1 - animEased)) : 1; // 1.6× → 1.0×
-        if (c.fontSize) ctx.font = `bold ${c.fontSize}px ${FONT_FAMILY}`;
+        if (cell.fontSize) ctx.font = `bold ${cell.fontSize}px ${FONT_FAMILY}`;
         ctx.fillStyle = displayColor;
         if (showIcon) {
           const textW = ctx.measureText(displayText).width;
           const contentW = ICON_SLOT + textW;
           const contentStart = mainLeft + (mainW - contentW) / 2;
-          drawCellIcon(ctx, c.icon!, contentStart + ICON_SLOT / 2 - 1, r.y + r.h / 2, displayColor, arrowScale);
+          drawCellIcon(ctx, cell.icon!, contentStart + ICON_SLOT / 2 - 1, cellRect.y + cellRect.h / 2, displayColor, arrowScale);
           ctx.textAlign = 'left';
-          ctx.fillText(displayText, contentStart + ICON_SLOT, r.y + r.h / 2 + 0.5);
+          ctx.fillText(displayText, contentStart + ICON_SLOT, cellRect.y + cellRect.h / 2 + 0.5);
           ctx.textAlign = 'center';
         } else {
-          ctx.fillText(displayText, mainLeft + mainW / 2, r.y + r.h / 2 + 0.5);
+          ctx.fillText(displayText, mainLeft + mainW / 2, cellRect.y + cellRect.h / 2 + 0.5);
         }
-        if (c.fontSize) ctx.font = FONT;
+        if (cell.fontSize) ctx.font = FONT;
 
         // Right zone
-        if (r.rightZoneW > 0) {
+        if (cellRect.rightZoneW > 0) {
           const zoneHot = isHover && this._hoveredZone === 'right';
           if (zoneHot) {
             ctx.fillStyle = brighten(bg, 1.3);
-            ctx.fillRect(r.x + r.w - r.rightZoneW, r.y, r.rightZoneW, r.h);
+            ctx.fillRect(cellRect.x + cellRect.w - cellRect.rightZoneW, cellRect.y, cellRect.rightZoneW, cellRect.h);
             ctx.font = FONT_ZONE_HOVER;
           }
-          ctx.fillStyle = c.rightColor ?? c.color;
-          ctx.fillText(c.rightText!, r.x + r.w - r.rightZoneW / 2, r.y + r.h / 2 + 0.5);
+          ctx.fillStyle = cell.rightColor ?? cell.color;
+          ctx.fillText(cell.rightText!, cellRect.x + cellRect.w - cellRect.rightZoneW / 2, cellRect.y + cellRect.h / 2 + 0.5);
           if (zoneHot) ctx.font = FONT;
         }
       }
@@ -611,16 +611,16 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   paneViews(): readonly IPrimitivePaneView[] {
     if (!this.visible || !this._series || !this._chart) return [];
 
-    const y = this._series.priceToCoordinate(this._price);
+    const yCoord = this._series.priceToCoordinate(this._price);
     let psWidth = 0;
     try { psWidth = this._chart.priceScale('right').width(); } catch { /* */ }
     const tsWidth = this._chart.timeScale().width();
     const plotWidth = tsWidth || (this._chartEl?.clientWidth ?? 0) - psWidth;
 
-    this._cellRects = (y === null) ? [] : this._computeCellRects(y, plotWidth);
+    this._cellRects = (yCoord === null) ? [] : this._computeCellRects(yCoord, plotWidth);
 
     this._paneView.update(
-      y, plotWidth, this._lineColor, this._lineWidth, this._lineStyle,
+      yCoord, plotWidth, this._lineColor, this._lineWidth, this._lineStyle,
       this._cellRects, this._cells, this._hoveredKey, this._hoveredZone,
       this._cellAnimations,
     );
@@ -630,10 +630,10 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   priceAxisViews(): readonly ISeriesPrimitiveAxisView[] {
     if (this._coordinator) return [];
     if (!this._priceLabelVisible || !this._series) return [];
-    const y = this._series.priceToCoordinate(this._price);
-    if (y === null) return [];
+    const yCoord = this._series.priceToCoordinate(this._price);
+    if (yCoord === null) return [];
     return [new PriceLevelAxisView(
-      y,
+      yCoord,
       this._price.toFixed(this._decimals),
       this._lineColor,
       contrastText(this._lineColor, COLOR_BG),
@@ -704,19 +704,19 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   // ── Hit testing ──
   private _hitTest(plotX: number, plotY: number): CellKey | null {
-    for (const r of this._cellRects) {
-      if (plotX >= r.x && plotX <= r.x + r.w && plotY >= r.y && plotY <= r.y + r.h) {
-        return r.key;
+    for (const cellRect of this._cellRects) {
+      if (plotX >= cellRect.x && plotX <= cellRect.x + cellRect.w && plotY >= cellRect.y && plotY <= cellRect.y + cellRect.h) {
+        return cellRect.key;
       }
     }
     return null;
   }
 
   private _detectZone(key: CellKey, plotX: number): 'left' | 'right' | null {
-    const r = this._cellRects.find((rect) => rect.key === key);
-    if (!r) return null;
-    if (r.leftZoneW > 0 && plotX < r.x + r.leftZoneW) return 'left';
-    if (r.rightZoneW > 0 && plotX > r.x + r.w - r.rightZoneW) return 'right';
+    const cellRect = this._cellRects.find((rect) => rect.key === key);
+    if (!cellRect) return null;
+    if (cellRect.leftZoneW > 0 && plotX < cellRect.x + cellRect.leftZoneW) return 'left';
+    if (cellRect.rightZoneW > 0 && plotX > cellRect.x + cellRect.w - cellRect.rightZoneW) return 'right';
     return null;
   }
 

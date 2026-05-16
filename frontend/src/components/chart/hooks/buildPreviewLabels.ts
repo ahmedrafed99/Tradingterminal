@@ -52,19 +52,19 @@ export function buildPreviewLabels(
           showToast('warning', 'Market closed', 'Market is closed. Orders cannot be placed.');
           return;
         }
-        const st = useStore.getState();
-        if (!st.activeAccountId || !contract) return;
-        const side: OrderSide = st.previewSide;
+        const store = useStore.getState();
+        if (!store.activeAccountId || !contract) return;
+        const side: OrderSide = store.previewSide;
 
         const params: PlaceOrderParams = {
-          accountId: st.activeAccountId,
+          accountId: store.activeAccountId,
           contractId: contract.id,
-          type: st.orderType === 'market' ? OrderType.Market : OrderType.Limit,
+          type: store.orderType === 'market' ? OrderType.Market : OrderType.Limit,
           side,
-          size: st.orderSize,
+          size: store.orderSize,
         };
-        if (st.orderType === 'limit' && st.limitPrice != null) {
-          params.limitPrice = st.limitPrice;
+        if (store.orderType === 'limit' && store.limitPrice != null) {
+          params.limitPrice = store.limitPrice;
         }
 
         const mergedConfig = resolvePreviewConfig();
@@ -96,11 +96,11 @@ export function buildPreviewLabels(
         try {
           const { orderId } = await orderService.placeOrder(params);
           if (engineArmed) bracketEngine.confirmEntryOrderId(orderId);
-          const s = useStore.getState();
-          s.clearDraftOverrides();
-          if (s.orderType === 'market') {
-            s.clearAdHocBrackets();
-            s.togglePreview();
+          const store = useStore.getState();
+          store.clearDraftOverrides();
+          if (store.orderType === 'market') {
+            store.clearAdHocBrackets();
+            store.togglePreview();
           } else {
             useStore.setState({ previewHideEntry: true });
           }
@@ -147,9 +147,9 @@ export function buildPreviewLabels(
             bg: `${COLOR_LINE_BUY}80`,
             color: LABEL_TEXT,
             onClick: () => {
-              const st = useStore.getState();
-              const n = st.adHocTpLevels.length;
-              st.addAdHocTp(20 * (n + 1), 1);
+              const store = useStore.getState();
+              const tpCount = store.adHocTpLevels.length;
+              store.addAdHocTp(20 * (tpCount + 1), 1);
             },
           });
           cellOrder.push('addtp');

@@ -26,19 +26,19 @@ export function paintOverlays(
 
   ctx.font = `500 ${FONT}`;
   let x = 10;
-  const y = 18;
+  const textY = 18;
 
   if (instrText) {
     ctx.fillStyle = COLOR_TEXT_MUTED;
-    ctx.fillText(instrText, x, y);
+    ctx.fillText(instrText, x, textY);
     x += ctx.measureText(instrText).width + 10;
   }
   if (ohlcText) {
     const metrics = ctx.measureText(ohlcText);
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(x - 3, y - 12, metrics.width + 6, 16);
+    ctx.fillRect(x - 3, textY - 12, metrics.width + 6, 16);
     ctx.fillStyle = COLOR_TEXT;
-    ctx.fillText(ohlcText, x, y);
+    ctx.fillText(ohlcText, x, textY);
   }
 
   ctx.restore();

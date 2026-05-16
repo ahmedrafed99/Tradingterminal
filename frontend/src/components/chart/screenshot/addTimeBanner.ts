@@ -22,32 +22,32 @@ export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement
   });
   const timeText = `${dateFmt.format(now)}  ${timeFmt.format(now)} New York`;
 
-  const bannerH = 30;
-  const sepH = 1;
-  const w = chartCanvas.width;
-  const h = bannerH + sepH + chartCanvas.height;
+  const bannerHeight = 30;
+  const separatorHeight = 1;
+  const canvasWidth = chartCanvas.width;
+  const canvasHeight = bannerHeight + separatorHeight + chartCanvas.height;
 
   const out = document.createElement('canvas');
-  out.width = w;
-  out.height = h;
+  out.width = canvasWidth;
+  out.height = canvasHeight;
   const ctx = out.getContext('2d')!;
 
   // Banner background
   ctx.fillStyle = COLOR_LABEL_TEXT;
-  ctx.fillRect(0, 0, w, bannerH);
+  ctx.fillRect(0, 0, canvasWidth, bannerHeight);
 
   // Time text — top-left
   ctx.font = `12px ${FONT_FAMILY}`;
   ctx.fillStyle = COLOR_TEXT_MUTED;
   ctx.textBaseline = 'middle';
-  ctx.fillText(timeText, 10, bannerH / 2);
+  ctx.fillText(timeText, 10, bannerHeight / 2);
 
   // Separator line
   ctx.fillStyle = COLOR_BORDER;
-  ctx.fillRect(0, bannerH, w, sepH);
+  ctx.fillRect(0, bannerHeight, canvasWidth, separatorHeight);
 
   // Chart image below
-  ctx.drawImage(chartCanvas, 0, bannerH + sepH);
+  ctx.drawImage(chartCanvas, 0, bannerHeight + separatorHeight);
 
   return out;
 }

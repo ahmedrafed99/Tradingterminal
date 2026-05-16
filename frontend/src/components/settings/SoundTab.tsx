@@ -28,9 +28,9 @@ export function SoundTab() {
   }
 
   function handleVolume(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = parseFloat(e.target.value);
-    setVolume(v);
-    audioService.setVolume(v);
+    const volume = parseFloat(e.target.value);
+    setVolume(volume);
+    audioService.setVolume(volume);
   }
 
   return (

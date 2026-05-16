@@ -22,8 +22,8 @@ export function DatabaseTab() {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const s = await databaseService.getStatus();
-      setStatus(s);
+      const dbStatus = await databaseService.getStatus();
+      setStatus(dbStatus);
     } catch (err) {
       console.error('[DatabaseTab] Status fetch failed:', err instanceof Error ? err.message : err);
     }
@@ -37,14 +37,14 @@ export function DatabaseTab() {
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       try {
-        const p = await databaseService.getProgress();
-        if (p.status === 'idle') {
+        const dbProgress = await databaseService.getProgress();
+        if (dbProgress.status === 'idle') {
           setProgress(null);
           stopPolling();
           refreshStatus();
         } else {
-          setProgress(p as FetchProgress);
-          if (p.status !== 'running') {
+          setProgress(dbProgress as FetchProgress);
+          if (dbProgress.status !== 'running') {
             stopPolling();
             refreshStatus();
           }
@@ -65,9 +65,9 @@ export function DatabaseTab() {
   useEffect(() => {
     (async () => {
       try {
-        const p = await databaseService.getProgress();
-        if (p.status === 'running') {
-          setProgress(p as FetchProgress);
+        const dbProgress = await databaseService.getProgress();
+        if (dbProgress.status === 'running') {
+          setProgress(dbProgress as FetchProgress);
           startPolling();
         }
       } catch (err) {

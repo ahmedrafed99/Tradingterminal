@@ -17,12 +17,12 @@ const EXPAND_LERP = 0.25;
 // ---------------------------------------------------------------------------
 
 function parseColor(color: string): [number, number, number, number] {
-  const m = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
-  if (m) {
-    return [parseInt(m[1]), parseInt(m[2]), parseInt(m[3]), m[4] !== undefined ? parseFloat(m[4]) : 1];
+  const colorMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
+  if (colorMatch) {
+    return [parseInt(colorMatch[1]), parseInt(colorMatch[2]), parseInt(colorMatch[3]), colorMatch[4] !== undefined ? parseFloat(colorMatch[4]) : 1];
   }
-  const h = color.replace('#', '');
-  return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16), 1];
+  const hexColor = color.replace('#', '');
+  return [parseInt(hexColor.substring(0, 2), 16), parseInt(hexColor.substring(2, 4), 16), parseInt(hexColor.substring(4, 6), 16), 1];
 }
 
 function rgba(r: number, g: number, b: number, a: number): string {

@@ -17,8 +17,8 @@ function pointToSegmentDistance(
   const dy = b.y - a.y;
   const lenSq = dx * dx + dy * dy;
   if (lenSq === 0) return Math.hypot(px - a.x, py - a.y);
-  const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq));
-  return Math.hypot(px - (a.x + t * dx), py - (a.y + t * dy));
+  const projectionT = Math.max(0, Math.min(1, ((px - a.x) * dx + (py - a.y) * dy) / lenSq));
+  return Math.hypot(px - (a.x + projectionT * dx), py - (a.y + projectionT * dy));
 }
 
 /**
@@ -96,7 +96,7 @@ export function hitTestOval(
   // Normalized distance from center
   const nx = (mx - cx) / rx;
   const ny = (my - cy) / ry;
-  const d = Math.sqrt(nx * nx + ny * ny);
+  const normalizedDist = Math.sqrt(nx * nx + ny * ny);
   // On perimeter when normalized distance ≈ 1
-  return Math.abs(d - 1.0) < tolerance / Math.min(rx, ry);
+  return Math.abs(normalizedDist - 1.0) < tolerance / Math.min(rx, ry);
 }

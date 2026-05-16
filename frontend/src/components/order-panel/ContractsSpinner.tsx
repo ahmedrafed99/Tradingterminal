@@ -25,8 +25,8 @@ export function ContractsSpinner() {
           min={1}
           value={orderSize}
           onChange={(e) => {
-            const v = parseInt(e.target.value, 10); // TODO Phase 6: use parseFloat + quantityStep for crypto
-            if (!isNaN(v)) setOrderSize(v);
+            const quantity = parseInt(e.target.value, 10); // TODO Phase 6: use parseFloat + quantityStep for crypto
+            if (!isNaN(quantity)) setOrderSize(quantity);
           }}
           className="flex-1 bg-(--color-input) border border-(--color-border) rounded px-2 py-1 text-xs text-white text-center
                      focus:outline-none focus:border-(--color-focus-ring) [&::-webkit-inner-spin-button]:appearance-none"

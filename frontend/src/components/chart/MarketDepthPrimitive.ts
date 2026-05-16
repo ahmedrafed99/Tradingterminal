@@ -31,11 +31,11 @@ function parseColor(color: string): [number, number, number, number] {
       rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1,
     ];
   }
-  const h = color.replace('#', '');
+  const hexColor = color.replace('#', '');
   return [
-    parseInt(h.substring(0, 2), 16),
-    parseInt(h.substring(2, 4), 16),
-    parseInt(h.substring(4, 6), 16),
+    parseInt(hexColor.substring(0, 2), 16),
+    parseInt(hexColor.substring(2, 4), 16),
+    parseInt(hexColor.substring(4, 6), 16),
     1,
   ];
 }
@@ -124,11 +124,11 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
 
       // Draw all bars
       for (let i = 0; i < bars.length; i++) {
-        const b = bars[i];
-        const w = b.volumeRatio * maxBarWidth;
-        const expand = this._hoverExpand ? (this._expandMap.get(b.price) ?? 0) : 0;
+        const bar = bars[i];
+        const barWidth = bar.volumeRatio * maxBarWidth;
+        const expand = this._hoverExpand ? (this._expandMap.get(bar.price) ?? 0) : 0;
         ctx.fillStyle = i === this._hoverIdx ? this._hoverColor : this._barColor;
-        ctx.fillRect(0, b.y - expand, w, Math.max(b.height, 1) + expand * 2);
+        ctx.fillRect(0, bar.y - expand, barWidth, Math.max(bar.height, 1) + expand * 2);
       }
 
       // Dotted reference line on hover
@@ -363,9 +363,9 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
     const prev = this._hoverPrice;
     this._hoverPrice = price;
     // Skip repaint if hover stays on the same bar (or stays off)
-    const t = this._tickSize;
-    const prevBar = prev !== null ? Math.round(prev / t) : null;
-    const newBar  = price !== null ? Math.round(price / t) : null;
+    const tickSize = this._tickSize;
+    const prevBar = prev !== null ? Math.round(prev / tickSize) : null;
+    const newBar  = price !== null ? Math.round(price / tickSize) : null;
     if (prevBar !== newBar) this._requestUpdate?.();
   }
 

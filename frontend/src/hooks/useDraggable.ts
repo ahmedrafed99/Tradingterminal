@@ -40,9 +40,9 @@ export function useDraggable<T extends HTMLElement = HTMLDivElement>(options?: U
 
       const boundsEl = boundsRef.current?.current;
       if (boundsEl) {
-        const b = boundsEl.getBoundingClientRect();
-        x = Math.min(Math.max(x, b.left), b.right - rect.width);
-        y = Math.min(Math.max(y, b.top), b.bottom - rect.height);
+        const boundsRect = boundsEl.getBoundingClientRect();
+        x = Math.min(Math.max(x, boundsRect.left), boundsRect.right - rect.width);
+        y = Math.min(Math.max(y, boundsRect.top), boundsRect.bottom - rect.height);
       }
 
       const newPos = { x, y };

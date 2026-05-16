@@ -335,30 +335,30 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
       resetChartInteraction(ctx);
       return;
     }
-    const s = useStore.getState();
-    if (s.activeTool !== 'select') {
-      s.setActiveTool('select');
+    const store = useStore.getState();
+    if (store.activeTool !== 'select') {
+      store.setActiveTool('select');
       if (state.ovalDrag) {
         primitive.clearDragPreview();
         state.ovalDrag = null;
         chart.applyOptions({ handleScroll: true, handleScale: true });
       }
-    } else if (s.selectedDrawingIds.length > 0) {
-      s.setSelectedDrawingIds([]);
+    } else if (store.selectedDrawingIds.length > 0) {
+      store.setSelectedDrawingIds([]);
     }
   }
 
   if (matchesShortcut(e, shortcuts['drawing.delete'])) {
     const tag = (e.target as HTMLElement)?.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-    const s = useStore.getState();
-    if (s.selectedDrawingIds.length > 0) {
-      if (s.selectedDrawingIds.length === 1) {
-        s.removeDrawing(s.selectedDrawingIds[0]);
+    const store = useStore.getState();
+    if (store.selectedDrawingIds.length > 0) {
+      if (store.selectedDrawingIds.length === 1) {
+        store.removeDrawing(store.selectedDrawingIds[0]);
       } else {
-        s.removeDrawings(s.selectedDrawingIds);
+        store.removeDrawings(store.selectedDrawingIds);
       }
-      s.setSelectedDrawingIds([]);
+      store.setSelectedDrawingIds([]);
     }
   }
 

@@ -59,9 +59,9 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
 
   const dayTrades = useMemo(() => {
     if (!selectedDay) return [];
-    return grouped.filter((t) => {
-      const d = new Date(t.exitTime);
-      const ny = d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    return grouped.filter((trade) => {
+      const exitDate = new Date(trade.exitTime);
+      const ny = exitDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
       return ny === selectedDay;
     });
   }, [grouped, selectedDay]);

@@ -6,7 +6,7 @@ export function isBracketLegPrice(
   tickSize: number,
   bi: BracketPriceInfo,
 ): boolean {
-  const r = Math.round(price / tickSize);
-  return (bi.slPrice != null && Math.round(bi.slPrice / tickSize) === r) ||
-    bi.tpPrices.some((tp) => Math.round(tp / tickSize) === r);
+  const roundedTicks = Math.round(price / tickSize);
+  return (bi.slPrice != null && Math.round(bi.slPrice / tickSize) === roundedTicks) ||
+    bi.tpPrices.some((tp) => Math.round(tp / tickSize) === roundedTicks);
 }

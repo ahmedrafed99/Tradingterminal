@@ -317,7 +317,7 @@ export function FRVPSettingsPopover({
               {/* Offset */}
               <span style={labelStyle}>Offset</span>
               <div style={{ justifySelf: 'end' }}>
-                <SpinnerInput value={frvp.barOffset ?? 0} onChange={(v) => updateDrawing(drawingId, { barOffset: Math.max(0, v) } as Partial<Drawing>)} min={0} max={200} step={1} inputWidth={74} />
+                <SpinnerInput value={frvp.barOffset ?? 0} onChange={(barOffset) => updateDrawing(drawingId, { barOffset: Math.max(0, barOffset) } as Partial<Drawing>)} min={0} max={200} step={1} inputWidth={74} />
               </div>
 
               {/* Length % */}

@@ -52,19 +52,19 @@ class GoToTooltipRenderer implements IPrimitivePaneRenderer {
       const boxL = cx - half;
 
       // Single path: triangle + box merged so there's no seam
-      const r = 3;
+      const cornerRadius = 3;
       ctx.fillStyle = COLOR_BORDER;
       ctx.beginPath();
-      ctx.moveTo(this._x, tipY);                          // triangle tip
-      ctx.lineTo(this._x + TRI_W / 2, baseY);            // triangle right foot
-      ctx.lineTo(boxL + boxW - r, baseY);                 // box top-right lead-in
-      ctx.arcTo(boxL + boxW, baseY, boxL + boxW, baseY + r, r);
-      ctx.lineTo(boxL + boxW, baseY + boxH - r);
-      ctx.arcTo(boxL + boxW, baseY + boxH, boxL + boxW - r, baseY + boxH, r);
-      ctx.lineTo(boxL + r, baseY + boxH);
-      ctx.arcTo(boxL, baseY + boxH, boxL, baseY + boxH - r, r);
-      ctx.lineTo(boxL, baseY + r);
-      ctx.arcTo(boxL, baseY, boxL + r, baseY, r);
+      ctx.moveTo(this._x, tipY);                                                     // triangle tip
+      ctx.lineTo(this._x + TRI_W / 2, baseY);                                       // triangle right foot
+      ctx.lineTo(boxL + boxW - cornerRadius, baseY);                                 // box top-right lead-in
+      ctx.arcTo(boxL + boxW, baseY, boxL + boxW, baseY + cornerRadius, cornerRadius);
+      ctx.lineTo(boxL + boxW, baseY + boxH - cornerRadius);
+      ctx.arcTo(boxL + boxW, baseY + boxH, boxL + boxW - cornerRadius, baseY + boxH, cornerRadius);
+      ctx.lineTo(boxL + cornerRadius, baseY + boxH);
+      ctx.arcTo(boxL, baseY + boxH, boxL, baseY + boxH - cornerRadius, cornerRadius);
+      ctx.lineTo(boxL, baseY + cornerRadius);
+      ctx.arcTo(boxL, baseY, boxL + cornerRadius, baseY, cornerRadius);
       ctx.lineTo(this._x - TRI_W / 2, baseY);            // triangle left foot
       ctx.closePath();
       ctx.fill();

@@ -80,9 +80,9 @@ function ParticleTrack({
     const ctx = canvas.getContext('2d')!;
 
     const draw = () => {
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
 
       const color = STATE_COLOR_CANVAS[state];
       const speed = !marketOpen ? 0 : state === 'normal' ? 0.8 : state === 'degraded' ? 0.25 : 0;
@@ -92,8 +92,8 @@ function ParticleTrack({
       ctx.globalAlpha = state === 'frozen' ? 0.12 : 0.22;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(0, h / 2);
-      ctx.lineTo(w, h / 2);
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
 
@@ -103,8 +103,8 @@ function ParticleTrack({
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(0, h / 2);
-        ctx.lineTo(w, h / 2);
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
@@ -114,9 +114,9 @@ function ParticleTrack({
       if (marketOpen) {
         for (const p of particlesRef.current) {
           p.x = (p.x + speed * 0.005) % 1;
-          const px = p.x * w;
+          const particleX = p.x * width;
           ctx.beginPath();
-          ctx.arc(px, h / 2, 2.5, 0, Math.PI * 2);
+          ctx.arc(particleX, height / 2, 2.5, 0, Math.PI * 2);
           ctx.fillStyle = color;
           ctx.globalAlpha = state === 'frozen' ? 0.08 : 0.85;
           ctx.fill();
@@ -147,15 +147,15 @@ function ParticleTrack({
           const alpha    = progress < 0.07 ? progress / 0.07 : progress > 0.86 ? Math.max(0, (1 - progress) / 0.14) : 1;
 
           ctx.save();
-          ctx.translate(xPos * w, h / 2 + arc);
+          ctx.translate(xPos * width, height / 2 + arc);
           ctx.rotate(rotation);
           ctx.font = '600 10px monospace';
           ctx.fillStyle = color;
           ctx.shadowColor = color;
           ctx.shadowBlur = 7;
           ctx.globalAlpha = alpha;
-          const tw = ctx.measureText(b.price).width;
-          ctx.fillText(b.price, -tw / 2, 3.5);
+          const textWidth = ctx.measureText(b.price).width;
+          ctx.fillText(b.price, -textWidth / 2, 3.5);
           ctx.restore();
           ctx.globalAlpha = 1;
         }

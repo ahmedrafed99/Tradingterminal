@@ -140,30 +140,30 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
     this.userHub.on('GatewayUserOrder', (...args: unknown[]) => {
       const items = normalizeUserHubArgs<RealtimeOrder>(args);
       for (const item of items) {
-        const d = item.data;
-        const order: RealtimeOrder = { ...d, id: String(d.id), accountId: String(d.accountId) };
-        this.orderHandlers.forEach((h) => h(order, item.action));
+        const data = item.data;
+        const order: RealtimeOrder = { ...data, id: String(data.id), accountId: String(data.accountId) };
+        this.orderHandlers.forEach((handler) => handler(order, item.action));
       }
     });
     this.userHub.on('GatewayUserPosition', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimePosition>(args)) {
-        const d = item.data;
-        const pos: RealtimePosition = { ...d, id: String(d.id), accountId: String(d.accountId) };
-        this.positionHandlers.forEach((h) => h(pos, item.action));
+        const data = item.data;
+        const pos: RealtimePosition = { ...data, id: String(data.id), accountId: String(data.accountId) };
+        this.positionHandlers.forEach((handler) => handler(pos, item.action));
       }
     });
     this.userHub.on('GatewayUserAccount', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeAccount>(args)) {
-        const d = item.data;
-        const acct: RealtimeAccount = { ...d, id: String(d.id) };
-        this.accountHandlers.forEach((h) => h(acct, item.action));
+        const data = item.data;
+        const acct: RealtimeAccount = { ...data, id: String(data.id) };
+        this.accountHandlers.forEach((handler) => handler(acct, item.action));
       }
     });
     this.userHub.on('GatewayUserTrade', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeTrade>(args)) {
-        const d = item.data;
-        const trade: RealtimeTrade = { ...d, id: String(d.id), accountId: String(d.accountId), orderId: String(d.orderId) };
-        this.tradeHandlers.forEach((h) => h(trade, item.action));
+        const data = item.data;
+        const trade: RealtimeTrade = { ...data, id: String(data.id), accountId: String(data.accountId), orderId: String(data.orderId) };
+        this.tradeHandlers.forEach((handler) => handler(trade, item.action));
       }
     });
 

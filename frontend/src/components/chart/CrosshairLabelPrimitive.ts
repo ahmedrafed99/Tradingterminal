@@ -101,13 +101,13 @@ export class CrosshairLabelPrimitive implements ISeriesPrimitive<Time> {
     const snapped = this._tickSize > 0
       ? Math.round(this._price / this._tickSize) * this._tickSize
       : this._price;
-    const y = this._series.priceToCoordinate(snapped);
-    if (y === null) return this._emptyPaneViews;
+    const yCoord = this._series.priceToCoordinate(snapped);
+    if (yCoord === null) return this._emptyPaneViews;
     const text = snapped.toLocaleString('en-US', {
       minimumFractionDigits: this._decimals,
       maximumFractionDigits: this._decimals,
     });
-    this._paneView.update(y as number, text);
+    this._paneView.update(yCoord as number, text);
     return this._paneViewArr;
   }
 

@@ -19,8 +19,8 @@ async function parseIndex(dir: FileSystemDirectoryHandle): Promise<IndexEntry[]>
     const text = await file.text();
     const entries: IndexEntry[] = [];
     for (const line of text.split('\n')) {
-      const m = line.match(/^(\d{4}-\d{2}-\d{2})\s+(session_\S+)\s+(.+)$/);
-      if (m) entries.push({ date: m[1], sessionFile: m[2], summary: m[3] });
+      const matchResult = line.match(/^(\d{4}-\d{2}-\d{2})\s+(session_\S+)\s+(.+)$/);
+      if (matchResult) entries.push({ date: matchResult[1], sessionFile: matchResult[2], summary: matchResult[3] });
     }
     return entries.reverse();
   } catch { return []; }

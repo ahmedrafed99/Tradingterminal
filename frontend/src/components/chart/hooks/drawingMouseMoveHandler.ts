@@ -92,7 +92,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
         const dp = maybeSnap(e, data.price, x, chart, refs.bars.current) - state.drawingDrag.startPrice;
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, {
           anchorTime: (state.drawingDrag.origAnchorTime ?? 0) + dt,
-          points: state.drawingDrag.origBarOffsets.map((p) => ({ barOffset: p.barOffset, price: p.price + dp })),
+          points: state.drawingDrag.origBarOffsets.map((pt) => ({ barOffset: pt.barOffset, price: pt.price + dp })),
         }, true);
       }
     }
@@ -130,16 +130,15 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     if (!data) return;
 
     const newP1 = state.ovalResize.fixedCorner;
-    const h = state.ovalResize.handle;
+    const handle = state.ovalResize.handle;
     let newP2: { time: number; price: number; anchorTime?: number; barOffset?: number };
 
     const resizePrice = (rawPrice: number) => maybeSnap(e, rawPrice, x, chart, refs.bars.current);
 
-    const resizingDrawing = useStore.getState().drawings.find((d) => d.id === state.ovalResize!.drawingId);
+    const resizingDrawing = useStore.getState().drawings.find((drawing) => drawing.id === state.ovalResize!.drawingId);
     if (resizingDrawing?.type === 'frvp') {
       const frvp = resizingDrawing as FRVPDrawing;
-      const h = state.ovalResize.handle;
-      if (frvp.mode === 'range' && (h === 'w' || h === 'e')) {
+      if (frvp.mode === 'range' && (handle === 'w' || handle === 'e')) {
         // Range mode: move t1 or t2, recompute pMin/pMax from bars
         const newTimeRaw = chart.timeScale().coordinateToTime(x);
         if (newTimeRaw === null) return;
@@ -162,11 +161,11 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
         }, true);
       }
     } else {
-      if (h === 'n' || h === 's') {
+      if (handle === 'n' || handle === 's') {
         // Cardinal vertical: only price follows mouse, X stays from original moving corner
         const mc = state.ovalResize.movingCorner;
         newP2 = { time: mc.time, price: resizePrice(data.price), anchorTime: mc.anchorTime, barOffset: mc.barOffset };
-      } else if (h === 'w' || h === 'e') {
+      } else if (handle === 'w' || handle === 'e') {
         // Cardinal horizontal: only X follows mouse, price stays from original moving corner
         newP2 = { time: data.time, price: state.ovalResize.movingCorner.price, anchorTime: data.anchorTime, barOffset: data.barOffset };
       } else {

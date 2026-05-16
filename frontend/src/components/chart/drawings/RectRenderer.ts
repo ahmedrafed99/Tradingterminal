@@ -139,8 +139,8 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
         ctx.font = `${style} ${weight} ${fs}px ${FONT_FAMILY}`;
         ctx.fillStyle = text.color;
 
-        const w = rawW;
-        const h = rawH;
+        const width = rawW;
+        const height = rawH;
         const pad = Math.round(4 * hpr);
         let tx: number;
         if (text.hAlign === 'left') {
@@ -148,10 +148,10 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
           tx = left + pad;
         } else if (text.hAlign === 'right') {
           ctx.textAlign = 'right';
-          tx = left + w - pad;
+          tx = left + width - pad;
         } else {
           ctx.textAlign = 'center';
-          tx = left + w / 2;
+          tx = left + width / 2;
         }
 
         const vpad = Math.round(4 * vpr);
@@ -161,10 +161,10 @@ class RectRendererImpl implements IPrimitivePaneRenderer {
           ty = top - vpad;
         } else if (text.vAlign === 'bottom') {
           ctx.textBaseline = 'top';
-          ty = top + h + vpad;
+          ty = top + height + vpad;
         } else {
           ctx.textBaseline = 'middle';
-          ty = top + h / 2;
+          ty = top + height / 2;
         }
 
         ctx.fillText(text.content, tx, ty);

@@ -2,21 +2,21 @@
 
 /** Convert a hex color like '#26a69a' to 'rgba(38, 166, 154, alpha)'. */
 export function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  const red = parseInt(hex.slice(1, 3), 16);
+  const green = parseInt(hex.slice(3, 5), 16);
+  const blue = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
-export function pnlColor(v: number): string {
-  if (v > 0) return 'var(--color-buy)';
-  if (v < 0) return 'var(--color-sell)';
+export function pnlColor(value: number): string {
+  if (value > 0) return 'var(--color-buy)';
+  if (value < 0) return 'var(--color-sell)';
   return 'var(--color-text-muted)';
 }
 
-export function fmtDollar(v: number): string {
-  const sign = v > 0 ? '+' : v < 0 ? '-' : '';
-  return `${sign}$${Math.abs(v).toFixed(2)}`;
+export function fmtDollar(value: number): string {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
 /** Pick a human-friendly grid step for a given value range. */

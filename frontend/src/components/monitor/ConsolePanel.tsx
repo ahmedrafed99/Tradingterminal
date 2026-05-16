@@ -42,8 +42,8 @@ function pad2(n: number) { return n.toString().padStart(2, '0'); }
 function pad3(n: number) { return n.toString().padStart(3, '0'); }
 
 function formatTs(ts: number): string {
-  const d = new Date(ts);
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}.${pad3(d.getMilliseconds())}`;
+  const date = new Date(ts);
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}.${pad3(date.getMilliseconds())}`;
 }
 
 function EntryRow({ entry }: { entry: ConsoleEntry }) {

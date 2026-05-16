@@ -85,11 +85,11 @@ class RecordingService {
         return;
       }
 
-      const w = el.clientWidth * devicePixelRatio;
-      const h = el.clientHeight * devicePixelRatio;
-      if (composite.width !== w || composite.height !== h) {
-        composite.width = w;
-        composite.height = h;
+      const canvasWidth = el.clientWidth * devicePixelRatio;
+      const canvasHeight = el.clientHeight * devicePixelRatio;
+      if (composite.width !== canvasWidth || composite.height !== canvasHeight) {
+        composite.width = canvasWidth;
+        composite.height = canvasHeight;
       }
 
       ctx.clearRect(0, 0, composite.width, composite.height);
@@ -97,11 +97,11 @@ class RecordingService {
       // Draw every canvas within the chart container at its correct position
       const containerRect = el.getBoundingClientRect();
       const allCanvases = el.querySelectorAll('canvas');
-      for (const c of allCanvases) {
-        const r = c.getBoundingClientRect();
-        const x = (r.left - containerRect.left) * devicePixelRatio;
-        const y = (r.top - containerRect.top) * devicePixelRatio;
-        ctx.drawImage(c, x, y);
+      for (const canvas of allCanvases) {
+        const canvasRect = canvas.getBoundingClientRect();
+        const x = (canvasRect.left - containerRect.left) * devicePixelRatio;
+        const y = (canvasRect.top - containerRect.top) * devicePixelRatio;
+        ctx.drawImage(canvas, x, y);
       }
 
       // Paint overlays on the plot area (scale for DPR so text renders at correct size)

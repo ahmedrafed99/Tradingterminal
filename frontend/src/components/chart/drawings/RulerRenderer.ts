@@ -8,10 +8,10 @@ import { hitTestRect } from './hitTesting';
 import { formatVolume } from './rulerMetrics';
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return { r, g, b };
+  const red = parseInt(hex.slice(1, 3), 16);
+  const green = parseInt(hex.slice(3, 5), 16);
+  const blue = parseInt(hex.slice(5, 7), 16);
+  return { r: red, g: green, b: blue };
 }
 
 class RulerRendererImpl implements IPrimitivePaneRenderer {
@@ -51,10 +51,10 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
 
       const left = Math.min(x1, x2);
       const top = Math.min(y1, y2);
-      const w = Math.abs(x2 - x1);
-      const h = Math.abs(y2 - y1);
+      const width = Math.abs(x2 - x1);
+      const height = Math.abs(y2 - y1);
 
-      if (w < 1 && h < 1) return;
+      if (width < 1 && height < 1) return;
 
       // Determine color based on direction
       const isNegative = this._drawing.metrics.priceChange < 0;
@@ -65,31 +65,31 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
 
       // Semi-transparent filled rectangle (no border)
       ctx.fillStyle = `rgba(${rr}, ${rg}, ${rb}, 0.25)`;
-      ctx.fillRect(left, top, w, h);
+      ctx.fillRect(left, top, width, height);
 
       // Crossing single-direction arrows inside rectangle (touching edges)
       const arrowColor = `rgba(${rr}, ${rg}, ${rb}, 0.5)`;
       const headSize = Math.round(5 * vpr);
-      const cx = left + w / 2;
-      const cy = top + h / 2;
+      const cx = left + width / 2;
+      const cy = top + height / 2;
 
       ctx.strokeStyle = arrowColor;
       ctx.fillStyle = arrowColor;
       ctx.lineWidth = Math.round(1.5 * vpr);
 
       // Vertical arrow: up for positive, down for negative
-      if (h > headSize * 3) {
+      if (height > headSize * 3) {
         ctx.beginPath();
         ctx.moveTo(cx, top);
-        ctx.lineTo(cx, top + h);
+        ctx.lineTo(cx, top + height);
         ctx.stroke();
         // Arrowhead at tip
         if (isNegative) {
           // Points down (bottom edge)
           ctx.beginPath();
-          ctx.moveTo(cx, top + h);
-          ctx.lineTo(cx - headSize, top + h - headSize);
-          ctx.lineTo(cx + headSize, top + h - headSize);
+          ctx.moveTo(cx, top + height);
+          ctx.lineTo(cx - headSize, top + height - headSize);
+          ctx.lineTo(cx + headSize, top + height - headSize);
           ctx.closePath();
           ctx.fill();
         } else {
@@ -104,16 +104,16 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
       }
 
       // Horizontal arrow: always left to right (time direction)
-      if (w > headSize * 3) {
+      if (width > headSize * 3) {
         ctx.beginPath();
         ctx.moveTo(left, cy);
-        ctx.lineTo(left + w, cy);
+        ctx.lineTo(left + width, cy);
         ctx.stroke();
         // Arrowhead at right edge
         ctx.beginPath();
-        ctx.moveTo(left + w, cy);
-        ctx.lineTo(left + w - headSize, cy - headSize);
-        ctx.lineTo(left + w - headSize, cy + headSize);
+        ctx.moveTo(left + width, cy);
+        ctx.lineTo(left + width - headSize, cy - headSize);
+        ctx.lineTo(left + width - headSize, cy + headSize);
         ctx.closePath();
         ctx.fill();
       }
@@ -123,9 +123,9 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
         const hr = Math.round(5 * vpr);
         const handles = [
           [left, top],
-          [left + w, top],
-          [left, top + h],
-          [left + w, top + h],
+          [left + width, top],
+          [left, top + height],
+          [left + width, top + height],
         ];
         ctx.fillStyle = COLOR_LABEL_TEXT;
         ctx.strokeStyle = COLOR_HANDLE_STROKE;
@@ -139,17 +139,17 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
       }
 
       // Label box above top edge
-      const m = this._drawing.metrics;
+      const metrics = this._drawing.metrics;
       const decimals = this._decimals;
 
-      const priceStr = m.priceChange >= 0
-        ? `+${m.priceChange.toFixed(decimals)}`
-        : m.priceChange.toFixed(decimals);
-      const pctStr = m.pctChange >= 0
-        ? `(+${m.pctChange.toFixed(2)}%)`
-        : `(${m.pctChange.toFixed(2)}%)`;
+      const priceStr = metrics.priceChange >= 0
+        ? `+${metrics.priceChange.toFixed(decimals)}`
+        : metrics.priceChange.toFixed(decimals);
+      const pctStr = metrics.pctChange >= 0
+        ? `(+${metrics.pctChange.toFixed(2)}%)`
+        : `(${metrics.pctChange.toFixed(2)}%)`;
       const line1 = `${priceStr} ${pctStr}`;
-      const line2 = `${m.barCount} bars, ${m.timeSpan}`;
+      const line2 = `${metrics.barCount} bars, ${metrics.timeSpan}`;
       const line3 = `Vol ${formatVolume(m.volumeSum)}`;
 
       const fontFamily = FONT_FAMILY;

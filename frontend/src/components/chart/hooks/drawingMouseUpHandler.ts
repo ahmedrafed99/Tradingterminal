@@ -57,10 +57,10 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     }
     // Recompute ruler metrics after move
     if (state.drawingDrag.type === 'ruler' && state.drawingDragOccurred) {
-      const d = useStore.getState().drawings.find((dd) => dd.id === state.drawingDrag!.drawingId);
-      if (d && d.type === 'ruler') {
-        const metrics = computeRulerMetrics(refs.bars.current, d.p1, d.p2, contract?.tickSize ?? 0);
-        useStore.getState().updateDrawing(d.id, { metrics });
+      const rulerDrawing = useStore.getState().drawings.find((dd) => dd.id === state.drawingDrag!.drawingId);
+      if (rulerDrawing && rulerDrawing.type === 'ruler') {
+        const metrics = computeRulerMetrics(refs.bars.current, rulerDrawing.p1, rulerDrawing.p2, contract?.tickSize ?? 0);
+        useStore.getState().updateDrawing(rulerDrawing.id, { metrics });
       }
     }
     refs.crosshairLabel.current?.suppress(false);

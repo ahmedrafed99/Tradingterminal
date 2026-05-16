@@ -321,43 +321,43 @@ class RulerDragPreviewRenderer implements IPrimitivePaneRenderer {
     target.useMediaCoordinateSpace(({ context: ctx }) => {
       const left = Math.min(this._x1, this._x2);
       const top = Math.min(this._y1, this._y2);
-      const w = Math.abs(this._x2 - this._x1);
-      const h = Math.abs(this._y2 - this._y1);
+      const width = Math.abs(this._x2 - this._x1);
+      const height = Math.abs(this._y2 - this._y1);
 
-      if (w < 1 && h < 1) return;
+      if (width < 1 && height < 1) return;
 
       // Determine color based on direction
-      const m = this._metrics;
-      const isNegative = m ? m.priceChange < 0 : false;
+      const metrics = this._metrics;
+      const isNegative = metrics ? metrics.priceChange < 0 : false;
       const rectRgb = isNegative ? '211, 47, 47' : '41, 98, 255'; // #d32f2f or #2962ff
       const labelRgb = isNegative ? '139, 34, 50' : '41, 98, 255'; // #8b2232 or #2962ff
 
       // Semi-transparent filled rectangle (no border)
       ctx.fillStyle = `rgba(${rectRgb}, 0.25)`;
-      ctx.fillRect(left, top, w, h);
+      ctx.fillRect(left, top, width, height);
 
       // Crossing single-direction arrows inside rectangle (touching edges)
       const arrowColor = `rgba(${rectRgb}, 0.5)`;
       const headSize = 5;
-      const cx = left + w / 2;
-      const cy = top + h / 2;
+      const cx = left + width / 2;
+      const cy = top + height / 2;
 
       ctx.strokeStyle = arrowColor;
       ctx.fillStyle = arrowColor;
       ctx.lineWidth = 1.5;
 
       // Vertical arrow: up for positive, down for negative
-      if (h > headSize * 3) {
+      if (height > headSize * 3) {
         ctx.beginPath();
         ctx.moveTo(cx, top);
-        ctx.lineTo(cx, top + h);
+        ctx.lineTo(cx, top + height);
         ctx.stroke();
         if (isNegative) {
           // Points down (bottom edge)
           ctx.beginPath();
-          ctx.moveTo(cx, top + h);
-          ctx.lineTo(cx - headSize, top + h - headSize);
-          ctx.lineTo(cx + headSize, top + h - headSize);
+          ctx.moveTo(cx, top + height);
+          ctx.lineTo(cx - headSize, top + height - headSize);
+          ctx.lineTo(cx + headSize, top + height - headSize);
           ctx.closePath();
           ctx.fill();
         } else {
@@ -372,32 +372,32 @@ class RulerDragPreviewRenderer implements IPrimitivePaneRenderer {
       }
 
       // Horizontal arrow: always left to right (time direction)
-      if (w > headSize * 3) {
+      if (width > headSize * 3) {
         ctx.beginPath();
         ctx.moveTo(left, cy);
-        ctx.lineTo(left + w, cy);
+        ctx.lineTo(left + width, cy);
         ctx.stroke();
         // Arrowhead at right edge
         ctx.beginPath();
-        ctx.moveTo(left + w, cy);
-        ctx.lineTo(left + w - headSize, cy - headSize);
-        ctx.lineTo(left + w - headSize, cy + headSize);
+        ctx.moveTo(left + width, cy);
+        ctx.lineTo(left + width - headSize, cy - headSize);
+        ctx.lineTo(left + width - headSize, cy + headSize);
         ctx.closePath();
         ctx.fill();
       }
 
       // Label box with metrics
-      if (!m) return;
+      if (!metrics) return;
 
-      const priceStr = m.priceChange >= 0
-        ? `+${m.priceChange.toFixed(this._decimals)}`
-        : m.priceChange.toFixed(this._decimals);
-      const pctStr = m.pctChange >= 0
-        ? `(+${m.pctChange.toFixed(2)}%)`
-        : `(${m.pctChange.toFixed(2)}%)`;
+      const priceStr = metrics.priceChange >= 0
+        ? `+${metrics.priceChange.toFixed(this._decimals)}`
+        : metrics.priceChange.toFixed(this._decimals);
+      const pctStr = metrics.pctChange >= 0
+        ? `(+${metrics.pctChange.toFixed(2)}%)`
+        : `(${metrics.pctChange.toFixed(2)}%)`;
       const line1 = `${priceStr} ${pctStr}`;
-      const line2 = `${m.barCount} bars, ${m.timeSpan}`;
-      const line3 = `Vol ${formatVolume(m.volumeSum)}`;
+      const line2 = `${metrics.barCount} bars, ${metrics.timeSpan}`;
+      const line3 = `Vol ${formatVolume(metrics.volumeSum)}`;
 
       const fontFamily = FONT_FAMILY;
       const fontSize = 12;
@@ -408,19 +408,19 @@ class RulerDragPreviewRenderer implements IPrimitivePaneRenderer {
       const boldFont = `bold ${fontSize}px ${fontFamily}`;
       const normalFont = `${fontSize}px ${fontFamily}`;
       ctx.font = boldFont;
-      const w1 = ctx.measureText(line1).width;
+      const line1Width = ctx.measureText(line1).width;
       ctx.font = normalFont;
-      const w2 = ctx.measureText(line2).width;
-      const w3 = ctx.measureText(line3).width;
-      const maxTextW = Math.max(w1, w2, w3);
+      const line2Width = ctx.measureText(line2).width;
+      const line3Width = ctx.measureText(line3).width;
+      const maxTextW = Math.max(line1Width, line2Width, line3Width);
 
       const boxW = maxTextW + padH * 2;
       const boxH = lineHeight * 3 + padV * 2;
-      const boxX = left + w / 2 - boxW / 2;
+      const boxX = left + width / 2 - boxW / 2;
 
       const gap = 6;
       let boxY = top - boxH - gap;
-      if (boxY < 0) boxY = top + h + gap;
+      if (boxY < 0) boxY = top + height + gap;
 
       // Background with rounded corners
       const radius = 4;
@@ -688,19 +688,19 @@ class SelectionRectRenderer implements IPrimitivePaneRenderer {
     target.useMediaCoordinateSpace(({ context: ctx }) => {
       const left = Math.min(this._x1, this._x2);
       const top = Math.min(this._y1, this._y2);
-      const w = Math.abs(this._x2 - this._x1);
-      const h = Math.abs(this._y2 - this._y1);
-      if (w < 1 && h < 1) return;
+      const width = Math.abs(this._x2 - this._x1);
+      const height = Math.abs(this._y2 - this._y1);
+      if (width < 1 && height < 1) return;
 
       // Semi-transparent fill
       ctx.fillStyle = 'rgba(41, 98, 255, 0.08)';
-      ctx.fillRect(left, top, w, h);
+      ctx.fillRect(left, top, width, height);
 
       // Dashed border
       ctx.strokeStyle = 'rgba(41, 98, 255, 0.6)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 3]);
-      ctx.strokeRect(left, top, w, h);
+      ctx.strokeRect(left, top, width, height);
       ctx.setLineDash([]);
     });
   }

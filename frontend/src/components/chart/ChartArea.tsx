@@ -139,8 +139,8 @@ export function ChartArea() {
         const sourcePrice = leftSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
           const rightRange = rightChart.timeScale().getVisibleRange();
-          const t = param.time as number;
-          if (rightRange && (t < (rightRange.from as number) || t > (rightRange.to as number))) {
+          const barTime = param.time as number;
+          if (rightRange && (barTime < (rightRange.from as number) || barTime > (rightRange.to as number))) {
             clearingRight = true;
             rightChart.clearCrosshairPosition();
             rightRef.current?.setCrosshairPrice(null);
@@ -182,8 +182,8 @@ export function ChartArea() {
         const sourcePrice = rightSeries.coordinateToPrice(param.point.y);
         if (sourcePrice != null) {
           const leftRange = leftChart.timeScale().getVisibleRange();
-          const t = param.time as number;
-          if (leftRange && (t < (leftRange.from as number) || t > (leftRange.to as number))) {
+          const barTime = param.time as number;
+          if (leftRange && (barTime < (leftRange.from as number) || barTime > (leftRange.to as number))) {
             clearingLeft = true;
             leftChart.clearCrosshairPosition();
             leftRef.current?.setCrosshairPrice(null);

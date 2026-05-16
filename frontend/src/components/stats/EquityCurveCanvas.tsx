@@ -37,15 +37,15 @@ const fmtTimePart = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_Yo
 
 /** Pre-compute date labels from exitTimes — call once via useMemo, not per frame. */
 export function precomputeTimeLabels(exitTimes: string[]): ExitTimeLabel[] {
-  return exitTimes.map((t) => {
-    if (!t) return null!;
-    const d = new Date(t);
-    const dateKey = fmtDateKey.format(d);
+  return exitTimes.map((exitTimeStr) => {
+    if (!exitTimeStr) return null!;
+    const exitDate = new Date(exitTimeStr);
+    const dateKey = fmtDateKey.format(exitDate);
     return {
-      sub: `${fmtDatePart.format(d)}, ${fmtTimePart.format(d)}`,
+      sub: `${fmtDatePart.format(exitDate)}, ${fmtTimePart.format(exitDate)}`,
       dateKey,
-      day: fmtDay.format(d),
-      month: fmtMonth.format(d),
+      day: fmtDay.format(exitDate),
+      month: fmtMonth.format(exitDate),
       monthNum: parseInt(dateKey.slice(5, 7)),
       year: parseInt(dateKey.slice(0, 4)),
     };
@@ -68,7 +68,7 @@ const TEXT_COLOR = COLOR_TEXT_MUTED;
 
 export function drawEquityCurve(
   ctx: CanvasRenderingContext2D,
-  w: number,
+  canvasWidth: number,
   curve: number[],
   hitPoints: HitPoint[],
   cfg: EquityCurveConfig,
@@ -81,13 +81,13 @@ export function drawEquityCurve(
     ctx.fillStyle = TEXT_COLOR;
     ctx.font = FONT;
     ctx.textAlign = 'center';
-    ctx.fillText('No trades', w / 2, height / 2);
+    ctx.fillText('No trades', canvasWidth / 2, height / 2);
     return;
   }
 
-  const values = progress < 1 ? curve.map((v) => v * progress) : curve;
+  const values = progress < 1 ? curve.map((point) => point * progress) : curve;
 
-  const plotW = w - pad.left - pad.right;
+  const plotW = canvasWidth - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
   const minY = Math.min(0, ...curve);
   const maxY = Math.max(0, ...curve);
@@ -100,7 +100,7 @@ export function drawEquityCurve(
   const xStep = curve.length > 1 ? usedW / (curve.length - 1) : 0;
   const xOffset = pad.left + (plotW - usedW) / 2;
   const toX = (i: number) => xOffset + i * xStep;
-  const toY = (v: number) => pad.top + plotH - ((v - minY) / rangeY) * plotH;
+  const toY = (yValue: number) => pad.top + plotH - ((yValue - minY) / rangeY) * plotH;
 
   // Grid
   const step = niceStep(rangeY, gridTargetLines);
@@ -110,13 +110,13 @@ export function drawEquityCurve(
   ctx.font = FONT;
   ctx.textAlign = 'right';
   const start = Math.ceil(minY / step) * step;
-  for (let v = start; v <= maxY; v += step) {
-    const y = toY(v);
+  for (let gridValue = start; gridValue <= maxY; gridValue += step) {
+    const y = toY(gridValue);
     ctx.beginPath();
     ctx.moveTo(pad.left, y);
-    ctx.lineTo(w - pad.right, y);
+    ctx.lineTo(canvasWidth - pad.right, y);
     ctx.stroke();
-    ctx.fillText(`${v.toFixed(0)}$`, pad.left - 8, y + 4);
+    ctx.fillText(`${gridValue.toFixed(0)}$`, pad.left - 8, y + 4);
   }
 
   // Zero line
@@ -175,8 +175,8 @@ export function drawEquityCurve(
       ctx.strokeStyle = curr >= 0 ? COLOR_BUY : COLOR_SELL;
       ctx.stroke();
     } else {
-      const t = prev / (prev - curr);
-      const crossX = toX(i - 1) + t * (toX(i) - toX(i - 1));
+      const crossoverT = prev / (prev - curr);
+      const crossX = toX(i - 1) + crossoverT * (toX(i) - toX(i - 1));
       ctx.beginPath();
       ctx.moveTo(toX(i - 1), toY(prev));
       ctx.lineTo(crossX, zeroY);
@@ -314,8 +314,8 @@ export function EquityCurveCanvas({ curve, exitTimes = [], title, config, animat
       const duration = 700;
       const frame = (now: number) => {
         const elapsed = now - startTime;
-        const t = Math.min(elapsed / duration, 1);
-        const progress = 1 - Math.pow(1 - t, 3);
+        const animationT = Math.min(elapsed / duration, 1);
+        const progress = 1 - Math.pow(1 - animationT, 3);
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         ctx.save();

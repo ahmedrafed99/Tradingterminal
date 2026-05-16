@@ -46,10 +46,10 @@ export function OrderTypeTabs() {
             inputMode="decimal"
             value={limitPrice ?? ''}
             onChange={(e) => {
-              const v = e.target.value;
-              if (v === '' || v === '-') { setLimitPrice(null); return; }
-              const n = Number(v);
-              if (!isNaN(n)) setLimitPrice(n);
+              const inputText = e.target.value;
+              if (inputText === '' || inputText === '-') { setLimitPrice(null); return; }
+              const numericPrice = Number(inputText);
+              if (!isNaN(numericPrice)) setLimitPrice(numericPrice);
             }}
             placeholder="Enter price"
             className="w-full bg-(--color-input) border border-(--color-border) rounded py-2.5 text-sm text-white text-center

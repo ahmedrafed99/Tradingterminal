@@ -96,20 +96,20 @@ export function ConditionModal() {
   useEffect(() => {
     if (!conditionModalOpen) return;
     if (editingConditionId) {
-      const c = conditions.find((x) => x.id === editingConditionId);
-      if (c) {
-        setConditionType(c.conditionType);
-        setTriggerPrice(String(c.triggerPrice));
-        setTimeframe(c.timeframe);
-        setOrderSide(c.orderSide);
-        setOrderType(c.orderType);
-        setOrderPrice(c.orderPrice != null ? String(c.orderPrice) : '');
-        setSize(String(c.orderSize));
-        setBracketEnabled(c.bracket?.enabled ?? false);
+      const condition = conditions.find((x) => x.id === editingConditionId);
+      if (condition) {
+        setConditionType(condition.conditionType);
+        setTriggerPrice(String(condition.triggerPrice));
+        setTimeframe(condition.timeframe);
+        setOrderSide(condition.orderSide);
+        setOrderType(condition.orderType);
+        setOrderPrice(condition.orderPrice != null ? String(condition.orderPrice) : '');
+        setSize(String(condition.orderSize));
+        setBracketEnabled(condition.bracket?.enabled ?? false);
         setSelectedPresetId(null);
-        setSlPoints(c.bracket?.sl ? String(c.bracket.sl.points) : '');
-        setTpPoints(c.bracket?.tp?.[0] ? String(c.bracket.tp[0].points) : '');
-        setLabel(c.label ?? '');
+        setSlPoints(condition.bracket?.sl ? String(condition.bracket.sl.points) : '');
+        setTpPoints(condition.bracket?.tp?.[0] ? String(condition.bracket.tp[0].points) : '');
+        setLabel(condition.label ?? '');
       }
     } else {
       setConditionType('closes_above');

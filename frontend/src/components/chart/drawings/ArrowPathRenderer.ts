@@ -18,9 +18,9 @@ function toPixelPoints(
   const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
 
   const result: { x: number; y: number }[] = [];
-  for (const p of drawing.points) {
-    const x = anchorX + p.barOffset * barSpacing;
-    const y = series.priceToCoordinate(p.price);
+  for (const point of drawing.points) {
+    const x = anchorX + point.barOffset * barSpacing;
+    const y = series.priceToCoordinate(point.price);
     if (y === null) return null;  // all points must be valid for arrow path
     result.push({ x, y });
   }

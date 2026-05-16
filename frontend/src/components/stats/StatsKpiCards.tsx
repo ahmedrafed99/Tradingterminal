@@ -284,9 +284,9 @@ export function StatsKpiCards({ stats }: { stats: TradeStats }) {
                   ? <AnimatedDollar value={stats.bestTrade.totalNet} fontSize={20} color={stats.bestTrade.totalNet >= 0 ? 'var(--color-buy)' : 'var(--color-sell)'} />
                   : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
               ) : (() => {
-                const p = tradePoints(stats.bestTradeByPoints);
-                return p != null
-                  ? <AnimatedNumber value={p} fontSize={20} color={p >= 0 ? 'var(--color-buy)' : 'var(--color-sell)'} prefix={p >= 0 ? '+' : ''} suffix=" pts" />
+                const points = tradePoints(stats.bestTradeByPoints);
+                return points != null
+                  ? <AnimatedNumber value={points} fontSize={20} color={points >= 0 ? 'var(--color-buy)' : 'var(--color-sell)'} prefix={points >= 0 ? '+' : ''} suffix=" pts" />
                   : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>;
               })()}
               {(bestWorstMode === '$' ? stats.bestTrade : stats.bestTradeByPoints) && (
@@ -303,9 +303,9 @@ export function StatsKpiCards({ stats }: { stats: TradeStats }) {
                   ? <AnimatedDollar value={stats.worstTrade.totalNet} fontSize={20} color="var(--color-sell)" />
                   : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>
               ) : (() => {
-                const p = tradePoints(stats.worstTradeByPoints);
-                return p != null
-                  ? <AnimatedNumber value={p} fontSize={20} color="var(--color-sell)" prefix={p > 0 ? '+' : ''} suffix=" pts" />
+                const points = tradePoints(stats.worstTradeByPoints);
+                return points != null
+                  ? <AnimatedNumber value={points} fontSize={20} color="var(--color-sell)" prefix={points > 0 ? '+' : ''} suffix=" pts" />
                   : <span className="font-semibold" style={{ fontSize: 20, color: 'var(--color-text-muted)' }}>—</span>;
               })()}
               {(bestWorstMode === '$' ? stats.worstTrade : stats.worstTradeByPoints) && (
