@@ -212,6 +212,40 @@
       ]
     }
     ,{
+      "name": "TimeframePicker",
+      "description": "Shared timeframe selector used by both ChartToolbar and StrategyLabModal. Renders pinned shortcut buttons + chevron trigger + grouped dropdown (Seconds/Minutes/Hours/Days). Pinning, custom timeframes, and trash buttons are all optional — omit those props for a simple picker.",
+      "keywords": ["timeframe", "picker", "dropdown", "seconds", "minutes", "hours", "days", "pin", "bookmark", "custom", "shared"],
+      "files": [
+        "frontend/src/components/shared/TimeframePicker.tsx"
+      ],
+      "dependencies": [
+        "TIMEFRAMES (default preset list from useStore)",
+        "SpinnerInput (custom TF number input)",
+        "useClickOutside"
+      ],
+      "notes": [
+        "pinnedTimeframes + onPin + onUnpin all required together to enable pinning — omit all three for simple mode (StrategyLabModal)",
+        "onAddCustom + onRemoveCustom both required together to show custom input section",
+        "StarIcon is exported — reused by InstrumentSelectorPopover and similar components",
+        "Trigger button style differs: no border/bg when hasPinning (ChartToolbar inline style), bordered when standalone (StrategyLabModal)"
+      ]
+    }
+    ,{
+      "name": "SymbolPickerModal",
+      "description": "Shared symbol search modal. Same visual as InstrumentSelectorPopover (header, search input, item list). Accepts generic SymbolItem[] so any data source can use it. Currently used by StrategyLabModal for backtest symbol selection.",
+      "keywords": ["symbol", "picker", "search", "instrument", "modal", "shared"],
+      "files": [
+        "frontend/src/components/shared/SymbolPickerModal.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "SymbolItem: { key, name, exchange, description? } — key must be unique, used for selectedKey comparison",
+        "Client-side search filters by name and exchange",
+        "Active item highlighted with --color-warning text (matches InstrumentSelectorPopover active style)",
+        "InstrumentSelectorPopover has its own complex implementation (live search, bookmarks, categories) — SymbolPickerModal is for simpler static lists"
+      ]
+    }
+    ,{
       "name": "DatePickerModal",
       "description": "Shared calendar modal used by both GoToModal (single date + time) and DateRangePicker (from/to range). Handles modal shell, month nav, and calendar grid. mode='single' shows date/time inputs + today highlight + Cancel/Confirm footer. mode='range' shows From/To selector buttons + range highlight + Done footer.",
       "keywords": ["date picker", "calendar", "modal", "single", "range", "from", "to", "shared"],

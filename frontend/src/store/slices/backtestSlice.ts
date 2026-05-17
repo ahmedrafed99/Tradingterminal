@@ -1,6 +1,11 @@
 import type { Timeframe } from './instrumentSlice';
 import type { BacktestResult, EquityPoint } from '../../services/backtestService';
 
+export interface StrategyEntry {
+  name: string;
+  code: string;
+}
+
 export interface BacktestSlice {
   backtestOpen: boolean;
   setBacktestOpen: (open: boolean) => void;
@@ -20,8 +25,14 @@ export interface BacktestSlice {
   setBacktestTimeframe: (tf: Timeframe) => void;
 
   // Strategy
+  backtestStrategyName: string;
   backtestStrategyCode: string;
+  backtestStrategies: StrategyEntry[];
   setBacktestStrategyCode: (code: string) => void;
+  switchBacktestStrategy: (name: string) => void;
+  addBacktestStrategy: () => void;
+  deleteBacktestStrategy: (name: string) => void;
+  renameBacktestStrategy: (oldName: string, newName: string) => void;
 
   // Execution state
   backtestRunning: boolean;
@@ -63,6 +74,8 @@ if (position === 0) {
 }
 `;
 
+const DEFAULT_STRATEGY_NAME = 'Bollinger Bands';
+
 export function createBacktestSlice(set: (fn: (s: BacktestSlice) => Partial<BacktestSlice>) => void): BacktestSlice {
   return {
     backtestOpen: false,
@@ -79,8 +92,51 @@ export function createBacktestSlice(set: (fn: (s: BacktestSlice) => Partial<Back
     backtestTimeframe: { unit: 2, unitNumber: 5, label: '5m' },
     setBacktestTimeframe: (tf) => set(() => ({ backtestTimeframe: tf })),
 
+    backtestStrategyName: DEFAULT_STRATEGY_NAME,
     backtestStrategyCode: DEFAULT_STRATEGY,
-    setBacktestStrategyCode: (code) => set(() => ({ backtestStrategyCode: code })),
+    backtestStrategies: [{ name: DEFAULT_STRATEGY_NAME, code: DEFAULT_STRATEGY }],
+
+    setBacktestStrategyCode: (code) => set((s) => ({
+      backtestStrategyCode: code,
+      backtestStrategies: s.backtestStrategies.map((st) =>
+        st.name === s.backtestStrategyName ? { ...st, code } : st
+      ),
+    })),
+
+    switchBacktestStrategy: (name) => set((s) => {
+      const target = s.backtestStrategies.find((st) => st.name === name);
+      if (!target) return {};
+      return { backtestStrategyName: name, backtestStrategyCode: target.code };
+    }),
+
+    addBacktestStrategy: () => set((s) => {
+      let n = 1;
+      while (s.backtestStrategies.some((st) => st.name === `Strategy ${n}`)) n++;
+      const name = `Strategy ${n}`;
+      return {
+        backtestStrategies: [...s.backtestStrategies, { name, code: '' }],
+        backtestStrategyName: name,
+        backtestStrategyCode: '',
+      };
+    }),
+
+    deleteBacktestStrategy: (name) => set((s) => {
+      if (s.backtestStrategies.length <= 1) return {};
+      const filtered = s.backtestStrategies.filter((st) => st.name !== name);
+      if (s.backtestStrategyName !== name) return { backtestStrategies: filtered };
+      return {
+        backtestStrategies: filtered,
+        backtestStrategyName: filtered[0].name,
+        backtestStrategyCode: filtered[0].code,
+      };
+    }),
+
+    renameBacktestStrategy: (oldName, newName) => set((s) => ({
+      backtestStrategies: s.backtestStrategies.map((st) =>
+        st.name === oldName ? { ...st, name: newName } : st
+      ),
+      backtestStrategyName: s.backtestStrategyName === oldName ? newName : s.backtestStrategyName,
+    })),
 
     backtestRunning: false,
     backtestStatus: '',

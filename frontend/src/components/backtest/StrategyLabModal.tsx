@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useStore, TIMEFRAMES } from '../../store/useStore';
-import type { Timeframe } from '../../store/useStore';
+import { useClickOutside } from '../../hooks/useClickOutside';
+import { useStore } from '../../store/useStore';
 import type { Contract } from '../../services/marketDataService';
 import { CandlestickChart } from '../chart/CandlestickChart';
 import { EquityCurveChart, type EquityCurveHandle } from './EquityCurveChart';
 import { DateRangePicker } from './DateRangePicker';
+import { SymbolPickerModal } from '../shared/SymbolPickerModal';
+import { TimeframePicker } from '../shared/TimeframePicker';
 import { backtestService, type BacktestResult, type SymbolEntry } from '../../services/backtestService';
-import { Z, RADIUS, SHADOW, FONT_SIZE } from '../../constants/layout';
+import { Z, RADIUS, SHADOW, FONT_SIZE, FONT_FAMILY } from '../../constants/layout';
 import { SECTION_LABEL } from '../../constants/styles';
 
 // ---------------------------------------------------------------------------
@@ -90,8 +92,18 @@ export function StrategyLabModal() {
   const setDateRange        = useStore((s) => s.setBacktestDateRange);
   const timeframe           = useStore((s) => s.backtestTimeframe);
   const setTimeframe        = useStore((s) => s.setBacktestTimeframe);
+  const pinnedTimeframes    = useStore((s) => s.pinnedTimeframes);
+  const customTimeframes    = useStore((s) => s.customTimeframes);
+  const pinTimeframe        = useStore((s) => s.pinTimeframe);
+  const unpinTimeframe      = useStore((s) => s.unpinTimeframe);
+  const addCustomTimeframe  = useStore((s) => s.addCustomTimeframe);
+  const removeCustomTimeframe = useStore((s) => s.removeCustomTimeframe);
+  const strategyName        = useStore((s) => s.backtestStrategyName);
   const strategyCode        = useStore((s) => s.backtestStrategyCode);
+  const strategies          = useStore((s) => s.backtestStrategies);
   const setStrategyCode     = useStore((s) => s.setBacktestStrategyCode);
+  const switchStrategy      = useStore((s) => s.switchBacktestStrategy);
+  const addStrategy         = useStore((s) => s.addBacktestStrategy);
   const running             = useStore((s) => s.backtestRunning);
   const setRunning          = useStore((s) => s.setBacktestRunning);
   const status              = useStore((s) => s.backtestStatus);
@@ -99,16 +111,20 @@ export function StrategyLabModal() {
   const result              = useStore((s) => s.backtestResult);
   const setResult           = useStore((s) => s.setBacktestResult);
 
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [activeTab, setActiveTab]           = useState<'curve' | 'trades'>('curve');
-  const [editorOpen, setEditorOpen]         = useState(false);
-  const [isEmpty, setIsEmpty]               = useState(true);
-  const [symbols, setSymbols]               = useState<SymbolEntry[]>([]);
-  const [symbolMenuOpen, setSymbolMenuOpen] = useState(false);
-  const [availableRange, setAvailableRange] = useState<{ from: string; to: string } | null>(null);
+  const [datePickerOpen, setDatePickerOpen]         = useState(false);
+  const [activeTab, setActiveTab]                   = useState<'curve' | 'trades'>('curve');
+  const [editorOpen, setEditorOpen]                 = useState(false);
+  const [isEmpty, setIsEmpty]                       = useState(true);
+  const [symbols, setSymbols]                       = useState<SymbolEntry[]>([]);
+  const [symbolMenuOpen, setSymbolMenuOpen]         = useState(false);
+  const [availableRange, setAvailableRange]         = useState<{ from: string; to: string } | null>(null);
+  const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
 
-  const abortRef    = useRef<(() => void) | null>(null);
-  const equityRef   = useRef<EquityCurveHandle | null>(null);
+  const abortRef              = useRef<(() => void) | null>(null);
+  const equityRef             = useRef<EquityCurveHandle | null>(null);
+  const strategyDropdownRef   = useRef<HTMLDivElement>(null);
+
+  useClickOutside(strategyDropdownRef, strategyDropdownOpen, () => setStrategyDropdownOpen(false));
 
   // Load available symbols on open
   useEffect(() => {
@@ -173,11 +189,6 @@ export function StrategyLabModal() {
 
   if (!open) return null;
 
-  const pinnedTfs: Timeframe[] = TIMEFRAMES.filter(tf =>
-    [{ u: 2, n: 1 }, { u: 2, n: 3 }, { u: 2, n: 5 }, { u: 2, n: 15 }, { u: 2, n: 30 }, { u: 3, n: 1 }, { u: 3, n: 4 }, { u: 4, n: 1 }]
-      .some(x => x.u === tf.unit && x.n === tf.unitNumber)
-  );
-
   const contract = getContract(exchange, symbol);
 
   return (
@@ -190,58 +201,18 @@ export function StrategyLabModal() {
         className="flex items-center gap-3 border-b border-(--color-border) shrink-0"
         style={{ padding: '10px 16px', background: 'var(--color-panel)' }}
       >
-        {/* Title */}
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', marginRight: 4 }}>Strategy Lab</span>
-
         {/* Symbol selector */}
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={() => setSymbolMenuOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-xs font-medium hover:bg-(--color-border) transition-colors rounded-md"
-            style={{ padding: '5px 10px', background: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-          >
-            <span style={{ color: 'var(--color-text-muted)', marginRight: 2 }}>{exchange}</span>
-            {symbol}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: 0.5 }}>
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
-
-          {symbolMenuOpen && (
-            <div
-              className="absolute top-full mt-1 rounded-lg border border-(--color-border) overflow-hidden"
-              style={{ background: 'var(--color-surface)', boxShadow: SHADOW.LG, minWidth: 160, zIndex: 10 }}
-              onMouseLeave={() => setSymbolMenuOpen(false)}
-            >
-              {symbols.length === 0 && (
-                <div style={{ padding: '10px 14px', fontSize: 11, color: 'var(--color-text-muted)' }}>
-                  No data extracted yet.<br />Run: npm run extract-ticks
-                </div>
-              )}
-              {symbols.map((s) => {
-                const active = s.exchange === exchange && s.symbol === symbol;
-                return (
-                  <button
-                    key={`${s.exchange}:${s.symbol}`}
-                    onClick={() => { setInstrument(s.exchange, s.symbol); setSymbolMenuOpen(false); }}
-                    className="w-full text-left flex items-center gap-2 transition-colors"
-                    style={{
-                      padding: '8px 14px',
-                      fontSize: 12,
-                      background: active ? 'var(--color-text)' : 'transparent',
-                      color: active ? 'var(--color-surface)' : 'var(--color-text)',
-                      cursor: 'pointer',
-                      border: 'none',
-                    }}
-                  >
-                    <span style={{ opacity: 0.6, fontSize: 10 }}>{s.exchange}</span>
-                    <span style={{ fontWeight: 500 }}>{s.symbol}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        <button
+          onClick={() => setSymbolMenuOpen(true)}
+          className="flex items-center gap-1.5 text-xs font-medium hover:bg-(--color-border) transition-colors rounded-md"
+          style={{ padding: '5px 10px', background: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+        >
+          <span style={{ color: 'var(--color-text-muted)', marginRight: 2 }}>{exchange}</span>
+          {symbol}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: 0.5 }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
 
         <div className="w-px self-stretch bg-(--color-border)" style={{ margin: '0 4px' }} />
 
@@ -258,26 +229,17 @@ export function StrategyLabModal() {
           {from} → {to}
         </button>
 
-        {/* Timeframe buttons */}
-        <div className="flex items-center gap-0.5" style={{ background: 'var(--color-input)', border: '1px solid var(--color-border)', borderRadius: RADIUS.LG, padding: '2px' }}>
-          {pinnedTfs.map((tf) => {
-            const active = tf.unit === timeframe.unit && tf.unitNumber === timeframe.unitNumber;
-            return (
-              <button
-                key={tf.label}
-                onClick={() => setTimeframe(tf)}
-                className="text-xs font-medium transition-colors rounded"
-                style={{
-                  padding: '3px 8px',
-                  background: active ? 'var(--color-text)' : 'transparent',
-                  color: active ? 'var(--color-bg)' : 'var(--color-text)',
-                }}
-              >
-                {tf.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Timeframe picker */}
+        <TimeframePicker
+          value={timeframe}
+          onChange={setTimeframe}
+          pinnedTimeframes={pinnedTimeframes}
+          onPin={pinTimeframe}
+          onUnpin={unpinTimeframe}
+          customTimeframes={customTimeframes}
+          onAddCustom={addCustomTimeframe}
+          onRemoveCustom={removeCustomTimeframe}
+        />
 
         <div className="flex-1" />
 
@@ -304,15 +266,23 @@ export function StrategyLabModal() {
         {/* Run / Stop */}
         <button
           onClick={handleRun}
-          className="flex items-center gap-1.5 text-xs font-semibold rounded-md transition-all"
           style={{
-            padding: '6px 14px',
-            background: running ? 'var(--color-sell)' : 'var(--color-accent)',
-            color: '#fff',
+            background: running ? 'var(--color-sell)' : 'var(--color-label-close)',
             border: 'none',
+            color: running ? '#fff' : 'var(--color-label-text)',
+            fontSize: 13,
+            fontFamily: FONT_FAMILY,
             cursor: 'pointer',
-            boxShadow: running ? undefined : SHADOW.SM,
+            padding: '6px 20px',
+            borderRadius: RADIUS.LG,
+            fontWeight: 500,
+            transition: 'background var(--transition-fast)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
           }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = running ? 'var(--color-sell)' : 'var(--color-label-close-hover)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = running ? 'var(--color-sell)' : 'var(--color-label-close)'; }}
         >
           {running ? (
             <><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>Stop</>
@@ -334,52 +304,23 @@ export function StrategyLabModal() {
       </div>
 
       {/* ── Main content ── */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+      <div className="flex-1 flex flex-row min-h-0">
 
-        {/* Chart */}
-        <div style={{ height: editorOpen ? 'calc(60vh - 48px)' : 'calc(70vh - 48px)', minHeight: 300, position: 'relative', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-          <CandlestickChart
-            chartId="backtest"
-            contract={contract}
-            timeframe={timeframe}
-            backtestConfig={{ exchange, symbol, dateFrom: from, dateTo: to }}
-          />
-        </div>
+        {/* ── Left: chart + results ── */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
 
-        {/* ── Script editor (collapsible) ── */}
-        {editorOpen && (
-          <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
-            <div className="flex items-center gap-2" style={{ padding: '8px 16px', background: 'var(--color-panel)' }}>
-              <span className={SECTION_LABEL}>Strategy Script</span>
-              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                Available: bar, prevBars, position, equity, state · Actions: buy(qty), sell(qty), close(), setStop(price), setTarget(price)
-              </span>
-            </div>
-            <textarea
-              value={strategyCode}
-              onChange={(e) => setStrategyCode(e.target.value)}
-              spellCheck={false}
-              style={{
-                width: '100%',
-                height: 200,
-                background: 'var(--color-bg)',
-                color: 'var(--color-text)',
-                border: 'none',
-                borderTop: '1px solid var(--color-border)',
-                outline: 'none',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: 12,
-                padding: '12px 16px',
-                resize: 'vertical',
-                lineHeight: 1.6,
-                boxSizing: 'border-box',
-              }}
+          {/* Chart */}
+          <div style={{ flex: 1, minHeight: 300, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+            <CandlestickChart
+              chartId="backtest"
+              contract={contract}
+              timeframe={timeframe}
+              backtestConfig={{ exchange, symbol, dateFrom: from, dateTo: to }}
             />
           </div>
-        )}
 
-        {/* ── Equity curve + results ── */}
-        <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
+          {/* ── Equity curve + results ── */}
+          <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
 
           {/* Stats row */}
           {result && (
@@ -451,8 +392,106 @@ export function StrategyLabModal() {
               Run a strategy to see the trade log
             </div>
           )}
-        </div>
+          </div>
+        </div>{/* end left column */}
+
+        {/* ── Right sidebar: script editor ── */}
+        {editorOpen && (
+          <div style={{ width: 380, flexShrink: 0, borderLeft: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }}>
+            <div className="flex items-center gap-2" style={{ padding: '8px 16px', background: 'var(--color-panel)', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
+              {/* Strategy name dropdown */}
+              <div ref={strategyDropdownRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setStrategyDropdownOpen((o) => !o)}
+                  className="flex items-center gap-1.5 text-xs font-medium hover:bg-(--color-border) transition-colors rounded-md"
+                  style={{ padding: '5px 10px', background: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                >
+                  {strategyName}
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: 0.5 }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {strategyDropdownOpen && (
+                  <div
+                    className="absolute top-full mt-1 rounded-lg border border-(--color-border) py-1"
+                    style={{ background: 'var(--color-surface)', boxShadow: SHADOW.LG, minWidth: 180, zIndex: Z.DROPDOWN }}
+                  >
+                    {strategies.map((s) => {
+                      const active = s.name === strategyName;
+                      return (
+                        <button
+                          key={s.name}
+                          onClick={() => { switchStrategy(s.name); setStrategyDropdownOpen(false); }}
+                          className="w-full text-left flex items-center rounded-md mx-1.5 transition-colors hover:bg-(--color-hover-row)"
+                          style={{
+                            width: 'calc(100% - 12px)', padding: '6px 10px', fontSize: 12, border: 'none', cursor: 'pointer',
+                            background: active ? 'var(--color-text)' : 'transparent',
+                            color: active ? 'var(--color-surface)' : 'var(--color-text)',
+                            fontWeight: active ? 500 : 400,
+                          }}
+                        >
+                          {s.name}
+                        </button>
+                      );
+                    })}
+                    <div className="mx-1.5 my-1" style={{ borderTop: '1px solid var(--color-border)' }} />
+                    <button
+                      onClick={() => { addStrategy(); setStrategyDropdownOpen(false); }}
+                      className="w-full text-left flex items-center gap-1.5 rounded-md mx-1.5 transition-colors hover:bg-(--color-hover-row)"
+                      style={{ width: 'calc(100% - 12px)', padding: '6px 10px', fontSize: 12, color: 'var(--color-text-muted)', cursor: 'pointer', border: 'none', background: 'transparent' }}
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      New strategy
+                    </button>
+                  </div>
+                )}
+              </div>
+              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                bar · prevBars · position · equity · state
+              </span>
+            </div>
+            <textarea
+              value={strategyCode}
+              onChange={(e) => setStrategyCode(e.target.value)}
+              spellCheck={false}
+              style={{
+                flex: 1,
+                width: '100%',
+                background: 'var(--color-bg)',
+                color: 'var(--color-text)',
+                border: 'none',
+                outline: 'none',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 12,
+                padding: '12px 16px',
+                resize: 'none',
+                lineHeight: 1.6,
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Symbol picker modal */}
+      {symbolMenuOpen && (
+        <SymbolPickerModal
+          items={symbols.map((s) => ({
+            key: `${s.exchange}:${s.symbol}`,
+            name: s.symbol,
+            exchange: s.exchange,
+          }))}
+          selectedKey={`${exchange}:${symbol}`}
+          onSelect={(item) => {
+            const [ex, sym] = item.key.split(':');
+            setInstrument(ex, sym);
+          }}
+          onClose={() => setSymbolMenuOpen(false)}
+          emptyMessage="No data extracted yet. Run: npm run extract-ticks"
+        />
+      )}
 
       {/* Date range picker modal */}
       {datePickerOpen && (
