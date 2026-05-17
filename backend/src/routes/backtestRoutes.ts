@@ -187,8 +187,8 @@ router.post('/run', async (req, res) => {
     const result = await runStrategy(
       exchange, symbol, { unit, unitNumber }, fromMs, toMs,
       strategyCode, initialEquity, takerFee,
-      (point) => send('equity', point),
-      (msg)   => send('status', { message: msg }),
+      (points) => send('equity', points),
+      (msg)    => send('status', { message: msg }),
     );
 
     send('done', result);
@@ -223,9 +223,21 @@ async function runStrategy(
   strategyCode: string,
   initialEquity: number,
   takerFee: number,
-  onEquityPoint: (p: EquityPoint) => void,
+  onEquityBatch: (points: EquityPoint[]) => void,
   onStatus: (msg: string) => void,
 ): Promise<StrategyResult> {
+  // Stream equity points in batches and yield to the event loop between
+  // batches so Node can flush the socket — keeps the UI responsive and
+  // avoids a single fat SSE chunk that the browser's message handler can't
+  // process within one frame.
+  const EQUITY_BATCH_SIZE = 200;
+  let pointBatch: EquityPoint[] = [];
+  const yieldToLoop = () => new Promise<void>((r) => setImmediate(r));
+  const flushBatch = () => {
+    if (pointBatch.length === 0) return;
+    onEquityBatch(pointBatch);
+    pointBatch = [];
+  };
   const trades: Trade[] = [];
   const equityCurve: EquityPoint[] = [];
 
@@ -382,12 +394,18 @@ async function runStrategy(
 
     const point: EquityPoint = { t: bar.t, equity: runningEquity };
     equityCurve.push(point);
-    onEquityPoint(point);
+    pointBatch.push(point);
+    if (pointBatch.length >= EQUITY_BATCH_SIZE) {
+      flushBatch();
+      await yieldToLoop();
+    }
 
     if (runningEquity > peakEquity) peakEquity = runningEquity;
     const dd = (peakEquity - runningEquity) / peakEquity;
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
+
+  flushBatch();
 
   // Close any open position at the final bar's close
   if (position !== 0 && bars.length > 0) {

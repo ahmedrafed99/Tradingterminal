@@ -284,6 +284,7 @@
         "Cell wrapper className defaults to 'px-2 text-center whitespace-nowrap' — override via column.cellClassName when needed (TradesTab uses 'px-3 text-center' historically)",
         "Color/weight should live inside the rendered span, not the wrapper, because the wrapper class is static per column",
         "maxHeight prop enables overflowY:auto only when set — list mode (no scroll) just omits it",
+        "When maxHeight is set, rows are virtualized: only rows in the visible window (+OVERSCAN=8) are mounted, with top/bottom spacer divs preserving scroll height. Row geometry constants ROW_HEIGHT=30 (h-7 inner + 1px outer borders) and HEADER_HEIGHT=33 (h-8 inner + 1px bottom border) MUST stay in sync with the row markup",
         "Does NOT support row grouping/expansion — live TradesTab will need a row-override mechanism if it adopts this"
       ]
     }

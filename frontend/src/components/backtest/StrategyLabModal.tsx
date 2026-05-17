@@ -55,7 +55,7 @@ function getContract(exchange: string, symbol: string): Contract {
 
 // ---------------------------------------------------------------------------
 
-const INITIAL_EQUITY = 10_000;
+const INITIAL_EQUITY = 1_000;
 
 function MetricTile({ label, value, sub, valueColor, subColor }: {
   label: string;
@@ -206,10 +206,11 @@ export function StrategyLabModal() {
         strategyCode,
         takerFee: getContract(exchange, symbol).takerFee ?? WORST_CASE_TAKER_FEE,
       },
-      // Buffer points and flush at most once per animation frame — avoids
-      // O(N²) state churn when streaming tens of thousands of bars.
-      (point) => {
-        equityBufferRef.current.push(point);
+      // Server sends batches of points; coalesce further into one state
+      // update per animation frame to avoid O(N²) React churn.
+      (points) => {
+        const buf = equityBufferRef.current;
+        for (let i = 0; i < points.length; i++) buf.push(points[i]);
         if (equityFlushScheduledRef.current) return;
         equityFlushScheduledRef.current = true;
         requestAnimationFrame(() => {
@@ -415,7 +416,7 @@ export function StrategyLabModal() {
                   background: 'transparent', border: 'none',
                   borderBottomStyle: 'solid',
                   borderBottomWidth: 2,
-                  borderBottomColor: activeTab === tab ? 'var(--color-accent)' : 'transparent',
+                  borderBottomColor: activeTab === tab ? 'var(--color-text)' : 'transparent',
                   cursor: 'pointer',
                 }}
               >

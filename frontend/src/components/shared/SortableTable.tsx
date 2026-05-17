@@ -1,6 +1,13 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from 'react';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { Z } from '../../constants/layout';
+
+// Row geometry — must stay in sync with the row markup below.
+// h-7 inner (28px) + 1px transparent border top/bottom on the outer wrapper.
+const ROW_HEIGHT    = 30;
+// h-8 inner (32px) + 1px bottom border.
+const HEADER_HEIGHT = 33;
+const OVERSCAN      = 8;
 
 export type SortDir = 'asc' | 'desc';
 
@@ -67,8 +74,49 @@ export function SortableTable<T>({
     return indexed;
   }, [rows, columns, sortKey, sortDir]);
 
+  // ── Virtualization ──
+  // Only mount rows in (and just outside) the visible viewport. Saves us
+  // thousands of DOM nodes when the table holds e.g. 1k+ backtest trades.
+  const virtualize = maxHeight !== undefined;
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportH, setViewportH] = useState<number>(
+    typeof maxHeight === 'number' ? maxHeight : 400,
+  );
+
+  useEffect(() => {
+    if (!virtualize) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    setViewportH(el.clientHeight);
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setViewportH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [virtualize]);
+
+  const onScroll = useCallback((e: UIEvent<HTMLDivElement>) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  const total = sortedRows.length;
+  let renderStart = 0;
+  let renderEnd   = total;
+  if (virtualize) {
+    const visibleAreaH = Math.max(0, viewportH - HEADER_HEIGHT);
+    const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT));
+    const endIdx   = Math.min(total, Math.ceil((scrollTop + visibleAreaH) / ROW_HEIGHT));
+    renderStart = Math.max(0, startIdx - OVERSCAN);
+    renderEnd   = Math.min(total, endIdx + OVERSCAN);
+  }
+  const topPad    = renderStart * ROW_HEIGHT;
+  const bottomPad = (total - renderEnd) * ROW_HEIGHT;
+  const visible   = sortedRows.slice(renderStart, renderEnd);
+
   return (
     <div
+      ref={scrollerRef}
+      onScroll={virtualize ? onScroll : undefined}
       className="text-xs"
       style={{
         maxHeight,
@@ -100,8 +148,12 @@ export function SortableTable<T>({
         </div>
       </div>
 
+      {/* Top spacer — preserves scrollbar geometry for un-rendered rows above */}
+      {virtualize && topPad > 0 && <div aria-hidden="true" style={{ height: topPad }} />}
+
       {/* Rows */}
-      {sortedRows.map(({ row, originalIndex }, displayIndex) => {
+      {visible.map(({ row, originalIndex }, i) => {
+        const displayIndex = renderStart + i;
         const key = getRowKey(row, originalIndex);
         const selected = selectedKey != null && selectedKey === key;
         const stripe = !selected && displayIndex % 2 === 1 ? TABLE_ROW_STRIPE : '';
@@ -122,6 +174,9 @@ export function SortableTable<T>({
           </div>
         );
       })}
+
+      {/* Bottom spacer */}
+      {virtualize && bottomPad > 0 && <div aria-hidden="true" style={{ height: bottomPad }} />}
     </div>
   );
 }

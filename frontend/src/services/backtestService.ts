@@ -197,10 +197,10 @@ export const backtestService = {
     }
   },
 
-  /** Run strategy via SSE — calls onEquity for each point, resolves with final result. */
+  /** Run strategy via SSE — onEquity is called with a batch of points per server flush. */
   runStrategy(
     params: BacktestRunParams,
-    onEquity: (point: EquityPoint) => void,
+    onEquity: (points: EquityPoint[]) => void,
     onStatus: (msg: string) => void,
   ): { promise: Promise<BacktestResult>; abort: () => void } {
     const controller = new AbortController();
@@ -236,7 +236,7 @@ export const backtestService = {
             } else if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
-                if (event === 'equity') onEquity(data as EquityPoint);
+                if (event === 'equity') onEquity(data as EquityPoint[]);
                 else if (event === 'status') onStatus(data.message ?? '');
                 else if (event === 'done') resolve(data as BacktestResult);
                 else if (event === 'error') reject(new Error(data.message ?? 'Unknown error'));
