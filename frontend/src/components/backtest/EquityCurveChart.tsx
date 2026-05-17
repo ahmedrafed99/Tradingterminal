@@ -55,6 +55,14 @@ export const EquityCurveChart = memo(function EquityCurveChart({
   const disposedRef  = useRef(false);
   const pointsRef    = useRef<SingleValueData<UTCTimestamp>[]>([]);
 
+  // Tracks what is currently rendered into the LWC series so the data-sync
+  // effect can append incrementally (series.update) instead of rebuilding the
+  // whole series (series.setData) on every streaming batch.
+  const renderedCountRef        = useRef(0);
+  const renderedInitialRef      = useRef<number | null>(null);
+  const renderedShowMarkersRef  = useRef(false);
+  const renderedThresholdRef    = useRef(0);
+
   // Mount / unmount chart
   useEffect(() => {
     if (!containerRef.current) return;
@@ -110,6 +118,13 @@ export const EquityCurveChart = memo(function EquityCurveChart({
     seriesRef.current = series;
     markersRef.current = createSeriesMarkers(series, []);
 
+    // Reset render-tracking refs — the new series starts empty.
+    renderedCountRef.current       = 0;
+    renderedInitialRef.current     = null;
+    renderedShowMarkersRef.current = false;
+    renderedThresholdRef.current   = 0;
+    pointsRef.current              = [];
+
     chart.subscribeCrosshairMove((param) => {
       const tooltip = tooltipRef.current;
       if (!tooltip) return;
@@ -152,12 +167,59 @@ export const EquityCurveChart = memo(function EquityCurveChart({
     };
   }, [background]);
 
-  // Sync data and markers whenever points prop changes
+  // Sync data and markers whenever points prop changes.
+  // Streaming path: when the new array is the previously-rendered one with
+  // more points appended, call series.update() per tail point instead of
+  // rebuilding via setData() — turns O(N²) streaming into O(N).
   useEffect(() => {
     if (!seriesRef.current || disposedRef.current) return;
+    const series = seriesRef.current;
+
+    const newLen = points.length;
+    const oldLen = renderedCountRef.current;
+    const rendered = pointsRef.current;
+    const lastIdx  = oldLen - 1;
+
+    const canAppend =
+      oldLen > 0 &&
+      newLen >= oldLen &&
+      renderedInitialRef.current     === initialEquity &&
+      renderedShowMarkersRef.current === showMarkers &&
+      renderedThresholdRef.current   === markerThreshold &&
+      !!points[lastIdx] &&
+      !!rendered[lastIdx] &&
+      Math.floor(new Date(points[lastIdx].t).getTime() / 1000) === (rendered[lastIdx].time as number) &&
+      (points[lastIdx].equity - initialEquity) === rendered[lastIdx].value;
+
+    if (canAppend) {
+      if (newLen === oldLen) return; // nothing new
+      for (let i = oldLen; i < newLen; i++) {
+        const p = toPoint(points[i], initialEquity);
+        series.update(p);
+        rendered.push(p);
+      }
+      if (markersRef.current) {
+        const showDots = showMarkers && newLen > 0 && (markerThreshold === 0 || newLen <= markerThreshold);
+        const markers: SeriesMarker<Time>[] = showDots
+          ? rendered.map((d) => ({
+              time: d.time,
+              position: 'inBar',
+              shape: 'circle',
+              color: d.value >= 0 ? COLOR_BUY : COLOR_SELL,
+              size: 0.6,
+            }))
+          : [];
+        markersRef.current.setMarkers(markers);
+      }
+      chartRef.current?.timeScale().fitContent();
+      renderedCountRef.current = newLen;
+      return;
+    }
+
+    // Full rebuild
     const data = points.map((p) => toPoint(p, initialEquity));
     pointsRef.current = data;
-    seriesRef.current.setData(data);
+    series.setData(data);
     if (markersRef.current) {
       const showDots = showMarkers && data.length > 0 && (markerThreshold === 0 || data.length <= markerThreshold);
       const markers: SeriesMarker<Time>[] = showDots
@@ -172,6 +234,11 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       markersRef.current.setMarkers(markers);
     }
     if (data.length > 0) chartRef.current?.timeScale().fitContent();
+
+    renderedCountRef.current       = data.length;
+    renderedInitialRef.current     = initialEquity;
+    renderedShowMarkersRef.current = showMarkers;
+    renderedThresholdRef.current   = markerThreshold;
   }, [points, initialEquity, showMarkers, markerThreshold]);
 
   return (

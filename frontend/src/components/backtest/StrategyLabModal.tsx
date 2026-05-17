@@ -126,8 +126,10 @@ export function StrategyLabModal() {
 
   const initStrategies        = useStore((s) => s.initBacktestStrategies);
 
-  const abortRef              = useRef<(() => void) | null>(null);
-  const saveCodeTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef                  = useRef<(() => void) | null>(null);
+  const saveCodeTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const equityBufferRef           = useRef<EquityPoint[]>([]);
+  const equityFlushScheduledRef   = useRef(false);
 
   // Load available symbols + strategies from disk on open
   useEffect(() => {
@@ -190,6 +192,7 @@ export function StrategyLabModal() {
     setSelectedTradeIndex(null);
     setRunning(true);
     setStatus('Starting...');
+    equityBufferRef.current = [];
 
     const { promise, abort } = backtestService.runStrategy(
       {
@@ -203,7 +206,20 @@ export function StrategyLabModal() {
         strategyCode,
         takerFee: getContract(exchange, symbol).takerFee ?? WORST_CASE_TAKER_FEE,
       },
-      (point) => setEquityPoints((prev) => [...prev, point]),
+      // Buffer points and flush at most once per animation frame — avoids
+      // O(N²) state churn when streaming tens of thousands of bars.
+      (point) => {
+        equityBufferRef.current.push(point);
+        if (equityFlushScheduledRef.current) return;
+        equityFlushScheduledRef.current = true;
+        requestAnimationFrame(() => {
+          equityFlushScheduledRef.current = false;
+          const batch = equityBufferRef.current;
+          if (batch.length === 0) return;
+          equityBufferRef.current = [];
+          setEquityPoints((prev) => prev.concat(batch));
+        });
+      },
       (msg) => setStatus(msg),
     );
 
