@@ -1,0 +1,216 @@
+import api from './api';
+
+export interface BacktestBar {
+  t: string;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
+export interface BacktestTrade {
+  entryTime:  string;
+  exitTime:   string;
+  side:       'long' | 'short';
+  entryPrice: number;
+  exitPrice:  number;
+  qty:        number;
+  pnl:        number;
+  pnlPct:     number;
+}
+
+export interface EquityPoint {
+  t:      string;
+  equity: number;
+}
+
+export interface BacktestResult {
+  trades:       BacktestTrade[];
+  equityCurve:  EquityPoint[];
+  finalEquity:  number;
+  totalReturn:  number;
+  winRate:      number;
+  totalTrades:  number;
+  maxDrawdown:  number;
+  sharpe:       number;
+}
+
+export interface BacktestRunParams {
+  exchange:      string;
+  symbol:        string;
+  unit:          number;
+  unitNumber:    number;
+  from:          string;
+  to:            string;
+  initialEquity: number;
+  strategyCode:  string;
+}
+
+export interface SymbolEntry {
+  exchange: string;
+  symbol:   string;
+}
+
+// In-memory cache for bars — avoid re-fetching same range/timeframe
+const barsCache = new Map<string, BacktestBar[]>();
+
+function barsCacheKey(exchange: string, symbol: string, unit: number, unitNumber: number, from: string, to: string) {
+  return `${exchange}:${symbol}:${unit}:${unitNumber}:${from}:${to}`;
+}
+
+export const backtestService = {
+  async getSymbols(): Promise<SymbolEntry[]> {
+    try {
+      const res = await api.get<{ success: boolean; symbols: SymbolEntry[] }>('/backtest/symbols');
+      return res.data.symbols ?? [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getBars(
+    exchange: string,
+    symbol: string,
+    unit: number,
+    unitNumber: number,
+    from: string,
+    to: string,
+    limit?: number,
+  ): Promise<BacktestBar[]> {
+    const key = barsCacheKey(exchange, symbol, unit, unitNumber, from, to) + (limit ? `:tail${limit}` : '');
+    const cached = barsCache.get(key);
+    if (cached) return cached;
+
+    const res = await api.get<{ success: boolean; bars: BacktestBar[] }>('/backtest/bars', {
+      params: { exchange, symbol, unit, unitNumber, from, to, ...(limit ? { limit } : {}) },
+      timeout: 0,
+    });
+
+    const bars = res.data.bars ?? [];
+    barsCache.set(key, bars);
+    return bars;
+  },
+
+  async getAvailableRange(exchange: string, symbol: string): Promise<{ from: string; to: string } | null> {
+    try {
+      const res = await api.get<{ success: boolean; from?: string; to?: string }>('/backtest/range', {
+        params: { exchange, symbol },
+      });
+      if (res.data.success && res.data.from && res.data.to) {
+        return { from: res.data.from, to: res.data.to };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  /** Stream bars month by month via SSE — chart can render each chunk immediately. */
+  streamBars(
+    params: { exchange: string; symbol: string; unit: number; unitNumber: number; from: string; to: string },
+    onChunk: (bars: BacktestBar[]) => void,
+  ): { promise: Promise<void>; abort: () => void } {
+    const controller = new AbortController();
+
+    const promise = new Promise<void>((resolve, reject) => {
+      const url = `/backtest/bars/stream?exchange=${encodeURIComponent(params.exchange)}&symbol=${encodeURIComponent(params.symbol)}&unit=${params.unit}&unitNumber=${params.unitNumber}&from=${encodeURIComponent(params.from)}&to=${encodeURIComponent(params.to)}`;
+
+      fetch(url, { signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok) { reject(new Error(`Server error: ${response.status}`)); return; }
+
+          const reader  = response.body!.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let event = '';
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+
+            for (const line of lines) {
+              if (line.startsWith('event: ')) {
+                event = line.slice(7).trim();
+              } else if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.slice(6));
+                  if (event === 'chunk') onChunk(data as BacktestBar[]);
+                  else if (event === 'done') resolve();
+                  else if (event === 'error') reject(new Error(data.message ?? 'Stream error'));
+                } catch { /* malformed line */ }
+                event = '';
+              }
+            }
+          }
+        })
+        .catch((err) => {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          reject(err);
+        });
+    });
+
+    return { promise, abort: () => controller.abort() };
+  },
+
+  /** Run strategy via SSE — calls onEquity for each point, resolves with final result. */
+  runStrategy(
+    params: BacktestRunParams,
+    onEquity: (point: EquityPoint) => void,
+    onStatus: (msg: string) => void,
+  ): { promise: Promise<BacktestResult>; abort: () => void } {
+    const controller = new AbortController();
+
+    const promise = new Promise<BacktestResult>((resolve, reject) => {
+      fetch('/backtest/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+        signal: controller.signal,
+      }).then(async (response) => {
+        if (!response.ok) {
+          reject(new Error(`Server error: ${response.status}`));
+          return;
+        }
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let event = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              event = line.slice(7).trim();
+            } else if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                if (event === 'equity') onEquity(data as EquityPoint);
+                else if (event === 'status') onStatus(data.message ?? '');
+                else if (event === 'done') resolve(data as BacktestResult);
+                else if (event === 'error') reject(new Error(data.message ?? 'Unknown error'));
+              } catch { /* malformed line */ }
+              event = '';
+            }
+          }
+        }
+      }).catch((err) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        reject(err);
+      });
+    });
+
+    return { promise, abort: () => controller.abort() };
+  },
+};

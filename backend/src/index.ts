@@ -22,6 +22,7 @@ import drawingRoutes from './routes/drawingRoutes';
 import blacklistRoutes from './routes/blacklistRoutes';
 import lockoutRoutes from './routes/lockoutRoutes';
 import logRoutes from './routes/logRoutes';
+import backtestRoutes from './routes/backtestRoutes';
 import WebSocket from 'ws';
 import * as conditionEngine from './services/conditionEngine';
 import * as conditionStore from './services/conditionStore';
@@ -82,6 +83,7 @@ app.use('/drawings', drawingRoutes);
 app.use('/blacklist', blacklistRoutes);
 app.use('/lockout', lockoutRoutes);
 app.use('/log', logRoutes);
+app.use('/backtest', backtestRoutes);
 
 // Health check — connection status, condition engine, backfill
 app.get('/health', (_req, res) => {

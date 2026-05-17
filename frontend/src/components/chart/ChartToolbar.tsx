@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
+import { StrategyLabModal } from '../backtest/StrategyLabModal';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore, TIMEFRAMES, type Timeframe } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
@@ -337,6 +338,24 @@ function IndicatorsDropdown() {
 }
 
 
+function StrategyButton() {
+  const open    = useStore((s) => s.backtestOpen);
+  const setOpen = useStore((s) => s.setBacktestOpen);
+  return (
+    <button
+      onClick={() => setOpen(!open)}
+      className={`h-full flex items-center gap-1 text-xs font-medium rounded transition-colors hover:bg-(--color-border) ${open ? 'text-(--color-accent)' : 'text-(--color-text)'}`}
+      style={{ paddingLeft: 12, paddingRight: 12 }}
+      title="Strategy Lab"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+      Strategy
+    </button>
+  );
+}
+
 export function ChartToolbar() {
   const pinnedTimeframes = useStore((s) => s.pinnedTimeframes);
   const customTimeframes = useStore((s) => s.customTimeframes);
@@ -665,6 +684,9 @@ export function ChartToolbar() {
       {/* Indicators */}
       <IndicatorsDropdown />
 
+      {/* Strategy */}
+      <StrategyButton />
+
       {/* Spacer */}
       <div className="flex-1" />
 
@@ -793,6 +815,7 @@ export function ChartToolbar() {
           />
         </Suspense>
       )}
+      <StrategyLabModal />
     </div>
   );
 }

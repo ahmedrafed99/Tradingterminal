@@ -15,6 +15,8 @@ import {
   generateWhitespace,
 } from '../barUtils';
 import type { ChartRefs } from './types';
+import type { BacktestConfig } from '../CandlestickChart';
+import { backtestService } from '../../../services/backtestService';
 import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec } from '../../../utils/marketHours';
 
 /**
@@ -22,9 +24,10 @@ import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec 
  */
 export function useChartBars(
   refs: ChartRefs,
-  chartId: 'left' | 'right',
+  chartId: 'left' | 'right' | 'backtest',
   contract: Contract | null,
   timeframe: Timeframe,
+  backtestConfig?: BacktestConfig,
 ): { loading: boolean; error: string | null } {
 
   const connected = useStore((s) => s.connected);
@@ -41,10 +44,10 @@ export function useChartBars(
   const reachedHistoryStartRef = useRef(false);
   const loadGenerationRef = useRef(0);
 
-  const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : s.secondDomEnabled);
-  const domColor = useStore((s) => chartId === 'left' ? s.domColor : s.secondDomColor);
-  const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : s.secondDomHoverExpand);
-  const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
+  const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : chartId === 'right' ? s.secondDomEnabled : false);
+  const domColor = useStore((s) => chartId === 'left' ? s.domColor : chartId === 'right' ? s.secondDomColor : '#2196f3');
+  const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : chartId === 'right' ? s.secondDomHoverExpand : false);
+  const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : chartId === 'right' ? s.secondBidAskEnabled : false);
 
   // Bump to force historical bar reload on market hub reconnect
   const [reconnectCount, setReconnectCount] = useState(0);
@@ -54,8 +57,103 @@ export function useChartBars(
     return () => { realtimeService.offMarketReconnect(handler); };
   }, []);
 
+  // -- Backtest bar loading: streams month by month, renders each chunk immediately --
+  useEffect(() => {
+    if (!backtestConfig || !refs.series.current) return;
+
+    const series = refs.series.current;
+    let cancelled = false;
+    const accumulated: CandlestickData<UTCTimestamp>[] = [];
+    let configured = false;
+
+    setLoading(true);
+    setError(null);
+    refs.lastBar.current = null;
+    series.setData([]);
+    refs.chart.current?.priceScale('right').applyOptions({ autoScale: true });
+
+    const cfg = backtestConfig!;
+
+    const { promise, abort } = backtestService.streamBars(
+      { exchange: cfg.exchange, symbol: cfg.symbol, unit: timeframe.unit, unitNumber: timeframe.unitNumber, from: cfg.dateFrom, to: cfg.dateTo },
+      (chunk) => {
+        if (cancelled) return;
+
+        // Append incoming bars
+        for (const bar of chunk) {
+          accumulated.push(barToCandle(bar));
+        }
+
+        // Preserve current viewport on subsequent chunks so it doesn't jump
+        const logRange = configured
+          ? refs.chart.current?.timeScale().getVisibleLogicalRange()
+          : null;
+
+        series.setData(accumulated);
+
+        if (!configured && accumulated.length > 0) {
+          // First chunk: configure price formatting and position viewport at end
+          configured = true;
+          setLoading(false);
+
+          if (contract) {
+            const dec = contract.tickSize.toString().split('.')[1]?.length ?? 2;
+            series.applyOptions({ priceFormat: { type: 'price', minMove: contract.tickSize, precision: dec } });
+            refs.countdown.current?.setDecimals(dec);
+            refs.countdown.current?.setPeriod(getCandlePeriodSeconds(timeframe));
+            refs.drawingsPrimitive.current?.setDecimals(dec);
+            refs.drawingsPrimitive.current?.setTickSize(contract.tickSize);
+            refs.crosshairLabel.current?.setDecimals(dec);
+            refs.crosshairLabel.current?.setTickSize(contract.tickSize);
+          }
+
+          const total = accumulated.length;
+          refs.chart.current?.timeScale().setVisibleLogicalRange({ from: total - 200, to: total + 50 });
+        } else if (logRange) {
+          refs.chart.current?.timeScale().setVisibleLogicalRange(logRange);
+        }
+      },
+    );
+
+    promise.then(() => {
+      if (cancelled) return;
+
+      // Finalize refs used by drawings, FRVP, etc.
+      const bars = sortBarsAscending(accumulated.map((c) => ({
+        t: new Date((c.time as number) * 1000).toISOString(),
+        o: c.open, h: c.high, l: c.low, c: c.close, v: 0,
+      })));
+      refs.bars.current = bars;
+
+      refs.dataMap.current.clear();
+      for (const c of accumulated) refs.dataMap.current.set(c.time as number, c.close);
+
+      const last = accumulated.length > 0 ? accumulated[accumulated.length - 1] : null;
+      refs.lastBar.current = last;
+      if (last) {
+        refs.drawingsPrimitive.current?.setLastBarTime(last.time as number);
+        refs.drawingsPrimitive.current?.setBarsRef(bars);
+        refs.countdown.current?.updatePrice(last.close, false);
+        refs.countdown.current?.setOpen(last.open);
+        refs.drawingsPrimitive.current?.setCountdownPrice(last.close);
+      }
+
+      refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
+      setLoading(false);
+    }).catch((err) => {
+      if (!cancelled) {
+        setError(err instanceof Error ? err.message : 'Failed to load bars');
+        setLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backtestConfig?.exchange, backtestConfig?.symbol, backtestConfig?.dateFrom, backtestConfig?.dateTo, timeframe, contract]);
+
   // -- Historical bars loading --
   useEffect(() => {
+    if (backtestConfig) return; // handled by backtest effect above
     if (!connected || !contract || !refs.series.current) return;
 
     const series = refs.series.current;
@@ -333,6 +431,7 @@ export function useChartBars(
 
   // -- Real-time quote subscription --
   useEffect(() => {
+    if (backtestConfig) return; // no live data in backtest mode
     if (!connected || !contract || !refs.series.current) return;
 
     const contractId = contract.id;
@@ -535,6 +634,7 @@ export function useChartBars(
   // -- Market depth subscription (always active when connected+contract) --
   // Depth data feeds both the Market Depth indicator and FRVP drawings — decouple from domEnabled.
   useEffect(() => {
+    if (backtestConfig) return;
     const vp = refs.domPrimitive.current;
     if (!vp || !connected || !contract) {
       refs.domPrimitive.current?.clear();

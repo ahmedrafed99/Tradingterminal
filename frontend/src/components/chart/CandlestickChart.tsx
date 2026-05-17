@@ -35,10 +35,19 @@ import { useFpsCounter } from './hooks/useFpsCounter';
 import { MarketStatusBadge } from './MarketStatusBadge';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, PosDragState } from './hooks/types';
 
+export interface BacktestConfig {
+  exchange: string;
+  symbol:   string;
+  dateFrom: string;
+  dateTo:   string;
+}
+
 export interface CandlestickChartProps {
-  chartId: 'left' | 'right';
+  chartId: 'left' | 'right' | 'backtest';
   contract: Contract | null;
   timeframe: Timeframe;
+  /** When provided the chart loads historical tick-aggregated bars instead of live data. */
+  backtestConfig?: BacktestConfig;
 }
 
 export interface CandlestickChartHandle {
@@ -55,7 +64,7 @@ export interface CandlestickChartHandle {
 }
 
 export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, CandlestickChartProps>(
-  function CandlestickChart({ chartId, contract, timeframe }, ref) {
+  function CandlestickChart({ chartId, contract, timeframe, backtestConfig }, ref) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -249,7 +258,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     // Selection click — mark this chart as selected in dual-chart mode
     const el = containerRef.current;
     const onSelectClick = () => {
-      useStore.getState().setSelectedChart(chartId);
+      if (chartId !== 'backtest') useStore.getState().setSelectedChart(chartId as 'left' | 'right');
     };
     el.addEventListener('mousedown', onSelectClick);
 
@@ -284,7 +293,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
 
   // -- Widgets: trade zones, OHLC tooltip, crosshair label, scroll button --
   const { showScrollBtn, scrollBtnPos } = useChartWidgets(refs, contract, timeframe);
-  const { loading, error } = useChartBars(refs, chartId, contract, timeframe);
+  const { loading, error } = useChartBars(refs, chartId, contract, timeframe, backtestConfig);
 
   useChartDrawings(refs, contract);
   useNewsEvents(refs);
@@ -380,8 +389,9 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   }
 
   function drillIntoCandle(candleTime: number, targetTf: Timeframe) {
+    if (chartId === 'backtest') return;
     const store = useStore.getState();
-    store.setPendingDrillTarget({ chartId, time: candleTime });
+    store.setPendingDrillTarget({ chartId: chartId as 'left' | 'right', time: candleTime });
     if (chartId === 'left') {
       store.setTimeframe(targetTf);
     } else {

@@ -60,6 +60,7 @@ export default defineConfig({
       '/drawings':  { target: BACKEND, changeOrigin: true },
       '/blacklist': { target: BACKEND, changeOrigin: true },
       '/lockout':  { target: BACKEND, changeOrigin: true },
+      '/backtest': { target: BACKEND, changeOrigin: true },
       '/hubs':    { target: BACKEND, changeOrigin: true, ws: true },
     },
   },
