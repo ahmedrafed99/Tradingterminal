@@ -158,6 +158,40 @@
       ]
     }
     ,{
+      "name": "StrategyLab",
+      "description": "Full-screen backtesting workspace. Accessible via Strategy button in ChartToolbar. Shows a full CandlestickChart fed from extracted tick CSVs, a script editor, an equity curve chart, stats row, and trade log. Symbols categorized by exchange/symbol.",
+      "keywords": ["backtest", "strategy", "equity curve", "strategy lab", "script", "tick data", "OHLCV", "trade log", "win rate", "symbol", "exchange"],
+      "files": [
+        "frontend/src/components/backtest/StrategyLabModal.tsx",
+        "frontend/src/components/backtest/DateRangePicker.tsx",
+        "frontend/src/components/backtest/EquityCurveChart.tsx",
+        "frontend/src/store/slices/backtestSlice.ts",
+        "frontend/src/services/backtestService.ts",
+        "backend/src/services/backtestDataService.ts",
+        "backend/src/routes/backtestRoutes.ts",
+        "backend/src/scripts/extractTickData.ts"
+      ],
+      "dependencies": [
+        "CandlestickChart (backtestConfig prop activates tick-data mode)",
+        "useChartBars (backtestConfig triggers backtest loading path)",
+        "backtestSlice (open/close, exchange, symbol, dateRange, timeframe, strategyCode, running, result)",
+        "backtestService (getSymbols, getBars, getAvailableRange, runStrategy SSE client)",
+        "backtestDataService (CSV → OHLCV aggregation + disk cache)",
+        "backtestRoutes (GET /backtest/symbols, GET /backtest/bars, GET /backtest/range, POST /backtest/run)"
+      ],
+      "notes": [
+        "Data layout: backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.csv — run 'npm run extract-ticks' in backend to populate",
+        "Extract script: backend/src/scripts/extractTickData.ts — reads Binance ZIPs/CSVs from TICK_DATA_PATH env var, extracts to tick-data dir",
+        "Cache dir: backend/data/backtest-cache/ — JSON files keyed by exchange_symbol_tf_fromDay_toDay.json",
+        "Strategy execution: vm.runInNewContext sandbox, onBar(ctx) called per bar, ctx.buy/sell/close/setStop/setTarget",
+        "SSE streaming: POST /backtest/run streams equity points as they build, then sends done event",
+        "CONTRACT_MAP in StrategyLabModal.tsx maps 'EXCHANGE:SYMBOL' → Contract; fallback uses generic 0.01 tick defaults",
+        "GET /backtest/symbols scans tick-data dir and returns available exchange/symbol pairs",
+        "backtestExchange + backtestSymbol in backtestSlice — selector dropdown in modal header",
+        "chartId='backtest' extends 'left'|'right'|'backtest' type — guard in setSelectedChart and drillIntoCandle"
+      ]
+    }
+    ,{
       "name": "OHLCTooltip",
       "description": "Inline OHLC tooltip rendered in the chart's top-left overlay. Shows O/H/L/C values and change for the hovered candle (falls back to last bar). Labels (O H L C) use --color-text; values use --color-text-medium (bullish) or teal (#0097a6) (bearish). DOM built once with pre-created spans for perf — no innerHTML per frame.",
       "keywords": ["ohlc", "tooltip", "crosshair", "hover", "candle", "open", "high", "low", "close", "change", "top-left"],
@@ -175,6 +209,41 @@
         "Label color (O H L C) = COLOR_TEXT = var(--color-text), matching symbol/timeframe text in the same overlay row",
         "Value color switches only when bullish/bearish direction changes — avoids per-frame style recalc",
         "Spans are created once in useEffect; effect reruns on contract/timeframe change (new decimal precision needed)"
+      ]
+    }
+    ,{
+      "name": "DatePickerModal",
+      "description": "Shared calendar modal used by both GoToModal (single date + time) and DateRangePicker (from/to range). Handles modal shell, month nav, and calendar grid. mode='single' shows date/time inputs + today highlight + Cancel/Confirm footer. mode='range' shows From/To selector buttons + range highlight + Done footer.",
+      "keywords": ["date picker", "calendar", "modal", "single", "range", "from", "to", "shared"],
+      "files": [
+        "frontend/src/components/shared/DatePickerModal.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "mode='single': pass today prop for timezone-aware today highlight (defaults to UTC today); GoToModal passes nyNow()",
+        "mode='single': time input is optional — omit time/onTimeChange props to hide it",
+        "mode='range': edge days (from/to) get accent fill + white text; in-range days get hover-row bg; hover previews the candidate range",
+        "Calendar syncs to anchorDate (date for single, from for range) whenever it changes — no manual calendar navigation reset needed",
+        "Width fixed at 380px; tab bar (single mode) is structural, reserved for future tabs like 'Bar number'"
+      ]
+    }
+    ,{
+      "name": "GoToModal",
+      "description": "Modal that lets the user jump the chart to a specific date and time (NY timezone). Has a date text input, time text input, month calendar grid with today highlight, and Cancel/Go to footer buttons. Converts NY local time to UTC seconds for the chart API.",
+      "keywords": ["go to", "goto", "date picker", "calendar", "navigate", "timestamp", "ny timezone", "jump to date"],
+      "files": [
+        "frontend/src/components/chart/GoToModal.tsx",
+        "frontend/src/components/chart/GoToMarkerPrimitive.ts",
+        "frontend/src/components/chart/ChartTimeScaleContextMenu.tsx"
+      ],
+      "dependencies": [
+        "CandlestickChart (renders GoToModal, calls chart.scrollToPosition on confirm)",
+        "GoToMarkerPrimitive (draws the temporary marker line after navigation)"
+      ],
+      "notes": [
+        "nyNow() and nyLocalToUtcSeconds() handle all timezone math — dates displayed and selected are always NY local",
+        "Tab bar (single 'Date' tab with accent underline) is structural, not decorative — reserved for a future 'Bar number' tab",
+        "Calendar width: 380px; selected day uses border-only style (no fill) to match GoToModal design"
       ]
     }
   ]
