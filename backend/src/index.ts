@@ -39,7 +39,7 @@ const app = express();
 // Middleware
 // ---------------------------------------------------------------------------
 app.use(cors({ origin: 'http://localhost:5173' }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Rate limiters — prevent runaway loops from burning ProjectX API quota
 const orderLimiter = rateLimit({

@@ -1,123 +1,211 @@
-import { useEffect, useRef, useImperativeHandle, forwardRef, memo } from 'react';
-import { createChart, LineSeries } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi, LineData, UTCTimestamp } from 'lightweight-charts';
+import { useEffect, useRef, memo } from 'react';
+import { createChart, createSeriesMarkers, BaselineSeries, ColorType, CrosshairMode } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, SingleValueData, UTCTimestamp, ISeriesMarkersPluginApi, SeriesMarker, Time } from 'lightweight-charts';
 import type { EquityPoint } from '../../services/backtestService';
 import { CHART_OPTIONS } from '../chart/chartTheme';
 import { FONT_FAMILY } from '../../constants/layout';
-
-export interface EquityCurveHandle {
-  /** Append a single point without triggering a React re-render. */
-  addPoint: (point: EquityPoint) => void;
-  /** Replace the full dataset. */
-  setData: (points: EquityPoint[]) => void;
-  /** Clear the chart. */
-  clear: () => void;
-}
+import { COLOR_BUY, COLOR_SELL, COLOR_TEXT_DIM, COLOR_BORDER } from '../../constants/colors';
 
 interface Props {
+  points: EquityPoint[];
   initialEquity: number;
   isEmpty?: boolean;
+  emptyMessage?: string;
+  height?: number;
+  /** Draw a small circle marker at every point. Set max count to keep dots from cluttering dense series. */
+  showMarkers?: boolean;
+  markerThreshold?: number;
+  /** Background color for the chart surface. Defaults to black to match the backtest panel. */
+  background?: string;
 }
 
-function toLinePoint(p: EquityPoint): LineData<UTCTimestamp> {
+function toRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function toPoint(p: EquityPoint, initial: number): SingleValueData<UTCTimestamp> {
   return {
     time: Math.floor(new Date(p.t).getTime() / 1000) as UTCTimestamp,
-    value: p.equity,
+    value: p.equity - initial,
   };
 }
 
-export const EquityCurveChart = memo(forwardRef<EquityCurveHandle, Props>(
-  function EquityCurveChart({ initialEquity, isEmpty }, ref) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const chartRef     = useRef<IChartApi | null>(null);
-    const seriesRef    = useRef<ISeriesApi<'Line'> | null>(null);
-    const bufRef       = useRef<LineData<UTCTimestamp>[]>([]);
-    const disposedRef  = useRef(false);
+const fmtTimeShort = new Intl.DateTimeFormat('en-US', {
+  month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+});
 
-    useImperativeHandle(ref, () => ({
-      addPoint(point) {
-        if (!seriesRef.current || disposedRef.current) return;
-        const lp = toLinePoint(point);
-        bufRef.current.push(lp);
-        seriesRef.current.update(lp);
-        chartRef.current?.timeScale().fitContent();
-        const color = lp.value >= initialEquity ? '#22c55e' : '#ef4444';
-        seriesRef.current.applyOptions({ color });
+export const EquityCurveChart = memo(function EquityCurveChart({
+  points,
+  initialEquity,
+  isEmpty,
+  emptyMessage = 'Run a strategy to see the equity curve',
+  height = 180,
+  showMarkers = false,
+  markerThreshold = 80,
+  background = '#000000',
+}: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef   = useRef<HTMLDivElement>(null);
+  const chartRef     = useRef<IChartApi | null>(null);
+  const seriesRef    = useRef<ISeriesApi<'Baseline'> | null>(null);
+  const markersRef   = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const disposedRef  = useRef(false);
+  const pointsRef    = useRef<SingleValueData<UTCTimestamp>[]>([]);
+
+  // Mount / unmount chart
+  useEffect(() => {
+    if (!containerRef.current) return;
+    disposedRef.current = false;
+
+    const chart = createChart(containerRef.current, {
+      ...CHART_OPTIONS,
+      layout: {
+        ...CHART_OPTIONS.layout,
+        background: { type: ColorType.Solid, color: background },
       },
-      setData(points) {
-        if (!seriesRef.current || disposedRef.current) return;
-        const data = points.map(toLinePoint);
-        bufRef.current = data;
-        seriesRef.current.setData(data);
-        if (data.length > 0) {
-          const last = data[data.length - 1].value as number;
-          seriesRef.current.applyOptions({ color: last >= initialEquity ? '#22c55e' : '#ef4444' });
-        }
-        chartRef.current?.timeScale().fitContent();
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { visible: true, color: toRgba(COLOR_TEXT_DIM, 0.5) },
       },
-      clear() {
-        if (!seriesRef.current || disposedRef.current) return;
-        bufRef.current = [];
-        seriesRef.current.setData([]);
-        seriesRef.current.applyOptions({ color: '#22c55e' });
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER, labelVisible: true },
+        horzLine: { color: COLOR_TEXT_DIM, labelBackgroundColor: COLOR_BORDER, labelVisible: true },
       },
-    }));
+      rightPriceScale: {
+        borderVisible: false,
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+      },
+      timeScale: {
+        borderVisible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+      },
+      localization: {
+        priceFormatter: (v: number) =>
+          `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`,
+      },
+    });
 
-    useEffect(() => {
-      if (!containerRef.current) return;
-      disposedRef.current = false;
+    const series = chart.addSeries(BaselineSeries, {
+      baseValue: { type: 'price', price: 0 },
+      topLineColor: COLOR_BUY,
+      topFillColor1: toRgba(COLOR_BUY, 0.25),
+      topFillColor2: toRgba(COLOR_BUY, 0.02),
+      bottomLineColor: COLOR_SELL,
+      bottomFillColor1: toRgba(COLOR_SELL, 0.02),
+      bottomFillColor2: toRgba(COLOR_SELL, 0.25),
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: true,
+      crosshairMarkerRadius: 5,
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+    });
 
-      const chart = createChart(containerRef.current, {
-        ...CHART_OPTIONS,
-        height: 180,
-        crosshair: {
-          ...CHART_OPTIONS.crosshair,
-          horzLine: { ...CHART_OPTIONS.crosshair?.horzLine, labelVisible: true },
-        },
-        rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
-        timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
-        localization: { priceFormatter: (v: number) => `$${v.toFixed(2)}` },
-      });
+    chartRef.current  = chart;
+    seriesRef.current = series;
+    markersRef.current = createSeriesMarkers(series, []);
 
-      const series = chart.addSeries(LineSeries, {
-        color: '#22c55e',
-        lineWidth: 2,
-        lastValueVisible: true,
-        priceLineVisible: false,
-        crosshairMarkerVisible: true,
-        priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
-      });
+    chart.subscribeCrosshairMove((param) => {
+      const tooltip = tooltipRef.current;
+      if (!tooltip) return;
 
-      chartRef.current = chart;
-      seriesRef.current = series;
-
-      // Restore buffered data on remount
-      if (bufRef.current.length > 0) {
-        series.setData(bufRef.current);
-        chart.timeScale().fitContent();
+      if (!param.time || !param.point) {
+        tooltip.style.opacity = '0';
+        return;
       }
 
-      return () => {
-        disposedRef.current = true;
-        chartRef.current = null;
-        seriesRef.current = null;
-        try { chart.remove(); } catch { /* already disposed */ }
-      };
-    }, []);
+      const arr = pointsRef.current;
+      const t = param.time as UTCTimestamp;
+      // binary search for closest index with time <= t
+      let lo = 0, hi = arr.length - 1, best = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if ((arr[mid].time as number) <= (t as number)) { best = mid; lo = mid + 1; }
+        else hi = mid - 1;
+      }
+      if (best < 0) { tooltip.style.opacity = '0'; return; }
 
-    return (
-      // Always render the container so the chart can attach — overlay the empty state on top
-      <div style={{ position: 'relative', height: 180 }}>
-        <div ref={containerRef} className="w-full" style={{ height: 180 }} />
-        {isEmpty && (
-          <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            style={{ color: 'var(--color-text-muted)', fontSize: 12, fontFamily: FONT_FAMILY }}
-          >
-            Run a strategy to see the equity curve
-          </div>
-        )}
-      </div>
-    );
-  }
-));
+      const value = arr[best].value;
+      const timeMs = (arr[best].time as number) * 1000;
+      const timeLabel = fmtTimeShort.format(new Date(timeMs));
+      const tradeNum = best + 1;
+      const sign = value >= 0 ? '+' : '-';
+
+      tooltip.innerHTML =
+        `<span style="color:var(--color-text-muted);font-weight:400;margin-right:6px">Trade #${tradeNum}</span>` +
+        `<span style="color:var(--color-text-muted);font-weight:400;margin-right:6px">${timeLabel}</span>` +
+        `<span style="color:${value >= 0 ? COLOR_BUY : COLOR_SELL};font-weight:600">${sign}$${Math.abs(value).toFixed(2)}</span>`;
+      tooltip.style.opacity = '1';
+    });
+
+    return () => {
+      disposedRef.current  = true;
+      chartRef.current     = null;
+      seriesRef.current    = null;
+      markersRef.current   = null;
+      try { chart.remove(); } catch { /* disposed */ }
+    };
+  }, [background]);
+
+  // Sync data and markers whenever points prop changes
+  useEffect(() => {
+    if (!seriesRef.current || disposedRef.current) return;
+    const data = points.map((p) => toPoint(p, initialEquity));
+    pointsRef.current = data;
+    seriesRef.current.setData(data);
+    if (markersRef.current) {
+      const showDots = showMarkers && data.length > 0 && (markerThreshold === 0 || data.length <= markerThreshold);
+      const markers: SeriesMarker<Time>[] = showDots
+        ? data.map((d) => ({
+            time: d.time,
+            position: 'inBar',
+            shape: 'circle',
+            color: d.value >= 0 ? COLOR_BUY : COLOR_SELL,
+            size: 0.6,
+          }))
+        : [];
+      markersRef.current.setMarkers(markers);
+    }
+    if (data.length > 0) chartRef.current?.timeScale().fitContent();
+  }, [points, initialEquity, showMarkers, markerThreshold]);
+
+  return (
+    <div style={{ position: 'relative', height }}>
+      <div ref={containerRef} className="w-full" style={{ height }} />
+      <div
+        ref={tooltipRef}
+        style={{
+          position: 'absolute',
+          top: 8,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          pointerEvents: 'none',
+          fontSize: 12,
+          fontFamily: FONT_FAMILY,
+          opacity: 0,
+          transition: 'opacity 0.1s',
+          fontFeatureSettings: '"tnum"',
+          whiteSpace: 'nowrap',
+          padding: '3px 10px',
+          borderRadius: 4,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 10,
+        }}
+      />
+      {isEmpty && (
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{ color: 'var(--color-text-muted)', fontSize: 12, fontFamily: FONT_FAMILY }}
+        >
+          {emptyMessage}
+        </div>
+      )}
+    </div>
+  );
+});

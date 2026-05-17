@@ -100,7 +100,8 @@
         "Item active/selected: background var(--color-text), color var(--color-surface)",
         "Toolbar buttons use hover:bg-(--color-border) — different from dropdown items, intentional",
         "Camera screenshot dropdown (ChartToolbar) is intentionally styled differently: rounded-xl, SHADOW.XXL",
-        "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg"
+        "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg",
+        "CustomSelect supports renderItemAction (trailing per-row node, e.g. delete), footer (node below the list with a divider), and dropdownMinWidth (force min width when button is narrower than the menu) — used by the Strategy Lab strategy dropdown"
       ]
     }
     ,{
@@ -159,11 +160,12 @@
     }
     ,{
       "name": "StrategyLab",
-      "description": "Full-screen backtesting workspace. Accessible via Strategy button in ChartToolbar. Shows a full CandlestickChart fed from extracted tick CSVs, a script editor, an equity curve chart, stats row, and trade log. Symbols categorized by exchange/symbol.",
+      "description": "Full-screen backtesting workspace. Accessible via Strategy button in ChartToolbar. Shows a full CandlestickChart fed from extracted tick CSVs, a script editor, an equity curve (EquityCurveChart — LWC-based, shared with the stats dashboard), stats row, and trade log (BacktestTradesTable). Symbols categorized by exchange/symbol.",
       "keywords": ["backtest", "strategy", "equity curve", "strategy lab", "script", "tick data", "OHLCV", "trade log", "win rate", "symbol", "exchange"],
       "files": [
         "frontend/src/components/backtest/StrategyLabModal.tsx",
         "frontend/src/components/backtest/DateRangePicker.tsx",
+        "frontend/src/components/backtest/BacktestTradesTable.tsx",
         "frontend/src/components/backtest/EquityCurveChart.tsx",
         "frontend/src/store/slices/backtestSlice.ts",
         "frontend/src/services/backtestService.ts",
@@ -177,7 +179,7 @@
         "backtestSlice (open/close, exchange, symbol, dateRange, timeframe, strategyCode, running, result)",
         "backtestService (getSymbols, getBars, getAvailableRange, runStrategy SSE client)",
         "backtestDataService (CSV → OHLCV aggregation + disk cache)",
-        "backtestRoutes (GET /backtest/symbols, GET /backtest/bars, GET /backtest/range, POST /backtest/run)"
+        "backtestRoutes (GET /backtest/symbols, GET /backtest/bars, GET /backtest/range, POST /backtest/run, GET/PUT/PATCH/DELETE /backtest/strategies/:name, GET/PUT /backtest/strategies/:name/result)"
       ],
       "notes": [
         "Data layout: backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.csv — run 'npm run extract-ticks' in backend to populate",
@@ -188,7 +190,11 @@
         "CONTRACT_MAP in StrategyLabModal.tsx maps 'EXCHANGE:SYMBOL' → Contract; fallback uses generic 0.01 tick defaults",
         "GET /backtest/symbols scans tick-data dir and returns available exchange/symbol pairs",
         "backtestExchange + backtestSymbol in backtestSlice — selector dropdown in modal header",
-        "chartId='backtest' extends 'left'|'right'|'backtest' type — guard in setSelectedChart and drillIntoCandle"
+        "chartId='backtest' extends 'left'|'right'|'backtest' type — guard in setSelectedChart and drillIntoCandle",
+        "File persistence: strategies saved to backend/data/strategies/{name}/strategy.js; last result to result.json in same folder",
+        "On modal open: listStrategies() from disk seeds the store; empty disk → current store strategies seeded to disk",
+        "Strategy code auto-saves 800ms after last keystroke; result saves after each successful run",
+        "On strategy switch: equity chart clears immediately, then loadResult() from disk restores chart + stats via setData()"
       ]
     }
     ,{
@@ -259,6 +265,60 @@
         "mode='range': edge days (from/to) get accent fill + white text; in-range days get hover-row bg; hover previews the candidate range",
         "Calendar syncs to anchorDate (date for single, from for range) whenever it changes — no manual calendar navigation reset needed",
         "Width fixed at 380px; tab bar (single mode) is structural, reserved for future tabs like 'Bar number'"
+      ]
+    }
+    ,{
+      "name": "SortableTable",
+      "description": "Generic sortable table primitive. Takes column defs (label, sortValue, render) + rows + gridCols template. Provides sticky clickable header with asc/desc arrow indicators, row striping (TABLE_ROW_STRIPE), row hover, and selection highlight (--color-warning). Currently used by BacktestTradesTable; designed so the live TradesTab can adopt it later.",
+      "keywords": ["table", "sortable", "sort", "header", "columns", "stripe", "select", "shared", "trades"],
+      "files": [
+        "frontend/src/components/shared/SortableTable.tsx"
+      ],
+      "dependencies": [
+        "TABLE_ROW_STRIPE (constants/styles)",
+        "Z.HEADER (constants/layout)"
+      ],
+      "notes": [
+        "Column with no sortValue is rendered non-sortable (no pointer cursor, no hover)",
+        "sortedRows preserve originalIndex; getRowKey + selectedKey use stable IDs so selection survives re-sorts",
+        "Cell wrapper className defaults to 'px-2 text-center whitespace-nowrap' — override via column.cellClassName when needed (TradesTab uses 'px-3 text-center' historically)",
+        "Color/weight should live inside the rendered span, not the wrapper, because the wrapper class is static per column",
+        "maxHeight prop enables overflowY:auto only when set — list mode (no scroll) just omits it",
+        "Does NOT support row grouping/expansion — live TradesTab will need a row-override mechanism if it adopts this"
+      ]
+    }
+    ,{
+      "name": "EquityCurveChart",
+      "description": "Lightweight-Charts BaselineSeries equity curve. Shared between Strategy Lab (live SSE point streaming) and the stats dashboard (StatsPnlChart equity mode + StatsDayDetail day-detail curve). Built-in crosshair tooltip shows Trade #N · time · value; optional per-trade markers via showMarkers.",
+      "keywords": ["equity curve", "lwc", "lightweight-charts", "baseline series", "backtest", "stats", "trade markers", "shared"],
+      "files": [
+        "frontend/src/components/backtest/EquityCurveChart.tsx"
+      ],
+      "dependencies": [
+        "lightweight-charts (createChart, BaselineSeries, createSeriesMarkers)",
+        "CHART_OPTIONS (chart/chartTheme)",
+        "COLOR_BUY/COLOR_SELL/COLOR_TEXT_DIM/COLOR_BORDER (constants/colors)"
+      ],
+      "notes": [
+        "Pass points as EquityPoint[] ({ t: ISO string, equity: number }) + initialEquity; tooltip and Y axis display value as (equity - initialEquity)",
+        "Stats callers pass initialEquity=0 with stats.equityCurve[i] as the equity field (cumulative P&L is already delta-based)",
+        "background prop must be a resolved color (canvas fill) — use COLOR_TABLE_STRIPE for stats panel, default '#000000' for backtest panel",
+        "showMarkers + markerThreshold (default 80) — markers hide automatically for dense series to avoid clutter",
+        "Tooltip is rendered as a fixed centered overlay inside the chart; no parent-level hover state needed",
+        "background changes are baked into the chart on mount — changing it remounts the chart (background is in the mount effect's deps)"
+      ]
+    }
+    ,{
+      "name": "ToolbarPillButton",
+      "description": "Shared pill-shaped header button used across the Strategy Lab toolbar (Symbol picker, Date range, etc.). Consistent: bg --color-input, border --color-border, padding 5px 10px, hover:bg --color-border, rounded-md, text-xs. Children render free-form (icons + label + ChevronDown if needed).",
+      "keywords": ["toolbar", "pill", "button", "header", "strategy lab", "shared"],
+      "files": [
+        "frontend/src/components/shared/ToolbarPillButton.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "Different from DropdownButton (bg --color-surface, RADIUS.XL, border-color hover) — keep both",
+        "No built-in chevron — caller renders ChevronDown explicitly when needed for flexibility"
       ]
     }
     ,{

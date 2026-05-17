@@ -103,6 +103,17 @@ for each raw tick (tickMs, price, qty):
 
 Stops and targets fill at the exact tick price that crosses them, not at bar high/low. This is the primary reason for using tick data.
 
+### Fees
+
+Each closed trade is charged a per-side taker fee on both entry and exit notional:
+
+```
+fees = (entryPrice + exitPrice) * qty * takerFee
+pnl  = grossPnl - fees
+```
+
+`takerFee` lives on the `Contract` definition (in `frontend/src/components/backtest/StrategyLabModal.tsx` → `CONTRACT_MAP`). Default is `0.00055` (0.055%), the worst-case taker rate across Binance / Bybit / MEXC / Hyperliquid perps. All downstream metrics (`pnlPct`, `equity`, `totalReturn`, `sharpe`, `maxDrawdown`) reflect the **net** P&L.
+
 ### Strategy context (per closed bar)
 
 ```js
@@ -125,7 +136,7 @@ Only one position at a time. `buy`/`sell` are no-ops if already in a position.
 
 | Field | Description |
 |---|---|
-| `trades` | Full trade log (entry/exit time, side, prices, qty, P&L) |
+| `trades` | Full trade log (entry/exit time, side, prices, qty, fees, net P&L) |
 | `equityCurve` | Mark-to-market equity after every closed bar |
 | `finalEquity` | Realised equity at end |
 | `totalReturn` | `(finalEquity - initialEquity) / initialEquity * 100` |

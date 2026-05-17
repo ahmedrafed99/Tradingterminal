@@ -15,13 +15,16 @@ export function useChartWidgets(
   refs: ChartRefs,
   contract: Contract | null,
   timeframe: Timeframe,
+  chartId: string,
 ): { showScrollBtn: boolean; scrollBtnPos: { right: number; bottom: number } } {
 
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [scrollBtnPos, setScrollBtnPos] = useState({ right: 80, bottom: 40 });
 
   // -- Trade zones (entry/exit rectangles from "show on chart" clicks) --
+  // Backtest chart manages its own zones via useBacktestTradeMarkers
   useEffect(() => {
+    if (chartId === 'backtest') return;
     const primitive = refs.tradeZonePrimitive.current;
     if (!primitive) return;
     const contractId = contract?.id;
@@ -70,7 +73,7 @@ export function useChartWidgets(
       unsub();
       primitive.setData([]);
     };
-  }, [contract, timeframe]);
+  }, [contract, timeframe, chartId]);
 
   // -- OHLC tooltip (crosshair hover → show candle values, default to last bar) --
   useEffect(() => {

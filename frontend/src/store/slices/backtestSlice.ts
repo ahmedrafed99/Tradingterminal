@@ -33,6 +33,7 @@ export interface BacktestSlice {
   addBacktestStrategy: () => void;
   deleteBacktestStrategy: (name: string) => void;
   renameBacktestStrategy: (oldName: string, newName: string) => void;
+  initBacktestStrategies: (strategies: StrategyEntry[]) => void;
 
   // Execution state
   backtestRunning: boolean;
@@ -46,6 +47,10 @@ export interface BacktestSlice {
   setBacktestResult: (result: BacktestResult | null) => void;
   appendBacktestEquity: (point: EquityPoint) => void;
   clearBacktestEquity: () => void;
+
+  // Selected trade index (drives chart markers)
+  backtestSelectedTradeIndex: number | null;
+  setBacktestSelectedTradeIndex: (index: number | null) => void;
 }
 
 const DEFAULT_STRATEGY = `// Called once per closed bar.
@@ -139,6 +144,16 @@ export function createBacktestSlice(set: (fn: (s: BacktestSlice) => Partial<Back
       backtestStrategyName: s.backtestStrategyName === oldName ? newName : s.backtestStrategyName,
     })),
 
+    initBacktestStrategies: (strategies) => set((s) => {
+      if (strategies.length === 0) return {};
+      const active = strategies.find(st => st.name === s.backtestStrategyName) ?? strategies[0];
+      return {
+        backtestStrategies: strategies,
+        backtestStrategyName: active.name,
+        backtestStrategyCode: active.code,
+      };
+    }),
+
     backtestRunning: false,
     backtestStatus: '',
     setBacktestRunning: (running) => set(() => ({ backtestRunning: running })),
@@ -149,5 +164,8 @@ export function createBacktestSlice(set: (fn: (s: BacktestSlice) => Partial<Back
     setBacktestResult:   (result) => set(() => ({ backtestResult: result })),
     appendBacktestEquity: (point) => set((s) => ({ backtestEquityPoints: [...s.backtestEquityPoints, point] })),
     clearBacktestEquity:  ()      => set(() => ({ backtestEquityPoints: [], backtestResult: null })),
+
+    backtestSelectedTradeIndex: null,
+    setBacktestSelectedTradeIndex: (index) => set(() => ({ backtestSelectedTradeIndex: index })),
   };
 }

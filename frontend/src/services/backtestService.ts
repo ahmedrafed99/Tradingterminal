@@ -16,8 +16,9 @@ export interface BacktestTrade {
   entryPrice: number;
   exitPrice:  number;
   qty:        number;
-  pnl:        number;
-  pnlPct:     number;
+  pnl:        number;     // net of fees
+  pnlPct:     number;     // net of fees, % of entry notional
+  fees:       number;     // total round-trip taker fees
 }
 
 export interface EquityPoint {
@@ -45,6 +46,7 @@ export interface BacktestRunParams {
   to:            string;
   initialEquity: number;
   strategyCode:  string;
+  takerFee:      number;   // per-side fraction, e.g. 0.00055 = 0.055%
 }
 
 export interface SymbolEntry {
@@ -155,6 +157,44 @@ export const backtestService = {
     });
 
     return { promise, abort: () => controller.abort() };
+  },
+
+  async listStrategies(): Promise<Array<{ name: string; code: string }>> {
+    try {
+      const res = await api.get<{ success: boolean; strategies: Array<{ name: string; code: string }> }>('/backtest/strategies');
+      return res.data.strategies ?? [];
+    } catch {
+      return [];
+    }
+  },
+
+  async saveStrategy(name: string, code: string): Promise<void> {
+    await api.put(`/backtest/strategies/${encodeURIComponent(name)}`, { code });
+  },
+
+  async renameStrategy(oldName: string, newName: string): Promise<void> {
+    await api.patch(`/backtest/strategies/${encodeURIComponent(oldName)}`, { newName });
+  },
+
+  async deleteStrategy(name: string): Promise<void> {
+    await api.delete(`/backtest/strategies/${encodeURIComponent(name)}`);
+  },
+
+  async saveResult(
+    name: string,
+    result: BacktestResult,
+    meta: { exchange: string; symbol: string; from: string; to: string; timeframe: string; initialEquity: number },
+  ): Promise<void> {
+    await api.put(`/backtest/strategies/${encodeURIComponent(name)}/result`, { result, meta });
+  },
+
+  async loadResult(name: string): Promise<BacktestResult | null> {
+    try {
+      const res = await api.get<{ success: boolean; result?: BacktestResult }>(`/backtest/strategies/${encodeURIComponent(name)}/result`);
+      return res.data.success ? (res.data.result ?? null) : null;
+    } catch {
+      return null;
+    }
   },
 
   /** Run strategy via SSE — calls onEquity for each point, resolves with final result. */

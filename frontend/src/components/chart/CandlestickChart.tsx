@@ -20,6 +20,7 @@ import { NewsEventsPrimitive } from './primitives/NewsEventsPrimitive';
 import type { PriceLevelPrimitive } from './primitives/PriceLevelPrimitive';
 import { getPriceScaleWidth } from './barUtils';
 import { useChartWidgets } from './hooks/useChartWidgets';
+import { useBacktestTradeMarkers } from './hooks/useBacktestTradeMarkers';
 import { useChartBars } from './hooks/useChartBars';
 import { useChartDrawings } from './hooks/useChartDrawings';
 import { useChartContextMenu } from './hooks/useChartContextMenu';
@@ -292,7 +293,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   }, [chartId]);
 
   // -- Widgets: trade zones, OHLC tooltip, crosshair label, scroll button --
-  const { showScrollBtn, scrollBtnPos } = useChartWidgets(refs, contract, timeframe);
+  const { showScrollBtn, scrollBtnPos } = useChartWidgets(refs, contract, timeframe, chartId);
+  useBacktestTradeMarkers(refs, chartId);
   const { loading, error } = useChartBars(refs, chartId, contract, timeframe, backtestConfig);
 
   useChartDrawings(refs, contract);

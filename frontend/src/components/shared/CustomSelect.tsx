@@ -25,6 +25,12 @@ interface CustomSelectProps {
   padding?: string;
   /** Font size in px (default: 12) */
   fontSize?: number;
+  /** Force dropdown to at least this width (overrides matching the button width) */
+  dropdownMinWidth?: number;
+  /** Per-item trailing action (e.g. delete button). Return null to skip. */
+  renderItemAction?: (option: SelectOption) => React.ReactNode | null;
+  /** Element rendered below the option list, separated by a divider. */
+  footer?: React.ReactNode;
 }
 
 export function CustomSelect({
@@ -40,6 +46,9 @@ export function CustomSelect({
   dropdownBg = 'var(--color-surface)',
   padding: btnPadding = '6px 10px',
   fontSize: btnFontSize = 12,
+  dropdownMinWidth,
+  renderItemAction,
+  footer,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -114,7 +123,7 @@ export function CustomSelect({
             top: dropUp ? undefined : dropPos.top,
             bottom: dropUp ? `calc(100vh - ${dropPos.top}px)` : undefined,
             left: dropPos.left,
-            width: dropPos.width,
+            width: Math.max(dropPos.width, dropdownMinWidth ?? 0),
             background: dropdownBg,
             boxShadow: SHADOW.LG,
             maxHeight: options.length > 8 ? 200 : undefined,
@@ -124,24 +133,46 @@ export function CustomSelect({
         >
           {options.map((o) => {
             const active = o.value === value;
+            const action = renderItemAction?.(o);
+            const rowStyle: React.CSSProperties = {
+              background: active ? 'var(--color-text)' : 'transparent',
+              color: active ? dropdownBg : 'var(--color-text)',
+              fontWeight: active ? 600 : 400,
+            };
+            if (!action) {
+              return (
+                <button
+                  key={o.value}
+                  onClick={() => { onChange(o.value); setOpen(false); }}
+                  className={`w-full text-left text-xs transition-colors ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
+                  style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', ...rowStyle }}
+                >
+                  {o.label}
+                </button>
+              );
+            }
             return (
-              <button
+              <div
                 key={o.value}
-                onClick={() => { onChange(o.value); setOpen(false); }}
-                className={`w-full text-left text-xs transition-colors ${active ? '' : 'bg-transparent hover:bg-(--color-hover-row)'}`}
-                style={{
-                  padding: '6px 10px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: active ? 'var(--color-text)' : 'transparent',
-                  color: active ? dropdownBg : 'var(--color-text)',
-                  fontWeight: active ? 600 : 400,
-                }}
+                className={`flex items-center text-xs transition-colors ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
+                style={rowStyle}
               >
-                {o.label}
-              </button>
+                <button
+                  onClick={() => { onChange(o.value); setOpen(false); }}
+                  style={{ flex: 1, textAlign: 'left', padding: '6px 10px', border: 'none', cursor: 'pointer', background: 'transparent', color: 'inherit', fontWeight: 'inherit' }}
+                >
+                  {o.label}
+                </button>
+                {action}
+              </div>
             );
           })}
+          {footer && (
+            <>
+              <div style={{ borderTop: '1px solid var(--color-border)', margin: '4px 0' }} />
+              {footer}
+            </>
+          )}
         </div>
       )}
     </div>

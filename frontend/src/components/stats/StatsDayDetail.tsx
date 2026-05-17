@@ -5,16 +5,7 @@ import { formatDuration } from '../../utils/formatters';
 import { tradingDurationMs } from '../../utils/marketHours';
 import { COLOR_TABLE_STRIPE } from '../../constants/colors';
 import { pnlColor, fmtDollar, hexToRgba } from './statsHelpers';
-import { EquityCurveCanvas } from './EquityCurveCanvas';
-import type { EquityCurveConfig } from './EquityCurveCanvas';
-
-const DAY_CURVE_CONFIG: EquityCurveConfig = {
-  height: 160,
-  pad: { top: 16, right: 20, bottom: 28, left: 56 },
-  dotThreshold: 0, // always show dots
-  dotRadius: 3.5,
-  gridTargetLines: 3,
-};
+import { EquityCurveChart } from '../backtest/EquityCurveChart';
 
 export function StatsDayDetail({ date, trades, onBack }: {
   date: string; // YYYY-MM-DD
@@ -58,12 +49,18 @@ export function StatsDayDetail({ date, trades, onBack }: {
       </div>
 
       {/* Day equity curve */}
-      <EquityCurveCanvas
-        curve={stats.equityCurve}
-        exitTimes={trades.map(t => t.exitTime)}
-        title="Day Equity Curve"
-        config={DAY_CURVE_CONFIG}
-      />
+      <div style={{ background: 'var(--color-table-stripe)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '16px 20px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.02em', marginBottom: 12 }}>
+          Day Equity Curve
+        </div>
+        <EquityCurveChart
+          points={trades.map((tr, i) => ({ t: tr.exitTime, equity: stats.equityCurve[i] }))}
+          initialEquity={0}
+          height={160}
+          showMarkers
+          background={COLOR_TABLE_STRIPE}
+        />
+      </div>
 
       {/* Trade list */}
       <div

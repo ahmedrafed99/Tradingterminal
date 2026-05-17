@@ -1,14 +1,28 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import * as vm from 'vm';
+import * as fs from 'fs';
+import * as path from 'path';
 import { validateQuery } from '../validate';
 import { getBars, streamBarsMonthly, streamTicksFromRange, getAvailableRange, getAvailableSymbols, type OhlcvBar } from '../services/backtestDataService';
 
-const router = Router();
+// ---------------------------------------------------------------------------
+// Strategy file persistence — backend/data/strategies/{name}/strategy.js|result.json
+// ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// GET /backtest/bars
-// ---------------------------------------------------------------------------
+const STRATEGIES_DIR = path.resolve(
+  process.env.STRATEGIES_DIR ?? path.join(__dirname, '../../data/strategies'),
+);
+
+function safeName(name: string): string {
+  return name.replace(/[/\\:*?"<>|]/g, '_').trim().slice(0, 100);
+}
+
+function strategyDir(name: string): string {
+  return path.join(STRATEGIES_DIR, safeName(name));
+}
+
+const router = Router();
 
 // ---------------------------------------------------------------------------
 // GET /backtest/symbols  — list all available exchange/symbol pairs
@@ -123,8 +137,9 @@ interface Trade {
   entryPrice: number;
   exitPrice:  number;
   qty:        number;
-  pnl:        number;
-  pnlPct:     number;
+  pnl:        number;     // net of fees
+  pnlPct:     number;     // net of fees
+  fees:       number;     // round-trip taker fees (entry + exit)
 }
 
 interface EquityPoint {
@@ -141,6 +156,7 @@ const RunBody = z.object({
   to:           z.string().min(1),
   initialEquity: z.number().positive().default(10000),
   strategyCode: z.string().min(1),
+  takerFee:     z.number().min(0).max(0.01).default(0.00055), // per-side fraction; worst-case Bybit taker
 });
 
 router.post('/run', async (req, res) => {
@@ -150,7 +166,7 @@ router.post('/run', async (req, res) => {
     return;
   }
 
-  const { exchange, symbol, unit, unitNumber, from, to, initialEquity, strategyCode } = parsed.data;
+  const { exchange, symbol, unit, unitNumber, from, to, initialEquity, strategyCode, takerFee } = parsed.data;
 
   // SSE setup
   res.setHeader('Content-Type', 'text/event-stream');
@@ -170,7 +186,7 @@ router.post('/run', async (req, res) => {
 
     const result = await runStrategy(
       exchange, symbol, { unit, unitNumber }, fromMs, toMs,
-      strategyCode, initialEquity,
+      strategyCode, initialEquity, takerFee,
       (point) => send('equity', point),
       (msg)   => send('status', { message: msg }),
     );
@@ -206,6 +222,7 @@ async function runStrategy(
   toMs: number,
   strategyCode: string,
   initialEquity: number,
+  takerFee: number,
   onEquityPoint: (p: EquityPoint) => void,
   onStatus: (msg: string) => void,
 ): Promise<StrategyResult> {
@@ -238,17 +255,19 @@ async function runStrategy(
 
   function closePosition(exitPrice: number, exitTime: string) {
     if (position === 0) return;
-    const qty    = Math.abs(position);
-    const pnl    = entrySide === 'long'
+    const qty       = Math.abs(position);
+    const grossPnl  = entrySide === 'long'
       ? (exitPrice - entryPrice) * qty
       : (entryPrice - exitPrice) * qty;
-    const pnlPct = (pnl / (entryPrice * qty)) * 100;
-    trades.push({ entryTime, exitTime, side: entrySide, entryPrice, exitPrice, qty, pnl, pnlPct });
-    equity       += pnl;
-    position      = 0;
-    stopPrice     = null;
-    targetPrice   = null;
-    trailingDist  = null;
+    const fees      = (entryPrice + exitPrice) * qty * takerFee;
+    const pnl       = grossPnl - fees;
+    const pnlPct    = (pnl / (entryPrice * qty)) * 100;
+    trades.push({ entryTime, exitTime, side: entrySide, entryPrice, exitPrice, qty, pnl, pnlPct, fees });
+    equity         += pnl;
+    position        = 0;
+    stopPrice       = null;
+    targetPrice     = null;
+    trailingDist    = null;
   }
 
   // Advance the trailing stop to the new tick price (only moves in the favourable direction).
@@ -426,5 +445,206 @@ async function resolveAmbiguousBar(
   // Fallback: stop wins (conservative) if ticks aren't available
   return firstHit ?? { price: stop ?? target!, time: new Date(barMs).toISOString() };
 }
+
+// ---------------------------------------------------------------------------
+// GET /backtest/strategies  — list all strategy folders with their code
+// ---------------------------------------------------------------------------
+
+router.get('/strategies', (_req, res) => {
+  try {
+    if (!fs.existsSync(STRATEGIES_DIR)) {
+      res.json({ success: true, strategies: [] });
+      return;
+    }
+    const strategies = fs.readdirSync(STRATEGIES_DIR, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => {
+        const codePath = path.join(STRATEGIES_DIR, d.name, 'strategy.js');
+        const code = fs.existsSync(codePath) ? fs.readFileSync(codePath, 'utf8') : '';
+        return { name: d.name, code };
+      });
+    res.json({ success: true, strategies });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PUT /backtest/strategies/:name  — create / update strategy code
+// ---------------------------------------------------------------------------
+
+router.put('/strategies/:name', (req, res) => {
+  try {
+    const name = safeName(req.params.name);
+    const { code } = req.body as { code: string };
+    const dir = strategyDir(name);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'strategy.js'), code ?? '', 'utf8');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /backtest/strategies/:name  — rename strategy folder
+// ---------------------------------------------------------------------------
+
+router.patch('/strategies/:name', (req, res) => {
+  try {
+    const oldName = safeName(req.params.name);
+    const newName = safeName((req.body as { newName: string }).newName ?? '');
+    if (!newName) { res.status(400).json({ success: false, error: 'newName required' }); return; }
+    const oldDir = strategyDir(oldName);
+    const newDir = strategyDir(newName);
+    if (fs.existsSync(oldDir)) fs.renameSync(oldDir, newDir);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /backtest/strategies/:name  — delete strategy folder
+// ---------------------------------------------------------------------------
+
+router.delete('/strategies/:name', (req, res) => {
+  try {
+    const dir = strategyDir(req.params.name);
+    if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PUT /backtest/strategies/:name/result  — save run result
+// Body: { result: BacktestResult, meta: { exchange, symbol, from, to, timeframe, initialEquity } }
+// Writes summary.json (human-readable stats), equity.json, trades.json
+// ---------------------------------------------------------------------------
+
+interface SaveResultBody {
+  result: {
+    trades:      Array<{ pnl: number; pnlPct: number; side: string; entryTime: string; exitTime: string; entryPrice: number; exitPrice: number; qty: number; fees: number }>;
+    equityCurve: Array<{ t: string; equity: number }>;
+    finalEquity:  number;
+    totalReturn:  number;
+    winRate:      number;
+    totalTrades:  number;
+    maxDrawdown:  number;
+    sharpe:       number;
+  };
+  meta: {
+    exchange:      string;
+    symbol:        string;
+    from:          string;
+    to:            string;
+    timeframe:     string;
+    initialEquity: number;
+  };
+}
+
+router.put('/strategies/:name/result', (req, res) => {
+  try {
+    const name = safeName(req.params.name);
+    const dir = strategyDir(name);
+    fs.mkdirSync(dir, { recursive: true });
+
+    const { result, meta } = req.body as SaveResultBody;
+    const { trades, equityCurve, finalEquity, totalReturn, winRate, totalTrades, maxDrawdown, sharpe } = result;
+
+    // Compute extra stats from trades
+    const winners = trades.filter(t => t.pnl > 0);
+    const losers  = trades.filter(t => t.pnl < 0);
+    const grossProfit = winners.reduce((s, t) => s + t.pnl, 0);
+    const grossLoss   = Math.abs(losers.reduce((s, t) => s + t.pnl, 0));
+    const avgWin      = winners.length > 0 ? grossProfit / winners.length : 0;
+    const avgLoss     = losers.length  > 0 ? grossLoss  / losers.length  : 0;
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
+    const bestTrade  = trades.length > 0 ? Math.max(...trades.map(t => t.pnl)) : 0;
+    const worstTrade = trades.length > 0 ? Math.min(...trades.map(t => t.pnl)) : 0;
+
+    let longestWinStreak = 0, longestLossStreak = 0, curWin = 0, curLoss = 0;
+    for (const t of trades) {
+      if (t.pnl > 0) { curWin++; curLoss = 0; longestWinStreak  = Math.max(longestWinStreak,  curWin);  }
+      else            { curLoss++; curWin = 0;  longestLossStreak = Math.max(longestLossStreak, curLoss); }
+    }
+
+    const summary = {
+      runDate:      new Date().toISOString(),
+      exchange:     meta.exchange,
+      symbol:       meta.symbol,
+      from:         meta.from,
+      to:           meta.to,
+      timeframe:    meta.timeframe,
+      initialEquity: meta.initialEquity,
+      finalEquity:  Math.round(finalEquity * 100) / 100,
+      netPnl:       Math.round((finalEquity - meta.initialEquity) * 100) / 100,
+      totalReturn:  Math.round(totalReturn * 100) / 100,
+      totalTrades,
+      winRate:      Math.round(winRate * 100) / 100,
+      winners:      winners.length,
+      losers:       losers.length,
+      avgWin:       Math.round(avgWin * 100) / 100,
+      avgLoss:      Math.round(avgLoss * 100) / 100,
+      profitFactor: Math.round(profitFactor * 100) / 100,
+      bestTrade:    Math.round(bestTrade * 100) / 100,
+      worstTrade:   Math.round(worstTrade * 100) / 100,
+      maxDrawdown:  Math.round(maxDrawdown * 100) / 100,
+      sharpe:       Math.round(sharpe * 100) / 100,
+      longestWinStreak,
+      longestLossStreak,
+    };
+
+    fs.writeFileSync(path.join(dir, 'summary.json'),  JSON.stringify(summary,    null, 2), 'utf8');
+    fs.writeFileSync(path.join(dir, 'equity.json'),   JSON.stringify(equityCurve, null, 2), 'utf8');
+    fs.writeFileSync(path.join(dir, 'trades.json'),   JSON.stringify(trades,     null, 2), 'utf8');
+
+    // Remove old monolithic result.json if it exists
+    const legacy = path.join(dir, 'result.json');
+    if (fs.existsSync(legacy)) fs.unlinkSync(legacy);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /backtest/strategies/:name/result  — load last run result
+// ---------------------------------------------------------------------------
+
+router.get('/strategies/:name/result', (req, res) => {
+  try {
+    const dir = strategyDir(req.params.name);
+    const summaryPath = path.join(dir, 'summary.json');
+    if (!fs.existsSync(summaryPath)) {
+      res.json({ success: false, error: 'No result' });
+      return;
+    }
+    const summary    = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+    const equityPath = path.join(dir, 'equity.json');
+    const tradesPath = path.join(dir, 'trades.json');
+    const equityCurve = fs.existsSync(equityPath) ? JSON.parse(fs.readFileSync(equityPath, 'utf8')) : [];
+    const trades      = fs.existsSync(tradesPath) ? JSON.parse(fs.readFileSync(tradesPath, 'utf8')) : [];
+
+    res.json({
+      success: true,
+      result: {
+        trades,
+        equityCurve,
+        finalEquity:  summary.finalEquity,
+        totalReturn:  summary.totalReturn,
+        winRate:      summary.winRate,
+        totalTrades:  summary.totalTrades,
+        maxDrawdown:  summary.maxDrawdown,
+        sharpe:       summary.sharpe,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: String(err) });
+  }
+});
 
 export default router;
