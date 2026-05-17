@@ -40,7 +40,7 @@ export const EquityCurveChart = memo(forwardRef<EquityCurveHandle, Props>(
         const lp = toLinePoint(point);
         bufRef.current.push(lp);
         seriesRef.current.update(lp);
-        // Recolor based on direction
+        chartRef.current?.timeScale().fitContent();
         const color = lp.value >= initialEquity ? '#22c55e' : '#ef4444';
         seriesRef.current.applyOptions({ color });
       },
@@ -70,6 +70,10 @@ export const EquityCurveChart = memo(forwardRef<EquityCurveHandle, Props>(
       const chart = createChart(containerRef.current, {
         ...CHART_OPTIONS,
         height: 180,
+        crosshair: {
+          ...CHART_OPTIONS.crosshair,
+          horzLine: { ...CHART_OPTIONS.crosshair?.horzLine, labelVisible: true },
+        },
         rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
         timeScale: { borderVisible: false, fixLeftEdge: true, fixRightEdge: true },
         localization: { priceFormatter: (v: number) => `$${v.toFixed(2)}` },
