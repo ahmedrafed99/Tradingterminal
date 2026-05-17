@@ -139,6 +139,8 @@ export const useStore = create<Store>()(
         backtestStrategyName: s.backtestStrategyName,
         backtestStrategyCode: s.backtestStrategyCode,
         backtestStrategies: s.backtestStrategies,
+        backtestBottomRatio: s.backtestBottomRatio,
+        backtestBottomPreviousRatio: s.backtestBottomPreviousRatio,
       }),
     },
   ),

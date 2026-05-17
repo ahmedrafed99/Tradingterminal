@@ -194,7 +194,9 @@
         "File persistence: strategies saved to backend/data/strategies/{name}/strategy.js; last result to result.json in same folder",
         "On modal open: listStrategies() from disk seeds the store; empty disk → current store strategies seeded to disk",
         "Strategy code auto-saves 800ms after last keystroke; result saves after each successful run",
-        "On strategy switch: equity chart clears immediately, then loadResult() from disk restores chart + stats via setData()"
+        "On strategy switch: equity chart clears immediately, then loadResult() from disk restores chart + stats via setData()",
+        "Vertical resize: chart vs results split is controlled by backtestBottomRatio (persisted, 0..0.85, default 0.3). VerticalSeparator drives drag; toggleBacktestBottom collapses/restores via backtestBottomPreviousRatio — mirrors App.tsx pattern",
+        "Bottom panel content fills via flex: stats + tabs are shrink-0; equity curve receives height='100%' (LWC autoSize handles repaint); trades table receives maxHeight='100%' (SortableTable virtualization re-measures via ResizeObserver)"
       ]
     }
     ,{
@@ -321,6 +323,22 @@
       "notes": [
         "Different from DropdownButton (bg --color-surface, RADIUS.XL, border-color hover) — keep both",
         "No built-in chevron — caller renders ChevronDown explicitly when needed for flexibility"
+      ]
+    }
+    ,{
+      "name": "VerticalSeparator",
+      "description": "Shared draggable horizontal divider for vertical pane splits. 1px tall, cursor-row-resize, accent on drag. Optional collapse toggle button (chevron) appears on hover or when collapsed. Used by App.tsx (chart/bottom panel split) and StrategyLabModal (backtest chart/results split).",
+      "keywords": ["separator", "splitter", "divider", "resize", "drag", "row-resize", "vertical", "collapse", "toggle", "shared"],
+      "files": [
+        "frontend/src/components/shared/VerticalSeparator.tsx"
+      ],
+      "dependencies": [
+        "ChevronDown / ChevronUp icons (only when onToggle is provided)"
+      ],
+      "notes": [
+        "onDrag receives mouseRatio = (e.clientY - containerTop) / containerHeight — caller decides whether to invert (1 - r) for bottom-anchored panels",
+        "containerRef points to the SHARED parent containing all split children — its bounding rect is captured on mousedown, not on every mousemove (avoids re-layout cost)",
+        "Toggle button is omitted when onToggle is not provided — pass both `collapsed` and `onToggle` to enable it; pass neither for a pure resizer"
       ]
     }
     ,{

@@ -51,6 +51,14 @@ export interface BacktestSlice {
   // Selected trade index (drives chart markers)
   backtestSelectedTradeIndex: number | null;
   setBacktestSelectedTradeIndex: (index: number | null) => void;
+
+  // Bottom panel (equity + stats) height ratio inside the modal — TradingView-style
+  // vertical resize between chart and results.
+  backtestBottomRatio: number;
+  backtestBottomPreviousRatio: number;
+  setBacktestBottomRatio: (ratio: number) => void;
+  setBacktestBottomPreviousRatio: (ratio: number) => void;
+  toggleBacktestBottom: () => void;
 }
 
 const DEFAULT_STRATEGY = `// Called once per closed bar.
@@ -167,5 +175,17 @@ export function createBacktestSlice(set: (fn: (s: BacktestSlice) => Partial<Back
 
     backtestSelectedTradeIndex: null,
     setBacktestSelectedTradeIndex: (index) => set(() => ({ backtestSelectedTradeIndex: index })),
+
+    backtestBottomRatio: 0.3,
+    backtestBottomPreviousRatio: 0.3,
+    setBacktestBottomRatio: (ratio) => set(() => ({ backtestBottomRatio: Math.max(0, Math.min(0.85, ratio)) })),
+    setBacktestBottomPreviousRatio: (ratio) => set(() => ({ backtestBottomPreviousRatio: ratio })),
+    toggleBacktestBottom: () => set((s) => {
+      if (s.backtestBottomRatio > 0.05) {
+        return { backtestBottomPreviousRatio: s.backtestBottomRatio, backtestBottomRatio: 0 };
+      }
+      const ratio = s.backtestBottomPreviousRatio >= 0.05 ? s.backtestBottomPreviousRatio : 0.3;
+      return { backtestBottomRatio: ratio };
+    }),
   };
 }

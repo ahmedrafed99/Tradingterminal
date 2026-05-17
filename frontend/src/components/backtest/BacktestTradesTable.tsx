@@ -71,7 +71,7 @@ export function BacktestTradesTable({ trades }: Props) {
       selectedKey={selectedIndex}
       onRowClick={(_t, i) => setSelectedIndex(selectedIndex === i ? null : i)}
       defaultSort={{ key: 'entryTime', dir: 'asc' }}
-      maxHeight={280}
+      maxHeight="100%"
     />
   );
 }

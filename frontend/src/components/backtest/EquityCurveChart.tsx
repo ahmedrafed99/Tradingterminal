@@ -11,7 +11,8 @@ interface Props {
   initialEquity: number;
   isEmpty?: boolean;
   emptyMessage?: string;
-  height?: number;
+  /** Pixel height (number) or any CSS height value (e.g. '100%') to fill the parent. */
+  height?: number | string;
   /** Draw a small circle marker at every point. Set max count to keep dots from cluttering dense series. */
   showMarkers?: boolean;
   markerThreshold?: number;

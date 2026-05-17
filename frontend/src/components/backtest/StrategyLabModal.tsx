@@ -9,6 +9,7 @@ import { SymbolPickerModal } from '../shared/SymbolPickerModal';
 import { TimeframePicker } from '../shared/TimeframePicker';
 import { ToolbarPillButton } from '../shared/ToolbarPillButton';
 import { CustomSelect } from '../shared/CustomSelect';
+import { VerticalSeparator } from '../shared/VerticalSeparator';
 import { ChevronDown } from '../icons/ChevronDown';
 import { backtestService, type EquityPoint, type SymbolEntry } from '../../services/backtestService';
 import { Z, RADIUS, FONT_FAMILY } from '../../constants/layout';
@@ -115,6 +116,10 @@ export function StrategyLabModal() {
   const result              = useStore((s) => s.backtestResult);
   const setResult                   = useStore((s) => s.setBacktestResult);
   const setSelectedTradeIndex       = useStore((s) => s.setBacktestSelectedTradeIndex);
+  const bottomRatio                 = useStore((s) => s.backtestBottomRatio);
+  const setBottomRatio              = useStore((s) => s.setBacktestBottomRatio);
+  const setBottomPreviousRatio      = useStore((s) => s.setBacktestBottomPreviousRatio);
+  const toggleBottom                = useStore((s) => s.toggleBacktestBottom);
 
   const [datePickerOpen, setDatePickerOpen]         = useState(false);
   const [activeTab, setActiveTab]                   = useState<'curve' | 'trades'>('curve');
@@ -130,6 +135,7 @@ export function StrategyLabModal() {
   const saveCodeTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
   const equityBufferRef           = useRef<EquityPoint[]>([]);
   const equityFlushScheduledRef   = useRef(false);
+  const splitContainerRef         = useRef<HTMLDivElement>(null);
 
   // Load available symbols + strategies from disk on open
   useEffect(() => {
@@ -356,10 +362,12 @@ export function StrategyLabModal() {
       <div className="flex-1 flex flex-row min-h-0">
 
         {/* ── Left: chart + results ── */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0 min-w-0">
 
           {/* Chart */}
-          <div style={{ flex: 1, minHeight: 300, position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{ flex: 1 - bottomRatio, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}
+          >
             <CandlestickChart
               chartId="backtest"
               contract={contract}
@@ -368,8 +376,22 @@ export function StrategyLabModal() {
             />
           </div>
 
+          <VerticalSeparator
+            containerRef={splitContainerRef}
+            collapsed={bottomRatio <= 0.05}
+            onToggle={toggleBottom}
+            onDrag={(mouseRatio) => {
+              const newRatio = 1 - mouseRatio;
+              setBottomRatio(newRatio);
+              if (newRatio >= 0.05) setBottomPreviousRatio(newRatio);
+            }}
+          />
+
           {/* ── Equity curve + results ── */}
-          <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0, background: 'var(--color-panel)' }}>
+          <div
+            style={{ flex: bottomRatio, minHeight: bottomRatio <= 0.05 ? 0 : 40, background: 'var(--color-panel)' }}
+            className="flex flex-col overflow-hidden"
+          >
 
           {/* Stats row */}
           {result && (() => {
@@ -377,7 +399,7 @@ export function StrategyLabModal() {
             const pnlPositive = result.totalReturn >= 0;
             const pnlColor = pnlPositive ? 'var(--color-buy)' : 'var(--color-sell)';
             return (
-              <div style={{ padding: '14px 20px 4px' }}>
+              <div style={{ padding: '14px 20px 4px', flexShrink: 0 }}>
                 <div className="flex flex-wrap" style={{ gap: 28 }}>
                   <MetricTile
                     label="Net P&L"
@@ -404,7 +426,7 @@ export function StrategyLabModal() {
           })()}
 
           {/* Tab selector */}
-          <div className="flex items-center gap-4" style={{ padding: '8px 16px 0' }}>
+          <div className="flex items-center gap-4" style={{ padding: '8px 16px 0', flexShrink: 0 }}>
             {(['curve', 'trades'] as const).map((tab) => (
               <button
                 key={tab}
@@ -426,17 +448,20 @@ export function StrategyLabModal() {
           </div>
 
           {activeTab === 'curve' && (
-            <div style={{ padding: '8px 0 0' }}>
+            <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0 }}>
               <EquityCurveChart
                 points={equityPoints}
                 initialEquity={INITIAL_EQUITY}
                 isEmpty={!running && equityPoints.length === 0}
+                height="100%"
               />
             </div>
           )}
 
           {activeTab === 'trades' && result && (
-            <BacktestTradesTable trades={result.trades} />
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <BacktestTradesTable trades={result.trades} />
+            </div>
           )}
 
           {activeTab === 'trades' && !result && (
