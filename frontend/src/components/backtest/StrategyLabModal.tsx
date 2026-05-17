@@ -1,19 +1,24 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import type { Contract } from '../../services/marketDataService';
 import { CandlestickChart } from '../chart/CandlestickChart';
-import { EquityCurveChart, type EquityCurveHandle } from './EquityCurveChart';
+import { EquityCurveChart } from './EquityCurveChart';
+import { BacktestTradesTable } from './BacktestTradesTable';
 import { DateRangePicker } from './DateRangePicker';
 import { SymbolPickerModal } from '../shared/SymbolPickerModal';
 import { TimeframePicker } from '../shared/TimeframePicker';
-import { backtestService, type BacktestResult, type SymbolEntry } from '../../services/backtestService';
-import { Z, RADIUS, SHADOW, FONT_SIZE, FONT_FAMILY } from '../../constants/layout';
-import { SECTION_LABEL } from '../../constants/styles';
+import { ToolbarPillButton } from '../shared/ToolbarPillButton';
+import { CustomSelect } from '../shared/CustomSelect';
+import { ChevronDown } from '../icons/ChevronDown';
+import { backtestService, type EquityPoint, type SymbolEntry } from '../../services/backtestService';
+import { Z, RADIUS, FONT_FAMILY } from '../../constants/layout';
 
 // ---------------------------------------------------------------------------
 // Contract lookup — add entries here when new symbols are extracted
 // ---------------------------------------------------------------------------
+
+// Worst-case taker fee across Binance / Bybit / MEXC / Hyperliquid perps.
+const WORST_CASE_TAKER_FEE = 0.00055; // 0.055% per side (Bybit)
 
 const CONTRACT_MAP: Record<string, Contract> = {
   'BINANCE:BTCUSDT': {
@@ -23,6 +28,7 @@ const CONTRACT_MAP: Record<string, Contract> = {
     activeContract: true, marketType: 'crypto',
     ticksPerPoint: 100, quantityStep: 0.001,
     pricePrecision: 2, quantityPrecision: 3,
+    takerFee: WORST_CASE_TAKER_FEE,
   },
   'BINANCE:ETHUSDT': {
     id: 'ETHUSDT', name: 'ETHUSDT',
@@ -31,6 +37,7 @@ const CONTRACT_MAP: Record<string, Contract> = {
     activeContract: true, marketType: 'crypto',
     ticksPerPoint: 100, quantityStep: 0.001,
     pricePrecision: 2, quantityPrecision: 3,
+    takerFee: WORST_CASE_TAKER_FEE,
   },
 };
 
@@ -42,6 +49,7 @@ function getContract(exchange: string, symbol: string): Contract {
     activeContract: true, marketType: 'crypto',
     ticksPerPoint: 100, quantityStep: 0.001,
     pricePrecision: 2, quantityPrecision: 3,
+    takerFee: WORST_CASE_TAKER_FEE,
   };
 }
 
@@ -49,34 +57,29 @@ function getContract(exchange: string, symbol: string): Contract {
 
 const INITIAL_EQUITY = 10_000;
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function MetricTile({ label, value, sub, valueColor, subColor }: {
+  label: string;
+  value: string;
+  sub?: string;
+  valueColor?: string;
+  subColor?: string;
+}) {
   return (
-    <div style={{ flex: 1, minWidth: 100, padding: '10px 14px', background: 'var(--color-panel)', borderRadius: RADIUS.LG, border: '1px solid var(--color-border)' }}>
-      <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text)', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function TradeRow({ trade, index }: { trade: BacktestResult['trades'][number]; index: number }) {
-  const pnlColor = trade.pnl >= 0 ? 'var(--color-buy)' : 'var(--color-sell)';
-  return (
-    <div
-      className="flex items-center gap-3 hover:bg-(--color-hover-row) transition-colors"
-      style={{ padding: '6px 12px', fontSize: 11, borderBottom: '1px solid var(--color-border)' }}
-    >
-      <span style={{ color: 'var(--color-text-muted)', width: 28, flexShrink: 0 }}>#{index + 1}</span>
-      <span style={{ color: trade.side === 'long' ? 'var(--color-buy)' : 'var(--color-sell)', width: 36, flexShrink: 0 }}>{trade.side}</span>
-      <span style={{ flex: 1, color: 'var(--color-text-muted)' }}>{new Date(trade.entryTime).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-      <span style={{ width: 80, textAlign: 'right', color: 'var(--color-text)' }}>${trade.entryPrice.toFixed(2)}</span>
-      <span style={{ width: 80, textAlign: 'right', color: 'var(--color-text)' }}>${trade.exitPrice.toFixed(2)}</span>
-      <span style={{ width: 72, textAlign: 'right', color: pnlColor, fontWeight: 600 }}>
-        {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-      </span>
-      <span style={{ width: 56, textAlign: 'right', color: pnlColor }}>
-        {trade.pnlPct >= 0 ? '+' : ''}{trade.pnlPct.toFixed(2)}%
-      </span>
+    <div style={{ flex: 1, minWidth: 110, padding: '2px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
+        <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{label}</span>
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, opacity: 0.5 }}>
+          <circle cx="8" cy="8" r="6.5" stroke="var(--color-text-muted)" strokeWidth="1" />
+          <path d="M8 7v4" stroke="var(--color-text-muted)" strokeWidth="1.2" strokeLinecap="round" />
+          <circle cx="8" cy="5" r="0.6" fill="var(--color-text-muted)" />
+        </svg>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1.1 }}>
+        <span style={{ fontSize: 17, fontWeight: 600, color: valueColor ?? 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>{value}</span>
+        {sub && (
+          <span style={{ fontSize: 12, color: subColor ?? 'var(--color-text-muted)', fontFeatureSettings: '"tnum"' }}>{sub}</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -104,39 +107,69 @@ export function StrategyLabModal() {
   const setStrategyCode     = useStore((s) => s.setBacktestStrategyCode);
   const switchStrategy      = useStore((s) => s.switchBacktestStrategy);
   const addStrategy         = useStore((s) => s.addBacktestStrategy);
+  const deleteStrategy      = useStore((s) => s.deleteBacktestStrategy);
   const running             = useStore((s) => s.backtestRunning);
   const setRunning          = useStore((s) => s.setBacktestRunning);
   const status              = useStore((s) => s.backtestStatus);
   const setStatus           = useStore((s) => s.setBacktestStatus);
   const result              = useStore((s) => s.backtestResult);
-  const setResult           = useStore((s) => s.setBacktestResult);
+  const setResult                   = useStore((s) => s.setBacktestResult);
+  const setSelectedTradeIndex       = useStore((s) => s.setBacktestSelectedTradeIndex);
 
   const [datePickerOpen, setDatePickerOpen]         = useState(false);
   const [activeTab, setActiveTab]                   = useState<'curve' | 'trades'>('curve');
   const [editorOpen, setEditorOpen]                 = useState(false);
-  const [isEmpty, setIsEmpty]                       = useState(true);
+  const [equityPoints, setEquityPoints]             = useState<EquityPoint[]>([]);
   const [symbols, setSymbols]                       = useState<SymbolEntry[]>([]);
   const [symbolMenuOpen, setSymbolMenuOpen]         = useState(false);
   const [availableRange, setAvailableRange]         = useState<{ from: string; to: string } | null>(null);
-  const [strategyDropdownOpen, setStrategyDropdownOpen] = useState(false);
+
+  const initStrategies        = useStore((s) => s.initBacktestStrategies);
 
   const abortRef              = useRef<(() => void) | null>(null);
-  const equityRef             = useRef<EquityCurveHandle | null>(null);
-  const strategyDropdownRef   = useRef<HTMLDivElement>(null);
+  const saveCodeTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useClickOutside(strategyDropdownRef, strategyDropdownOpen, () => setStrategyDropdownOpen(false));
-
-  // Load available symbols on open
+  // Load available symbols + strategies from disk on open
   useEffect(() => {
     if (!open) return;
+
     backtestService.getSymbols().then((list) => {
       setSymbols(list);
-      // If current selection isn't in the list, default to first available
       if (list.length > 0 && !list.some(s => s.exchange === exchange && s.symbol === symbol)) {
         setInstrument(list[0].exchange, list[0].symbol);
       }
     });
+
+    backtestService.listStrategies().then(async (diskStrategies) => {
+      if (diskStrategies.length === 0) {
+        // First run — seed disk with current store strategies
+        for (const st of strategies) {
+          await backtestService.saveStrategy(st.name, st.code);
+        }
+      } else {
+        initStrategies(diskStrategies);
+      }
+    });
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load saved result whenever the active strategy changes
+  useEffect(() => {
+    if (!open || !strategyName) return;
+    backtestService.loadResult(strategyName).then((saved) => {
+      setResult(saved);
+      setEquityPoints(saved?.equityCurve ?? []);
+    });
+  }, [open, strategyName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced save of strategy code to disk
+  useEffect(() => {
+    if (!open) return;
+    if (saveCodeTimerRef.current) clearTimeout(saveCodeTimerRef.current);
+    saveCodeTimerRef.current = setTimeout(() => {
+      backtestService.saveStrategy(strategyName, strategyCode);
+    }, 800);
+    return () => { if (saveCodeTimerRef.current) clearTimeout(saveCodeTimerRef.current); };
+  }, [strategyCode, strategyName, open]);
 
   // Fetch available date range whenever the symbol changes
   useEffect(() => {
@@ -152,9 +185,9 @@ export function StrategyLabModal() {
       return;
     }
 
-    equityRef.current?.clear();
-    setIsEmpty(false);
+    setEquityPoints([]);
     setResult(null);
+    setSelectedTradeIndex(null);
     setRunning(true);
     setStatus('Starting...');
 
@@ -168,8 +201,9 @@ export function StrategyLabModal() {
         to,
         initialEquity: INITIAL_EQUITY,
         strategyCode,
+        takerFee: getContract(exchange, symbol).takerFee ?? WORST_CASE_TAKER_FEE,
       },
-      (point) => equityRef.current?.addPoint(point),
+      (point) => setEquityPoints((prev) => [...prev, point]),
       (msg) => setStatus(msg),
     );
 
@@ -179,6 +213,14 @@ export function StrategyLabModal() {
       const res = await promise;
       setResult(res);
       setStatus(`Done — ${res.totalTrades} trades`);
+      backtestService.saveResult(strategyName, res, {
+        exchange,
+        symbol,
+        from,
+        to,
+        timeframe: timeframe.label,
+        initialEquity: INITIAL_EQUITY,
+      });
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Error');
     } finally {
@@ -202,32 +244,22 @@ export function StrategyLabModal() {
         style={{ padding: '10px 16px', background: 'var(--color-panel)' }}
       >
         {/* Symbol selector */}
-        <button
-          onClick={() => setSymbolMenuOpen(true)}
-          className="flex items-center gap-1.5 text-xs font-medium hover:bg-(--color-border) transition-colors rounded-md"
-          style={{ padding: '5px 10px', background: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-        >
+        <ToolbarPillButton onClick={() => setSymbolMenuOpen(true)} className="font-medium">
           <span style={{ color: 'var(--color-text-muted)', marginRight: 2 }}>{exchange}</span>
           {symbol}
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: 0.5 }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
+          <ChevronDown className="opacity-50" />
+        </ToolbarPillButton>
 
         <div className="w-px self-stretch bg-(--color-border)" style={{ margin: '0 4px' }} />
 
         {/* Date range button */}
-        <button
-          onClick={() => setDatePickerOpen(true)}
-          className="flex items-center gap-1.5 text-xs text-(--color-text) hover:bg-(--color-border) transition-colors rounded-md"
-          style={{ padding: '5px 10px', background: 'var(--color-input)', border: '1px solid var(--color-border)' }}
-        >
+        <ToolbarPillButton onClick={() => setDatePickerOpen(true)}>
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
             <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
             <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
           {from} → {to}
-        </button>
+        </ToolbarPillButton>
 
         {/* Timeframe picker */}
         <TimeframePicker
@@ -320,24 +352,39 @@ export function StrategyLabModal() {
           </div>
 
           {/* ── Equity curve + results ── */}
-          <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
+          <div style={{ borderTop: '1px solid var(--color-border)', flexShrink: 0, background: 'var(--color-panel)' }}>
 
           {/* Stats row */}
-          {result && (
-            <div style={{ padding: '12px 16px 0' }}>
-              <div className="flex gap-2 flex-wrap">
-                <StatCard
-                  label="Net P&L"
-                  value={`${result.totalReturn >= 0 ? '+' : ''}$${(result.finalEquity - INITIAL_EQUITY).toFixed(2)}`}
-                  sub={`${result.totalReturn >= 0 ? '+' : ''}${result.totalReturn.toFixed(2)}%`}
-                />
-                <StatCard label="Win Rate"     value={`${result.winRate.toFixed(1)}%`} sub={`${result.totalTrades} trades`} />
-                <StatCard label="Max DD"       value={`-${result.maxDrawdown.toFixed(2)}%`} />
-                <StatCard label="Sharpe"       value={result.sharpe.toFixed(2)} />
-                <StatCard label="Final Equity" value={`$${result.finalEquity.toFixed(2)}`} />
+          {result && (() => {
+            const pnl = result.finalEquity - INITIAL_EQUITY;
+            const pnlPositive = result.totalReturn >= 0;
+            const pnlColor = pnlPositive ? 'var(--color-buy)' : 'var(--color-sell)';
+            return (
+              <div style={{ padding: '14px 20px 4px' }}>
+                <div className="flex flex-wrap" style={{ gap: 28 }}>
+                  <MetricTile
+                    label="Net P&L"
+                    value={`${pnlPositive ? '+' : ''}$${pnl.toFixed(2)}`}
+                    sub={`${pnlPositive ? '+' : ''}${result.totalReturn.toFixed(2)}%`}
+                    valueColor={pnlColor}
+                    subColor={pnlColor}
+                  />
+                  <MetricTile
+                    label="Max drawdown"
+                    value={`-${result.maxDrawdown.toFixed(2)}%`}
+                    valueColor="var(--color-sell)"
+                  />
+                  <MetricTile
+                    label="Win rate"
+                    value={`${result.winRate.toFixed(1)}%`}
+                    sub={`${result.totalTrades} trades`}
+                  />
+                  <MetricTile label="Sharpe"       value={result.sharpe.toFixed(2)} />
+                  <MetricTile label="Final equity" value={`$${result.finalEquity.toFixed(2)}`} />
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Tab selector */}
           <div className="flex items-center gap-4" style={{ padding: '8px 16px 0' }}>
@@ -362,29 +409,17 @@ export function StrategyLabModal() {
           </div>
 
           {activeTab === 'curve' && (
-            <div style={{ padding: '8px 16px 16px' }}>
-              <EquityCurveChart ref={equityRef} initialEquity={INITIAL_EQUITY} isEmpty={isEmpty} />
+            <div style={{ padding: '8px 0 0' }}>
+              <EquityCurveChart
+                points={equityPoints}
+                initialEquity={INITIAL_EQUITY}
+                isEmpty={!running && equityPoints.length === 0}
+              />
             </div>
           )}
 
           {activeTab === 'trades' && result && (
-            <div style={{ maxHeight: 280, overflowY: 'auto' }}>
-              <div
-                className="flex items-center gap-3 sticky top-0"
-                style={{ padding: '5px 12px', fontSize: 10, background: 'var(--color-panel)', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)', fontWeight: 500, letterSpacing: '0.05em', textTransform: 'uppercase' }}
-              >
-                <span style={{ width: 28 }}>#</span>
-                <span style={{ width: 36 }}>Side</span>
-                <span style={{ flex: 1 }}>Entry Time</span>
-                <span style={{ width: 80, textAlign: 'right' }}>Entry</span>
-                <span style={{ width: 80, textAlign: 'right' }}>Exit</span>
-                <span style={{ width: 72, textAlign: 'right' }}>P&L</span>
-                <span style={{ width: 56, textAlign: 'right' }}>%</span>
-              </div>
-              {result.trades.map((trade, i) => (
-                <TradeRow key={i} trade={trade} index={i} />
-              ))}
-            </div>
+            <BacktestTradesTable trades={result.trades} />
           )}
 
           {activeTab === 'trades' && !result && (
@@ -400,54 +435,48 @@ export function StrategyLabModal() {
           <div style={{ width: 380, flexShrink: 0, borderLeft: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }}>
             <div className="flex items-center gap-2" style={{ padding: '8px 16px', background: 'var(--color-panel)', borderBottom: '1px solid var(--color-border)', flexShrink: 0 }}>
               {/* Strategy name dropdown */}
-              <div ref={strategyDropdownRef} style={{ position: 'relative' }}>
-                <button
-                  onClick={() => setStrategyDropdownOpen((o) => !o)}
-                  className="flex items-center gap-1.5 text-xs font-medium hover:bg-(--color-border) transition-colors rounded-md"
-                  style={{ padding: '5px 10px', background: 'var(--color-input)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-                >
-                  {strategyName}
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ opacity: 0.5 }}>
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
-                </button>
-                {strategyDropdownOpen && (
-                  <div
-                    className="absolute top-full mt-1 rounded-lg border border-(--color-border) py-1"
-                    style={{ background: 'var(--color-surface)', boxShadow: SHADOW.LG, minWidth: 180, zIndex: Z.DROPDOWN }}
+              <CustomSelect
+                value={strategyName}
+                options={strategies.map((s) => ({ value: s.name, label: s.name }))}
+                onChange={(name) => { switchStrategy(name); setResult(null); setEquityPoints([]); setSelectedTradeIndex(null); }}
+                fontSize={12}
+                padding="5px 10px"
+                dropdownMinWidth={180}
+                renderItemAction={(o) => strategies.length > 1 ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteStrategy(o.value);
+                      backtestService.deleteStrategy(o.value);
+                    }}
+                    title="Delete strategy"
+                    style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', opacity: 0.4, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-sell)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = 'inherit'; }}
                   >
-                    {strategies.map((s) => {
-                      const active = s.name === strategyName;
-                      return (
-                        <button
-                          key={s.name}
-                          onClick={() => { switchStrategy(s.name); setStrategyDropdownOpen(false); }}
-                          className="w-full text-left flex items-center rounded-md mx-1.5 transition-colors hover:bg-(--color-hover-row)"
-                          style={{
-                            width: 'calc(100% - 12px)', padding: '6px 10px', fontSize: 12, border: 'none', cursor: 'pointer',
-                            background: active ? 'var(--color-text)' : 'transparent',
-                            color: active ? 'var(--color-surface)' : 'var(--color-text)',
-                            fontWeight: active ? 500 : 400,
-                          }}
-                        >
-                          {s.name}
-                        </button>
-                      );
-                    })}
-                    <div className="mx-1.5 my-1" style={{ borderTop: '1px solid var(--color-border)' }} />
-                    <button
-                      onClick={() => { addStrategy(); setStrategyDropdownOpen(false); }}
-                      className="w-full text-left flex items-center gap-1.5 rounded-md mx-1.5 transition-colors hover:bg-(--color-hover-row)"
-                      style={{ width: 'calc(100% - 12px)', padding: '6px 10px', fontSize: 12, color: 'var(--color-text-muted)', cursor: 'pointer', border: 'none', background: 'transparent' }}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                      New strategy
-                    </button>
-                  </div>
-                )}
-              </div>
+                    <svg width="17" height="17" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
+                      <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
+                    </svg>
+                  </button>
+                ) : null}
+                footer={
+                  <button
+                    onClick={() => {
+                      addStrategy();
+                      let n = 1;
+                      while (strategies.some(st => st.name === `Strategy ${n}`)) n++;
+                      backtestService.saveStrategy(`Strategy ${n}`, '');
+                    }}
+                    className="w-full text-left flex items-center gap-1.5 transition-colors hover:bg-(--color-hover-row)"
+                    style={{ padding: '6px 10px', fontSize: 12, color: 'var(--color-text-muted)', cursor: 'pointer', border: 'none', background: 'transparent' }}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    New strategy
+                  </button>
+                }
+              />
               <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
                 bar · prevBars · position · equity · state · setTrailingStop(dist)
               </span>
@@ -459,7 +488,7 @@ export function StrategyLabModal() {
               style={{
                 flex: 1,
                 width: '100%',
-                background: 'var(--color-bg)',
+                background: 'var(--color-panel)',
                 color: 'var(--color-text)',
                 border: 'none',
                 outline: 'none',
