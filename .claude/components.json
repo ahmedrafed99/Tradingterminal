@@ -182,7 +182,7 @@
         "backtestRoutes (GET /backtest/symbols, GET /backtest/bars, GET /backtest/range, POST /backtest/run, GET/PUT/PATCH/DELETE /backtest/strategies/:name, GET/PUT /backtest/strategies/:name/result)"
       ],
       "notes": [
-        "Data layout: backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.csv — run 'npm run extract-ticks' in backend to populate",
+        "Data layout: backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.csv (+ {MM}.1m.json cache) — run 'npm run extract-ticks' in backend to populate",
         "Extract script: backend/src/scripts/extractTickData.ts — reads Binance ZIPs/CSVs from TICK_DATA_PATH env var, extracts to tick-data dir",
         "Cache dir: backend/data/backtest-cache/ — JSON files keyed by exchange_symbol_tf_fromDay_toDay.json",
         "Strategy execution: vm.runInNewContext sandbox, onBar(ctx) called per bar, ctx.buy/sell/close/setStop/setTarget",
@@ -305,7 +305,8 @@
         "background prop must be a resolved color (canvas fill) — use COLOR_TABLE_STRIPE for stats panel, default '#000000' for backtest panel",
         "showMarkers + markerThreshold (default 80) — markers hide automatically for dense series to avoid clutter",
         "Tooltip is rendered as a fixed centered overlay inside the chart; no parent-level hover state needed",
-        "background changes are baked into the chart on mount — changing it remounts the chart (background is in the mount effect's deps)"
+        "background changes are baked into the chart on mount — changing it remounts the chart (background is in the mount effect's deps)",
+        "Streaming optimization: when new points are the previously-rendered array with extra tail items appended, the sync effect calls series.update() per new point instead of series.setData() with the full array — avoids O(N²) churn (StrategyLabModal also rAF-batches its SSE equity callback). Sanity check compares the last-rendered point's time + value against the input; mismatches fall back to a full setData()."
       ]
     }
     ,{

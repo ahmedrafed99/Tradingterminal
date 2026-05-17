@@ -2,8 +2,8 @@
  * Extracts Binance tick-data ZIPs and pre-builds 1-minute OHLCV caches.
  *
  * Two steps per month:
- *   1. Extract ZIP → {EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.csv
- *   2. Stream CSV  → {EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.1m.json  (pre-aggregated 1m bars)
+ *   1. Extract ZIP → {EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.csv
+ *   2. Stream CSV  → {EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.1m.json  (pre-aggregated 1m bars)
  *
  * After this runs, the app reads from .1m.json and re-aggregates to any TF instantly.
  * Both steps are skipped individually if the output already exists.
@@ -175,10 +175,11 @@ async function main() {
     if (!parsed) continue;
 
     const { symbol, year, month, ext } = parsed;
-    const monthStr  = `${year}-${String(month).padStart(2, '0')}`;
-    const destDir   = path.join(DEST_DIR, exchange, symbol);
-    const destCsv   = path.join(destDir, `${monthStr}.csv`);
-    const destCache = path.join(destDir, `${monthStr}.1m.json`);
+    const mm        = String(month).padStart(2, '0');
+    const relName   = `${year}/${mm}`;
+    const destDir   = path.join(DEST_DIR, exchange, symbol, String(year));
+    const destCsv   = path.join(destDir, `${mm}.csv`);
+    const destCache = path.join(destDir, `${mm}.1m.json`);
 
     fs.mkdirSync(destDir, { recursive: true });
 
@@ -186,7 +187,7 @@ async function main() {
     if (!fs.existsSync(destCsv)) {
       const srcPath = path.join(sourceDir, file);
       try {
-        process.stdout.write(`  ${ext === 'zip' ? 'extract' : 'copy   '} ${file} → ${monthStr}.csv ... `);
+        process.stdout.write(`  ${ext === 'zip' ? 'extract' : 'copy   '} ${file} → ${relName}.csv ... `);
         if (ext === 'zip') await extractCsvFromZip(srcPath, destCsv);
         else fs.copyFileSync(srcPath, destCsv);
         console.log('done');
@@ -197,13 +198,13 @@ async function main() {
         continue;
       }
     } else {
-      console.log(`  skip    ${monthStr}.csv  (already exists)`);
+      console.log(`  skip    ${relName}.csv  (already exists)`);
     }
 
     // Step 2: build 1m cache
     if (!fs.existsSync(destCache)) {
       try {
-        process.stdout.write(`  cache   ${monthStr}.csv → ${monthStr}.1m.json ... `);
+        process.stdout.write(`  cache   ${relName}.csv → ${relName}.1m.json ... `);
         const count = await buildCache1m(destCsv, destCache);
         console.log(`done (${count} bars)`);
       } catch (err) {
@@ -212,7 +213,7 @@ async function main() {
         errors++;
       }
     } else {
-      console.log(`  skip    ${monthStr}.1m.json  (already exists)`);
+      console.log(`  skip    ${relName}.1m.json  (already exists)`);
     }
   }
 

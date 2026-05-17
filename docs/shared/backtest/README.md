@@ -12,8 +12,8 @@ Full backtesting engine for crypto tick data. Replays raw trade ticks from Binan
 | Concern | Approach |
 |---|---|
 | Data source | Binance trade CSV files (`{SYMBOL}-trades-{YYYY}-{MM}.zip`) |
-| Storage layout | `backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.csv` |
-| Speed cache | `{YYYY}-{MM}.1m.json` — pre-aggregated 1-minute OHLCV per month |
+| Storage layout | `backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.csv` |
+| Speed cache | `{YYYY}/{MM}.1m.json` — pre-aggregated 1-minute OHLCV per month |
 | Chart delivery | SSE stream — months sent one-by-one, chart renders each chunk immediately |
 | Strategy fills | Tick-accurate — every raw tick is checked against stop/target price |
 | Sandbox | `vm.runInNewContext` — strategy code runs in an isolated V8 context |
@@ -32,8 +32,8 @@ Script: `backend/src/scripts/extractTickData.ts`
 
 - Scans `TICK_DATA_PATH` (default `C:/Users/ahmed/projects/cryptoBot/tick_data`) for Binance ZIP/CSV files
 - Parses filename: `BTCUSDT-trades-2025-05.zip` → exchange=`BINANCE`, symbol=`BTCUSDT`, month=`2025-05`
-- **Step 1**: Extracts ZIP → `data/tick-data/BINANCE/BTCUSDT/2025-05.csv`
-- **Step 2**: Streams CSV → builds `2025-05.1m.json` (44 640 bars for a full month)
+- **Step 1**: Extracts ZIP → `data/tick-data/BINANCE/BTCUSDT/2025/05.csv`
+- **Step 2**: Streams CSV → builds `2025/05.1m.json` (44 640 bars for a full month)
 - Both steps are individually skipped if the output already exists
 
 ### CSV Schema (no header)

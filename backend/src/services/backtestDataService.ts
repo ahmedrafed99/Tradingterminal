@@ -6,8 +6,8 @@
  *   trade_id, price, qty_base, qty_quote, timestamp_microseconds, is_buyer_maker, is_best_match
  *
  * Data layout on disk:
- *   data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.csv       — raw tick CSV
- *   data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}-{MM}.1m.json   — pre-aggregated 1m bars (built once)
+ *   data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.csv       — raw tick CSV
+ *   data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.1m.json   — pre-aggregated 1m bars (built once)
  *
  * Cache:
  *   In-memory + disk JSON at data/backtest-cache/{exchange}_{symbol}_{tf}_{fromDay}_{toDay}.json
@@ -101,9 +101,18 @@ function symbolDir(exchange: string, symbol: string): string {
   return path.join(TICK_DATA_DIR, exchange, symbol);
 }
 
+function monthDir(exchange: string, symbol: string, year: number): string {
+  return path.join(symbolDir(exchange, symbol), String(year));
+}
+
 function cache1mPath(exchange: string, symbol: string, year: number, month: number): string {
-  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-  return path.join(symbolDir(exchange, symbol), `${monthStr}.1m.json`);
+  const mm = String(month).padStart(2, '0');
+  return path.join(monthDir(exchange, symbol, year), `${mm}.1m.json`);
+}
+
+function csvPathFor(exchange: string, symbol: string, year: number, month: number): string {
+  const mm = String(month).padStart(2, '0');
+  return path.join(monthDir(exchange, symbol, year), `${mm}.csv`);
 }
 
 /** Stream a raw tick CSV and build a map of 1m OHLCV bars. */
@@ -169,12 +178,12 @@ async function load1mMonth(
     return JSON.parse(raw) as OhlcvBar[];
   } catch { /* not cached yet */ }
 
-  const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-  const csvPath  = path.join(symbolDir(exchange, symbol), `${monthStr}.csv`);
+  const mm       = String(month).padStart(2, '0');
+  const csvPath  = csvPathFor(exchange, symbol, year, month);
 
   if (!fs.existsSync(csvPath)) return [];
 
-  console.log(`[backtestData] Building 1m cache: ${exchange}/${symbol}/${monthStr}...`);
+  console.log(`[backtestData] Building 1m cache: ${exchange}/${symbol}/${year}/${mm}...`);
 
   const barsMap = new Map<number, OhlcvBar>();
   await streamCsvTo1m(csvPath, barsMap);
@@ -183,9 +192,10 @@ async function load1mMonth(
     (a, b) => new Date(a.t).getTime() - new Date(b.t).getTime(),
   );
 
-  console.log(`[backtestData] Cached ${bars.length} 1m bars → ${monthStr}.1m.json`);
+  console.log(`[backtestData] Cached ${bars.length} 1m bars → ${year}/${mm}.1m.json`);
 
   try {
+    fs.mkdirSync(path.dirname(cachePath), { recursive: true });
     fs.writeFileSync(cachePath, JSON.stringify(bars), 'utf8');
   } catch (err) {
     console.error('[backtestData] 1m cache write failed:', err);
@@ -209,7 +219,14 @@ export function getAvailableSymbols(): SymbolEntry[] {
     for (const symbol of fs.readdirSync(exchangeDir)) {
       const symDir = path.join(exchangeDir, symbol);
       try { if (!fs.statSync(symDir).isDirectory()) continue; } catch { continue; }
-      const hasCsv = fs.readdirSync(symDir).some(f => f.endsWith('.csv'));
+
+      let hasCsv = false;
+      for (const yearName of fs.readdirSync(symDir)) {
+        if (!/^\d{4}$/.test(yearName)) continue;
+        const yearDir = path.join(symDir, yearName);
+        try { if (!fs.statSync(yearDir).isDirectory()) continue; } catch { continue; }
+        if (fs.readdirSync(yearDir).some(f => /^\d{2}\.csv$/.test(f))) { hasCsv = true; break; }
+      }
       if (hasCsv) result.push({ exchange, symbol });
     }
   }
@@ -221,24 +238,26 @@ export function getAvailableRange(exchange: string, symbol: string): { from: str
   const dir = symbolDir(exchange, symbol);
   if (!fs.existsSync(dir)) return null;
 
-  const files = fs.readdirSync(dir)
-    .filter(f => /^\d{4}-\d{2}\.csv$/.test(f))
-    .sort();
+  const months: { year: number; month: number }[] = [];
+  for (const yearName of fs.readdirSync(dir)) {
+    if (!/^\d{4}$/.test(yearName)) continue;
+    const yearDir = path.join(dir, yearName);
+    try { if (!fs.statSync(yearDir).isDirectory()) continue; } catch { continue; }
+    const year = parseInt(yearName, 10);
+    for (const f of fs.readdirSync(yearDir)) {
+      const m = f.match(/^(\d{2})\.csv$/);
+      if (m) months.push({ year, month: parseInt(m[1], 10) });
+    }
+  }
 
-  if (files.length === 0) return null;
-
-  const parseYM = (name: string) => {
-    const m = name.match(/^(\d{4})-(\d{2})\.csv$/);
-    return m ? { year: parseInt(m[1]), month: parseInt(m[2]) } : null;
-  };
-
-  const first = parseYM(files[0]);
-  const last  = parseYM(files[files.length - 1]);
-  if (!first || !last) return null;
+  if (months.length === 0) return null;
+  months.sort((a, b) => (a.year - b.year) || (a.month - b.month));
+  const first = months[0];
+  const last  = months[months.length - 1];
 
   return {
     from: `${first.year}-${String(first.month).padStart(2, '0')}-01`,
-    to: new Date(Date.UTC(last.year, last.month, 0)).toISOString().slice(0, 10),
+    to:   new Date(Date.UTC(last.year, last.month, 0)).toISOString().slice(0, 10),
   };
 }
 
