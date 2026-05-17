@@ -19,6 +19,7 @@ docs/
 ├── shared/                    — Exchange-agnostic features
 │   ├── api-layer/             — REST + WebSocket services, backend exchange adapter
 │   ├── top-bar/               — Account selector, balance, UP&L, RP&L, latency
+│   ├── backtest/              — Strategy Lab: tick data pipeline, SSE streaming, strategy runner
 │   ├── candlestick-chart/     — Chart core: bars, toolbar, crosshair, primitive z-order
 │   │   ├── ohlc-tooltip/      — OHLC hover tooltip
 │   │   ├── bar-countdown/     — Current bar time remaining
@@ -80,6 +81,12 @@ docs/
 | Hyperliquid adapter specifics               | `docs/exchange-adapters/hyperliquid.md` |
 | Hyperliquid API reference                   | `docs/crypto/hyperliquid/` |
 | ProjectX connection / API credentials       | `docs/futures/api-settings/` |
+| **Backtesting** | |
+| Strategy Lab overview + data pipeline       | `docs/shared/backtest/` |
+| How tick-accurate fills work                | `docs/shared/backtest/` → Strategy Execution Engine |
+| Strategy scripting API (bar, buy, setStop…) | `docs/shared/backtest/` → Strategy context |
+| Adding a new symbol / exchange              | `docs/shared/backtest/` → Adding a new symbol |
+| SSE bar streaming + chart rendering         | `docs/shared/backtest/` → Backend API |
 | **Chart & Trading** | |
 | The + button on the price scale             | `docs/shared/chart-trading/` → Plus Button |
 | How order lines appear on the chart         | `docs/shared/chart-trading/` → Live Order & Position Lines |
