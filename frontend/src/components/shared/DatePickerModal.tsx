@@ -84,7 +84,6 @@ export function DatePickerModal(props: Props) {
 
   // range-only state
   const [selecting, setSelecting] = useState<'from' | 'to'>('from');
-  const [hovered,   setHovered  ] = useState<string | null>(null);
 
   // Sync calendar when the anchor date changes
   const anchorDate = mode === 'single' ? props.date : props.from;
@@ -291,18 +290,13 @@ export function DatePickerModal(props: Props) {
                 const isTo   = d === props.to;
                 const isDisabled = (props.minDate != null && cmp(d, props.minDate) < 0) ||
                                    (props.maxDate != null && cmp(d, props.maxDate) > 0);
-                const inRange    = !isDisabled && cmp(d, props.from) >= 0 && cmp(d, props.to) <= 0;
-                const hovInRange = !isDisabled && hovered && (
-                  (selecting === 'to'   && cmp(d, props.from) >= 0 && cmp(d, hovered) <= 0) ||
-                  (selecting === 'from' && cmp(d, hovered) >= 0    && cmp(d, props.to) <= 0)
-                );
                 const isEdge = (isFrom || isTo) && !isDisabled;
                 return (
                   <button
                     key={i}
                     onClick={() => { if (!isDisabled) handleDayClick(calYear, calMonth, day); }}
-                    onMouseEnter={() => { if (!isDisabled) setHovered(d); }}
-                    onMouseLeave={() => setHovered(null)}
+                    onMouseEnter={(e) => { if (!isDisabled) e.currentTarget.style.background = 'var(--color-hover-row)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     disabled={isDisabled}
                     style={{
                       fontSize: FONT_SIZE.OVERLAY, textAlign: 'center', padding: '6px 0',
@@ -312,13 +306,9 @@ export function DatePickerModal(props: Props) {
                       cursor: isDisabled ? 'default' : 'pointer',
                       color: isDisabled
                         ? 'var(--color-text-muted)'
-                        : isEdge
-                          ? 'var(--color-text)'
-                          : (inRange || hovInRange)
-                            ? 'var(--color-accent)'
-                            : isWeekend
-                              ? 'var(--color-text-muted)'
-                              : 'var(--color-text)',
+                        : isWeekend
+                          ? 'var(--color-text-muted)'
+                          : 'var(--color-text)',
                       opacity: isDisabled ? 0.35 : 1,
                       fontWeight: isEdge ? 600 : 400,
                       transition: 'background var(--transition-fast)',
