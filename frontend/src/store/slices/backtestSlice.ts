@@ -50,7 +50,8 @@ export interface BacktestSlice {
 
 const DEFAULT_STRATEGY = `// Called once per closed bar.
 // Available: bar, prevBars, position, equity, state
-// Actions: buy(qty), sell(qty), close(), setStop(price), setTarget(price)
+// Actions: buy(qty), sell(qty), close(), setStop(price), setTarget(price), setTrailingStop(dist)
+// Note: setStop() clears any active trailing stop
 
 const period = 20;
 const mult   = 2;

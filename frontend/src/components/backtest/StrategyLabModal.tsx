@@ -449,7 +449,7 @@ export function StrategyLabModal() {
                 )}
               </div>
               <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                bar · prevBars · position · equity · state
+                bar · prevBars · position · equity · state · setTrailingStop(dist)
               </span>
             </div>
             <textarea

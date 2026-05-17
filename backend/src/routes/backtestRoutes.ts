@@ -35,7 +35,7 @@ const BarsQuery = z.object({
 
 router.get('/bars', validateQuery(BarsQuery), async (req, res) => {
   const q = req.query as unknown as z.infer<typeof BarsQuery>;
-  const { exchange, symbol, unit, unitNumber, from, to, limit } = q;
+  const { exchange, symbol, unit, unitNumber, from, to } = q;
 
   try {
     const fromMs = new Date(from as string).getTime();
@@ -219,17 +219,21 @@ async function runStrategy(
   let entrySide: 'long' | 'short' = 'long';
   let stopPrice:   number | null = null;
   let targetPrice: number | null = null;
+  let trailingDist: number | null = null; // active trailing stop distance (null = none)
+  let trailingRef:  number = 0;           // peak price driving the trail
   const state: Record<string, unknown> = {};
   const prevBarsBuffer: OhlcvBar[] = [];
 
   function openPosition(side: 'long' | 'short', qty: number, price: number, time: string) {
     if (position !== 0) return;
-    position    = side === 'long' ? qty : -qty;
-    entryPrice  = price;
-    entryTime   = time;
-    entrySide   = side;
-    stopPrice   = null;
-    targetPrice = null;
+    position     = side === 'long' ? qty : -qty;
+    entryPrice   = price;
+    entryTime    = time;
+    entrySide    = side;
+    stopPrice    = null;
+    targetPrice  = null;
+    trailingDist = null;
+    trailingRef  = price;
   }
 
   function closePosition(exitPrice: number, exitTime: string) {
@@ -240,10 +244,21 @@ async function runStrategy(
       : (entryPrice - exitPrice) * qty;
     const pnlPct = (pnl / (entryPrice * qty)) * 100;
     trades.push({ entryTime, exitTime, side: entrySide, entryPrice, exitPrice, qty, pnl, pnlPct });
-    equity     += pnl;
-    position    = 0;
-    stopPrice   = null;
-    targetPrice = null;
+    equity       += pnl;
+    position      = 0;
+    stopPrice     = null;
+    targetPrice   = null;
+    trailingDist  = null;
+  }
+
+  // Advance the trailing stop to the new tick price (only moves in the favourable direction).
+  function updateTrailingStop(price: number) {
+    if (trailingDist === null || position === 0) return;
+    if (position > 0) {
+      if (price > trailingRef) { trailingRef = price; stopPrice = trailingRef - trailingDist; }
+    } else {
+      if (price < trailingRef) { trailingRef = price; stopPrice = trailingRef + trailingDist; }
+    }
   }
 
   // Compile strategy once
@@ -259,11 +274,55 @@ async function runStrategy(
   let peakEquity  = initialEquity;
   let maxDrawdown = 0;
 
-  // Current bar being built tick by tick
-  let currentBarStart = -1;
-  let currentBar: OhlcvBar | null = null;
+  // Load all bars upfront — fast, uses 1m cache + re-aggregation
+  onStatus('Loading bars...');
+  const bars = await getBars(exchange, symbol, tf, fromMs, toMs);
+  onStatus(`Loaded ${bars.length} bars — running strategy...`);
 
-  function onBarClose(bar: OhlcvBar) {
+  let lastMonth = '';
+
+  for (const bar of bars) {
+    // Status update on month boundary
+    const barMonth = bar.t.slice(0, 7);
+    if (barMonth !== lastMonth) { lastMonth = barMonth; onStatus(`Processing ${barMonth}...`); }
+
+    // ── Stop / target / trailing check BEFORE strategy call ──────────────────
+    if (position !== 0) {
+      const isLong   = position > 0;
+      const barMs    = new Date(bar.t).getTime();
+      const barEndMs = barMs + periodSec * 1000 - 1;
+
+      if (trailingDist !== null) {
+        // Trailing stop: must track tick-by-tick so the reference updates as price moves
+        let closed = false;
+        await streamTicksFromRange(exchange, symbol, barMs, barEndMs, (tickMs, price) => {
+          if (closed) return;
+          updateTrailingStop(price);
+          if (stopPrice !== null && (isLong ? price <= stopPrice : price >= stopPrice)) {
+            closePosition(stopPrice, new Date(tickMs).toISOString());
+            closed = true;
+          }
+        });
+      } else {
+        // Fixed stop/target: bar-level H/L check
+        const stopHit   = stopPrice   !== null && (isLong ? bar.l <= stopPrice   : bar.h >= stopPrice);
+        const targetHit = targetPrice !== null && (isLong ? bar.h >= targetPrice : bar.l <= targetPrice);
+
+        if (stopHit && targetHit) {
+          // Both penetrated in the same bar — drill into ticks to find which hit first
+          const fill = await resolveAmbiguousBar(
+            exchange, symbol, barMs, barEndMs, stopPrice, targetPrice, isLong,
+          );
+          closePosition(fill.price, fill.time);
+        } else if (stopHit) {
+          closePosition(stopPrice!, bar.t);
+        } else if (targetHit) {
+          closePosition(targetPrice!, bar.t);
+        }
+      }
+    }
+
+    // ── Call strategy ─────────────────────────────────────────────────────────
     prevBarsBuffer.push(bar);
     if (prevBarsBuffer.length > 101) prevBarsBuffer.shift();
 
@@ -273,16 +332,30 @@ async function runStrategy(
         b => ({ open: b.o, high: b.h, low: b.l, close: b.c, volume: b.v, time: b.t }),
       ),
       position, equity, state,
-      buy:       (qty: number) => openPosition('long',  qty, bar.c, bar.t),
-      sell:      (qty: number) => openPosition('short', qty, bar.c, bar.t),
-      close:     ()            => closePosition(bar.c, bar.t),
-      setStop:   (p: number)   => { stopPrice   = p; },
-      setTarget: (p: number)   => { targetPrice = p; },
+      buy:              (qty: number) => openPosition('long',  qty, bar.c, bar.t),
+      sell:             (qty: number) => openPosition('short', qty, bar.c, bar.t),
+      close:            ()            => closePosition(bar.c, bar.t),
+      // setStop clears any active trailing stop
+      setStop:          (p: number)   => { stopPrice = p; trailingDist = null; },
+      setTarget:        (p: number)   => { targetPrice = p; },
+      // setTrailingStop trails `distance` from the price peak since first activation.
+      // Re-calling updates the distance but preserves the tracked peak reference.
+      setTrailingStop:  (distance: number) => {
+        const firstActivation = trailingDist === null;
+        trailingDist = distance;
+        if (firstActivation) {
+          trailingRef = bar.c;
+          stopPrice   = position > 0 ? bar.c - distance : bar.c + distance;
+        } else {
+          // Keep the peak ref — only recompute stop from the existing reference
+          stopPrice = position > 0 ? trailingRef - distance : trailingRef + distance;
+        }
+      },
     };
 
     try { strategyFn(ctx); } catch { /* ignore runtime errors per bar */ }
 
-    // Mark-to-market equity point
+    // ── Mark-to-market equity point ───────────────────────────────────────────
     const mtm = position !== 0
       ? (entrySide === 'long' ? bar.c - entryPrice : entryPrice - bar.c) * Math.abs(position)
       : 0;
@@ -297,53 +370,10 @@ async function runStrategy(
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
-  let processedMonths = 0;
-
-  await streamTicksFromRange(exchange, symbol, fromMs, toMs, (tickMs, price, qty) => {
-    const barStart = Math.floor(tickMs / 1000 / periodSec) * periodSec;
-
-    if (barStart > currentBarStart) {
-      // Crossed into a new period — finalize the previous bar
-      if (currentBar) onBarClose(currentBar);
-
-      // Track months for status updates
-      const newMonth = new Date(barStart * 1000).getUTCMonth();
-      const oldMonth = currentBarStart >= 0 ? new Date(currentBarStart * 1000).getUTCMonth() : -1;
-      if (newMonth !== oldMonth) {
-        processedMonths++;
-        const monthLabel = new Date(barStart * 1000).toISOString().slice(0, 7);
-        onStatus(`Processing ${monthLabel}...`);
-      }
-
-      currentBarStart = barStart;
-      currentBar = {
-        t: new Date(barStart * 1000).toISOString(),
-        o: price, h: price, l: price, c: price, v: qty,
-      };
-    } else if (currentBar) {
-      if (price > currentBar.h) currentBar.h = price;
-      if (price < currentBar.l) currentBar.l = price;
-      currentBar.c  = price;
-      currentBar.v += qty;
-    }
-
-    // Check stop/target at exact tick price
-    if (position !== 0) {
-      const isLong    = position > 0;
-      const tickTime  = new Date(tickMs).toISOString();
-      if (stopPrice !== null && (isLong ? price <= stopPrice : price >= stopPrice)) {
-        closePosition(stopPrice, tickTime);
-      } else if (targetPrice !== null && (isLong ? price >= targetPrice : price <= targetPrice)) {
-        closePosition(targetPrice, tickTime);
-      }
-    }
-  });
-
-  // Finalize last bar and close any open position
-  if (currentBar !== null) {
-    const lastBar: OhlcvBar = currentBar;
-    onBarClose(lastBar);
-    if (position !== 0) closePosition(lastBar.c, lastBar.t);
+  // Close any open position at the final bar's close
+  if (position !== 0 && bars.length > 0) {
+    const lastBar = bars[bars.length - 1];
+    closePosition(lastBar.c, lastBar.t);
   }
 
   const winners = trades.filter(t => t.pnl > 0);
@@ -370,6 +400,31 @@ async function runStrategy(
     maxDrawdown:  maxDrawdown * 100,
     sharpe,
   };
+}
+
+// When both stop and target are penetrated within the same bar, stream the raw
+// ticks for that bar and return whichever level was touched first.
+async function resolveAmbiguousBar(
+  exchange:    string,
+  symbol:      string,
+  barMs:       number,
+  barEndMs:    number,
+  stop:        number | null,
+  target:      number | null,
+  isLong:      boolean,
+): Promise<{ price: number; time: string }> {
+  let firstHit: { price: number; time: string } | null = null;
+
+  await streamTicksFromRange(exchange, symbol, barMs, barEndMs, (tickMs, price) => {
+    if (firstHit) return;
+    const stopHit   = stop   !== null && (isLong ? price <= stop   : price >= stop);
+    const targetHit = target !== null && (isLong ? price >= target : price <= target);
+    if (stopHit)   firstHit = { price: stop!,   time: new Date(tickMs).toISOString() };
+    else if (targetHit) firstHit = { price: target!, time: new Date(tickMs).toISOString() };
+  });
+
+  // Fallback: stop wins (conservative) if ticks aren't available
+  return firstHit ?? { price: stop ?? target!, time: new Date(barMs).toISOString() };
 }
 
 export default router;
