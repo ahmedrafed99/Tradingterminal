@@ -35,9 +35,13 @@ export function pointsToTicks(points: number, contract: Contract): number {
  * Round a price to the nearest valid tick.
  * Handles floating-point drift (e.g. 21150.250000000003 → 21150.25)
  * and genuinely misaligned prices (e.g. average price 21150.375 → 21150.50 or 21150.25).
+ * Uses toFixed to eliminate IEEE 754 drift after the multiply (e.g. 0.1 * 33251 = 3325.1000000000002).
  */
 export function roundToTick(price: number, tickSize: number): number {
-  return Math.round(price / tickSize) * tickSize;
+  const s = tickSize.toString();
+  const dot = s.indexOf('.');
+  const decimals = dot < 0 ? 0 : s.length - dot - 1;
+  return parseFloat((Math.round(price / tickSize) * tickSize).toFixed(decimals));
 }
 
 /**

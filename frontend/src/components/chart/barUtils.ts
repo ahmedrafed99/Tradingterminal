@@ -66,7 +66,10 @@ export function generateWhitespace(
 
 /** Snap a price to the nearest tick size increment */
 export function snapToTickSize(price: number, tickSize: number): number {
-  return Math.round(price / tickSize) * tickSize;
+  const s = tickSize.toString();
+  const dot = s.indexOf('.');
+  const decimals = dot < 0 ? 0 : s.length - dot - 1;
+  return parseFloat((Math.round(price / tickSize) * tickSize).toFixed(decimals));
 }
 
 /** Get the price scale width, falling back to 56px if the scale isn't available */
