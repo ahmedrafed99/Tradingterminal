@@ -29,6 +29,8 @@ interface CustomSelectProps {
   dropdownMinWidth?: number;
   /** Per-item trailing action (e.g. delete button). Return null to skip. */
   renderItemAction?: (option: SelectOption) => React.ReactNode | null;
+  /** Full row override. When non-null, replaces the entire row content (label + action). */
+  renderItem?: (option: SelectOption, ctx: { active: boolean; close: () => void }) => React.ReactNode | null;
   /** Element rendered below the option list, separated by a divider. */
   footer?: React.ReactNode;
 }
@@ -48,6 +50,7 @@ export function CustomSelect({
   fontSize: btnFontSize = 12,
   dropdownMinWidth,
   renderItemAction,
+  renderItem,
   footer,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
@@ -133,12 +136,18 @@ export function CustomSelect({
         >
           {options.map((o) => {
             const active = o.value === value;
-            const action = renderItemAction?.(o);
+            const override = renderItem?.(o, { active, close });
             const rowStyle: React.CSSProperties = {
               background: active ? 'var(--color-text)' : 'transparent',
               color: active ? dropdownBg : 'var(--color-text)',
               fontWeight: active ? 600 : 400,
             };
+            if (override != null) {
+              return (
+                <div key={o.value} style={rowStyle}>{override}</div>
+              );
+            }
+            const action = renderItemAction?.(o);
             if (!action) {
               return (
                 <button

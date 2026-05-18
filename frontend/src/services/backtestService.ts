@@ -54,11 +54,29 @@ export interface SymbolEntry {
   symbol:   string;
 }
 
-// In-memory cache for bars — avoid re-fetching same range/timeframe
+// In-memory cache for bars — avoid re-fetching same range/timeframe.
+// Shared by getBars (limit-suffixed keys) and streamBars (no suffix).
+// LRU eviction: bumped to end on read, oldest removed when MAX exceeded.
 const barsCache = new Map<string, BacktestBar[]>();
+const MAX_BARS_CACHE = 20;
 
 function barsCacheKey(exchange: string, symbol: string, unit: number, unitNumber: number, from: string, to: string) {
   return `${exchange}:${symbol}:${unit}:${unitNumber}:${from}:${to}`;
+}
+
+function barsCacheGet(key: string): BacktestBar[] | undefined {
+  const cached = barsCache.get(key);
+  if (cached) { barsCache.delete(key); barsCache.set(key, cached); }
+  return cached;
+}
+
+function barsCacheSet(key: string, bars: BacktestBar[]): void {
+  while (barsCache.size >= MAX_BARS_CACHE) {
+    const oldest = barsCache.keys().next().value;
+    if (oldest === undefined) break;
+    barsCache.delete(oldest);
+  }
+  barsCache.set(key, bars);
 }
 
 export const backtestService = {
@@ -81,7 +99,7 @@ export const backtestService = {
     limit?: number,
   ): Promise<BacktestBar[]> {
     const key = barsCacheKey(exchange, symbol, unit, unitNumber, from, to) + (limit ? `:tail${limit}` : '');
-    const cached = barsCache.get(key);
+    const cached = barsCacheGet(key);
     if (cached) return cached;
 
     const res = await api.get<{ success: boolean; bars: BacktestBar[] }>('/backtest/bars', {
@@ -90,7 +108,7 @@ export const backtestService = {
     });
 
     const bars = res.data.bars ?? [];
-    barsCache.set(key, bars);
+    barsCacheSet(key, bars);
     return bars;
   },
 
@@ -108,12 +126,24 @@ export const backtestService = {
     }
   },
 
-  /** Stream bars month by month via SSE — chart can render each chunk immediately. */
+  /** Stream bars month by month via SSE — chart can render each chunk immediately.
+   *  Cached results are delivered as a single synthetic chunk via microtask. */
   streamBars(
     params: { exchange: string; symbol: string; unit: number; unitNumber: number; from: string; to: string },
     onChunk: (bars: BacktestBar[]) => void,
   ): { promise: Promise<void>; abort: () => void } {
+    const key = barsCacheKey(params.exchange, params.symbol, params.unit, params.unitNumber, params.from, params.to);
+    const cached = barsCacheGet(key);
+    if (cached) {
+      let aborted = false;
+      return {
+        promise: Promise.resolve().then(() => { if (!aborted) onChunk(cached); }),
+        abort: () => { aborted = true; },
+      };
+    }
+
     const controller = new AbortController();
+    const accumulated: BacktestBar[] = [];
 
     const promise = new Promise<void>((resolve, reject) => {
       const url = `/backtest/bars/stream?exchange=${encodeURIComponent(params.exchange)}&symbol=${encodeURIComponent(params.symbol)}&unit=${params.unit}&unitNumber=${params.unitNumber}&from=${encodeURIComponent(params.from)}&to=${encodeURIComponent(params.to)}`;
@@ -141,9 +171,16 @@ export const backtestService = {
               } else if (line.startsWith('data: ')) {
                 try {
                   const data = JSON.parse(line.slice(6));
-                  if (event === 'chunk') onChunk(data as BacktestBar[]);
-                  else if (event === 'done') resolve();
-                  else if (event === 'error') reject(new Error(data.message ?? 'Stream error'));
+                  if (event === 'chunk') {
+                    const chunk = data as BacktestBar[];
+                    for (let i = 0; i < chunk.length; i++) accumulated.push(chunk[i]);
+                    onChunk(chunk);
+                  } else if (event === 'done') {
+                    if (accumulated.length > 0) barsCacheSet(key, accumulated);
+                    resolve();
+                  } else if (event === 'error') {
+                    reject(new Error(data.message ?? 'Stream error'));
+                  }
                 } catch { /* malformed line */ }
                 event = '';
               }

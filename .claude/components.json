@@ -101,7 +101,7 @@
         "Toolbar buttons use hover:bg-(--color-border) — different from dropdown items, intentional",
         "Camera screenshot dropdown (ChartToolbar) is intentionally styled differently: rounded-xl, SHADOW.XXL",
         "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg",
-        "CustomSelect supports renderItemAction (trailing per-row node, e.g. delete), footer (node below the list with a divider), and dropdownMinWidth (force min width when button is narrower than the menu) — used by the Strategy Lab strategy dropdown"
+        "CustomSelect supports renderItemAction (trailing per-row node, e.g. delete/rename), renderItem (full row override — return non-null to replace label+action, e.g. inline rename input), footer (node below the list with a divider), and dropdownMinWidth (force min width when button is narrower than the menu) — used by the Strategy Lab strategy dropdown"
       ]
     }
     ,{
@@ -196,7 +196,10 @@
         "Strategy code auto-saves 800ms after last keystroke; result saves after each successful run",
         "On strategy switch: equity chart clears immediately, then loadResult() from disk restores chart + stats via setData()",
         "Vertical resize: chart vs results split is controlled by backtestBottomRatio (persisted, 0..0.85, default 0.3). VerticalSeparator drives drag; toggleBacktestBottom collapses/restores via backtestBottomPreviousRatio — mirrors App.tsx pattern",
-        "Bottom panel content fills via flex: stats + tabs are shrink-0; equity curve receives height='100%' (LWC autoSize handles repaint); trades table receives maxHeight='100%' (SortableTable virtualization re-measures via ResizeObserver)"
+        "Bottom panel content fills via flex: stats + tabs are shrink-0; equity curve receives height='100%' (LWC autoSize handles repaint); trades table receives maxHeight='100%' (SortableTable virtualization re-measures via ResizeObserver)",
+        "Bars cache (backtestService.ts): LRU Map keyed by exchange:symbol:unit:unitNumber:from:to, MAX_BARS_CACHE=20. streamBars checks cache first and delivers the full array as one synthetic chunk via microtask; on miss it accumulates streamed chunks and writes to cache on the SSE 'done' event. Aborts mid-stream do not populate the cache",
+        "Windowed render (useChartBars backtest effect): only the most recent VIEWPORT_BARS=500 bars go to LWC initially; scrolling within 50 logical bars of the left edge expands the window backward by EXPAND_BARS=1000. refs.bars / refs.dataMap / refs.lastBar always hold the full array so drawings, FRVP and crosshair are unaffected by the window. Window expansion preserves the visible time range (getVisibleRange → setData → setVisibleRange) since logical indices shift",
+        "Streaming UX: chunks are accumulated silently and rendered once at end (avoids O(N²) setData on long streams). First load of an (exchange, symbol, range, tf) shows the chart only after streaming completes; subsequent timeframe switches with the same symbol+range are instant from cache"
       ]
     }
     ,{

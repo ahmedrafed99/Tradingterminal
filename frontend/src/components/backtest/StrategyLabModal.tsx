@@ -109,6 +109,7 @@ export function StrategyLabModal() {
   const switchStrategy      = useStore((s) => s.switchBacktestStrategy);
   const addStrategy         = useStore((s) => s.addBacktestStrategy);
   const deleteStrategy      = useStore((s) => s.deleteBacktestStrategy);
+  const renameStrategy      = useStore((s) => s.renameBacktestStrategy);
   const running             = useStore((s) => s.backtestRunning);
   const setRunning          = useStore((s) => s.setBacktestRunning);
   const status              = useStore((s) => s.backtestStatus);
@@ -128,6 +129,17 @@ export function StrategyLabModal() {
   const [symbols, setSymbols]                       = useState<SymbolEntry[]>([]);
   const [symbolMenuOpen, setSymbolMenuOpen]         = useState(false);
   const [availableRange, setAvailableRange]         = useState<{ from: string; to: string } | null>(null);
+  const [renamingStrategy, setRenamingStrategy]     = useState<string | null>(null);
+  const [renameValue, setRenameValue]               = useState('');
+
+  const commitRename = useCallback((oldName: string) => {
+    const trimmed = renameValue.trim();
+    setRenamingStrategy(null);
+    if (!trimmed || trimmed === oldName) return;
+    if (strategies.some(s => s.name === trimmed)) return;
+    renameStrategy(oldName, trimmed);
+    backtestService.renameStrategy(oldName, trimmed);
+  }, [renameValue, strategies, renameStrategy]);
 
   const initStrategies        = useStore((s) => s.initBacktestStrategies);
 
@@ -483,24 +495,68 @@ export function StrategyLabModal() {
                 onChange={(name) => { switchStrategy(name); setResult(null); setEquityPoints([]); setSelectedTradeIndex(null); }}
                 fontSize={12}
                 padding="5px 10px"
-                dropdownMinWidth={180}
-                renderItemAction={(o) => strategies.length > 1 ? (
-                  <button
-                    onClick={(e) => {
+                dropdownMinWidth={200}
+                renderItem={(o) => renamingStrategy === o.value ? (
+                  <input
+                    autoFocus
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => {
                       e.stopPropagation();
-                      deleteStrategy(o.value);
-                      backtestService.deleteStrategy(o.value);
+                      if (e.key === 'Enter') commitRename(o.value);
+                      else if (e.key === 'Escape') setRenamingStrategy(null);
                     }}
-                    title="Delete strategy"
-                    style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', opacity: 0.4, display: 'flex', alignItems: 'center', flexShrink: 0 }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-sell)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = 'inherit'; }}
-                  >
-                    <svg width="17" height="17" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
-                      <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
-                    </svg>
-                  </button>
+                    onBlur={() => commitRename(o.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      background: 'transparent',
+                      color: 'inherit',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: 12,
+                      fontFamily: FONT_FAMILY,
+                    }}
+                  />
                 ) : null}
+                renderItemAction={(o) => (
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRenameValue(o.value);
+                        setRenamingStrategy(o.value);
+                      }}
+                      title="Rename strategy"
+                      style={{ padding: '4px 6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', opacity: 0.4, display: 'flex', alignItems: 'center' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                      </svg>
+                    </button>
+                    {strategies.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteStrategy(o.value);
+                          backtestService.deleteStrategy(o.value);
+                        }}
+                        title="Delete strategy"
+                        style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', opacity: 0.4, display: 'flex', alignItems: 'center' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-sell)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = 'inherit'; }}
+                      >
+                        <svg width="17" height="17" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
+                          <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
                 footer={
                   <button
                     onClick={() => {
@@ -519,9 +575,6 @@ export function StrategyLabModal() {
                   </button>
                 }
               />
-              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
-                bar · prevBars · position · equity · state · setTrailingStop(dist)
-              </span>
             </div>
             <textarea
               value={strategyCode}

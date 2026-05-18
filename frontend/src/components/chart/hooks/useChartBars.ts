@@ -57,14 +57,23 @@ export function useChartBars(
     return () => { realtimeService.offMarketReconnect(handler); };
   }, []);
 
-  // -- Backtest bar loading: streams month by month, renders each chunk immediately --
+  // -- Backtest bar loading: streams month by month, then renders a window of
+  // the most recent bars. The full bar array is cached by backtestService so
+  // re-visiting a timeframe is instant. Only VIEWPORT_BARS go to LWC initially;
+  // scrolling toward the left edge expands the window backward in EXPAND_BARS
+  // chunks so LWC's working set stays small even on multi-year backtests.
   useEffect(() => {
     if (!backtestConfig || !refs.series.current) return;
+
+    const VIEWPORT_BARS = 500;
+    const EXPAND_BARS   = 1000;
 
     const series = refs.series.current;
     let cancelled = false;
     const accumulated: CandlestickData<UTCTimestamp>[] = [];
-    let configured = false;
+    let windowStartIdx = 0;
+    let autoScaleTimer: ReturnType<typeof setTimeout> | null = null;
+    let rangeUnsub: (() => void) | null = null;
 
     setLoading(true);
     setError(null);
@@ -73,72 +82,80 @@ export function useChartBars(
     refs.chart.current?.priceScale('right').applyOptions({ autoScale: true });
 
     const cfg = backtestConfig!;
-
     const { promise, abort } = backtestService.streamBars(
       { exchange: cfg.exchange, symbol: cfg.symbol, unit: timeframe.unit, unitNumber: timeframe.unitNumber, from: cfg.dateFrom, to: cfg.dateTo },
       (chunk) => {
         if (cancelled) return;
-
-        // Append incoming bars
-        for (const bar of chunk) {
-          accumulated.push(barToCandle(bar));
-        }
-
-        // Preserve current viewport on subsequent chunks so it doesn't jump
-        const logRange = configured
-          ? refs.chart.current?.timeScale().getVisibleLogicalRange()
-          : null;
-
-        series.setData(accumulated);
-
-        if (!configured && accumulated.length > 0) {
-          // First chunk: configure price formatting and position viewport at end
-          configured = true;
-          setLoading(false);
-
-          if (contract) {
-            const dec = contract.tickSize.toString().split('.')[1]?.length ?? 2;
-            series.applyOptions({ priceFormat: { type: 'price', minMove: contract.tickSize, precision: dec } });
-            refs.countdown.current?.setDecimals(dec);
-            refs.countdown.current?.setPeriod(getCandlePeriodSeconds(timeframe));
-            refs.drawingsPrimitive.current?.setDecimals(dec);
-            refs.drawingsPrimitive.current?.setTickSize(contract.tickSize);
-            refs.crosshairLabel.current?.setDecimals(dec);
-            refs.crosshairLabel.current?.setTickSize(contract.tickSize);
-          }
-
-          const total = accumulated.length;
-          refs.chart.current?.timeScale().setVisibleLogicalRange({ from: total - 200, to: total + 50 });
-        } else if (logRange) {
-          refs.chart.current?.timeScale().setVisibleLogicalRange(logRange);
-        }
+        // Accumulate silently — rendering happens once at the end to avoid
+        // O(N²) setData churn on long streams.
+        for (let i = 0; i < chunk.length; i++) accumulated.push(barToCandle(chunk[i]));
       },
     );
 
     promise.then(() => {
       if (cancelled) return;
+      if (accumulated.length === 0) { setLoading(false); return; }
 
-      // Finalize refs used by drawings, FRVP, etc.
+      // Configure series / countdown / primitives for this contract+timeframe
+      if (contract) {
+        const dec = contract.tickSize.toString().split('.')[1]?.length ?? 2;
+        series.applyOptions({ priceFormat: { type: 'price', minMove: contract.tickSize, precision: dec } });
+        refs.countdown.current?.setDecimals(dec);
+        refs.countdown.current?.setPeriod(getCandlePeriodSeconds(timeframe));
+        refs.drawingsPrimitive.current?.setDecimals(dec);
+        refs.drawingsPrimitive.current?.setTickSize(contract.tickSize);
+        refs.crosshairLabel.current?.setDecimals(dec);
+        refs.crosshairLabel.current?.setTickSize(contract.tickSize);
+      }
+
+      // Populate refs used by drawings, FRVP, crosshair — these need the full
+      // dataset, independent of the chart's visible window.
       const bars = sortBarsAscending(accumulated.map((c) => ({
         t: new Date((c.time as number) * 1000).toISOString(),
         o: c.open, h: c.high, l: c.low, c: c.close, v: 0,
       })));
       refs.bars.current = bars;
-
       refs.dataMap.current.clear();
       for (const c of accumulated) refs.dataMap.current.set(c.time as number, c.close);
 
-      const last = accumulated.length > 0 ? accumulated[accumulated.length - 1] : null;
+      const last = accumulated[accumulated.length - 1];
       refs.lastBar.current = last;
-      if (last) {
-        refs.drawingsPrimitive.current?.setLastBarTime(last.time as number);
-        refs.drawingsPrimitive.current?.setBarsRef(bars);
-        refs.countdown.current?.updatePrice(last.close, false);
-        refs.countdown.current?.setOpen(last.open);
-        refs.drawingsPrimitive.current?.setCountdownPrice(last.close);
+      refs.drawingsPrimitive.current?.setLastBarTime(last.time as number);
+      refs.drawingsPrimitive.current?.setBarsRef(bars);
+      refs.countdown.current?.updatePrice(last.close, false);
+      refs.countdown.current?.setOpen(last.open);
+      refs.drawingsPrimitive.current?.setCountdownPrice(last.close);
+
+      // Initial window: only the most recent VIEWPORT_BARS go into LWC.
+      windowStartIdx = Math.max(0, accumulated.length - VIEWPORT_BARS);
+      series.setData(accumulated.slice(windowStartIdx));
+
+      const visibleBars = accumulated.length - windowStartIdx;
+      refs.chart.current?.timeScale().setVisibleLogicalRange({
+        from: visibleBars - 200,
+        to: visibleBars + 50,
+      });
+
+      // Expand window backward as the user scrolls toward its left edge.
+      const chart = refs.chart.current;
+      if (chart && windowStartIdx > 0) {
+        const onRangeChange = (range: LogicalRange | null) => {
+          if (!range || range.from > 50 || cancelled || windowStartIdx === 0) return;
+          const newStart = Math.max(0, windowStartIdx - EXPAND_BARS);
+          if (newStart === windowStartIdx) return;
+          windowStartIdx = newStart;
+          const visibleRange = chart.timeScale().getVisibleRange();
+          series.setData(accumulated.slice(windowStartIdx));
+          if (visibleRange) chart.timeScale().setVisibleRange(visibleRange);
+        };
+        chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange);
+        rangeUnsub = () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
       }
 
-      refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
+      // Defer disabling autoScale so it has a frame to fit the new viewport.
+      autoScaleTimer = setTimeout(() => {
+        refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
+      }, 0);
       setLoading(false);
     }).catch((err) => {
       if (!cancelled) {
@@ -147,7 +164,12 @@ export function useChartBars(
       }
     });
 
-    return () => { cancelled = true; abort(); };
+    return () => {
+      cancelled = true;
+      abort();
+      rangeUnsub?.();
+      if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backtestConfig?.exchange, backtestConfig?.symbol, backtestConfig?.dateFrom, backtestConfig?.dateTo, timeframe, contract]);
 
