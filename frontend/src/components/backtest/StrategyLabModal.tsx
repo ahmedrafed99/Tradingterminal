@@ -499,7 +499,10 @@ export function StrategyLabModal() {
                     }}
                   />
                 ) : null}
-                renderItemAction={(o) => (
+                renderItemAction={(o, isActive) => {
+                  const restColor = isActive ? 'var(--color-surface)' : 'var(--color-text-muted)';
+                  const trashHover = isActive ? 'var(--color-surface)' : 'var(--color-sell)';
+                  return (
                   <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     <button
                       onClick={(e) => {
@@ -508,7 +511,7 @@ export function StrategyLabModal() {
                         setRenamingStrategy(o.value);
                       }}
                       title="Rename strategy"
-                      style={{ padding: '4px 6px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', opacity: 0.4, display: 'flex', alignItems: 'center' }}
+                      style={{ padding: '4px 6px', border: 'none', background: 'transparent', cursor: 'pointer', color: restColor, opacity: 0.4, display: 'flex', alignItems: 'center' }}
                       onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
                       onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
                     >
@@ -525,9 +528,9 @@ export function StrategyLabModal() {
                           backtestService.deleteStrategy(o.value);
                         }}
                         title="Delete strategy"
-                        style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'inherit', opacity: 0.4, display: 'flex', alignItems: 'center' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--color-sell)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = 'inherit'; }}
+                        style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: 'pointer', color: restColor, opacity: 0.4, display: 'flex', alignItems: 'center' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = trashHover; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = restColor; }}
                       >
                         <svg width="17" height="17" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
                           <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
@@ -535,7 +538,8 @@ export function StrategyLabModal() {
                       </button>
                     )}
                   </div>
-                )}
+                  );
+                }}
                 footer={
                   <button
                     onClick={() => {

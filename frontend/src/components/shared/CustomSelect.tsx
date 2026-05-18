@@ -28,7 +28,7 @@ interface CustomSelectProps {
   /** Force dropdown to at least this width (overrides matching the button width) */
   dropdownMinWidth?: number;
   /** Per-item trailing action (e.g. delete button). Return null to skip. */
-  renderItemAction?: (option: SelectOption) => React.ReactNode | null;
+  renderItemAction?: (option: SelectOption, isActive: boolean) => React.ReactNode | null;
   /** Full row override. When non-null, replaces the entire row content (label + action). */
   renderItem?: (option: SelectOption, ctx: { active: boolean; close: () => void }) => React.ReactNode | null;
   /** Element rendered below the option list, separated by a divider. */
@@ -147,7 +147,7 @@ export function CustomSelect({
                 <div key={o.value} style={rowStyle}>{override}</div>
               );
             }
-            const action = renderItemAction?.(o);
+            const action = renderItemAction?.(o, active);
             if (!action) {
               return (
                 <button

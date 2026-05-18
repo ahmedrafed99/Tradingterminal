@@ -92,7 +92,7 @@ export function BracketSummary() {
 
             {/* Preset items */}
             {bracketPresets.map((p) => (
-              <div key={p.id} className="relative group">
+              <div key={p.id} className="relative">
                 <button
                   onClick={() => { setActivePresetId(p.id); setOpen(false); }}
                   className={`w-full text-left text-xs transition-colors cursor-pointer ${
@@ -102,33 +102,42 @@ export function BracketSummary() {
                 >
                   {p.name}
                 </button>
-                <div className="absolute right-0 top-0 bottom-0 flex items-center opacity-0 group-hover:opacity-100 transition-all" style={{ gap: 4, marginRight: 4 }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingPresetId(p.id); setOpen(false); }}
-                    title="Edit preset"
-                    className="p-1 rounded text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                      <path d="m15 5 4 4" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (p.id === activePresetId) setActivePresetId(null);
-                      deletePreset(p.id);
-                    }}
-                    title="Delete preset"
-                    className="p-1 rounded text-(--color-text-muted) hover:text-(--color-error) hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M5 6l1 14h12l1-14" />
-                    </svg>
-                  </button>
-                </div>
+                {(() => {
+                  const sel = p.id === activePresetId;
+                  const restColor = sel ? 'var(--color-surface)' : 'var(--color-text-muted)';
+                  const trashHover = sel ? 'var(--color-surface)' : 'var(--color-error)';
+                  return (
+                    <div className="absolute right-0 top-0 bottom-0 flex items-center" style={{ gap: 2, marginRight: 4 }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditingPresetId(p.id); setOpen(false); }}
+                        title="Edit preset"
+                        style={{ padding: '4px 6px', border: 'none', background: 'transparent', cursor: 'pointer', color: restColor, opacity: 0.4, display: 'flex', alignItems: 'center' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                          <path d="m15 5 4 4" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (p.id === activePresetId) setActivePresetId(null);
+                          deletePreset(p.id);
+                        }}
+                        title="Delete preset"
+                        style={{ padding: '4px 6px', border: 'none', background: 'transparent', cursor: 'pointer', color: restColor, opacity: 0.4, display: 'flex', alignItems: 'center' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = trashHover; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.4'; e.currentTarget.style.color = restColor; }}
+                      >
+                        <svg width="17" height="17" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor">
+                          <path d="M18 7h5v1h-2.01l-1.33 14.64a1.5 1.5 0 0 1-1.5 1.36H9.84a1.5 1.5 0 0 1-1.49-1.36L7.01 8H5V7h5V6c0-1.1.9-2 2-2h4a2 2 0 0 1 2 2v1Zm-6-2a1 1 0 0 0-1 1v1h6V6a1 1 0 0 0-1-1h-4ZM8.02 8l1.32 14.54a.5.5 0 0 0 .5.46h8.33a.5.5 0 0 0 .5-.46L19.99 8H8.02Z" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
