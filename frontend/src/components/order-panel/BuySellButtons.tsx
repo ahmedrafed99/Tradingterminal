@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { OrderType, OrderSide } from '../../types/enums';
@@ -7,6 +7,8 @@ import type { BracketConfig } from '../../types/bracket';
 import { placeOrderWithBrackets } from '../../services/placeOrderWithBrackets';
 import { getSchedule, useMarketStatus } from '../../utils/marketHours';
 import type { MarketType } from '../../utils/marketHours';
+import { realtimeService } from '../../services/realtimeService';
+import type { GatewayQuote } from '../../services/realtimeService';
 
 export function BuySellButtons() {
   const {
@@ -33,6 +35,25 @@ export function BuySellButtons() {
   const typeLabel = orderType === 'market' ? 'Market' : 'Limit';
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [bid, setBid] = useState<number | null>(null);
+  const [ask, setAsk] = useState<number | null>(null);
+
+  const tickSize = orderContract?.tickSize ?? 0.25;
+  const decimals = Math.max(2, Math.ceil(-Math.log10(tickSize)));
+  function fmtP(price: number) { return price.toFixed(decimals); }
+
+  useEffect(() => {
+    if (!orderContract) return;
+    setBid(null);
+    setAsk(null);
+    const handler = (contractId: string, data: GatewayQuote) => {
+      if (contractId !== orderContract.id) return;
+      setBid(data.bestBid);
+      setAsk(data.bestAsk);
+    };
+    realtimeService.onQuote(handler);
+    return () => realtimeService.offQuote(handler);
+  }, [orderContract]);
 
   const isBlacklisted = useStore((s) => s.isBlacklisted);
   const isLockedOut = useStore((s) => s.isLockedOut);
@@ -117,24 +138,57 @@ export function BuySellButtons() {
     }
   }
 
+  const spread = bid != null && ask != null ? ask - bid : null;
+
   return (
     <div className="space-y-1.5">
-      <div className="flex gap-1.5">
-        <button
-          onClick={() => handlePlace(OrderSide.Buy)}
-          disabled={!canPlace || placing !== null}
-          className="flex-1 py-2.5 rounded font-bold text-[11px] text-(--color-text) transition-colors
-                     bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {placing === 'buy' ? '...' : `Buy +${orderSize} ${typeLabel}`}
-        </button>
+      {/* Buy / Sell buttons with spread intersection badge */}
+      <div className="relative flex gap-1.5">
         <button
           onClick={() => handlePlace(OrderSide.Sell)}
           disabled={!canPlace || placing !== null}
-          className="flex-1 py-2.5 rounded font-bold text-[11px] text-(--color-text) transition-colors
+          className="flex-1 flex flex-col items-center py-3 rounded transition-colors
                      bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {placing === 'sell' ? '...' : `Sell -${orderSize} ${typeLabel}`}
+          {placing === 'sell' ? (
+            <span className="font-bold text-sm text-(--color-text-bright)">...</span>
+          ) : (
+            <>
+              <span className="font-bold text-sm text-(--color-text-bright)">Sell +{orderSize}</span>
+              <span className="text-sm text-(--color-text-bright) opacity-60 mt-0.5">
+                {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : bid != null ? fmtP(bid) : '—'}
+              </span>
+            </>
+          )}
+        </button>
+
+        {/* Spread badge at the intersection */}
+        {spread != null && (
+          <div
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10
+                       pointer-events-none py-0.5 rounded text-[10px] text-(--color-text-muted) text-center"
+            style={{ background: 'var(--color-panel)', border: '1px solid var(--color-border)', minWidth: 36 }}
+          >
+            {fmtP(spread)}
+          </div>
+        )}
+
+        <button
+          onClick={() => handlePlace(OrderSide.Buy)}
+          disabled={!canPlace || placing !== null}
+          className="flex-1 flex flex-col items-center py-3 rounded transition-colors
+                     bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {placing === 'buy' ? (
+            <span className="font-bold text-sm text-(--color-text-bright)">...</span>
+          ) : (
+            <>
+              <span className="font-bold text-sm text-(--color-text-bright)">Buy +{orderSize}</span>
+              <span className="text-sm text-(--color-text-bright) opacity-60 mt-0.5">
+                {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : ask != null ? fmtP(ask) : '—'}
+              </span>
+            </>
+          )}
         </button>
       </div>
       {error && (

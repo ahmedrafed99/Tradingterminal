@@ -804,7 +804,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
                 <line x1="3" y1="12" x2="21" y2="12" />
               </svg>
             </button>
-            <div className={`flex-1 ${SECTION_LABEL} text-center`}>Instrument</div>
+            <div className="flex-1" />
           </div>
           <div className="absolute" style={{ top: -2, right: -4 }}>
             <LinkChartButton linked={orderLinkedToChart} onToggle={setOrderLinkedToChart} />

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { Z } from '../../constants/layout';
+import { Z, SHADOW } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import type { ConditionAction, TakeProfitLevel } from '../../types/bracket';
@@ -66,49 +66,49 @@ export function BracketSummary() {
       <div ref={containerRef} className="relative" style={{ marginTop: 6 }}>
         <button
           onClick={() => setOpen((v) => !v)}
-          className="w-full flex items-center justify-center bg-(--color-input) border border-(--color-border) rounded text-xs text-white focus:outline-none focus:border-(--color-accent) cursor-pointer"
-          style={{ padding: '6px 8px' }}
+          className="w-full flex items-center justify-between gap-1 text-xs text-(--color-text) bg-(--color-input) border border-(--color-border) rounded-lg focus:outline-none cursor-pointer transition-colors"
+          style={{ padding: '6px 10px' }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
         >
-          <span className="truncate">{displayName}</span>
+          <span className={`truncate ${isSuspended ? 'text-(--color-text-muted)' : ''}`}>{displayName}</span>
+          <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0 }}>
+            <path d="M0 0l4 5 4-5z" />
+          </svg>
         </button>
 
         {open && (
-          <div className="absolute left-0 right-0 mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ zIndex: Z.DROPDOWN, padding: '4px' }}>
+          <div className="absolute top-full left-0 right-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg overflow-hidden max-h-48 overflow-y-auto" style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, padding: '2px 0' }}>
             {/* None option */}
             <button
               onClick={() => { setActivePresetId(null); setOpen(false); }}
-              className={`w-full text-center text-xs font-medium rounded-md transition-colors cursor-pointer ${
-                activePresetId === null ? 'text-(--color-warning) bg-(--color-surface)' : 'text-(--color-text) hover:bg-(--color-surface)'
+              className={`w-full text-left text-xs transition-colors cursor-pointer ${
+                activePresetId === null ? 'bg-(--color-text) text-(--color-surface)' : 'text-(--color-text) hover:bg-(--color-hover-row)'
               }`}
-              style={{ padding: '8px 10px' }}
+              style={{ padding: '6px 10px' }}
             >
               None
             </button>
 
             {/* Preset items */}
             {bracketPresets.map((p) => (
-              <div
-                key={p.id}
-                className={`group relative flex items-center rounded-md transition-colors ${
-                  p.id === activePresetId ? 'bg-(--color-surface)' : 'hover:bg-(--color-surface)'
-                }`}
-              >
+              <div key={p.id} className="relative group">
                 <button
                   onClick={() => { setActivePresetId(p.id); setOpen(false); }}
-                  className={`w-full text-center text-xs font-medium truncate cursor-pointer ${
-                    p.id === activePresetId ? 'text-(--color-warning)' : 'text-(--color-text)'
+                  className={`w-full text-left text-xs transition-colors cursor-pointer ${
+                    p.id === activePresetId ? 'bg-(--color-text) text-(--color-surface)' : 'text-(--color-text) hover:bg-(--color-hover-row)'
                   }`}
-                  style={{ padding: '8px 10px' }}
+                  style={{ padding: '6px 10px' }}
                 >
                   {p.name}
                 </button>
-                <div className="absolute right-0 flex items-center opacity-0 group-hover:opacity-100 transition-all" style={{ gap: 6, marginRight: 8 }}>
+                <div className="absolute right-0 top-0 bottom-0 flex items-center opacity-0 group-hover:opacity-100 transition-all" style={{ gap: 4, marginRight: 4 }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); setEditingPresetId(p.id); setOpen(false); }}
                     title="Edit preset"
-                    className="p-1.5 rounded text-(--color-text-muted) hover:text-white hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
+                    className="p-1 rounded text-(--color-text-muted) hover:text-(--color-text) hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                       <path d="m15 5 4 4" />
                     </svg>
@@ -120,9 +120,9 @@ export function BracketSummary() {
                       deletePreset(p.id);
                     }}
                     title="Delete preset"
-                    className="p-1.5 rounded text-(--color-text-muted) hover:text-(--color-error) hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
+                    className="p-1 rounded text-(--color-text-muted) hover:text-(--color-error) hover:bg-(--color-hover-toolbar) transition-colors cursor-pointer"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18" />
                       <path d="M8 6V4h8v2" />
                       <path d="M5 6l1 14h12l1-14" />

@@ -1,6 +1,5 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
-import { SECTION_LABEL } from '../../constants/styles';
 
 export function OrderTypeTabs() {
   const { orderType, setOrderType, limitPrice, setLimitPrice, orderContract } = useStore(useShallow((s) => ({
@@ -14,27 +13,32 @@ export function OrderTypeTabs() {
 
   return (
     <div>
-      <div className={`${SECTION_LABEL} text-center`}>Order Type</div>
-      <div className="flex gap-1" style={{ marginTop: 6 }}>
+<div className="flex" style={{ marginTop: 6, borderBottom: '1px solid var(--color-border)' }}>
         <button
           onClick={() => setOrderType('market')}
-          className={`flex-1 text-xs py-1.5 rounded transition-colors cursor-pointer ${
+          className={`flex-1 relative text-xs py-2 transition-colors cursor-pointer ${
             orderType === 'market'
-              ? 'bg-(--color-warning) text-black font-medium'
-              : 'bg-(--color-input) text-(--color-text-muted) hover:text-(--color-text)'
+              ? 'text-(--color-text) font-medium'
+              : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
           Market
+          {orderType === 'market' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-(--color-text)" />
+          )}
         </button>
         <button
           onClick={() => setOrderType('limit')}
-          className={`flex-1 text-xs py-1.5 rounded transition-colors cursor-pointer ${
+          className={`flex-1 relative text-xs py-2 transition-colors cursor-pointer ${
             orderType === 'limit'
-              ? 'bg-(--color-warning) text-black font-medium'
-              : 'bg-(--color-input) text-(--color-text-muted) hover:text-(--color-text)'
+              ? 'text-(--color-text) font-medium'
+              : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
           Limit
+          {orderType === 'limit' && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-(--color-text)" />
+          )}
         </button>
       </div>
 
