@@ -1,6 +1,9 @@
+import { useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
+import { realtimeService } from '../../services/realtimeService';
+import type { GatewayQuote } from '../../services/realtimeService';
 
 export function OrderTypeTabs() {
   const { orderType, setOrderType, limitPrice, setLimitPrice, orderContract } = useStore(useShallow((s) => ({
@@ -11,6 +14,25 @@ export function OrderTypeTabs() {
     orderContract: s.orderContract,
   })));
   const tickSize = orderContract?.tickSize ?? 0.25;
+  const lastPriceRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!orderContract) return;
+    lastPriceRef.current = null;
+    const handler = (contractId: string, data: GatewayQuote) => {
+      if (contractId !== orderContract.id) return;
+      if (data.lastPrice != null) lastPriceRef.current = data.lastPrice;
+    };
+    realtimeService.onQuote(handler);
+    return () => realtimeService.offQuote(handler);
+  }, [orderContract]);
+
+  function handleSwitchToLimit() {
+    setOrderType('limit');
+    if (limitPrice == null && lastPriceRef.current != null) {
+      setLimitPrice(lastPriceRef.current);
+    }
+  }
 
   return (
     <div>
@@ -29,7 +51,7 @@ export function OrderTypeTabs() {
           )}
         </button>
         <button
-          onClick={() => setOrderType('limit')}
+          onClick={handleSwitchToLimit}
           className={`flex-1 relative text-xs py-2 transition-colors cursor-pointer ${
             orderType === 'limit'
               ? 'text-(--color-text) font-medium'
