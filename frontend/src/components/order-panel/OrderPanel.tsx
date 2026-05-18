@@ -833,50 +833,20 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
 }
 
 function PreviewToggle() {
-  const { previewEnabled, togglePreview, previewSide, setPreviewSide } = useStore(useShallow((s) => ({
+  const { previewEnabled, togglePreview } = useStore(useShallow((s) => ({
     previewEnabled: s.previewEnabled,
     togglePreview: s.togglePreview,
-    previewSide: s.previewSide,
-    setPreviewSide: s.setPreviewSide,
   })));
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={previewEnabled}
-          onChange={togglePreview}
-          className="accent-(--color-accent) w-3.5 h-3.5"
-        />
-        <span className="text-xs text-(--color-text-muted)">Preview</span>
-      </label>
-      {previewEnabled && (
-        <div className="flex rounded overflow-hidden" style={{ height: 20 }}>
-          <button
-            onClick={() => setPreviewSide(OrderSide.Buy)}
-            className="text-xs font-medium transition-colors cursor-pointer"
-            style={{
-              padding: '0 6px',
-              background: previewSide === OrderSide.Buy ? 'var(--color-buy)' : 'var(--color-input)',
-              color: previewSide === OrderSide.Buy ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-            }}
-          >
-            Long
-          </button>
-          <button
-            onClick={() => setPreviewSide(OrderSide.Sell)}
-            className="text-xs font-medium transition-colors cursor-pointer"
-            style={{
-              padding: '0 6px',
-              background: previewSide === OrderSide.Sell ? 'var(--color-sell)' : 'var(--color-input)',
-              color: previewSide === OrderSide.Sell ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-            }}
-          >
-            Short
-          </button>
-        </div>
-      )}
-    </div>
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={previewEnabled}
+        onChange={togglePreview}
+        className="accent-white w-3.5 h-3.5"
+      />
+      <span className="text-xs text-(--color-text-muted)">Preview</span>
+    </label>
   );
 }

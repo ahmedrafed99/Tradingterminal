@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { OrderType, OrderSide } from '../../types/enums';
@@ -16,6 +16,7 @@ export function BuySellButtons() {
     bracketPresets, activePresetId, draftSlPoints, draftTpPoints,
     adHocSlPoints, adHocTpLevels,
     clearDraftOverrides, clearAdHocBrackets, marketType,
+    previewEnabled, setPreviewSide,
   } = useStore(useShallow((s) => ({
     activeAccountId: s.activeAccountId,
     orderContract: s.orderContract,
@@ -31,6 +32,8 @@ export function BuySellButtons() {
     clearDraftOverrides: s.clearDraftOverrides,
     clearAdHocBrackets: s.clearAdHocBrackets,
     marketType: (s.contract?.marketType ?? 'futures') as MarketType,
+    previewEnabled: s.previewEnabled,
+    setPreviewSide: s.setPreviewSide,
   })));
   const typeLabel = orderType === 'market' ? 'Market' : 'Limit';
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
@@ -145,6 +148,7 @@ export function BuySellButtons() {
       {/* Buy / Sell buttons with spread badge at intersection */}
       <div className="relative flex gap-1.5">
         <button
+          onMouseEnter={() => { if (previewEnabled) setPreviewSide(OrderSide.Sell); }}
           onClick={() => handlePlace(OrderSide.Sell)}
           disabled={!canPlace || placing !== null}
           className="flex-1 flex flex-col items-center py-3 rounded transition-colors
@@ -156,7 +160,7 @@ export function BuySellButtons() {
             <>
               <span className="font-bold text-sm text-(--color-text-bright)">Sell +{orderSize}</span>
               <span className="text-sm text-(--color-text-bright) opacity-60 mt-0.5">
-                {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : bid != null ? fmtP(bid) : '—'}
+                {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : bid != null ? fmtP(bid) : 'â€”'}
               </span>
             </>
           )}
@@ -173,6 +177,7 @@ export function BuySellButtons() {
         )}
 
         <button
+          onMouseEnter={() => { if (previewEnabled) setPreviewSide(OrderSide.Buy); }}
           onClick={() => handlePlace(OrderSide.Buy)}
           disabled={!canPlace || placing !== null}
           className="flex-1 flex flex-col items-center py-3 rounded transition-colors
@@ -184,7 +189,7 @@ export function BuySellButtons() {
             <>
               <span className="font-bold text-sm text-(--color-text-bright)">Buy +{orderSize}</span>
               <span className="text-sm text-(--color-text-bright) opacity-60 mt-0.5">
-                {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : ask != null ? fmtP(ask) : '—'}
+                {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : ask != null ? fmtP(ask) : 'â€”'}
               </span>
             </>
           )}
