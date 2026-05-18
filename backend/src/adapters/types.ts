@@ -24,6 +24,7 @@ export interface ExchangeAuth {
 // ---------------------------------------------------------------------------
 export interface ExchangeAccounts {
   list(): Promise<unknown>;
+  eligibility?(): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------

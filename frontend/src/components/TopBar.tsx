@@ -264,6 +264,9 @@ export function TopBar() {
                   {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>- {id}</span>}
                 </>); })()}
               </span>
+              {activeAccount?.ineligible && (
+                <span className="text-xs font-semibold" style={{ color: 'var(--color-sell)', marginLeft: 8 }}>Blown</span>
+              )}
               {activeAccount && getCopyRole(activeAccount.id) && (
                 <span
                   className={`text-xs font-semibold flex items-center gap-1 ${
@@ -300,17 +303,21 @@ export function TopBar() {
                           {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}> - {id}</span>}
                         </>); })()}
                       </span>
-                      {role ? (
-                        <span
-                          className={`text-xs font-semibold flex items-center gap-1 ${
-                            role === 'master' ? 'text-(--color-role-master)' : 'text-(--color-role-follower)'
-                          }`}
-                          style={{ marginLeft: 16 }}
-                        >
-                          {role === 'master' ? 'Master' : 'Follower'}
-                          {role === 'follower' && <FollowIcon />}
-                        </span>
-                      ) : <span />}
+                      <span className="flex items-center gap-2" style={{ marginLeft: 16 }}>
+                        {a.ineligible && (
+                          <span className="text-xs font-semibold" style={{ color: 'var(--color-sell)' }}>Blown</span>
+                        )}
+                        {role && (
+                          <span
+                            className={`text-xs font-semibold flex items-center gap-1 ${
+                              role === 'master' ? 'text-(--color-role-master)' : 'text-(--color-role-follower)'
+                            }`}
+                          >
+                            {role === 'master' ? 'Master' : 'Follower'}
+                            {role === 'follower' && <FollowIcon />}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}

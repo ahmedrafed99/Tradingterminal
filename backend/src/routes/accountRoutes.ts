@@ -9,4 +9,11 @@ router.get('/', withConnection(async (req, res) => {
   res.json(data);
 }));
 
+router.get('/eligibility', withConnection(async (req, res) => {
+  const accts = resolveAdapter(req).accounts;
+  if (!accts.eligibility) return res.json([]);
+  const data = await accts.eligibility();
+  res.json(data);
+}));
+
 export default router;
