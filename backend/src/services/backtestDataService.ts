@@ -24,6 +24,8 @@ export interface OhlcvBar {
   l: number;
   c: number;
   v: number;
+  /** High reached before low within this bar (tracked from raw ticks). Used for trail-stop simulation. */
+  hf?: boolean;
 }
 
 export interface SymbolEntry {
@@ -84,10 +86,11 @@ function diskRead(key: string): OhlcvBar[] | null {
   } catch { return null; }
 }
 
-function diskWrite(key: string, bars: OhlcvBar[]): void {
+async function diskWrite(key: string, bars: OhlcvBar[]): Promise<void> {
   try {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-    fs.writeFileSync(path.join(CACHE_DIR, `${key}.json`), JSON.stringify(bars), 'utf8');
+    const content = JSON.stringify(bars);
+    await fs.promises.mkdir(CACHE_DIR, { recursive: true });
+    await fs.promises.writeFile(path.join(CACHE_DIR, `${key}.json`), content, 'utf8');
   } catch (err) {
     console.error('[backtestData] cache write failed:', err);
   }
@@ -115,11 +118,16 @@ function csvPathFor(exchange: string, symbol: string, year: number, month: numbe
   return path.join(monthDir(exchange, symbol, year), `${mm}.csv`);
 }
 
-/** Stream a raw tick CSV and build a map of 1m OHLCV bars. */
+/** Stream a raw tick CSV and build a map of 1m OHLCV bars, tracking which extreme (H or L) was
+ *  deviated from the open first. This `hf` flag lets the strategy runner resolve intra-bar
+ *  trailing-stop ordering without re-reading raw ticks at runtime. */
 function streamCsvTo1m(
   csvPath: string,
   barsMap: Map<number, OhlcvBar>,
 ): Promise<void> {
+  // null = open price only so far, no deviation yet; true = high first; false = low first
+  const hfMap = new Map<number, boolean | null>();
+
   return new Promise((resolve, reject) => {
     const stream = fs.createReadStream(csvPath);
     const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
@@ -147,7 +155,13 @@ function streamCsvTo1m(
 
       if (!existing) {
         barsMap.set(barStart, { t: new Date(barStart * 1000).toISOString(), o: price, h: price, l: price, c: price, v: qty });
+        hfMap.set(barStart, null);
       } else {
+        // Track which direction price first deviated from the open
+        if (hfMap.get(barStart) === null) {
+          if (price > existing.h)      hfMap.set(barStart, true);   // first deviation: up
+          else if (price < existing.l) hfMap.set(barStart, false);  // first deviation: down
+        }
         if (price > existing.h) existing.h = price;
         if (price < existing.l) existing.l = price;
         existing.c = price;
@@ -155,7 +169,13 @@ function streamCsvTo1m(
       }
     });
 
-    rl.on('close', resolve);
+    rl.on('close', () => {
+      // Stamp hf into each bar before resolving (default true for flat/no-deviation bars)
+      for (const [barStart, bar] of barsMap) {
+        bar.hf = hfMap.get(barStart) ?? true;
+      }
+      resolve();
+    });
     rl.on('error', reject);
     stream.on('error', reject);
   });
@@ -288,15 +308,19 @@ export async function getBars(
   const fromDate = new Date(fromMs);
   const toDate   = new Date(toMs);
 
+  const yieldToLoop = () => new Promise<void>((r) => setImmediate(r));
+
   const base1m: OhlcvBar[] = [];
   let year  = fromDate.getUTCFullYear();
   let month = fromDate.getUTCMonth() + 1;
 
+  let collectCount = 0;
   while (true) {
     const monthBars = await load1mMonth(exchange, symbol, year, month);
     for (const bar of monthBars) {
       const t = new Date(bar.t).getTime();
       if (t >= fromMs && t <= toMs) base1m.push(bar);
+      if (++collectCount % 10_000 === 0) await yieldToLoop();
     }
 
     if (year === toDate.getUTCFullYear() && month === toDate.getUTCMonth() + 1) break;
@@ -314,6 +338,7 @@ export async function getBars(
     bars = base1m;
   } else {
     const barsMap = new Map<number, OhlcvBar>();
+    let aggCount = 0;
     for (const bar of base1m) {
       const barStart = floorToBar(new Date(bar.t).getTime() / 1000, periodSec);
       const existing = barsMap.get(barStart);
@@ -325,6 +350,7 @@ export async function getBars(
         existing.c = bar.c;
         existing.v += bar.v;
       }
+      if (++aggCount % 10_000 === 0) await yieldToLoop();
     }
     bars = Array.from(barsMap.values()).sort(
       (a, b) => new Date(a.t).getTime() - new Date(b.t).getTime(),
@@ -334,7 +360,7 @@ export async function getBars(
   console.log(`[backtestData] ${exchange}/${symbol} ${tfLabel(tf.unit, tf.unitNumber)}: ${bars.length} bars`);
 
   memCache.set(key, bars);
-  diskWrite(key, bars);
+  await diskWrite(key, bars);
 
   return bars;
 }
@@ -352,9 +378,10 @@ function streamCsvTicksRaw(
   return new Promise((resolve, reject) => {
     const stream = fs.createReadStream(csvPath);
     const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+    let done = false;
 
     rl.on('line', (line) => {
-      if (!line) return;
+      if (done || !line) return;
       const c1 = line.indexOf(',');
       const c2 = line.indexOf(',', c1 + 1);
       const c3 = line.indexOf(',', c2 + 1);
@@ -363,7 +390,14 @@ function streamCsvTicksRaw(
       if (c5 < 0) return;
 
       const tickMs = parseFloat(line.slice(c4 + 1, c5)) / 1000; // µs → ms
-      if (tickMs < fromMs || tickMs > toMs) return;
+      if (tickMs < fromMs) return;
+      if (tickMs > toMs) {
+        // Ticks are ordered — nothing after this is in range; stop reading.
+        done = true;
+        rl.close();
+        stream.destroy();
+        return;
+      }
 
       const price = parseFloat(line.slice(c1 + 1, c2));
       const qty   = parseFloat(line.slice(c2 + 1, c3));
@@ -372,9 +406,10 @@ function streamCsvTicksRaw(
       onTick(tickMs, price, qty);
     });
 
-    rl.on('close', resolve);
-    rl.on('error', reject);
-    stream.on('error', reject);
+    rl.on('close', () => resolve());
+    // stream.destroy() may emit an error — treat it as a clean close.
+    stream.on('error', () => resolve());
+    rl.on('error', (err) => { if (!done) reject(err); });
   });
 }
 
@@ -395,8 +430,7 @@ export async function streamTicksFromRange(
   let month = fromDate.getUTCMonth() + 1;
 
   while (true) {
-    const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-    const csvPath  = path.join(symbolDir(exchange, symbol), `${monthStr}.csv`);
+    const csvPath = csvPathFor(exchange, symbol, year, month);
     if (fs.existsSync(csvPath)) {
       await streamCsvTicksRaw(csvPath, fromMs, toMs, onTick);
     }

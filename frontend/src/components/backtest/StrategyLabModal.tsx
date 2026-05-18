@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useStore } from '../../store/useStore';
 import type { Contract } from '../../services/marketDataService';
 import { CandlestickChart } from '../chart/CandlestickChart';
@@ -145,8 +145,6 @@ export function StrategyLabModal() {
 
   const abortRef                  = useRef<(() => void) | null>(null);
   const saveCodeTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const equityBufferRef           = useRef<EquityPoint[]>([]);
-  const equityFlushScheduledRef   = useRef(false);
   const splitContainerRef         = useRef<HTMLDivElement>(null);
 
   // Load available symbols + strategies from disk on open
@@ -210,7 +208,6 @@ export function StrategyLabModal() {
     setSelectedTradeIndex(null);
     setRunning(true);
     setStatus('Starting...');
-    equityBufferRef.current = [];
 
     const { promise, abort } = backtestService.runStrategy(
       {
@@ -224,21 +221,7 @@ export function StrategyLabModal() {
         strategyCode,
         takerFee: getContract(exchange, symbol).takerFee ?? WORST_CASE_TAKER_FEE,
       },
-      // Server sends batches of points; coalesce further into one state
-      // update per animation frame to avoid O(N²) React churn.
-      (points) => {
-        const buf = equityBufferRef.current;
-        for (let i = 0; i < points.length; i++) buf.push(points[i]);
-        if (equityFlushScheduledRef.current) return;
-        equityFlushScheduledRef.current = true;
-        requestAnimationFrame(() => {
-          equityFlushScheduledRef.current = false;
-          const batch = equityBufferRef.current;
-          if (batch.length === 0) return;
-          equityBufferRef.current = [];
-          setEquityPoints((prev) => prev.concat(batch));
-        });
-      },
+      () => {},
       (msg) => setStatus(msg),
     );
 
@@ -246,6 +229,7 @@ export function StrategyLabModal() {
 
     try {
       const res = await promise;
+      setEquityPoints(res.equityCurve);
       setResult(res);
       setStatus(`Done — ${res.totalTrades} trades`);
       backtestService.saveResult(strategyName, res, {
@@ -264,9 +248,9 @@ export function StrategyLabModal() {
     }
   }, [running, exchange, symbol, timeframe, from, to, strategyCode, setRunning, setStatus, setResult]);
 
-  if (!open) return null;
+  const contract = useMemo(() => getContract(exchange, symbol), [exchange, symbol]);
 
-  const contract = getContract(exchange, symbol);
+  if (!open) return null;
 
   return (
     <div
@@ -459,28 +443,23 @@ export function StrategyLabModal() {
             ))}
           </div>
 
-          {activeTab === 'curve' && (
-            <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0 }}>
-              <EquityCurveChart
-                points={equityPoints}
-                initialEquity={INITIAL_EQUITY}
-                isEmpty={!running && equityPoints.length === 0}
-                height="100%"
-              />
-            </div>
-          )}
+          {/* Always mounted — display:none keeps LWC chart alive and prevents
+              "Object is disposed" from a queued ResizeObserver firing after unmount */}
+          <div style={{ padding: '8px 0 0', flex: 1, minHeight: 0, display: activeTab === 'curve' ? undefined : 'none' }}>
+            <EquityCurveChart
+              points={equityPoints}
+              initialEquity={INITIAL_EQUITY}
+              isEmpty={!running && equityPoints.length === 0}
+              height="100%"
+            />
+          </div>
 
-          {activeTab === 'trades' && result && (
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <BacktestTradesTable trades={result.trades} />
-            </div>
-          )}
-
-          {activeTab === 'trades' && !result && (
-            <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>
-              Run a strategy to see the trade log
-            </div>
-          )}
+          <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: activeTab === 'trades' ? undefined : 'none' }}>
+            {result
+              ? <BacktestTradesTable trades={result.trades} />
+              : <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 12 }}>Run a strategy to see the trade log</div>
+            }
+          </div>
           </div>
         </div>{/* end left column */}
 

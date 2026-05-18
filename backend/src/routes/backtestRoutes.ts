@@ -140,6 +140,14 @@ interface Trade {
   pnl:        number;     // net of fees
   pnlPct:     number;     // net of fees
   fees:       number;     // round-trip taker fees (entry + exit)
+  tradeId?:   number;     // groups partial closes from the same entry
+  isPartial?: boolean;    // true when this row is a partial close
+}
+
+interface PartialTarget {
+  price:     number;
+  fraction:  number;   // fraction of original entry qty to close
+  moveSLTo?: number;   // price to move stop to after this target hits
 }
 
 interface EquityPoint {
@@ -191,7 +199,10 @@ router.post('/run', async (req, res) => {
       (msg)    => send('status', { message: msg }),
     );
 
-    send('done', result);
+    // Strip equityCurve — already streamed in equity batches; sending it again
+    // in 'done' causes a multi-MB JSON parse on the main thread → browser freeze.
+    const { equityCurve: _ec, ...summary } = result;
+    send('done', summary);
     res.end();
   } catch (err) {
     send('error', { message: String(err) });
@@ -246,23 +257,31 @@ async function runStrategy(
   let entryPrice  = 0;
   let entryTime   = '';
   let entrySide: 'long' | 'short' = 'long';
+  let entryQty    = 0;
+  let tradeCounter = 0;
+  let currentTradeId: number | null = null;
   let stopPrice:   number | null = null;
   let targetPrice: number | null = null;
   let trailingDist: number | null = null; // active trailing stop distance (null = none)
   let trailingRef:  number = 0;           // peak price driving the trail
+  let partialTargets: PartialTarget[] = [];
   const state: Record<string, unknown> = {};
   const prevBarsBuffer: OhlcvBar[] = [];
 
   function openPosition(side: 'long' | 'short', qty: number, price: number, time: string) {
     if (position !== 0) return;
-    position     = side === 'long' ? qty : -qty;
-    entryPrice   = price;
-    entryTime    = time;
-    entrySide    = side;
-    stopPrice    = null;
-    targetPrice  = null;
-    trailingDist = null;
-    trailingRef  = price;
+    tradeCounter++;
+    currentTradeId  = tradeCounter;
+    position        = side === 'long' ? qty : -qty;
+    entryPrice      = price;
+    entryTime       = time;
+    entrySide       = side;
+    entryQty        = qty;
+    stopPrice       = null;
+    targetPrice     = null;
+    trailingDist    = null;
+    trailingRef     = price;
+    partialTargets  = [];
   }
 
   function closePosition(exitPrice: number, exitTime: string) {
@@ -274,12 +293,40 @@ async function runStrategy(
     const fees      = (entryPrice + exitPrice) * qty * takerFee;
     const pnl       = grossPnl - fees;
     const pnlPct    = (pnl / (entryPrice * qty)) * 100;
-    trades.push({ entryTime, exitTime, side: entrySide, entryPrice, exitPrice, qty, pnl, pnlPct, fees });
+    trades.push({ entryTime, exitTime, side: entrySide, entryPrice, exitPrice, qty, pnl, pnlPct, fees, tradeId: currentTradeId ?? undefined, isPartial: false });
     equity         += pnl;
     position        = 0;
     stopPrice       = null;
     targetPrice     = null;
     trailingDist    = null;
+    partialTargets  = [];
+    currentTradeId  = null;
+    entryQty        = 0;
+  }
+
+  function closePartialPosition(fractionOfOriginal: number, exitPrice: number, exitTime: string) {
+    if (position === 0 || entryQty === 0) return;
+    const closeQty = Math.min(entryQty * fractionOfOriginal, Math.abs(position));
+    if (closeQty < 1e-10) return;
+    const grossPnl = entrySide === 'long'
+      ? (exitPrice - entryPrice) * closeQty
+      : (entryPrice - exitPrice) * closeQty;
+    const fees     = (entryPrice + exitPrice) * closeQty * takerFee;
+    const pnl      = grossPnl - fees;
+    const pnlPct   = (pnl / (entryPrice * closeQty)) * 100;
+    trades.push({ entryTime, exitTime, side: entrySide, entryPrice, exitPrice, qty: closeQty, pnl, pnlPct, fees, tradeId: currentTradeId ?? undefined, isPartial: true });
+    equity += pnl;
+    if (position > 0) position -= closeQty;
+    else              position += closeQty;
+    if (Math.abs(position) < 1e-10) {
+      position       = 0;
+      stopPrice      = null;
+      targetPrice    = null;
+      trailingDist   = null;
+      partialTargets = [];
+      currentTradeId = null;
+      entryQty       = 0;
+    }
   }
 
   // Advance the trailing stop to the new tick price (only moves in the favourable direction).
@@ -308,6 +355,10 @@ async function runStrategy(
   // Load all bars upfront — fast, uses 1m cache + re-aggregation
   onStatus('Loading bars...');
   const bars = await getBars(exchange, symbol, tf, fromMs, toMs);
+  // Load 1m sub-bars for trailing-stop simulation (avoids per-bar CSV reads)
+  const bars1m = periodSec <= 60
+    ? bars
+    : await getBars(exchange, symbol, { unit: 2, unitNumber: 1 }, fromMs, toMs);
   onStatus(`Loaded ${bars.length} bars — running strategy...`);
 
   let lastMonth = '';
@@ -324,31 +375,63 @@ async function runStrategy(
       const barEndMs = barMs + periodSec * 1000 - 1;
 
       if (trailingDist !== null) {
-        // Trailing stop: must track tick-by-tick so the reference updates as price moves
-        let closed = false;
-        await streamTicksFromRange(exchange, symbol, barMs, barEndMs, (tickMs, price) => {
-          if (closed) return;
-          updateTrailingStop(price);
-          if (stopPrice !== null && (isLong ? price <= stopPrice : price >= stopPrice)) {
-            closePosition(stopPrice, new Date(tickMs).toISOString());
-            closed = true;
-          }
-        });
-      } else {
-        // Fixed stop/target: bar-level H/L check
-        const stopHit   = stopPrice   !== null && (isLong ? bar.l <= stopPrice   : bar.h >= stopPrice);
-        const targetHit = targetPrice !== null && (isLong ? bar.h >= targetPrice : bar.l <= targetPrice);
+        // Bar-level check: does this bar even threaten the stop?
+        // For a long, the worst-case stop after the trail fully advances is bar.h - trailingDist.
+        // If bar.l is above both the current stop and that post-advance stop, nothing can trigger.
+        const wouldTrigger = isLong
+          ? bar.l <= Math.max(stopPrice!, bar.h - trailingDist)
+          : bar.h >= Math.min(stopPrice!, bar.l + trailingDist);
 
-        if (stopHit && targetHit) {
-          // Both penetrated in the same bar — drill into ticks to find which hit first
-          const fill = await resolveAmbiguousBar(
-            exchange, symbol, barMs, barEndMs, stopPrice, targetPrice, isLong,
-          );
-          closePosition(fill.price, fill.time);
-        } else if (stopHit) {
-          closePosition(stopPrice!, bar.t);
-        } else if (targetHit) {
-          closePosition(targetPrice!, bar.t);
+        if (!wouldTrigger) {
+          // Safe bar — just advance the trail peak using the bar's favorable extreme.
+          updateTrailingStop(isLong ? bar.h : bar.l);
+        } else {
+          // Stop is at risk — stream raw ticks for this exact bar to get tick-accurate exit.
+          let closed = false;
+          await streamTicksFromRange(exchange, symbol, barMs, barEndMs, (tickMs, price) => {
+            if (closed) return;
+            updateTrailingStop(price);
+            if (stopPrice !== null && (isLong ? price <= stopPrice : price >= stopPrice)) {
+              closePosition(stopPrice, new Date(tickMs).toISOString());
+              closed = true;
+            }
+          });
+          // If stop didn't fire, ensure trail reflects the bar's favorable extreme.
+          if (!closed) updateTrailingStop(isLong ? bar.h : bar.l);
+        }
+      } else {
+        // 1. Process partial targets in price order (sorted closest-first on setPartialTargets)
+        if (partialTargets.length > 0) {
+          const remaining: PartialTarget[] = [];
+          for (const pt of partialTargets) {
+            if (position === 0) break;
+            const curLong = position > 0;
+            const hit = curLong ? bar.h >= pt.price : bar.l <= pt.price;
+            if (hit) {
+              closePartialPosition(pt.fraction, pt.price, bar.t);
+              if (pt.moveSLTo !== undefined) stopPrice = pt.moveSLTo;
+            } else {
+              remaining.push(pt);
+            }
+          }
+          partialTargets = remaining;
+        }
+
+        // 2. Fixed stop/target on remaining position
+        if (position !== 0) {
+          const curLong   = position > 0;
+          const stopHit   = stopPrice   !== null && (curLong ? bar.l <= stopPrice   : bar.h >= stopPrice);
+          const targetHit = targetPrice !== null && (curLong ? bar.h >= targetPrice : bar.l <= targetPrice);
+
+          if (stopHit && targetHit) {
+            // Both penetrated in the same bar — use 1m sub-bars to find which hit first
+            const fill = resolveAmbiguousWith1m(bars1m, barMs, barEndMs, stopPrice, targetPrice, curLong);
+            closePosition(fill.price, fill.time || bar.t);
+          } else if (stopHit) {
+            closePosition(stopPrice!, bar.t);
+          } else if (targetHit) {
+            closePosition(targetPrice!, bar.t);
+          }
         }
       }
     }
@@ -369,6 +452,17 @@ async function runStrategy(
       // setStop clears any active trailing stop
       setStop:          (p: number)   => { stopPrice = p; trailingDist = null; },
       setTarget:        (p: number)   => { targetPrice = p; },
+      // setPartialTargets — scales out of position at multiple price levels.
+      // fraction is portion of the ORIGINAL entry qty to close at each level.
+      // moveSLTo (optional) moves the stop to that price after the target hits.
+      // Targets are sorted automatically (closest-to-entry first).
+      setPartialTargets: (targets: Array<{ price: number; fraction: number; moveSLTo?: number }>) => {
+        if (position === 0) return;
+        const curLong = position > 0;
+        partialTargets = [...targets].sort((a, b) => curLong ? a.price - b.price : b.price - a.price);
+      },
+      // closePartial — manually close a fraction of the original entry qty at bar close.
+      closePartial: (fraction: number) => closePartialPosition(fraction, bar.c, bar.t),
       // setTrailingStop trails `distance` from the price peak since first activation.
       // Re-calling updates the distance but preserves the tracked peak reference.
       setTrailingStop:  (distance: number) => {
@@ -413,8 +507,20 @@ async function runStrategy(
     closePosition(lastBar.c, lastBar.t);
   }
 
-  const winners = trades.filter(t => t.pnl > 0);
-  const winRate = trades.length > 0 ? winners.length / trades.length : 0;
+  // Group partial-close trades by tradeId so win rate and count are per-entry, not per-partial.
+  const grouped = new Map<number, number>(); // tradeId → total pnl
+  const ungrouped: Trade[] = [];
+  for (const t of trades) {
+    if (t.tradeId != null) {
+      grouped.set(t.tradeId, (grouped.get(t.tradeId) ?? 0) + t.pnl);
+    } else {
+      ungrouped.push(t);
+    }
+  }
+  const entryPnls = [...Array.from(grouped.values()), ...ungrouped.map(t => t.pnl)];
+  const totalTrades = entryPnls.length;
+  const winners = entryPnls.filter(p => p > 0);
+  const winRate = totalTrades > 0 ? winners.length / totalTrades : 0;
 
   let sharpe = 0;
   if (equityCurve.length > 1) {
@@ -433,35 +539,49 @@ async function runStrategy(
     finalEquity:  equity,
     totalReturn:  ((equity - initialEquity) / initialEquity) * 100,
     winRate:      winRate * 100,
-    totalTrades:  trades.length,
+    totalTrades,
     maxDrawdown:  maxDrawdown * 100,
     sharpe,
   };
 }
 
-// When both stop and target are penetrated within the same bar, stream the raw
-// ticks for that bar and return whichever level was touched first.
-async function resolveAmbiguousBar(
-  exchange:    string,
-  symbol:      string,
-  barMs:       number,
-  barEndMs:    number,
-  stop:        number | null,
-  target:      number | null,
-  isLong:      boolean,
-): Promise<{ price: number; time: string }> {
-  let firstHit: { price: number; time: string } | null = null;
+// When both fixed stop and target are penetrated in the same TF bar, walk the
+// constituent 1m sub-bars (using their hf flag for intra-bar ordering) to find
+// which level was touched first.
+function resolveAmbiguousWith1m(
+  bars1m:   OhlcvBar[],
+  barMs:    number,
+  barEndMs: number,
+  stop:     number | null,
+  target:   number | null,
+  isLong:   boolean,
+): { price: number; time: string } {
+  let startIdx = 0;
+  while (startIdx < bars1m.length && Date.parse(bars1m[startIdx].t) < barMs) startIdx++;
+  for (let i = startIdx; i < bars1m.length; i++) {
+    const m   = bars1m[i];
+    const mMs = Date.parse(m.t);
+    if (mMs > barEndMs) break;
 
-  await streamTicksFromRange(exchange, symbol, barMs, barEndMs, (tickMs, price) => {
-    if (firstHit) return;
-    const stopHit   = stop   !== null && (isLong ? price <= stop   : price >= stop);
-    const targetHit = target !== null && (isLong ? price >= target : price <= target);
-    if (stopHit)   firstHit = { price: stop!,   time: new Date(tickMs).toISOString() };
-    else if (targetHit) firstHit = { price: target!, time: new Date(tickMs).toISOString() };
-  });
+    const stopHit   = stop   !== null && (isLong ? m.l <= stop   : m.h >= stop);
+    const targetHit = target !== null && (isLong ? m.h >= target : m.l <= target);
+    if (!stopHit && !targetHit) continue;
 
-  // Fallback: stop wins (conservative) if ticks aren't available
-  return firstHit ?? { price: stop ?? target!, time: new Date(barMs).toISOString() };
+    if (stopHit && targetHit) {
+      // Both levels in same 1m bar — hf resolves order
+      const hFirst = m.hf ?? m.c >= m.o;
+      if (isLong) return hFirst
+        ? { price: target!, time: m.t }  // high (target) first
+        : { price: stop!,   time: m.t }; // low (stop) first
+      else return hFirst
+        ? { price: stop!,   time: m.t }  // high (stop for short) first
+        : { price: target!, time: m.t }; // low (target for short) first
+    }
+    if (stopHit)   return { price: stop!,   time: m.t };
+    if (targetHit) return { price: target!, time: m.t };
+  }
+  // Fallback: stop wins (conservative)
+  return { price: stop ?? target!, time: '' };
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +664,7 @@ router.delete('/strategies/:name', (req, res) => {
 
 interface SaveResultBody {
   result: {
-    trades:      Array<{ pnl: number; pnlPct: number; side: string; entryTime: string; exitTime: string; entryPrice: number; exitPrice: number; qty: number; fees: number }>;
+    trades:      Array<{ pnl: number; pnlPct: number; side: string; entryTime: string; exitTime: string; entryPrice: number; exitPrice: number; qty: number; fees: number; tradeId?: number }>;
     equityCurve: Array<{ t: string; equity: number }>;
     finalEquity:  number;
     totalReturn:  number;
@@ -572,11 +692,21 @@ router.put('/strategies/:name/result', (req, res) => {
     const { result, meta } = req.body as SaveResultBody;
     const { trades, equityCurve, finalEquity, totalReturn, winRate, totalTrades, maxDrawdown, sharpe } = result;
 
-    // Compute extra stats from trades
-    const winners = trades.filter(t => t.pnl > 0);
-    const losers  = trades.filter(t => t.pnl < 0);
-    const grossProfit = winners.reduce((s, t) => s + t.pnl, 0);
-    const grossLoss   = Math.abs(losers.reduce((s, t) => s + t.pnl, 0));
+    // Compute extra stats from trades (group partials by tradeId for accurate per-entry avg win/loss)
+    const entryMap = new Map<number, number>();
+    const entryPnls: number[] = [];
+    for (const t of trades) {
+      if (t.tradeId != null) {
+        entryMap.set(t.tradeId, (entryMap.get(t.tradeId) ?? 0) + t.pnl);
+      } else {
+        entryPnls.push(t.pnl);
+      }
+    }
+    const allEntryPnls = [...Array.from(entryMap.values()), ...entryPnls];
+    const winners = allEntryPnls.filter(p => p > 0);
+    const losers  = allEntryPnls.filter(p => p < 0);
+    const grossProfit = winners.reduce((s, p) => s + p, 0);
+    const grossLoss   = Math.abs(losers.reduce((s, p) => s + p, 0));
     const avgWin      = winners.length > 0 ? grossProfit / winners.length : 0;
     const avgLoss     = losers.length  > 0 ? grossLoss  / losers.length  : 0;
     const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : grossProfit > 0 ? Infinity : 0;
@@ -584,9 +714,9 @@ router.put('/strategies/:name/result', (req, res) => {
     const worstTrade = trades.length > 0 ? Math.min(...trades.map(t => t.pnl)) : 0;
 
     let longestWinStreak = 0, longestLossStreak = 0, curWin = 0, curLoss = 0;
-    for (const t of trades) {
-      if (t.pnl > 0) { curWin++; curLoss = 0; longestWinStreak  = Math.max(longestWinStreak,  curWin);  }
-      else            { curLoss++; curWin = 0;  longestLossStreak = Math.max(longestLossStreak, curLoss); }
+    for (const p of allEntryPnls) {
+      if (p > 0) { curWin++; curLoss = 0; longestWinStreak  = Math.max(longestWinStreak,  curWin);  }
+      else       { curLoss++; curWin = 0; longestLossStreak = Math.max(longestLossStreak, curLoss); }
     }
 
     const summary = {

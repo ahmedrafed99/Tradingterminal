@@ -19,6 +19,8 @@ export interface BacktestTrade {
   pnl:        number;     // net of fees
   pnlPct:     number;     // net of fees, % of entry notional
   fees:       number;     // total round-trip taker fees
+  tradeId?:   number;     // groups partial closes from the same entry
+  isPartial?: boolean;    // true when this row is a partial close
 }
 
 export interface EquityPoint {
@@ -242,6 +244,10 @@ export const backtestService = {
   ): { promise: Promise<BacktestResult>; abort: () => void } {
     const controller = new AbortController();
 
+    // Accumulate equity points from streamed batches so the 'done' event
+    // doesn't need to re-send the full curve (which caused multi-MB JSON parses).
+    const accEquity: EquityPoint[] = [];
+
     const promise = new Promise<BacktestResult>((resolve, reject) => {
       fetch('/backtest/run', {
         method: 'POST',
@@ -273,10 +279,17 @@ export const backtestService = {
             } else if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
-                if (event === 'equity') onEquity(data as EquityPoint[]);
-                else if (event === 'status') onStatus(data.message ?? '');
-                else if (event === 'done') resolve(data as BacktestResult);
-                else if (event === 'error') reject(new Error(data.message ?? 'Unknown error'));
+                if (event === 'equity') {
+                  const pts = data as EquityPoint[];
+                  for (const p of pts) accEquity.push(p);
+                  onEquity(pts);
+                } else if (event === 'status') {
+                  onStatus(data.message ?? '');
+                } else if (event === 'done') {
+                  resolve({ ...(data as Omit<BacktestResult, 'equityCurve'>), equityCurve: accEquity });
+                } else if (event === 'error') {
+                  reject(new Error(data.message ?? 'Unknown error'));
+                }
               } catch { /* malformed line */ }
               event = '';
             }

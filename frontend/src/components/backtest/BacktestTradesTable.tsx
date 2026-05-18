@@ -53,7 +53,16 @@ const COLUMNS: SortableColumn<BacktestTrade>[] = [
     sortValue: (t) => t.pnl,
     render:    (t) => {
       const cls = t.pnl > 0 ? 'text-(--color-buy)' : t.pnl < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)';
-      return <span className={`font-medium ${cls}`}>{t.pnl > 0 ? '+' : ''}{t.pnl.toFixed(2)}</span>;
+      return (
+        <span className="flex items-center justify-center gap-1.5">
+          <span className={`font-medium ${cls}`}>{t.pnl > 0 ? '+' : ''}{t.pnl.toFixed(2)}</span>
+          {t.isPartial && (
+            <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.04em', padding: '1px 4px', borderRadius: 3, background: 'var(--color-border)', color: 'var(--color-text-muted)' }}>
+              PT
+            </span>
+          )}
+        </span>
+      );
     },
   },
 ];
