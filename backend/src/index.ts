@@ -236,6 +236,7 @@ server.listen(PORT, async () => {
   console.log(`  POST /market/bars`);
   console.log(`  GET  /orders/open?accountId=`);
   console.log(`  GET  /positions/open?accountId=`);
+  console.log(`  POST /positions/close`);
   console.log(`  GET  /trades/search?accountId=&startTimestamp=`);
   console.log(`  GET  /news/economic`);
   console.log(`  *    /conditions/*`);

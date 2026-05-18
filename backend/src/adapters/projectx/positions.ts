@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { ExchangePositions } from '../types';
 import { getBaseUrl, authHeaders } from './auth';
+import { debugLog } from '../../utils/debugLog';
 
 interface GatewayResponse {
   success: boolean;
@@ -50,5 +51,15 @@ export const projectXPositions: ExchangePositions = {
 
     // All failed — return last result or empty
     return lastResult ?? { success: true, positions: [] };
+  },
+
+  async closeContract({ accountId, contractId }) {
+    const n = Number(accountId);
+    if (!Number.isFinite(n)) throw new Error(`Invalid numeric ID: "${accountId}"`);
+    const path = '/api/Position/closeContract';
+    debugLog.log('projectx:closeContract', { endpoint: `${getBaseUrl()}${path}`, accountId: n, contractId });
+    const data = await tryEndpoint(path, { accountId: n, contractId });
+    debugLog.log('projectx:closeContract:response', data);
+    return data;
   },
 };

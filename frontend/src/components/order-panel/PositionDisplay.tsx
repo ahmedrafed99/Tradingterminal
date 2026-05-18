@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { orderService } from '../../services/orderService';
+import { positionService } from '../../services/positionService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { markAsManualClose } from '../../services/manualCloseTracker';
@@ -122,8 +123,6 @@ export function PositionDisplay() {
         <ClosePositionButton
           accountId={activeAccountId}
           contractId={orderContract.id}
-          side={isLong ? OrderSide.Sell : OrderSide.Buy}
-          size={pos.size}
         />
       </div>
     </div>
@@ -212,13 +211,9 @@ function MoveToBEButton({
 function ClosePositionButton({
   accountId,
   contractId,
-  side,
-  size,
 }: {
   accountId: string | null;
   contractId: string;
-  side: OrderSide;
-  size: number;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -227,13 +222,7 @@ function ClosePositionButton({
     setBusy(true);
     try {
       markAsManualClose(contractId);
-      await orderService.placeOrder({
-        accountId,
-        contractId,
-        type: OrderType.Market,
-        side,
-        size,
-      });
+      await positionService.closePosition(accountId, contractId);
     } catch (err) {
       console.error('Failed to close position:', err);
       showToast('error', 'Failed to close position', errorMessage(err));
