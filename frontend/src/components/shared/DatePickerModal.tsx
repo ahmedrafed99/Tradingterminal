@@ -124,7 +124,7 @@ export function DatePickerModal(props: Props) {
     ...Array<null>(firstDow).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
-  while (cells.length % 7 !== 0) cells.push(null);
+  while (cells.length < 42) cells.push(null);
 
   const todayDate  = mode === 'single' ? (props.today ?? utcToday()) : utcToday();
   const selectedSingle = mode === 'single' ? parseDate(props.date) : null;
@@ -257,7 +257,7 @@ export function DatePickerModal(props: Props) {
               <div key={d} style={{ textAlign: 'center', fontSize: FONT_SIZE.OVERLAY, fontWeight: 500, color: 'var(--color-text-muted)', padding: '4px 0' }}>{d}</div>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: '28px', gap: 2 }}>
             {cells.map((day, i) => {
               if (day === null) return <div key={i} />;
               const d    = toDateStr(calYear, calMonth, day);
