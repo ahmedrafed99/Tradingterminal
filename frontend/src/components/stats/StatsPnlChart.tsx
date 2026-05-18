@@ -1,6 +1,6 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import type { TradeStats, DayPnl } from '../../utils/tradeStats';
-import { COLOR_BUY, COLOR_SELL, COLOR_TEXT_MUTED, COLOR_TABLE_STRIPE } from '../../constants/colors';
+import { COLOR_BUY, COLOR_SELL, COLOR_TEXT_MUTED, COLOR_SURFACE } from '../../constants/colors';
 import { niceStep } from './statsHelpers';
 import { EquityCurveChart } from '../backtest/EquityCurveChart';
 
@@ -23,6 +23,20 @@ type HitPoint = HoverInfo;
 export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = false, onDayClick }: { stats: TradeStats; dailyData: DayPnl[]; exitTimes?: string[]; singleDay?: boolean; onDayClick?: (date: string) => void }) {
   const [modeChoice, setModeChoice] = useState<Mode>('equity');
   const mode: Mode = singleDay ? 'equity' : modeChoice;
+
+  // exitTimes and equityCurve are parallel arrays ordered by entry time, but
+  // LWC requires strictly ascending x-axis timestamps. Sort by exit time and
+  // recompute the running cumulative so values stay correct.
+  const equityPoints = useMemo(() => {
+    const curve = stats.equityCurve;
+    const pairs = exitTimes.map((t, i) => ({
+      t,
+      net: curve[i] - (i > 0 ? curve[i - 1] : 0),
+    }));
+    pairs.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
+    let running = 0;
+    return pairs.map(p => { running += p.net; return { t: p.t, equity: running }; });
+  }, [exitTimes, stats.equityCurve]);
 
   return (
     <div
@@ -79,11 +93,11 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
 
       {mode === 'equity' ? (
         <EquityCurveChart
-          points={exitTimes.map((t, i) => ({ t, equity: stats.equityCurve[i] ?? 0 }))}
+          points={equityPoints}
           initialEquity={0}
           height={CHART_HEIGHT}
           showMarkers
-          background={COLOR_TABLE_STRIPE}
+          background={COLOR_SURFACE}
           emptyMessage="No trades"
           isEmpty={stats.equityCurve.length === 0}
         />

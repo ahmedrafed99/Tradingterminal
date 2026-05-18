@@ -1,8 +1,8 @@
 import { useEffect, useRef, memo } from 'react';
-import { createChart, createSeriesMarkers, BaselineSeries, ColorType, CrosshairMode } from 'lightweight-charts';
+import { createChart, createSeriesMarkers, BaselineSeries, ColorType, CrosshairMode, LineStyle } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi, SingleValueData, UTCTimestamp, ISeriesMarkersPluginApi, SeriesMarker, Time } from 'lightweight-charts';
 import type { EquityPoint } from '../../services/backtestService';
-import { CHART_OPTIONS } from '../chart/chartTheme';
+import { CHART_OPTIONS, nyTimeFormatterRaw } from '../chart/chartTheme';
 import { FONT_FAMILY } from '../../constants/layout';
 import { COLOR_BUY, COLOR_SELL, COLOR_TEXT_DIM, COLOR_BORDER } from '../../constants/colors';
 
@@ -34,9 +34,22 @@ function toPoint(p: EquityPoint, initial: number): SingleValueData<UTCTimestamp>
   };
 }
 
-const fmtTimeShort = new Intl.DateTimeFormat('en-US', {
-  month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
-});
+// Lightweight Charts requires strictly ascending timestamps. When two trades
+// close in the same second they get the same floored timestamp — keep only
+// the last (highest equity) for each second so setData never throws.
+function deduplicateByTime(data: SingleValueData<UTCTimestamp>[]): SingleValueData<UTCTimestamp>[] {
+  if (data.length === 0) return data;
+  const out: SingleValueData<UTCTimestamp>[] = [data[0]];
+  for (let i = 1; i < data.length; i++) {
+    if (data[i].time === out[out.length - 1].time) {
+      out[out.length - 1] = data[i]; // replace with later value
+    } else {
+      out.push(data[i]);
+    }
+  }
+  return out;
+}
+
 
 export const EquityCurveChart = memo(function EquityCurveChart({
   points,
@@ -77,7 +90,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       },
       grid: {
         vertLines: { visible: false },
-        horzLines: { visible: true, color: toRgba(COLOR_TEXT_DIM, 0.5) },
+        horzLines: { visible: false },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
@@ -96,6 +109,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       localization: {
         priceFormatter: (v: number) =>
           `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`,
+        timeFormatter: (t: number) => nyTimeFormatterRaw(t),
       },
     });
 
@@ -113,6 +127,14 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       crosshairMarkerVisible: true,
       crosshairMarkerRadius: 5,
       priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+    });
+
+    series.createPriceLine({
+      price: 0,
+      color: toRgba(COLOR_TEXT_DIM, 0.4),
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      axisLabelVisible: false,
     });
 
     chartRef.current  = chart;
@@ -147,14 +169,9 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       if (best < 0) { tooltip.style.opacity = '0'; return; }
 
       const value = arr[best].value;
-      const timeMs = (arr[best].time as number) * 1000;
-      const timeLabel = fmtTimeShort.format(new Date(timeMs));
-      const tradeNum = best + 1;
       const sign = value >= 0 ? '+' : '-';
 
       tooltip.innerHTML =
-        `<span style="color:var(--color-text-muted);font-weight:400;margin-right:6px">Trade #${tradeNum}</span>` +
-        `<span style="color:var(--color-text-muted);font-weight:400;margin-right:6px">${timeLabel}</span>` +
         `<span style="color:${value >= 0 ? COLOR_BUY : COLOR_SELL};font-weight:600">${sign}$${Math.abs(value).toFixed(2)}</span>`;
       tooltip.style.opacity = '1';
     });
@@ -196,8 +213,12 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       if (newLen === oldLen) return; // nothing new
       for (let i = oldLen; i < newLen; i++) {
         const p = toPoint(points[i], initialEquity);
-        series.update(p);
-        rendered.push(p);
+        series.update(p); // LWC update() replaces bar if time matches last, or appends if greater
+        if (rendered.length > 0 && rendered[rendered.length - 1].time === p.time) {
+          rendered[rendered.length - 1] = p;
+        } else {
+          rendered.push(p);
+        }
       }
       if (markersRef.current) {
         const showDots = showMarkers && newLen > 0 && (markerThreshold === 0 || newLen <= markerThreshold);
@@ -218,7 +239,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
     }
 
     // Full rebuild
-    const data = points.map((p) => toPoint(p, initialEquity));
+    const data = deduplicateByTime(points.map((p) => toPoint(p, initialEquity)));
     pointsRef.current = data;
     series.setData(data);
     if (markersRef.current) {
@@ -250,8 +271,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
         style={{
           position: 'absolute',
           top: 8,
-          left: '50%',
-          transform: 'translateX(-50%)',
+          left: 8,
           pointerEvents: 'none',
           fontSize: 12,
           fontFamily: FONT_FAMILY,
