@@ -8,7 +8,7 @@ import { COLOR_BUY, COLOR_SELL, COLOR_TABLE_STRIPE } from '../../constants/color
 const NY_DOW = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'America/New_York' });
 
 const CARD: React.CSSProperties = {
-  background: 'var(--color-table-stripe)',
+  background: 'var(--color-popover)',
   border: '1px solid var(--color-border)',
   borderRadius: 10,
   padding: '20px 24px',
@@ -87,7 +87,7 @@ function TimeOfDay({ allData, filteredData, filterDay }: { allData: HourPnl[]; f
       <div style={{ ...LABEL, display: 'flex', alignItems: 'center', gap: 8 }}>
         P&L by Hour
         {filterDay && (
-          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-muted)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '1px 7px' }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-muted)', background: 'var(--color-popover)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '1px 7px' }}>
             {filterDay}
           </span>
         )}
@@ -371,7 +371,7 @@ function DurationBreakdown({ data }: { data: DurationComparison }) {
               {data.avgWinnerDuration > 0 ? formatDuration(data.avgWinnerDuration) : '—'}
             </span>
           </div>
-          <div style={{ height: 8, background: 'var(--color-surface)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
             <div
               style={{
                 width: `${winPct}%`,
@@ -392,7 +392,7 @@ function DurationBreakdown({ data }: { data: DurationComparison }) {
               {data.avgLoserDuration > 0 ? formatDuration(data.avgLoserDuration) : '—'}
             </span>
           </div>
-          <div style={{ height: 8, background: 'var(--color-surface)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 4, overflow: 'hidden' }}>
             <div
               style={{
                 width: `${lossPct}%`,

@@ -107,8 +107,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
         fixRightEdge: true,
       },
       localization: {
-        priceFormatter: (v: number) =>
-          `${v >= 0 ? '+' : '-'}$${Math.abs(v).toFixed(2)}`,
+        priceFormatter: (v: number) => v.toFixed(2),
         timeFormatter: (t: number) => nyTimeFormatterRaw(t),
       },
     });
@@ -169,10 +168,8 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       if (best < 0) { tooltip.style.opacity = '0'; return; }
 
       const value = arr[best].value;
-      const sign = value >= 0 ? '+' : '-';
-
       tooltip.innerHTML =
-        `<span style="color:${value >= 0 ? COLOR_BUY : COLOR_SELL};font-weight:600">${sign}$${Math.abs(value).toFixed(2)}</span>`;
+        `<span style="color:${value >= 0 ? COLOR_BUY : COLOR_SELL};font-weight:600">${value < 0 ? '-' : ''}$${Math.abs(value).toFixed(2)}</span>`;
       tooltip.style.opacity = '1';
     });
 

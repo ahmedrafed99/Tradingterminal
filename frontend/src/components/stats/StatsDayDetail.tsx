@@ -3,8 +3,7 @@ import type { GroupedTrade } from '../../utils/tradeStats';
 import { computeStats } from '../../utils/tradeStats';
 import { formatDuration } from '../../utils/formatters';
 import { tradingDurationMs } from '../../utils/marketHours';
-import { COLOR_TABLE_STRIPE } from '../../constants/colors';
-import { pnlColor, fmtDollar, hexToRgba } from './statsHelpers';
+import { pnlColor, fmtDollar } from './statsHelpers';
 import { EquityCurveChart } from '../backtest/EquityCurveChart';
 
 export function StatsDayDetail({ date, trades, onBack }: {
@@ -49,7 +48,7 @@ export function StatsDayDetail({ date, trades, onBack }: {
       </div>
 
       {/* Day equity curve */}
-      <div style={{ background: 'var(--color-table-stripe)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '16px 20px' }}>
+      <div style={{ background: 'var(--color-popover)', border: '1px solid var(--color-border)', borderRadius: 10, padding: '16px 20px' }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.02em', marginBottom: 12 }}>
           Day Equity Curve
         </div>
@@ -58,14 +57,14 @@ export function StatsDayDetail({ date, trades, onBack }: {
           initialEquity={0}
           height={160}
           showMarkers
-          background={COLOR_TABLE_STRIPE}
+          background='var(--color-popover)'
         />
       </div>
 
       {/* Trade list */}
       <div
         style={{
-          background: 'var(--color-table-stripe)',
+          background: 'var(--color-popover)',
           border: '1px solid var(--color-border)',
           borderRadius: 10,
           overflow: 'hidden',
@@ -78,7 +77,7 @@ export function StatsDayDetail({ date, trades, onBack }: {
             gridTemplateColumns: '1fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
             padding: '12px 20px',
             borderBottom: '1px solid var(--color-border)',
-            background: 'rgba(255,255,255,0.02)',
+            background: 'var(--color-popover)',
           }}
         >
           {['Time', 'Side', 'Qty', 'Entry', 'Exit', 'Duration', 'Net P&L'].map((h) => (
@@ -110,7 +109,7 @@ export function StatsDayDetail({ date, trades, onBack }: {
                 gridTemplateColumns: '1fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
                 padding: '10px 20px',
                 borderBottom: isLast ? 'none' : '1px solid var(--color-border)',
-                background: idx % 2 === 1 ? hexToRgba(COLOR_TABLE_STRIPE, 0.5) : 'transparent',
+                background: idx % 2 === 1 ? 'rgba(255,255,255,0.03)' : 'transparent',
               }}
             >
               <div className="text-center" style={{ fontSize: 13, color: 'var(--color-text-muted)', fontFeatureSettings: '"tnum"' }}>

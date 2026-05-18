@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import type { TradeStats, DayPnl } from '../../utils/tradeStats';
-import { COLOR_BUY, COLOR_SELL, COLOR_TEXT_MUTED, COLOR_SURFACE } from '../../constants/colors';
+import { COLOR_BUY, COLOR_SELL, COLOR_TEXT_MUTED } from '../../constants/colors';
 import { niceStep } from './statsHelpers';
 import { EquityCurveChart } from '../backtest/EquityCurveChart';
 
@@ -41,55 +41,42 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
   return (
     <div
       style={{
-        background: 'var(--color-table-stripe)',
+        background: 'var(--color-popover)',
         border: '1px solid var(--color-border)',
-        borderRadius: 10,
-        padding: '20px 24px',
-        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      <div className="flex items-center justify-between" style={{ marginBottom: 16, position: 'relative' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '0.02em' }}>
-          {mode === 'equity' ? 'Equity Curve' : 'Daily P&L'}
-        </div>
-        {!singleDay && <div
-          className="flex"
-          style={{
-            background: 'var(--color-surface)',
-            borderRadius: 6,
-            border: '1px solid var(--color-border)',
-            overflow: 'hidden',
-          }}
+      {!singleDay && (
+        <div
+          className="flex border-b border-(--color-border)"
+          style={{ background: 'var(--color-popover)' }}
         >
-          <button
-            onClick={() => setModeChoice('equity')}
-            className="cursor-pointer transition-colors"
-            style={{
-              fontSize: 12,
-              padding: '5px 12px',
-              background: mode === 'equity' ? 'var(--color-hover-row)' : 'transparent',
-              color: mode === 'equity' ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-              border: 'none',
-              borderRight: '1px solid var(--color-border)',
-            }}
-          >
-            Equity
-          </button>
-          <button
-            onClick={() => setModeChoice('daily')}
-            className="cursor-pointer transition-colors"
-            style={{
-              fontSize: 12,
-              padding: '5px 12px',
-              background: mode === 'daily' ? 'var(--color-hover-row)' : 'transparent',
-              color: mode === 'daily' ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-              border: 'none',
-            }}
-          >
-            Daily
-          </button>
-        </div>}
-      </div>
+          {(['equity', 'daily'] as Mode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setModeChoice(m)}
+              className="cursor-pointer relative transition-colors"
+              style={{
+                padding: '8px 16px',
+                fontSize: 12,
+                fontWeight: 500,
+                background: 'none',
+                border: 'none',
+                color: mode === m ? 'var(--color-text)' : 'var(--color-text-muted)',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {m === 'equity' ? 'Equity' : 'Daily'}
+              {mode === m && (
+                <span
+                  className="absolute bottom-0 left-0 right-0"
+                  style={{ height: 1, background: 'var(--color-text)' }}
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {mode === 'equity' ? (
         <EquityCurveChart
@@ -97,7 +84,7 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
           initialEquity={0}
           height={CHART_HEIGHT}
           showMarkers
-          background={COLOR_SURFACE}
+          background='var(--color-popover)'
           emptyMessage="No trades"
           isEmpty={stats.equityCurve.length === 0}
         />
