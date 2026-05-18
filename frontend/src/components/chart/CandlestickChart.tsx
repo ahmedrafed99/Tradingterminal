@@ -342,9 +342,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
     }
   }, [chartSettings]);
 
-  // -- Order panel contract (overlays show on whichever chart matches) --
-  const orderContract = useStore((s) => s.orderContract);
-  const isOrderChart = contract?.id != null && contract.id === orderContract?.id;
+  // -- Overlays show on whichever chart is currently selected --
+  const isOrderChart = useStore((s) => s.selectedChart) === chartId;
 
   useQuickOrder(refs, contract, timeframe, isOrderChart);
   useOrderLines(refs, contract, isOrderChart);
