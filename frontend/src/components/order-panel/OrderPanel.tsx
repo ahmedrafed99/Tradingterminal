@@ -855,7 +855,7 @@ function PreviewToggle() {
         <div className="flex rounded overflow-hidden" style={{ height: 20 }}>
           <button
             onClick={() => setPreviewSide(OrderSide.Buy)}
-            className="text-[10px] font-medium transition-colors cursor-pointer"
+            className="text-xs font-medium transition-colors cursor-pointer"
             style={{
               padding: '0 6px',
               background: previewSide === OrderSide.Buy ? 'var(--color-buy)' : 'var(--color-input)',
@@ -866,7 +866,7 @@ function PreviewToggle() {
           </button>
           <button
             onClick={() => setPreviewSide(OrderSide.Sell)}
-            className="text-[10px] font-medium transition-colors cursor-pointer"
+            className="text-xs font-medium transition-colors cursor-pointer"
             style={{
               padding: '0 6px',
               background: previewSide === OrderSide.Sell ? 'var(--color-sell)' : 'var(--color-input)',

@@ -24,12 +24,12 @@ export function BlacklistBanner() {
         borderLeft: '2px solid var(--color-warning)',
       }}
     >
-      <span className="text-[11px] font-medium text-(--color-warning)">
+      <span className="text-xs font-medium text-(--color-warning)">
         ⊘ {sym} blocked
       </span>
       <button
         onClick={() => { setSettingsInitialTab('trading'); setSettingsOpen(true); }}
-        className="text-[11px] text-(--color-text-muted) hover:text-(--color-warning) transition-colors underline"
+        className="text-xs text-(--color-text-muted) hover:text-(--color-warning) transition-colors underline"
       >
         Manage
       </button>

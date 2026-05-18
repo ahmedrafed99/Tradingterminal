@@ -165,7 +165,7 @@ export function BuySellButtons() {
         {spread != null && (
           <div
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10
-                       pointer-events-none py-0.5 rounded text-[10px] text-(--color-text-muted) text-center"
+                       pointer-events-none py-0.5 rounded text-xs text-(--color-text-muted) text-center"
             style={{ background: 'var(--color-panel)', border: '1px solid var(--color-border)', minWidth: 36 }}
           >
             {fmtP(spread)}
@@ -191,7 +191,7 @@ export function BuySellButtons() {
         </button>
       </div>
       {error && (
-        <div className="text-[10px] text-(--color-error) mt-1">{error}</div>
+        <div className="text-xs text-(--color-error) mt-1">{error}</div>
       )}
     </div>
   );
