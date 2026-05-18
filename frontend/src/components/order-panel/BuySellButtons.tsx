@@ -48,8 +48,8 @@ export function BuySellButtons() {
     setAsk(null);
     const handler = (contractId: string, data: GatewayQuote) => {
       if (contractId !== orderContract.id) return;
-      setBid(data.bestBid);
-      setAsk(data.bestAsk);
+      if (data.bestBid != null) setBid(data.bestBid);
+      if (data.bestAsk != null) setAsk(data.bestAsk);
     };
     realtimeService.onQuote(handler);
     return () => realtimeService.offQuote(handler);
@@ -142,7 +142,7 @@ export function BuySellButtons() {
 
   return (
     <div className="space-y-1.5">
-      {/* Buy / Sell buttons with spread intersection badge */}
+      {/* Buy / Sell buttons with spread badge at intersection */}
       <div className="relative flex gap-1.5">
         <button
           onClick={() => handlePlace(OrderSide.Sell)}
@@ -162,7 +162,6 @@ export function BuySellButtons() {
           )}
         </button>
 
-        {/* Spread badge at the intersection */}
         {spread != null && (
           <div
             className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10

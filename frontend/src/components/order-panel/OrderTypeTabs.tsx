@@ -1,5 +1,6 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
+import { SECTION_LABEL } from '../../constants/styles';
 
 export function OrderTypeTabs() {
   const { orderType, setOrderType, limitPrice, setLimitPrice, orderContract } = useStore(useShallow((s) => ({
@@ -56,7 +57,7 @@ export function OrderTypeTabs() {
               if (!isNaN(n)) setLimitPrice(n);
             }}
             placeholder="Enter price"
-            className="w-full bg-(--color-input) border border-(--color-border) rounded py-2.5 text-sm text-white text-center
+            className="w-full bg-(--color-input) border border-(--color-border) rounded h-7 text-xs text-white text-center
                        focus:outline-none focus:border-(--color-focus-ring) placeholder-(--color-text-dim)"
           />
         </div>
