@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { validateQuery, validateBody } from '../validate';
+import { validateBody, validateQuery } from '../validate';
 import { withConnection, resolveAdapter } from '../middleware/withConnection';
 
 const router = Router();
@@ -16,19 +16,21 @@ router.get('/open', validateQuery(OpenPositionsQuery), withConnection(async (req
   res.json(data);
 }));
 
-const ClosePositionSchema = z.object({
+const ClosePositionBody = z.object({
+  exchange: z.string().optional(),
   accountId: z.string().min(1),
   contractId: z.string().min(1),
 });
 
 // POST /positions/close
-router.post('/close', validateBody(ClosePositionSchema), withConnection(async (req, res) => {
+router.post('/close', validateBody(ClosePositionBody), withConnection(async (req, res) => {
+  const { accountId, contractId } = req.body as { accountId: string; contractId: string };
   const positions = resolveAdapter(req).positions;
-  if (!positions.closePosition) {
-    res.status(501).json({ success: false, errorMessage: 'closePosition not supported by this adapter' });
+  if (!positions.closeContract) {
+    res.status(501).json({ success: false, errorMessage: 'closeContract not supported by this exchange' });
     return;
   }
-  const data = await positions.closePosition(req.body);
+  const data = await positions.closeContract({ accountId, contractId });
   res.json(data);
 }));
 

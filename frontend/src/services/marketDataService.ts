@@ -23,6 +23,7 @@ export interface Contract {
   quantityStep?: number;        // 1 for futures, 0.001 etc. for crypto
   pricePrecision?: number;      // decimal places for prices (derived from tickSize)
   quantityPrecision?: number;   // decimal places for quantities (0 for futures)
+  takerFee?: number;            // backtest-only: per-side taker fee rate (e.g. 0.00055 = 0.055%)
 }
 
 function normalizeContract(raw: Contract): Contract {

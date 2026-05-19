@@ -22,6 +22,7 @@ import drawingRoutes from './routes/drawingRoutes';
 import blacklistRoutes from './routes/blacklistRoutes';
 import lockoutRoutes from './routes/lockoutRoutes';
 import logRoutes from './routes/logRoutes';
+import backtestRoutes from './routes/backtestRoutes';
 import WebSocket from 'ws';
 import * as conditionEngine from './services/conditionEngine';
 import * as conditionStore from './services/conditionStore';
@@ -38,7 +39,7 @@ const app = express();
 // Middleware
 // ---------------------------------------------------------------------------
 app.use(cors({ origin: 'http://localhost:5173' }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // Rate limiters — prevent runaway loops from burning ProjectX API quota
 const orderLimiter = rateLimit({
@@ -82,6 +83,7 @@ app.use('/drawings', drawingRoutes);
 app.use('/blacklist', blacklistRoutes);
 app.use('/lockout', lockoutRoutes);
 app.use('/log', logRoutes);
+app.use('/backtest', backtestRoutes);
 
 // Health check — connection status, condition engine, backfill
 app.get('/health', (_req, res) => {
@@ -234,6 +236,7 @@ server.listen(PORT, async () => {
   console.log(`  POST /market/bars`);
   console.log(`  GET  /orders/open?accountId=`);
   console.log(`  GET  /positions/open?accountId=`);
+  console.log(`  POST /positions/close`);
   console.log(`  GET  /trades/search?accountId=&startTimestamp=`);
   console.log(`  GET  /news/economic`);
   console.log(`  *    /conditions/*`);

@@ -100,7 +100,8 @@
         "Item active/selected: background var(--color-text), color var(--color-surface)",
         "Toolbar buttons use hover:bg-(--color-border) — different from dropdown items, intentional",
         "Camera screenshot dropdown (ChartToolbar) is intentionally styled differently: rounded-xl, SHADOW.XXL",
-        "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg"
+        "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg",
+        "CustomSelect supports renderItemAction (trailing per-row node, e.g. delete/rename), renderItem (full row override — return non-null to replace label+action, e.g. inline rename input), footer (node below the list with a divider), and dropdownMinWidth (force min width when button is narrower than the menu) — used by the Strategy Lab strategy dropdown"
       ]
     }
     ,{
@@ -158,6 +159,50 @@
       ]
     }
     ,{
+      "name": "StrategyLab",
+      "description": "Full-screen backtesting workspace. Accessible via Strategy button in ChartToolbar. Shows a full CandlestickChart fed from extracted tick CSVs, a script editor, an equity curve (EquityCurveChart — LWC-based, shared with the stats dashboard), stats row, and trade log (BacktestTradesTable). Symbols categorized by exchange/symbol.",
+      "keywords": ["backtest", "strategy", "equity curve", "strategy lab", "script", "tick data", "OHLCV", "trade log", "win rate", "symbol", "exchange"],
+      "files": [
+        "frontend/src/components/backtest/StrategyLabModal.tsx",
+        "frontend/src/components/backtest/DateRangePicker.tsx",
+        "frontend/src/components/backtest/BacktestTradesTable.tsx",
+        "frontend/src/components/backtest/EquityCurveChart.tsx",
+        "frontend/src/store/slices/backtestSlice.ts",
+        "frontend/src/services/backtestService.ts",
+        "backend/src/services/backtestDataService.ts",
+        "backend/src/routes/backtestRoutes.ts",
+        "backend/src/scripts/extractTickData.ts"
+      ],
+      "dependencies": [
+        "CandlestickChart (backtestConfig prop activates tick-data mode)",
+        "useChartBars (backtestConfig triggers backtest loading path)",
+        "backtestSlice (open/close, exchange, symbol, dateRange, timeframe, strategyCode, running, result)",
+        "backtestService (getSymbols, getBars, getAvailableRange, runStrategy SSE client)",
+        "backtestDataService (CSV → OHLCV aggregation + disk cache)",
+        "backtestRoutes (GET /backtest/symbols, GET /backtest/bars, GET /backtest/range, POST /backtest/run, GET/PUT/PATCH/DELETE /backtest/strategies/:name, GET/PUT /backtest/strategies/:name/result)"
+      ],
+      "notes": [
+        "Data layout: backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.csv (+ {MM}.1m.json cache) — run 'npm run extract-ticks' in backend to populate",
+        "Extract script: backend/src/scripts/extractTickData.ts — reads Binance ZIPs/CSVs from TICK_DATA_PATH env var, extracts to tick-data dir",
+        "Cache dir: backend/data/backtest-cache/ — JSON files keyed by exchange_symbol_tf_fromDay_toDay.json",
+        "Strategy execution: vm.runInNewContext sandbox, onBar(ctx) called per bar, ctx.buy/sell/close/setStop/setTarget",
+        "SSE streaming: POST /backtest/run streams equity points as they build, then sends done event",
+        "CONTRACT_MAP in StrategyLabModal.tsx maps 'EXCHANGE:SYMBOL' → Contract; fallback uses generic 0.01 tick defaults",
+        "GET /backtest/symbols scans tick-data dir and returns available exchange/symbol pairs",
+        "backtestExchange + backtestSymbol in backtestSlice — selector dropdown in modal header",
+        "chartId='backtest' extends 'left'|'right'|'backtest' type — guard in setSelectedChart and drillIntoCandle",
+        "File persistence: strategies saved to backend/data/strategies/{name}/strategy.js; last result to result.json in same folder",
+        "On modal open: listStrategies() from disk seeds the store; empty disk → current store strategies seeded to disk",
+        "Strategy code auto-saves 800ms after last keystroke; result saves after each successful run",
+        "On strategy switch: equity chart clears immediately, then loadResult() from disk restores chart + stats via setData()",
+        "Vertical resize: chart vs results split is controlled by backtestBottomRatio (persisted, 0..0.85, default 0.3). VerticalSeparator drives drag; toggleBacktestBottom collapses/restores via backtestBottomPreviousRatio — mirrors App.tsx pattern",
+        "Bottom panel content fills via flex: stats + tabs are shrink-0; equity curve receives height='100%' (LWC autoSize handles repaint); trades table receives maxHeight='100%' (SortableTable virtualization re-measures via ResizeObserver)",
+        "Bars cache (backtestService.ts): LRU Map keyed by exchange:symbol:unit:unitNumber:from:to, MAX_BARS_CACHE=20. streamBars checks cache first and delivers the full array as one synthetic chunk via microtask; on miss it accumulates streamed chunks and writes to cache on the SSE 'done' event. Aborts mid-stream do not populate the cache",
+        "Windowed render (useChartBars backtest effect): only the most recent VIEWPORT_BARS=500 bars go to LWC initially; scrolling within 50 logical bars of the left edge expands the window backward by EXPAND_BARS=1000. refs.bars / refs.dataMap / refs.lastBar always hold the full array so drawings, FRVP and crosshair are unaffected by the window. Window expansion preserves the visible time range (getVisibleRange → setData → setVisibleRange) since logical indices shift",
+        "Streaming UX: chunks are accumulated silently and rendered once at end (avoids O(N²) setData on long streams). First load of an (exchange, symbol, range, tf) shows the chart only after streaming completes; subsequent timeframe switches with the same symbol+range are instant from cache"
+      ]
+    }
+    ,{
       "name": "OHLCTooltip",
       "description": "Inline OHLC tooltip rendered in the chart's top-left overlay. Shows O/H/L/C values and change for the hovered candle (falls back to last bar). Labels (O H L C) use --color-text; values use --color-text-medium (bullish) or teal (#0097a6) (bearish). DOM built once with pre-created spans for perf — no innerHTML per frame.",
       "keywords": ["ohlc", "tooltip", "crosshair", "hover", "candle", "open", "high", "low", "close", "change", "top-left"],
@@ -175,6 +220,147 @@
         "Label color (O H L C) = COLOR_TEXT = var(--color-text), matching symbol/timeframe text in the same overlay row",
         "Value color switches only when bullish/bearish direction changes — avoids per-frame style recalc",
         "Spans are created once in useEffect; effect reruns on contract/timeframe change (new decimal precision needed)"
+      ]
+    }
+    ,{
+      "name": "TimeframePicker",
+      "description": "Shared timeframe selector used by both ChartToolbar and StrategyLabModal. Renders pinned shortcut buttons + chevron trigger + grouped dropdown (Seconds/Minutes/Hours/Days). Pinning, custom timeframes, and trash buttons are all optional — omit those props for a simple picker.",
+      "keywords": ["timeframe", "picker", "dropdown", "seconds", "minutes", "hours", "days", "pin", "bookmark", "custom", "shared"],
+      "files": [
+        "frontend/src/components/shared/TimeframePicker.tsx"
+      ],
+      "dependencies": [
+        "TIMEFRAMES (default preset list from useStore)",
+        "SpinnerInput (custom TF number input)",
+        "useClickOutside"
+      ],
+      "notes": [
+        "pinnedTimeframes + onPin + onUnpin all required together to enable pinning — omit all three for simple mode (StrategyLabModal)",
+        "onAddCustom + onRemoveCustom both required together to show custom input section",
+        "StarIcon is exported — reused by InstrumentSelectorPopover and similar components",
+        "Trigger button style differs: no border/bg when hasPinning (ChartToolbar inline style), bordered when standalone (StrategyLabModal)"
+      ]
+    }
+    ,{
+      "name": "SymbolPickerModal",
+      "description": "Shared symbol search modal. Same visual as InstrumentSelectorPopover (header, search input, item list). Accepts generic SymbolItem[] so any data source can use it. Currently used by StrategyLabModal for backtest symbol selection.",
+      "keywords": ["symbol", "picker", "search", "instrument", "modal", "shared"],
+      "files": [
+        "frontend/src/components/shared/SymbolPickerModal.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "SymbolItem: { key, name, exchange, description? } — key must be unique, used for selectedKey comparison",
+        "Client-side search filters by name and exchange",
+        "Active item highlighted with --color-warning text (matches InstrumentSelectorPopover active style)",
+        "InstrumentSelectorPopover has its own complex implementation (live search, bookmarks, categories) — SymbolPickerModal is for simpler static lists"
+      ]
+    }
+    ,{
+      "name": "DatePickerModal",
+      "description": "Shared calendar modal used by both GoToModal (single date + time) and DateRangePicker (from/to range). Handles modal shell, month nav, and calendar grid. mode='single' shows date/time inputs + today highlight + Cancel/Confirm footer. mode='range' shows From/To selector buttons + range highlight + Done footer.",
+      "keywords": ["date picker", "calendar", "modal", "single", "range", "from", "to", "shared"],
+      "files": [
+        "frontend/src/components/shared/DatePickerModal.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "mode='single': pass today prop for timezone-aware today highlight (defaults to UTC today); GoToModal passes nyNow()",
+        "mode='single': time input is optional — omit time/onTimeChange props to hide it",
+        "mode='range': edge days (from/to) get accent fill + white text; in-range days get hover-row bg; hover previews the candidate range",
+        "Calendar syncs to anchorDate (date for single, from for range) whenever it changes — no manual calendar navigation reset needed",
+        "Width fixed at 380px; tab bar (single mode) is structural, reserved for future tabs like 'Bar number'"
+      ]
+    }
+    ,{
+      "name": "SortableTable",
+      "description": "Generic sortable table primitive. Takes column defs (label, sortValue, render) + rows + gridCols template. Provides sticky clickable header with asc/desc arrow indicators, row striping (TABLE_ROW_STRIPE), row hover, and selection highlight (--color-warning). Currently used by BacktestTradesTable; designed so the live TradesTab can adopt it later.",
+      "keywords": ["table", "sortable", "sort", "header", "columns", "stripe", "select", "shared", "trades"],
+      "files": [
+        "frontend/src/components/shared/SortableTable.tsx"
+      ],
+      "dependencies": [
+        "TABLE_ROW_STRIPE (constants/styles)",
+        "Z.HEADER (constants/layout)"
+      ],
+      "notes": [
+        "Column with no sortValue is rendered non-sortable (no pointer cursor, no hover)",
+        "sortedRows preserve originalIndex; getRowKey + selectedKey use stable IDs so selection survives re-sorts",
+        "Cell wrapper className defaults to 'px-2 text-center whitespace-nowrap' — override via column.cellClassName when needed (TradesTab uses 'px-3 text-center' historically)",
+        "Color/weight should live inside the rendered span, not the wrapper, because the wrapper class is static per column",
+        "maxHeight prop enables overflowY:auto only when set — list mode (no scroll) just omits it",
+        "When maxHeight is set, rows are virtualized: only rows in the visible window (+OVERSCAN=8) are mounted, with top/bottom spacer divs preserving scroll height. Row geometry constants ROW_HEIGHT=30 (h-7 inner + 1px outer borders) and HEADER_HEIGHT=33 (h-8 inner + 1px bottom border) MUST stay in sync with the row markup",
+        "Does NOT support row grouping/expansion — live TradesTab will need a row-override mechanism if it adopts this"
+      ]
+    }
+    ,{
+      "name": "EquityCurveChart",
+      "description": "Lightweight-Charts BaselineSeries equity curve. Shared between Strategy Lab (live SSE point streaming) and the stats dashboard (StatsPnlChart equity mode + StatsDayDetail day-detail curve). Built-in crosshair tooltip shows Trade #N · time · value; optional per-trade markers via showMarkers.",
+      "keywords": ["equity curve", "lwc", "lightweight-charts", "baseline series", "backtest", "stats", "trade markers", "shared"],
+      "files": [
+        "frontend/src/components/backtest/EquityCurveChart.tsx"
+      ],
+      "dependencies": [
+        "lightweight-charts (createChart, BaselineSeries, createSeriesMarkers)",
+        "CHART_OPTIONS (chart/chartTheme)",
+        "COLOR_BUY/COLOR_SELL/COLOR_TEXT_DIM/COLOR_BORDER (constants/colors)"
+      ],
+      "notes": [
+        "Pass points as EquityPoint[] ({ t: ISO string, equity: number }) + initialEquity; tooltip and Y axis display value as (equity - initialEquity)",
+        "Stats callers pass initialEquity=0 with stats.equityCurve[i] as the equity field (cumulative P&L is already delta-based)",
+        "background prop must be a resolved color (canvas fill) — use COLOR_TABLE_STRIPE for stats panel, default '#000000' for backtest panel",
+        "showMarkers + markerThreshold (default 80) — markers hide automatically for dense series to avoid clutter",
+        "Tooltip is rendered as a fixed centered overlay inside the chart; no parent-level hover state needed",
+        "background changes are baked into the chart on mount — changing it remounts the chart (background is in the mount effect's deps)",
+        "Streaming optimization: when new points are the previously-rendered array with extra tail items appended, the sync effect calls series.update() per new point instead of series.setData() with the full array — avoids O(N²) churn (StrategyLabModal also rAF-batches its SSE equity callback). Sanity check compares the last-rendered point's time + value against the input; mismatches fall back to a full setData()."
+      ]
+    }
+    ,{
+      "name": "ToolbarPillButton",
+      "description": "Shared pill-shaped header button used across the Strategy Lab toolbar (Symbol picker, Date range, etc.). Consistent: bg --color-input, border --color-border, padding 5px 10px, hover:bg --color-border, rounded-md, text-xs. Children render free-form (icons + label + ChevronDown if needed).",
+      "keywords": ["toolbar", "pill", "button", "header", "strategy lab", "shared"],
+      "files": [
+        "frontend/src/components/shared/ToolbarPillButton.tsx"
+      ],
+      "dependencies": [],
+      "notes": [
+        "Different from DropdownButton (bg --color-surface, RADIUS.XL, border-color hover) — keep both",
+        "No built-in chevron — caller renders ChevronDown explicitly when needed for flexibility"
+      ]
+    }
+    ,{
+      "name": "VerticalSeparator",
+      "description": "Shared draggable horizontal divider for vertical pane splits. 1px tall, cursor-row-resize, accent on drag. Optional collapse toggle button (chevron) appears on hover or when collapsed. Used by App.tsx (chart/bottom panel split) and StrategyLabModal (backtest chart/results split).",
+      "keywords": ["separator", "splitter", "divider", "resize", "drag", "row-resize", "vertical", "collapse", "toggle", "shared"],
+      "files": [
+        "frontend/src/components/shared/VerticalSeparator.tsx"
+      ],
+      "dependencies": [
+        "ChevronDown / ChevronUp icons (only when onToggle is provided)"
+      ],
+      "notes": [
+        "onDrag receives mouseRatio = (e.clientY - containerTop) / containerHeight — caller decides whether to invert (1 - r) for bottom-anchored panels",
+        "containerRef points to the SHARED parent containing all split children — its bounding rect is captured on mousedown, not on every mousemove (avoids re-layout cost)",
+        "Toggle button is omitted when onToggle is not provided — pass both `collapsed` and `onToggle` to enable it; pass neither for a pure resizer"
+      ]
+    }
+    ,{
+      "name": "GoToModal",
+      "description": "Modal that lets the user jump the chart to a specific date and time (NY timezone). Has a date text input, time text input, month calendar grid with today highlight, and Cancel/Go to footer buttons. Converts NY local time to UTC seconds for the chart API.",
+      "keywords": ["go to", "goto", "date picker", "calendar", "navigate", "timestamp", "ny timezone", "jump to date"],
+      "files": [
+        "frontend/src/components/chart/GoToModal.tsx",
+        "frontend/src/components/chart/GoToMarkerPrimitive.ts",
+        "frontend/src/components/chart/ChartTimeScaleContextMenu.tsx"
+      ],
+      "dependencies": [
+        "CandlestickChart (renders GoToModal, calls chart.scrollToPosition on confirm)",
+        "GoToMarkerPrimitive (draws the temporary marker line after navigation)"
+      ],
+      "notes": [
+        "nyNow() and nyLocalToUtcSeconds() handle all timezone math — dates displayed and selected are always NY local",
+        "Tab bar (single 'Date' tab with accent underline) is structural, not decorative — reserved for a future 'Bar number' tab",
+        "Calendar width: 380px; selected day uses border-only style (no fill) to match GoToModal design"
       ]
     }
   ]

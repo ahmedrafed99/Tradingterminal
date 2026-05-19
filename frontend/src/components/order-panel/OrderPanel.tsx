@@ -18,7 +18,6 @@ import { showToast, errorMessage } from '../../utils/toast';
 import { audioService } from '../../services/audioService';
 import { consumeManualClose } from '../../services/manualCloseTracker';
 import type { GatewayQuote, RealtimeOrder, RealtimePosition } from '../../services/realtimeService';
-import { InstrumentSelector } from '../InstrumentSelector';
 import { OrderTypeTabs } from './OrderTypeTabs';
 import { ContractsSpinner } from './ContractsSpinner';
 import { BracketSummary } from './BracketSummary';
@@ -206,7 +205,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
   const {
     orderContract, activeAccountId, setLastPrice, upsertPosition, upsertOrder, removeOrder,
     suspendPreset, restorePreset, editingPresetId,
-    orderLinkedToChart, setOrderLinkedToChart, setOrderContract,
+    setOrderContract,
   } = useStore(useShallow((s) => ({
     orderContract: s.orderContract,
     activeAccountId: s.activeAccountId,
@@ -217,22 +216,16 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
     suspendPreset: s.suspendPreset,
     restorePreset: s.restorePreset,
     editingPresetId: s.editingPresetId,
-    orderLinkedToChart: s.orderLinkedToChart,
-    setOrderLinkedToChart: s.setOrderLinkedToChart,
     setOrderContract: s.setOrderContract,
   })));
 
-  // Sync order panel instrument to the specifically linked chart
-  const linkedContract = useStore((s) =>
-    s.orderLinkedToChart === 'left' ? s.contract
-      : s.orderLinkedToChart === 'right' ? s.secondContract
-      : null,
+  // Always mirror the currently selected chart's contract
+  const activeChartContract = useStore((s) =>
+    s.selectedChart === 'left' ? s.contract : s.secondContract,
   );
   useEffect(() => {
-    if (orderLinkedToChart && linkedContract) {
-      setOrderContract(linkedContract);
-    }
-  }, [orderLinkedToChart, linkedContract, setOrderContract]);
+    if (activeChartContract) setOrderContract(activeChartContract);
+  }, [activeChartContract, setOrderContract]);
 
   const subscribedAccountRef = useRef<string | null>(null);
   const bracketRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -787,30 +780,24 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
     >
       <div className="flex flex-col" style={{ gap: 20 }}>
         {/* Instrument */}
-        <div className="relative">
-          <div className="flex items-center mb-1">
-            <button
-              onClick={() => {
-                const store = useStore.getState();
-                store.setOrderPanelSide(store.orderPanelSide === 'left' ? 'right' : 'left');
-              }}
-              className="text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer"
-              title={`Move panel to ${side === 'left' ? 'right' : 'left'}`}
-              style={{ padding: 2 }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 16L3 12l4-4" />
-                <path d="M17 8l4 4-4 4" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-              </svg>
-            </button>
-            <div className={`flex-1 ${SECTION_LABEL} text-center`}>Instrument</div>
-          </div>
-          <div className="absolute" style={{ top: -2, right: -4 }}>
-            <LinkChartButton linked={orderLinkedToChart} onToggle={setOrderLinkedToChart} />
-          </div>
-          <div className="bg-(--color-input) rounded" style={{ marginTop: 6 }}>
-            <InstrumentSelector fixed />
+        <div className="bg-(--color-input) rounded flex items-center">
+          <button
+            onClick={() => {
+              const store = useStore.getState();
+              store.setOrderPanelSide(store.orderPanelSide === 'left' ? 'right' : 'left');
+            }}
+            className="text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer shrink-0"
+            title={`Move panel to ${side === 'left' ? 'right' : 'left'}`}
+            style={{ padding: '6px 6px' }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M7 16L3 12l4-4" />
+              <path d="M17 8l4 4-4 4" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+            </svg>
+          </button>
+          <div className="flex-1 text-xs text-center text-(--color-text) font-medium" style={{ paddingRight: 24 }}>
+            {orderContract?.name ?? '—'}
           </div>
         </div>
 
@@ -845,77 +832,21 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
   );
 }
 
-function LinkChartButton({ linked, onToggle }: {
-  linked: 'left' | 'right' | null;
-  onToggle: (v: 'left' | 'right' | null) => void;
-}) {
-  const selectedChart = useStore((s) => s.selectedChart);
-  const isActiveForSelected = linked === selectedChart;
-  const label = isActiveForSelected ? `Linked to ${linked} chart` : 'Link to chart';
-  return (
-    <button
-      onClick={() => onToggle(isActiveForSelected ? null : selectedChart)}
-      title={label}
-      className="transition-colors cursor-pointer"
-      style={{ padding: '0 2px' }}
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-        stroke={isActiveForSelected ? 'var(--color-warning)' : 'var(--color-text-muted)'}
-        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-        style={{ transition: 'stroke var(--transition-normal) ease' }}
-      >
-        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-      </svg>
-    </button>
-  );
-}
-
 function PreviewToggle() {
-  const { previewEnabled, togglePreview, previewSide, setPreviewSide } = useStore(useShallow((s) => ({
+  const { previewEnabled, togglePreview } = useStore(useShallow((s) => ({
     previewEnabled: s.previewEnabled,
     togglePreview: s.togglePreview,
-    previewSide: s.previewSide,
-    setPreviewSide: s.setPreviewSide,
   })));
 
   return (
-    <div className="flex items-center gap-2">
-      <label className="flex items-center gap-2 cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={previewEnabled}
-          onChange={togglePreview}
-          className="accent-(--color-accent) w-3.5 h-3.5"
-        />
-        <span className="text-xs text-(--color-text-muted)">Preview</span>
-      </label>
-      {previewEnabled && (
-        <div className="flex rounded overflow-hidden" style={{ height: 20 }}>
-          <button
-            onClick={() => setPreviewSide(OrderSide.Buy)}
-            className="text-[10px] font-medium transition-colors cursor-pointer"
-            style={{
-              padding: '0 6px',
-              background: previewSide === OrderSide.Buy ? 'var(--color-buy)' : 'var(--color-input)',
-              color: previewSide === OrderSide.Buy ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-            }}
-          >
-            Long
-          </button>
-          <button
-            onClick={() => setPreviewSide(OrderSide.Sell)}
-            className="text-[10px] font-medium transition-colors cursor-pointer"
-            style={{
-              padding: '0 6px',
-              background: previewSide === OrderSide.Sell ? 'var(--color-sell)' : 'var(--color-input)',
-              color: previewSide === OrderSide.Sell ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-            }}
-          >
-            Short
-          </button>
-        </div>
-      )}
-    </div>
+    <label className="flex items-center gap-2 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={previewEnabled}
+        onChange={togglePreview}
+        className="accent-white w-3.5 h-3.5"
+      />
+      <span className="text-xs text-(--color-text-muted)">Preview</span>
+    </label>
   );
 }

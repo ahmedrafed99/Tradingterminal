@@ -8,6 +8,7 @@ interface SpinnerInputProps {
   step?: number;
   inputWidth?: number;
   height?: number;
+  fullWidth?: boolean;
 }
 
 const PX_PER_STEP = 2;
@@ -26,6 +27,7 @@ export function SpinnerInput({
   step = 1,
   inputWidth = 44,
   height = 26,
+  fullWidth = false,
 }: SpinnerInputProps) {
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -87,6 +89,7 @@ export function SpinnerInput({
         background: 'transparent',
         height,
         flexShrink: 0,
+        ...(fullWidth && { width: '100%' }),
       }}
     >
       <input
@@ -107,7 +110,7 @@ export function SpinnerInput({
         }}
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          width: inputWidth,
+          ...(fullWidth ? { flex: 1 } : { width: inputWidth }),
           border: 'none',
           background: 'transparent',
           color: 'var(--color-text)',

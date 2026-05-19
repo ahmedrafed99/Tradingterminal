@@ -27,7 +27,7 @@ export function TabButton({
         <span className="ml-2 text-(--color-text-muted)">({count})</span>
       )}
       {active && (
-        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-(--color-accent)" />
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-(--color-text)" />
       )}
     </button>
   );

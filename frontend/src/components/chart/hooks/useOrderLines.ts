@@ -31,10 +31,6 @@ type DesiredEntry = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function snapPrice(price: number, tickSize: number): number {
-  return Math.round(price / tickSize) * tickSize;
-}
-
 function detachPositionDependentLines(
   refs: ChartRefs,
   series: ISeriesApi<'Candlestick'>,
@@ -105,7 +101,7 @@ function buildDragCallbacks(
   function onDrag(rawPrice: number): void {
     if (meta.kind === 'position') return; // usePositionDrag handles position drag
 
-    const snapped = snapPrice(rawPrice, ts);
+    const snapped = roundToTick(rawPrice, ts);
     const entry = refs.orderEntries.current.find((e) => e.key === key);
     if (!entry) return;
     entry.line.setPrice(snapped);
@@ -218,7 +214,7 @@ function buildDragCallbacks(
       return; // usePositionDrag handles placement
     }
 
-    const snapped = snapPrice(rawNewPrice, ts);
+    const snapped = roundToTick(rawNewPrice, ts);
     const originalPrice = dragState.originalPrice;
 
 

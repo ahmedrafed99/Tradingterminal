@@ -24,6 +24,7 @@ export interface ExchangeAuth {
 // ---------------------------------------------------------------------------
 export interface ExchangeAccounts {
   list(): Promise<unknown>;
+  eligibility?(): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +76,7 @@ export interface ExchangeOrders {
 // ---------------------------------------------------------------------------
 export interface ExchangePositions {
   searchOpen(accountId: string): Promise<unknown>;
-  closePosition?(params: { accountId: string; contractId: string }): Promise<unknown>;
+  closeContract?(params: { accountId: string; contractId: string }): Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------

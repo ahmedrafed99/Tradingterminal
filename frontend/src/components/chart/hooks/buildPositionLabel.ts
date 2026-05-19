@@ -1,10 +1,10 @@
 import type { Contract } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED } from '../../../constants/colors';
 import { useStore } from '../../../store/useStore';
+import { positionService } from '../../../services/positionService';
 import { PositionType } from '../../../types/enums';
 import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { markAsManualClose } from '../../../services/manualCloseTracker';
-import { positionService } from '../../../services/positionService';
 import { showToast, errorMessage } from '../../../utils/toast';
 import type { ChartRefs } from './types';
 import { LABEL_TEXT, BUY_COLOR, SELL_COLOR, CLOSE_BG, contrastText } from './labelUtils';

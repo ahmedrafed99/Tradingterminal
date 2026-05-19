@@ -163,7 +163,7 @@ function WinRateDonut({ winRate, winners, losers }: { winRate: number; winners: 
 // ── Card shell ───────────────────────────────────────────────────────────────
 
 const CARD_STYLE: React.CSSProperties = {
-  background: 'var(--color-table-stripe)',
+  background: 'var(--color-popover)',
   border: '1px solid var(--color-border)',
   borderRadius: 10,
   padding: '20px 24px',

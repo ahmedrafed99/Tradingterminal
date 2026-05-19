@@ -6,6 +6,7 @@
  */
 
 import { useStore } from '../store/useStore';
+import { detectHedge } from '../utils/hedgeDetection';
 import { orderService } from './orderService';
 import { bracketEngine } from './bracketEngine';
 import { OrderType, OrderSide } from '../types/enums';
@@ -41,6 +42,14 @@ export async function placeOrderWithBrackets(
   const sym = contract.name.replace(/[A-Z]\d+$/i, '');
   if (useStore.getState().isBlacklisted(sym)) {
     throw new Error(`${sym} is blacklisted — orders are disabled on this symbol.`);
+  }
+
+  const { positions, accounts } = useStore.getState();
+  const hedgeConflict = detectHedge(positions, contractId, sym, side, size, accountId, accounts);
+  if (hedgeConflict) {
+    throw new Error(
+      `Hedging is not allowed — ${hedgeConflict.direction} ${hedgeConflict.symbol} already open on ${hedgeConflict.accountName}.`,
+    );
   }
 
   const params: PlaceOrderParams = {

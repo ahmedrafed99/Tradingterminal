@@ -32,4 +32,11 @@ export const positionService = {
       .filter((p) => p && p.size > 0)
       .map((p) => ({ ...p, id: String(p.id), accountId: String(p.accountId) }));
   },
+
+  async closePosition(accountId: string, contractId: string): Promise<void> {
+    const res = await api.post<GatewayResponse>('/positions/close', { accountId, contractId });
+    if (!res.data.success) {
+      throw new Error(res.data.errorMessage || 'Failed to close position');
+    }
+  },
 };

@@ -17,20 +17,8 @@ function cellBg(net: number, maxAbs: number): string {
 export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDayClick?: (date: string) => void }) {
   if (dailyData.length === 0) {
     return (
-      <div
-        style={{
-          background: 'var(--color-table-stripe)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 10,
-          padding: '24px 28px',
-        }}
-      >
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', marginBottom: 14, letterSpacing: '0.02em' }}>
-          Daily P&L Calendar
-        </div>
-        <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: 'var(--color-text-dim)' }}>
-          No trading days in this period
-        </div>
+      <div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: 'var(--color-text-dim)' }}>
+        No trading days in this period
       </div>
     );
   }
@@ -54,26 +42,14 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
   const gridCols = `80px repeat(6, 1fr) 100px`;
 
   return (
-    <div
-      style={{
-        background: 'var(--color-table-stripe)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 10,
-        padding: '24px 28px',
-      }}
-    >
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', marginBottom: 14, letterSpacing: '0.02em' }}>
-        Daily P&L Calendar
-      </div>
-
-      <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+    <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
         {/* Header */}
         <div
           className="grid"
           style={{
             gridTemplateColumns: gridCols,
             borderBottom: '1px solid var(--color-border)',
-            background: 'rgba(255,255,255,0.02)',
+            background: 'var(--color-popover)',
           }}
         >
           <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -169,7 +145,6 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
             </div>
           );
         })}
-      </div>
     </div>
   );
 }

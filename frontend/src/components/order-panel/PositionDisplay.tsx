@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { SECTION_LABEL } from '../../constants/styles';
 import { orderService } from '../../services/orderService';
+import { positionService } from '../../services/positionService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { markAsManualClose } from '../../services/manualCloseTracker';
@@ -123,8 +124,6 @@ export function PositionDisplay() {
         <ClosePositionButton
           accountId={activeAccountId}
           contractId={orderContract.id}
-          side={isLong ? OrderSide.Sell : OrderSide.Buy}
-          size={pos.size}
         />
       </div>
     </div>
@@ -197,7 +196,7 @@ function MoveToBEButton({
     <button
       onClick={handleClick}
       disabled={busy || disabled}
-      className="flex-1 py-2.5 rounded text-[11px] font-bold transition-colors
+      className="flex-1 py-2.5 rounded text-xs font-bold transition-colors
                  bg-transparent border border-(--color-warning)/40 text-(--color-warning) hover:border-(--color-warning) hover:bg-(--color-warning)/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <span className="inline-flex items-center gap-1">
@@ -213,13 +212,9 @@ function MoveToBEButton({
 function ClosePositionButton({
   accountId,
   contractId,
-  side,
-  size,
 }: {
   accountId: string | null;
   contractId: string;
-  side: OrderSide;
-  size: number;
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -240,7 +235,7 @@ function ClosePositionButton({
     <button
       onClick={handleClick}
       disabled={busy}
-      className="flex-1 py-2.5 rounded text-[11px] font-bold text-(--color-text-bright) transition-colors
+      className="flex-1 py-2.5 rounded text-xs font-bold text-(--color-text-bright) transition-colors
                  bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <span className="inline-flex items-center gap-1">

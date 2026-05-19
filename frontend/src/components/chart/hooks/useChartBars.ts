@@ -15,6 +15,8 @@ import {
   generateWhitespace,
 } from '../barUtils';
 import type { ChartRefs } from './types';
+import type { BacktestConfig } from '../CandlestickChart';
+import { backtestService } from '../../../services/backtestService';
 import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec } from '../../../utils/marketHours';
 
 /**
@@ -22,9 +24,10 @@ import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec 
  */
 export function useChartBars(
   refs: ChartRefs,
-  chartId: 'left' | 'right',
+  chartId: 'left' | 'right' | 'backtest',
   contract: Contract | null,
   timeframe: Timeframe,
+  backtestConfig?: BacktestConfig,
 ): { loading: boolean; error: string | null } {
 
   const connected = useStore((s) => s.connected);
@@ -41,10 +44,10 @@ export function useChartBars(
   const reachedHistoryStartRef = useRef(false);
   const loadGenerationRef = useRef(0);
 
-  const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : s.secondDomEnabled);
-  const domColor = useStore((s) => chartId === 'left' ? s.domColor : s.secondDomColor);
-  const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : s.secondDomHoverExpand);
-  const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
+  const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : chartId === 'right' ? s.secondDomEnabled : false);
+  const domColor = useStore((s) => chartId === 'left' ? s.domColor : chartId === 'right' ? s.secondDomColor : '#2196f3');
+  const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : chartId === 'right' ? s.secondDomHoverExpand : false);
+  const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : chartId === 'right' ? s.secondBidAskEnabled : false);
 
   // Bump to force historical bar reload on market hub reconnect
   const [reconnectCount, setReconnectCount] = useState(0);
@@ -54,8 +57,125 @@ export function useChartBars(
     return () => { realtimeService.offMarketReconnect(handler); };
   }, []);
 
+  // -- Backtest bar loading: streams month by month, then renders a window of
+  // the most recent bars. The full bar array is cached by backtestService so
+  // re-visiting a timeframe is instant. Only VIEWPORT_BARS go to LWC initially;
+  // scrolling toward the left edge expands the window backward in EXPAND_BARS
+  // chunks so LWC's working set stays small even on multi-year backtests.
+  useEffect(() => {
+    if (!backtestConfig || !refs.series.current) return;
+
+    const VIEWPORT_BARS = 500;
+    const EXPAND_BARS   = 1000;
+
+    const series = refs.series.current;
+    let cancelled = false;
+    const accumulated: CandlestickData<UTCTimestamp>[] = [];
+    let windowStartIdx = 0;
+    let autoScaleTimer: ReturnType<typeof setTimeout> | null = null;
+    let rangeUnsub: (() => void) | null = null;
+
+    setLoading(true);
+    setError(null);
+    refs.lastBar.current = null;
+    series.setData([]);
+    refs.chart.current?.priceScale('right').applyOptions({ autoScale: true });
+
+    const cfg = backtestConfig!;
+    const { promise, abort } = backtestService.streamBars(
+      { exchange: cfg.exchange, symbol: cfg.symbol, unit: timeframe.unit, unitNumber: timeframe.unitNumber, from: cfg.dateFrom, to: cfg.dateTo },
+      (chunk) => {
+        if (cancelled) return;
+        // Accumulate silently — rendering happens once at the end to avoid
+        // O(N²) setData churn on long streams.
+        for (let i = 0; i < chunk.length; i++) accumulated.push(barToCandle(chunk[i]));
+      },
+    );
+
+    promise.then(() => {
+      if (cancelled) return;
+      if (accumulated.length === 0) { setLoading(false); return; }
+
+      // Configure series / countdown / primitives for this contract+timeframe
+      if (contract) {
+        const dec = contract.tickSize.toString().split('.')[1]?.length ?? 2;
+        series.applyOptions({ priceFormat: { type: 'price', minMove: contract.tickSize, precision: dec } });
+        refs.countdown.current?.setDecimals(dec);
+        refs.countdown.current?.setPeriod(getCandlePeriodSeconds(timeframe));
+        refs.drawingsPrimitive.current?.setDecimals(dec);
+        refs.drawingsPrimitive.current?.setTickSize(contract.tickSize);
+        refs.crosshairLabel.current?.setDecimals(dec);
+        refs.crosshairLabel.current?.setTickSize(contract.tickSize);
+      }
+
+      // Populate refs used by drawings, FRVP, crosshair — these need the full
+      // dataset, independent of the chart's visible window.
+      const bars = sortBarsAscending(accumulated.map((c) => ({
+        t: new Date((c.time as number) * 1000).toISOString(),
+        o: c.open, h: c.high, l: c.low, c: c.close, v: 0,
+      })));
+      refs.bars.current = bars;
+      refs.dataMap.current.clear();
+      for (const c of accumulated) refs.dataMap.current.set(c.time as number, c.close);
+
+      const last = accumulated[accumulated.length - 1];
+      refs.lastBar.current = last;
+      refs.drawingsPrimitive.current?.setLastBarTime(last.time as number);
+      refs.drawingsPrimitive.current?.setBarsRef(bars);
+      refs.countdown.current?.updatePrice(last.close, false);
+      refs.countdown.current?.setOpen(last.open);
+      refs.drawingsPrimitive.current?.setCountdownPrice(last.close);
+
+      // Initial window: only the most recent VIEWPORT_BARS go into LWC.
+      windowStartIdx = Math.max(0, accumulated.length - VIEWPORT_BARS);
+      series.setData(accumulated.slice(windowStartIdx));
+
+      const visibleBars = accumulated.length - windowStartIdx;
+      refs.chart.current?.timeScale().setVisibleLogicalRange({
+        from: visibleBars - 200,
+        to: visibleBars + 50,
+      });
+
+      // Expand window backward as the user scrolls toward its left edge.
+      const chart = refs.chart.current;
+      if (chart && windowStartIdx > 0) {
+        const onRangeChange = (range: LogicalRange | null) => {
+          if (!range || range.from > 50 || cancelled || windowStartIdx === 0) return;
+          const newStart = Math.max(0, windowStartIdx - EXPAND_BARS);
+          if (newStart === windowStartIdx) return;
+          windowStartIdx = newStart;
+          const visibleRange = chart.timeScale().getVisibleRange();
+          series.setData(accumulated.slice(windowStartIdx));
+          if (visibleRange) chart.timeScale().setVisibleRange(visibleRange);
+        };
+        chart.timeScale().subscribeVisibleLogicalRangeChange(onRangeChange);
+        rangeUnsub = () => chart.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
+      }
+
+      // Defer disabling autoScale so it has a frame to fit the new viewport.
+      autoScaleTimer = setTimeout(() => {
+        refs.chart.current?.priceScale('right').applyOptions({ autoScale: false });
+      }, 0);
+      setLoading(false);
+    }).catch((err) => {
+      if (!cancelled) {
+        setError(err instanceof Error ? err.message : 'Failed to load bars');
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      abort();
+      rangeUnsub?.();
+      if (autoScaleTimer != null) clearTimeout(autoScaleTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backtestConfig?.exchange, backtestConfig?.symbol, backtestConfig?.dateFrom, backtestConfig?.dateTo, timeframe, contract]);
+
   // -- Historical bars loading --
   useEffect(() => {
+    if (backtestConfig) return; // handled by backtest effect above
     if (!connected || !contract || !refs.series.current) return;
 
     const series = refs.series.current;
@@ -333,6 +453,7 @@ export function useChartBars(
 
   // -- Real-time quote subscription --
   useEffect(() => {
+    if (backtestConfig) return; // no live data in backtest mode
     if (!connected || !contract || !refs.series.current) return;
 
     const contractId = contract.id;
@@ -535,6 +656,7 @@ export function useChartBars(
   // -- Market depth subscription (always active when connected+contract) --
   // Depth data feeds both the Market Depth indicator and FRVP drawings — decouple from domEnabled.
   useEffect(() => {
+    if (backtestConfig) return;
     const vp = refs.domPrimitive.current;
     if (!vp || !connected || !contract) {
       refs.domPrimitive.current?.clear();

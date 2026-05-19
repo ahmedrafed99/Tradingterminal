@@ -4,9 +4,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown } from './icons/ChevronDown';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
-import { PositionType } from '../types/enums';
-import { calcPnl } from '../utils/instrument';
 import { getPnlColorClass } from '../utils/formatters';
+import { useAccountUpnl } from '../hooks/useAccountUpnl';
 import { useClickOutside } from '../hooks/useClickOutside';
 import type { Trade } from '../services/tradeService';
 import { useStore } from '../store/useStore';
@@ -95,9 +94,6 @@ export function TopBar() {
     updateAccount,
     setLockout,
     clearLockout,
-    positions,
-    lastPrice,
-    orderContract,
     sessionTrades,
     hideAccountName,
     hideBalance,
@@ -120,9 +116,6 @@ export function TopBar() {
     updateAccount: s.updateAccount,
     setLockout: s.setLockout,
     clearLockout: s.clearLockout,
-    positions: s.positions,
-    lastPrice: s.lastPrice,
-    orderContract: s.orderContract,
     sessionTrades: s.sessionTrades,
     hideAccountName: s.hideAccountName,
     hideBalance: s.hideBalance,
@@ -229,23 +222,7 @@ export function TopBar() {
   const worstState: NodeState = monitorSnapshot.worstState ?? 'normal';
   const monitorDotColor = worstState === 'frozen' ? 'var(--color-sell)' : worstState === 'degraded' ? 'var(--color-warning)' : 'var(--color-buy)';
 
-  // Compute unrealized P&L from open positions (sticky ref — retains last valid value)
-  const upnlRef = useRef(0);
-  if (activeAccountId != null && orderContract && lastPrice != null) {
-    let pnl = 0;
-    for (const pos of positions) {
-      if (pos.accountId === activeAccountId && pos.size !== 0 && String(pos.contractId) === String(orderContract.id)) {
-        const isLong = pos.type === PositionType.Long;
-        const diff = isLong ? lastPrice - pos.averagePrice : pos.averagePrice - lastPrice;
-        pnl += calcPnl(diff, orderContract, pos.size);
-      }
-    }
-    upnlRef.current = pnl;
-  } else if (!positions.some((p) => p.accountId === activeAccountId && p.size !== 0)) {
-    // No open position → reset to 0
-    upnlRef.current = 0;
-  }
-  const unrealizedPnl = upnlRef.current;
+  const unrealizedPnl = useAccountUpnl();
 
   return (
     <header className="h-10 bg-(--color-panel) border-b border-(--color-border) shrink-0" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center' }}>
@@ -264,6 +241,9 @@ export function TopBar() {
                   {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>- {id}</span>}
                 </>); })()}
               </span>
+              {activeAccount?.ineligible && (
+                <span className="text-xs font-semibold" style={{ color: 'var(--color-sell)', marginLeft: 8 }}>Blown</span>
+              )}
               {activeAccount && getCopyRole(activeAccount.id) && (
                 <span
                   className={`text-xs font-semibold flex items-center gap-1 ${
@@ -300,17 +280,21 @@ export function TopBar() {
                           {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}> - {id}</span>}
                         </>); })()}
                       </span>
-                      {role ? (
-                        <span
-                          className={`text-xs font-semibold flex items-center gap-1 ${
-                            role === 'master' ? 'text-(--color-role-master)' : 'text-(--color-role-follower)'
-                          }`}
-                          style={{ marginLeft: 16 }}
-                        >
-                          {role === 'master' ? 'Master' : 'Follower'}
-                          {role === 'follower' && <FollowIcon />}
-                        </span>
-                      ) : <span />}
+                      <span className="flex items-center gap-2" style={{ marginLeft: 16 }}>
+                        {a.ineligible && (
+                          <span className="text-xs font-semibold" style={{ color: 'var(--color-sell)' }}>Blown</span>
+                        )}
+                        {role && (
+                          <span
+                            className={`text-xs font-semibold flex items-center gap-1 ${
+                              role === 'master' ? 'text-(--color-role-master)' : 'text-(--color-role-follower)'
+                            }`}
+                          >
+                            {role === 'master' ? 'Master' : 'Follower'}
+                            {role === 'follower' && <FollowIcon />}
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}
