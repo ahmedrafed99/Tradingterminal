@@ -6,8 +6,8 @@ import { EquityCurveChart } from '../backtest/EquityCurveChart';
 
 type Mode = 'equity' | 'daily';
 
-const CHART_HEIGHT = 240;
-const PAD = { top: 24, right: 24, bottom: 36, left: 64 };
+const CHART_HEIGHT = 320;
+const PAD = { top: 44, right: 24, bottom: 44, left: 64 };
 
 interface HoverInfo {
   x: number;
@@ -111,6 +111,8 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
   const rectRef = useRef<DOMRect | null>(null);
   const animRef = useRef(0);
   const dataKeyRef = useRef('');
+  const hoverProgressRef = useRef(0);
+  const hoverAnimRef = useRef(0);
 
   const measure = useCallback(() => {
     if (containerRef.current) setWidth(containerRef.current.clientWidth);
@@ -140,7 +142,7 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, CHART_HEIGHT);
     const points: HitPoint[] = [];
-    drawDailyBars(ctx, width, dailyData, points, progress, hoveredBarRef.current);
+    drawDailyBars(ctx, width, dailyData, points, progress, hoveredBarRef.current, hoverProgressRef.current);
     pointsRef.current = points;
     ctx.restore();
   }, [width, dailyData]);
@@ -174,10 +176,25 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, CHART_HEIGHT);
     const points: HitPoint[] = [];
-    drawDailyBars(ctx, width, dailyData, points, 1, hoveredBarRef.current);
+    drawDailyBars(ctx, width, dailyData, points, 1, hoveredBarRef.current, hoverProgressRef.current);
     pointsRef.current = points;
     ctx.restore();
   }, [width, dailyData]);
+
+  const animateHoverTo = useCallback((target: number) => {
+    cancelAnimationFrame(hoverAnimRef.current);
+    const startProgress = hoverProgressRef.current;
+    const startTime = performance.now();
+    const duration = 180;
+    const frame = (now: number) => {
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      hoverProgressRef.current = startProgress + (target - startProgress) * eased;
+      redrawBase();
+      if (t < 1) hoverAnimRef.current = requestAnimationFrame(frame);
+    };
+    hoverAnimRef.current = requestAnimationFrame(frame);
+  }, [redrawBase]);
 
   useEffect(() => {
     const overlay = overlayRef.current;
@@ -186,6 +203,8 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
     overlay.width = width * dpr;
     overlay.height = CHART_HEIGHT * dpr;
   }, [width]);
+
+  useEffect(() => () => cancelAnimationFrame(hoverAnimRef.current), []);
 
   const clearOverlay = useCallback(() => {
     const overlay = overlayRef.current;
@@ -225,28 +244,30 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
     if (closest && minDist < 60) {
       setHover({ ...closest });
       if (hoveredBarRef.current !== closestIdx) {
+        const wasInactive = hoveredBarRef.current === -1;
         hoveredBarRef.current = closestIdx;
-        redrawBase();
+        if (wasInactive) animateHoverTo(1);
+        else redrawBase();
       }
     } else {
       setHover(null);
       if (hoveredBarRef.current !== -1) {
         hoveredBarRef.current = -1;
-        redrawBase();
+        animateHoverTo(0);
       }
     }
 
     ctx.restore();
-  }, [width, redrawBase]);
+  }, [width, redrawBase, animateHoverTo]);
 
   const handleMouseLeave = useCallback(() => {
     setHover(null);
     clearOverlay();
     if (hoveredBarRef.current !== -1) {
       hoveredBarRef.current = -1;
-      redrawBase();
+      animateHoverTo(0);
     }
-  }, [clearOverlay, redrawBase]);
+  }, [clearOverlay, animateHoverTo]);
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onDayClick) return;
@@ -268,7 +289,18 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
   }, [onDayClick]);
 
   return (
-    <>
+    <div ref={containerRef} style={{ borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', height: CHART_HEIGHT, display: 'block' }}
+      />
+      <canvas
+        ref={overlayRef}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: CHART_HEIGHT, display: 'block', cursor: onDayClick ? 'pointer' : 'crosshair' }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+      />
       {hover && (
         <div
           className="flex items-center justify-center"
@@ -280,20 +312,7 @@ function DailyBarsCanvas({ dailyData, onDayClick }: { dailyData: DayPnl[]; onDay
           )}
         </div>
       )}
-      <div ref={containerRef} style={{ borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
-        <canvas
-          ref={canvasRef}
-          style={{ width: '100%', height: CHART_HEIGHT, display: 'block' }}
-        />
-        <canvas
-          ref={overlayRef}
-          style={{ position: 'absolute', inset: 0, width: '100%', height: CHART_HEIGHT, display: 'block', cursor: onDayClick ? 'pointer' : 'crosshair' }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onClick={handleClick}
-        />
-      </div>
-    </>
+    </div>
   );
 }
 
@@ -309,6 +328,7 @@ function drawDailyBars(
   hitPoints: HitPoint[],
   progress = 1,
   hoveredIdx = -1,
+  hoverProgress = 0,
 ) {
   if (data.length === 0) {
     drawEmpty(ctx, canvasWidth, 'No daily data');
@@ -355,11 +375,11 @@ function drawDailyBars(
     const dimmed = hoveredIdx >= 0 && !isHovered;
 
     if (isHovered) {
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
+      ctx.fillStyle = `rgba(255,255,255,${0.04 * hoverProgress})`;
       ctx.fillRect(x - gap / 2, PAD.top, barW + gap, plotH);
     }
 
-    ctx.globalAlpha = dimmed ? 0.35 : 1.0;
+    ctx.globalAlpha = dimmed ? 1.0 - 0.65 * hoverProgress : 1.0;
     ctx.fillStyle = barColor;
     ctx.beginPath();
     ctx.roundRect(x, top, barW, Math.max(1, barHeight), 3);
