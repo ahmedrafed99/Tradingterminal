@@ -97,7 +97,9 @@ function calcPtsTaken(closes: Trade[], averagePrice: number, isLong: boolean): {
 }
 
 export function PositionsTab() {
-  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+  // tick bumps on every rAF-batched quote update; rows useMemo depends on it
+  // so live lastPrice flows through even when no other dep changes.
+  const [tick, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   const {
     positions, openOrders, accounts, activeAccountId, connected, orderContract,
@@ -311,7 +313,7 @@ export function PositionsTab() {
   }, [
     positions, openOrders, positionsAccountFilter, positionsInstrumentFilter,
     activeAccountId, leftContract, secondContract, selectedChart, accountMap,
-    orderContract, storeLastPrice,
+    orderContract, storeLastPrice, tick,
   ]);
 
   // ── Sort ──

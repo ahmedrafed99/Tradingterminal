@@ -10,9 +10,9 @@ import { PositionType } from '../types/enums';
  * Aggregates unrealized P&L across every open position on the active account.
  *
  * Subscribes to quote streams for each position's contract and caches contract
- * metadata. Contracts with no quote yet contribute 0. Subscriptions are not
- * torn down — the adapter's subscribe set isn't ref-counted, so unsubscribing
- * would kill the chart's stream if both reference the same contract.
+ * metadata. Contracts with no quote yet contribute 0. The adapter refcounts
+ * quote subscriptions per contract, so the chart switching symbols no longer
+ * kills the streams this hook depends on.
  */
 export function useAccountUpnl(): number {
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);

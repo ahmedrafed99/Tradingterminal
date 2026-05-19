@@ -36,7 +36,11 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   private tradeHandlers:      TradeHandler[]      = [];
   private marketTickHandlers: MarketTickHandler[] = [];
 
-  private subscribedQuotes: Set<string> = new Set();
+  // Refcount per contract — multiple consumers (chart, UP&L hook, Positions
+  // tab) can subscribe to the same quote stream independently. The actual
+  // SignalR subscribe/unsubscribe only fires on the 0↔1 transitions, so one
+  // consumer unsubscribing never kills the stream for the others.
+  private subscribedQuotes: Map<string, number> = new Map();
   private subscribedDepth: Set<string> = new Set();
   private lastQuote: Map<string, Quote> = new Map();
   private subscribedOrderAccounts: Set<string> = new Set();
@@ -172,7 +176,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
       this.marketHubStateHandlers.forEach((h) => h('reconnecting'));
     });
     this.marketHub.onreconnected(() => {
-      for (const contractId of this.subscribedQuotes) {
+      for (const contractId of this.subscribedQuotes.keys()) {
         this.marketHub?.invoke('SubscribeContractQuotes', contractId).catch(console.error);
         this.marketHub?.invoke('SubscribeContractTrades', contractId).catch(console.error);
       }
@@ -206,7 +210,7 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
     this.userHubStateHandlers.forEach((h) => h('connected'));
 
     // Flush any subscriptions that were requested before connection was ready
-    for (const contractId of this.subscribedQuotes) {
+    for (const contractId of this.subscribedQuotes.keys()) {
       this.marketHub.invoke('SubscribeContractQuotes', contractId).catch(console.error);
       this.marketHub.invoke('SubscribeContractTrades', contractId).catch(console.error);
     }
@@ -235,19 +239,26 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   // ── Market hub subscriptions ───────────────────────────────────────────
 
   subscribeQuotes(contractId: string) {
-    this.subscribedQuotes.add(contractId);
-    if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
+    const prev = this.subscribedQuotes.get(contractId) ?? 0;
+    this.subscribedQuotes.set(contractId, prev + 1);
+    // Only fire the actual SignalR subscribe on the 0→1 transition
+    if (prev === 0 && this.marketHub?.state === signalR.HubConnectionState.Connected) {
       this.marketHub.invoke('SubscribeContractQuotes', contractId).catch(console.error);
       this.marketHub.invoke('SubscribeContractTrades', contractId).catch(console.error);
     }
   }
 
   unsubscribeQuotes(contractId: string) {
-    this.subscribedQuotes.delete(contractId);
-    this.lastQuote.delete(contractId);
-    if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
-      this.marketHub.invoke('UnsubscribeContractQuotes', contractId).catch(console.error);
-      this.marketHub.invoke('UnsubscribeContractTrades', contractId).catch(console.error);
+    const prev = this.subscribedQuotes.get(contractId) ?? 0;
+    if (prev <= 1) {
+      this.subscribedQuotes.delete(contractId);
+      this.lastQuote.delete(contractId);
+      if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
+        this.marketHub.invoke('UnsubscribeContractQuotes', contractId).catch(console.error);
+        this.marketHub.invoke('UnsubscribeContractTrades', contractId).catch(console.error);
+      }
+    } else {
+      this.subscribedQuotes.set(contractId, prev - 1);
     }
   }
 
