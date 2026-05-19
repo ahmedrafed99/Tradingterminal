@@ -119,7 +119,7 @@ export function CustomSelect({
       </button>
       {open && dropPos && (
         <div
-          className="border border-(--color-border) rounded-lg shadow-lg animate-dropdown-in"
+          className="border border-(--color-border) shadow-lg animate-dropdown-in"
           style={{
             zIndex: Z.DROPDOWN,
             position: 'fixed',
@@ -129,6 +129,8 @@ export function CustomSelect({
             width: Math.max(dropPos.width, dropdownMinWidth ?? 0),
             background: dropdownBg,
             boxShadow: SHADOW.LG,
+            borderRadius: RADIUS.XL,
+            overflow: 'hidden',
             maxHeight: options.length > 8 ? 200 : undefined,
             overflowY: options.length > 8 ? 'auto' : undefined,
             padding: '2px 0',
@@ -153,8 +155,8 @@ export function CustomSelect({
                 <button
                   key={o.value}
                   onClick={() => { onChange(o.value); setOpen(false); }}
-                  className={`w-full text-left text-xs transition-colors ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
-                  style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', ...rowStyle }}
+                  className={`w-full text-left transition-colors ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
+                  style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', fontSize: btnFontSize, ...rowStyle }}
                 >
                   {o.label}
                 </button>
@@ -163,8 +165,8 @@ export function CustomSelect({
             return (
               <div
                 key={o.value}
-                className={`flex items-center text-xs transition-colors ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
-                style={rowStyle}
+                className={`flex items-center transition-colors ${active ? '' : 'hover:bg-(--color-hover-row)'}`}
+                style={{ fontSize: btnFontSize, ...rowStyle }}
               >
                 <button
                   onClick={() => { onChange(o.value); setOpen(false); }}

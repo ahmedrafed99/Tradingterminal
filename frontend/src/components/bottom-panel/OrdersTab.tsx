@@ -33,25 +33,26 @@ const OrderRow = memo(function OrderRow({ order, index, cancelling, onCancel }: 
     <div className={`${stripe} row-hover`}>
       <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
         <div className="px-3 text-center whitespace-nowrap">
-          <span className={`font-medium ${isBuy ? 'text-(--color-buy)' : 'text-(--color-sell)'}`}>
+          <span className={isBuy ? 'text-(--color-buy)' : 'text-(--color-sell)'}>
             {isBuy ? 'Buy' : 'Sell'}
           </span>
         </div>
         <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
           {TYPE_LABELS[order.type] ?? order.type}
         </div>
-        <div className="px-3 text-center text-(--color-text-medium) whitespace-nowrap">
+        <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
           {shortSymbol(order.contractId)}
         </div>
         <div className="px-3 text-center text-(--color-text)">{order.size}</div>
         <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
           {price != null ? price.toFixed(2) : '\u2014'}
         </div>
-        <div className="px-3 text-center">
+        <div className="px-3 flex items-center justify-center">
           <button
             onClick={() => onCancel(order.id)}
             disabled={cancelling}
-            className="text-(--color-sell) hover:bg-(--color-sell)/10 rounded px-1.5 py-0.5 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center rounded-full text-(--color-sell) opacity-60 hover:opacity-100 hover:bg-(--color-border)/30 transition-all disabled:opacity-50"
+            style={{ width: 22, height: 22 }}
             title="Cancel order"
           >
             {cancelling ? '...' : '\u2715'}
@@ -79,14 +80,6 @@ export function OrdersTab() {
     }
   }, [activeAccountId]);
 
-  if (openOrders.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-full text-(--color-text-dim) text-xs">
-        No open orders
-      </div>
-    );
-  }
-
   return (
     <div className="text-xs" style={{ fontFeatureSettings: '"tnum"' }}>
       {/* Header */}
@@ -102,15 +95,21 @@ export function OrdersTab() {
       </div>
 
       {/* Rows */}
-      {openOrders.map((order, i) => (
-        <OrderRow
-          key={order.id}
-          order={order}
-          index={i}
-          cancelling={cancellingId === order.id}
-          onCancel={handleCancel}
-        />
-      ))}
+      {openOrders.length === 0 ? (
+        <div className="flex items-center justify-center text-(--color-text-dim) text-xs" style={{ height: 120 }}>
+          No open orders
+        </div>
+      ) : (
+        openOrders.map((order, i) => (
+          <OrderRow
+            key={order.id}
+            order={order}
+            index={i}
+            cancelling={cancellingId === order.id}
+            onCancel={handleCancel}
+          />
+        ))
+      )}
     </div>
   );
 }

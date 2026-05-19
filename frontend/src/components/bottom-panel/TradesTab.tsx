@@ -6,17 +6,17 @@ import type { Trade } from '../../services/tradeService';
 import { tradeService } from '../../services/tradeService';
 import { useStore } from '../../store/useStore';
 import { OrderSide } from '../../types/enums';
-import { getDateRange, type DatePreset } from '../../utils/cmeSession';
+import { getDateRange, type DatePreset, DATE_PRESET_LABELS } from '../../utils/cmeSession';
 import { shortSymbol, formatTime, formatDuration } from '../../utils/formatters';
 import { tradingDurationMs } from '../../utils/marketHours';
 import { buildEntryMap } from '../chart/TradeZonePrimitive';
-import { DatePresetSelector } from './DatePresetSelector';
+import { CustomSelect } from '../shared/CustomSelect';
 
 type SortColumn = 'time' | 'side' | 'symbol' | 'qty' | 'entry' | 'exit' | 'pnl' | 'fees' | 'commissions' | 'net' | 'duration';
 type SortDir = 'asc' | 'desc';
 
 interface TradeGroup {
-  entryId: number;
+  entryId: string;
   entry: Trade;
   exits: Trade[]; // sorted chronologically
   // aggregated values
@@ -56,9 +56,16 @@ export function TradesTab() {
   const displayTrades = useDeferredValue(displayTradesRaw);
   const setDisplayTrades = useStore((s) => s.setDisplayTrades);
 
+  const setTradesDatePreset = useStore((s) => s.setTradesDatePreset);
+
   const showDate = tradesDatePreset !== 'today';
 
   const ALL_PRESETS: DatePreset[] = ['today', 'week', 'month', 'all'];
+
+  const presetOptions = ALL_PRESETS.map((p) => ({
+    value: p,
+    label: presetCounts?.[p] != null ? `${DATE_PRESET_LABELS[p]} (${presetCounts[p]})` : DATE_PRESET_LABELS[p],
+  }));
 
   // Derive display trades and preset counts from the all-trades cache
   const applyPreset = useCallback((allTrades: Trade[]) => {
@@ -225,7 +232,7 @@ export function TradesTab() {
     // Unmatched trades become single-exit groups
     for (const t of unmatched) {
       result.push({
-        entryId: -t.id, // negative to avoid collision with real entry IDs
+        entryId: `unmatched:${t.id}`, // prefixed to avoid collision with real entry IDs
         entry: null as unknown as Trade,
         exits: [t],
         totalQty: t.size,
@@ -287,7 +294,13 @@ export function TradesTab() {
         <div className="flex items-center h-8 shrink-0 border-b border-(--color-border)">
           <div style={{ width: '70%' }} />
           <div className="ml-auto" style={{ paddingRight: 16 }}>
-            <DatePresetSelector counts={presetCounts} />
+            <CustomSelect
+              value={tradesDatePreset}
+              onChange={(v) => setTradesDatePreset(v as DatePreset)}
+              options={presetOptions}
+              padding="4px 8px"
+              fontSize={11}
+            />
           </div>
         </div>
         <div className="flex items-center justify-center flex-1 text-(--color-text-dim) text-xs">
@@ -335,17 +348,22 @@ export function TradesTab() {
               );
             })}
           </div>
-          <div className="ml-auto flex items-center" style={{ paddingRight: 16 }}>
+          <div className="ml-auto flex items-center gap-2" style={{ paddingRight: 16 }}>
             {visibleTradeIds.length > 0 && (
               <button
                 className="text-xs text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer select-none"
-                style={{ position: 'absolute', right: 120 }}
                 onClick={clearVisibleTradeIds}
               >
                 Hide drawings
               </button>
             )}
-            <DatePresetSelector counts={presetCounts} />
+            <CustomSelect
+              value={tradesDatePreset}
+              onChange={(v) => setTradesDatePreset(v as DatePreset)}
+              options={presetOptions}
+              padding="4px 8px"
+              fontSize={11}
+            />
           </div>
         </div>
       </div>
@@ -355,7 +373,6 @@ export function TradesTab() {
         const isMulti = group.exits.length > 1;
         const isExpanded = expandedGroups.has(group.entryId);
         const exitIds = group.exits.map((t) => t.id);
-        const allVisible = exitIds.every((id) => visibleTradeIds.includes(id));
         const anyVisible = exitIds.some((id) => visibleTradeIds.includes(id));
 
         // For single-exit groups, render exactly like before
@@ -382,7 +399,7 @@ export function TradesTab() {
                     {group.isLong ? 'Long' : 'Short'}
                   </span>
                 </div>
-                <div className="px-3 text-center text-(--color-text-medium) whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
                   {shortSymbol(trade.contractId)}
                 </div>
                 <div className="px-3 text-center text-(--color-text)">{trade.size}</div>
@@ -434,7 +451,7 @@ export function TradesTab() {
                     {group.isLong ? 'Long' : 'Short'}
                   </span>
                 </div>
-                <div className="px-3 text-center text-(--color-text-medium) whitespace-nowrap">
+                <div className="px-3 text-center text-(--color-text) whitespace-nowrap">
                   {shortSymbol(group.exits[0].contractId)}
                 </div>
                 <div className="px-3 text-center text-(--color-text)">{group.totalQty}</div>
