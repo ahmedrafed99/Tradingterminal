@@ -38,7 +38,7 @@ docs/
 │   ├── order-panel/           — Order entry sidebar, market/limit, buy/sell, symbol blacklist
 │   │   └── bracket-settings/  — Preset UI: SL, multi-TP, conditions
 │   ├── bracket-engine/        — Runtime SL/TP placement after fill, condition evaluation
-│   ├── bottom-panel/          — Orders + Trades tabs, trade zone visualization
+│   ├── bottom-panel/          — Orders, Positions, Trades tabs, trade zone visualization
 │   ├── stats-dashboard/       — Stats popover: KPI cards, equity curve, PnL calendar
 │   ├── chat-bot/              — AI chat panel with tool use
 │   ├── conditional-orders/    — Candle-close triggered orders
@@ -108,7 +108,8 @@ docs/
 | **Panels & UI** | |
 | How realized P&L is calculated              | `docs/shared/top-bar/` → Centre — Realized P&L |
 | How unrealized P&L is calculated            | `docs/shared/top-bar/` → Centre — Balance + UP&L |
-| Orders and Trades tabs                      | `docs/shared/bottom-panel/` |
+| Orders, Positions and Trades tabs           | `docs/shared/bottom-panel/` |
+| Positions tab (filters, flatten, click-to-focus chart) | `docs/shared/bottom-panel/` → Positions tab |
 | Trade zone visualization (FIFO matching)    | `docs/shared/bottom-panel/` |
 | Stats dashboard (KPI, equity curve, calendar)| `docs/shared/stats-dashboard/` |
 | Instrument selector (categories, exchanges) | `docs/shared/instrument-selector/` |

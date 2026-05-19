@@ -40,17 +40,21 @@ export interface UiState {
 export interface BottomPanelState {
   bottomPanelOpen: boolean;
   bottomPanelRatio: number;
-  bottomPanelTab: 'orders' | 'trades' | 'conditions' | 'stats';
+  bottomPanelTab: 'orders' | 'positions' | 'trades' | 'conditions' | 'stats';
   tradesDatePreset: DatePreset;
   sessionTrades: Trade[];
   displayTrades: Trade[];
   visibleTradeIds: string[];
   presetCounts: Partial<Record<DatePreset, number>>;
   bottomPanelPreviousRatio: number;
+  positionsAccountFilter: 'current' | 'all';
+  positionsInstrumentFilter: 'current' | 'all';
+  setPositionsAccountFilter: (v: 'current' | 'all') => void;
+  setPositionsInstrumentFilter: (v: 'current' | 'all') => void;
   setBottomPanelPreviousRatio: (ratio: number) => void;
   setBottomPanelOpen: (open: boolean) => void;
   setBottomPanelRatio: (ratio: number) => void;
-  setBottomPanelTab: (tab: 'orders' | 'trades' | 'conditions' | 'stats') => void;
+  setBottomPanelTab: (tab: 'orders' | 'positions' | 'trades' | 'conditions' | 'stats') => void;
   toggleBottomPanel: () => void;
   setTradesDatePreset: (preset: DatePreset) => void;
   setSessionTrades: (trades: Trade[]) => void;
@@ -177,12 +181,16 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   bottomPanelOpen: false,
   bottomPanelRatio: 0,
   bottomPanelPreviousRatio: 0.3,
-  bottomPanelTab: 'orders' as 'orders' | 'trades' | 'conditions' | 'stats',
+  bottomPanelTab: 'orders' as 'orders' | 'positions' | 'trades' | 'conditions' | 'stats',
   tradesDatePreset: 'today' as DatePreset,
   sessionTrades: [] as Trade[],
   displayTrades: [] as Trade[],
   visibleTradeIds: [] as string[],
   presetCounts: {} as Partial<Record<DatePreset, number>>,
+  positionsAccountFilter: 'current' as 'current' | 'all',
+  positionsInstrumentFilter: 'current' as 'current' | 'all',
+  setPositionsAccountFilter: (positionsAccountFilter) => set({ positionsAccountFilter }),
+  setPositionsInstrumentFilter: (positionsInstrumentFilter) => set({ positionsInstrumentFilter }),
   setBottomPanelPreviousRatio: (bottomPanelPreviousRatio) => set({ bottomPanelPreviousRatio }),
   setBottomPanelOpen: (bottomPanelOpen) => set({ bottomPanelOpen }),
   setBottomPanelRatio: (ratio) => set({ bottomPanelRatio: Math.max(0, Math.min(0.6, ratio)) }),
