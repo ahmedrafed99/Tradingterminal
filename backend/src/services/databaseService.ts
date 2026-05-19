@@ -301,6 +301,187 @@ export function getDbPath(): string {
 }
 
 // ---------------------------------------------------------------------------
+// Staging — for safer Kaggle imports
+// ---------------------------------------------------------------------------
+
+const STAGING_DIR = path.join(DATA_DIR, 'staging');
+const STAGING_DB_PATH = path.join(STAGING_DIR, 'candles-from-kaggle.db');
+const EXPECTED_COLUMNS = ['contract_id', 'timestamp', 'open', 'high', 'low', 'close', 'volume'];
+const LIVE_TIMEFRAME_SECONDS = 60; // app schema is 1-minute candles only
+
+export function getStagingDir(): string {
+  return STAGING_DIR;
+}
+
+export function getStagingDbPath(): string {
+  return STAGING_DB_PATH;
+}
+
+export interface StagedSummary {
+  path: string;
+  sizeBytes: number;
+  timeframeSeconds: number | null;
+  contracts: ContractStatus[];
+}
+
+export interface StagedValidation {
+  valid: boolean;
+  error?: string;
+  summary?: StagedSummary;
+}
+
+export function inspectStaged(): StagedValidation {
+  if (!fs.existsSync(STAGING_DB_PATH)) {
+    return { valid: false, error: 'No staged file' };
+  }
+
+  let stagedDb: Database.Database;
+  try {
+    stagedDb = new Database(STAGING_DB_PATH, { readonly: true });
+  } catch (err) {
+    return {
+      valid: false,
+      error: `Cannot open staged file as SQLite: ${err instanceof Error ? err.message : err}`,
+    };
+  }
+
+  try {
+    const tableInfo = stagedDb.prepare("PRAGMA table_info('candles')").all() as Array<{
+      name: string;
+      type: string;
+    }>;
+    if (tableInfo.length === 0) {
+      return { valid: false, error: 'Staged file has no `candles` table — not a candles database' };
+    }
+    const actualCols = new Set(tableInfo.map((c) => c.name));
+    for (const col of EXPECTED_COLUMNS) {
+      if (!actualCols.has(col)) {
+        return { valid: false, error: `Staged DB schema missing column: ${col}` };
+      }
+    }
+
+    const contracts = stagedDb
+      .prepare(
+        `SELECT contract_id AS contractId,
+                MIN(timestamp) AS oldestBar,
+                MAX(timestamp) AS newestBar,
+                COUNT(*) AS totalBars
+         FROM candles
+         GROUP BY contract_id
+         ORDER BY contract_id`,
+      )
+      .all() as ContractStatus[];
+
+    const timeframeSeconds = detectStagedTimeframe(stagedDb);
+    const sizeBytes = fs.statSync(STAGING_DB_PATH).size;
+
+    return {
+      valid: true,
+      summary: { path: STAGING_DB_PATH, sizeBytes, timeframeSeconds, contracts },
+    };
+  } finally {
+    stagedDb.close();
+  }
+}
+
+function detectStagedTimeframe(stagedDb: Database.Database): number | null {
+  // Sample the contract with the most rows; compute modal consecutive delta.
+  const top = stagedDb
+    .prepare(
+      `SELECT contract_id FROM candles GROUP BY contract_id ORDER BY COUNT(*) DESC LIMIT 1`,
+    )
+    .get() as { contract_id: string } | undefined;
+  if (!top) return null;
+
+  const rows = stagedDb
+    .prepare(
+      `SELECT timestamp FROM candles WHERE contract_id = ? ORDER BY timestamp LIMIT 500`,
+    )
+    .all(top.contract_id) as Array<{ timestamp: number }>;
+  if (rows.length < 2) return null;
+
+  const deltaCount = new Map<number, number>();
+  for (let i = 1; i < rows.length; i++) {
+    const delta = rows[i].timestamp - rows[i - 1].timestamp;
+    if (delta > 0) deltaCount.set(delta, (deltaCount.get(delta) || 0) + 1);
+  }
+
+  let modal = 0;
+  let bestCount = 0;
+  for (const [delta, count] of deltaCount) {
+    if (count > bestCount) {
+      bestCount = count;
+      modal = delta;
+    }
+  }
+  return modal || null;
+}
+
+export function describeTimeframe(seconds: number | null | undefined): string {
+  if (!seconds) return 'unknown';
+  if (seconds < 60) return `${seconds}-second`;
+  if (seconds < 3600) return `${seconds / 60}-minute`;
+  if (seconds < 86400) return `${seconds / 3600}-hour`;
+  return `${seconds / 86400}-day`;
+}
+
+export interface OverlapEntry {
+  contractId: string;
+  count: number;
+  firstTimestamp: number;
+}
+
+export function detectStagedOverlap(stagedPath: string): OverlapEntry[] {
+  db.prepare(`ATTACH DATABASE ? AS staged`).run(stagedPath);
+  try {
+    return db
+      .prepare(
+        `SELECT s.contract_id AS contractId,
+                COUNT(*) AS count,
+                MIN(s.timestamp) AS firstTimestamp
+         FROM staged.candles s
+         INNER JOIN candles l
+           ON l.contract_id = s.contract_id AND l.timestamp = s.timestamp
+         GROUP BY s.contract_id
+         ORDER BY s.contract_id`,
+      )
+      .all() as OverlapEntry[];
+  } finally {
+    db.prepare(`DETACH DATABASE staged`).run();
+  }
+}
+
+export function mergeStaged(stagedPath: string): { merged: number } {
+  db.prepare(`ATTACH DATABASE ? AS staged`).run(stagedPath);
+  try {
+    // Use a transaction. Plain INSERT (no IGNORE) — caller has already verified
+    // there are no overlaps; if one slipped in (race), failure is correct.
+    const result = db
+      .transaction(() =>
+        db.prepare(
+          `INSERT INTO candles (contract_id, timestamp, open, high, low, close, volume)
+           SELECT contract_id, timestamp, open, high, low, close, volume FROM staged.candles`,
+        ).run(),
+      )();
+    return { merged: Number(result.changes) };
+  } finally {
+    db.prepare(`DETACH DATABASE staged`).run();
+  }
+}
+
+export function discardStaged(): boolean {
+  if (fs.existsSync(STAGING_DB_PATH)) {
+    fs.unlinkSync(STAGING_DB_PATH);
+    return true;
+  }
+  return false;
+}
+
+export function liveTimeframeSeconds(): number {
+  return LIVE_TIMEFRAME_SECONDS;
+}
+
+// ---------------------------------------------------------------------------
 // Auto-backup scheduler
 // ---------------------------------------------------------------------------
 
@@ -337,6 +518,8 @@ export function close(): void {
   stopAutoBackup();
   if (db) {
     db.close();
+    db = undefined as unknown as Database.Database;
     console.log('[database] SQLite closed');
   }
 }
+

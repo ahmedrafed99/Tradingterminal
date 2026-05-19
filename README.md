@@ -124,6 +124,7 @@ docs/
 | **System & Architecture** | |
 | Design tokens (colors, font, z-index)       | `docs/shared/design-tokens/` |
 | Settings persistence / file backup          | `docs/shared/settings-persistence/` |
+| Local candles DB + Kaggle cloud sync        | `docs/shared/database/` |
 | All Zustand store slices (10 domain slices) | `docs/shared/frontend/` → Zustand Store |
 | All service API signatures                  | `docs/shared/frontend/` → Service Layer |
 | Realtime adapter interface + hub events      | `docs/shared/frontend/` → realtimeService.ts / adapters/ |

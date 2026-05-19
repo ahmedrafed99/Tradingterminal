@@ -45,12 +45,18 @@ def latest_backup() -> Path:
     return DB_PATH
 
 
+def emit(payload: dict) -> None:
+    """Print final result as JSON on stdout for callers that parse it."""
+    print(json.dumps(payload))
+
+
 def push():
     username = get_username()
     source = latest_backup()
 
     if not source.exists():
-        sys.exit(f"ERROR: DB file not found: {source}")
+        emit({"ok": False, "error": f"DB file not found: {source}"})
+        sys.exit(1)
 
     dataset_id = f"{username}/{DATASET_SLUG}"
     version_notes = f"auto-backup {source.stem}"
@@ -70,16 +76,17 @@ def push():
         code, out = kaggle("datasets", "version", "-p", str(staging_path), "-m", version_notes)
 
         if code == 0:
-            print(f"[kaggle] Pushed new version: {version_notes}")
+            emit({"ok": True, "action": "version", "notes": version_notes, "datasetId": dataset_id})
         elif "404" in out or "403" in out or "not found" in out.lower() or "forbidden" in out.lower():
-            print("[kaggle] Dataset not found — creating...")
             code2, out2 = kaggle("datasets", "create", "-p", str(staging_path))
             if code2 == 0:
-                print(f"[kaggle] Created dataset: {dataset_id}")
+                emit({"ok": True, "action": "create", "datasetId": dataset_id})
             else:
-                sys.exit(f"ERROR creating dataset: {out2}")
+                emit({"ok": False, "error": f"Failed creating dataset: {out2}"})
+                sys.exit(1)
         else:
-            sys.exit(f"ERROR: {out}")
+            emit({"ok": False, "error": out})
+            sys.exit(1)
 
 
 if __name__ == "__main__":

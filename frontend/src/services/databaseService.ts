@@ -89,4 +89,95 @@ export const databaseService = {
     );
     return res.data.backups;
   },
+
+  // ---------------------------------------------------------------------------
+  // Kaggle cloud sync
+  // ---------------------------------------------------------------------------
+
+  async kaggleStatus(): Promise<KaggleStatus> {
+    const res = await api.get<KaggleStatus>('/database/kaggle/status');
+    return res.data;
+  },
+
+  async kagglePull(): Promise<KagglePullResult> {
+    const res = await api.post<KagglePullResult>(
+      '/database/kaggle/pull',
+      undefined,
+      { timeout: 0 }, // downloads can be hundreds of MB
+    );
+    return res.data;
+  },
+
+  async kaggleStaged(): Promise<KaggleStagedResult> {
+    const res = await api.get<KaggleStagedResult>('/database/kaggle/staged');
+    return res.data;
+  },
+
+  async kaggleMerge(): Promise<KaggleMergeResult> {
+    const res = await api.post<KaggleMergeResult>('/database/kaggle/merge');
+    return res.data;
+  },
+
+  async kaggleDiscard(): Promise<{ success: boolean; removed: boolean }> {
+    const res = await api.post<{ success: boolean; removed: boolean }>('/database/kaggle/discard');
+    return res.data;
+  },
+
+  async kagglePush(): Promise<{ success: boolean; errorMessage?: string }> {
+    const res = await api.post<{ success: boolean; errorMessage?: string }>(
+      '/database/kaggle/push',
+      undefined,
+      { timeout: 0 }, // uploads can take a while
+    );
+    return res.data;
+  },
 };
+
+// ---------------------------------------------------------------------------
+// Kaggle types
+// ---------------------------------------------------------------------------
+
+export interface KaggleStatus {
+  success: boolean;
+  errorMessage?: string;
+  kaggle?: { datasetId: string; lastUpdated: string; sizeBytes: number };
+  local: { lastUpdated: string | null; sizeBytes: number; hasData: boolean };
+  isKaggleAhead?: boolean;
+  isLocalAhead?: boolean;
+}
+
+export interface StagedSummary {
+  path: string;
+  sizeBytes: number;
+  timeframeSeconds: number | null;
+  contracts: ContractStatus[];
+}
+
+export interface KagglePullResult {
+  success: boolean;
+  errorMessage?: string;
+  staged: StagedSummary | null;
+  validationError: string | null;
+}
+
+export interface KaggleStagedResult {
+  success: boolean;
+  errorMessage?: string;
+  staged: StagedSummary | null;
+  validationError: string | null;
+}
+
+export interface OverlapEntry {
+  contractId: string;
+  count: number;
+  firstTimestamp: number;
+}
+
+export interface KaggleMergeResult {
+  success: boolean;
+  errorMessage?: string;
+  merged?: number;
+  overlaps?: OverlapEntry[];
+  stagedTimeframeSeconds?: number | null;
+  liveTimeframeSeconds?: number;
+}

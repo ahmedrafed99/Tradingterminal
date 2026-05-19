@@ -3,6 +3,9 @@ import {
   databaseService,
   type DatabaseStatus,
   type FetchProgress,
+  type KaggleStatus,
+  type StagedSummary,
+  type OverlapEntry,
 } from '../../services/databaseService';
 
 const POLL_INTERVAL = 1500;
@@ -17,6 +20,13 @@ export function DatabaseTab() {
   const [backupDir, setBackupDir] = useState('');
   const [backupMsg, setBackupMsg] = useState<string | null>(null);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [kaggle, setKaggle] = useState<KaggleStatus | null>(null);
+  const [kaggleLoading, setKaggleLoading] = useState(false);
+  const [kaggleBusy, setKaggleBusy] = useState<'pull' | 'push' | 'merge' | 'discard' | null>(null);
+  const [kaggleMsg, setKaggleMsg] = useState<string | null>(null);
+  const [staged, setStaged] = useState<StagedSummary | null>(null);
+  const [stagedValidationError, setStagedValidationError] = useState<string | null>(null);
+  const [mergeOverlaps, setMergeOverlaps] = useState<OverlapEntry[] | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -29,9 +39,37 @@ export function DatabaseTab() {
     }
   }, []);
 
+  const refreshKaggle = useCallback(async () => {
+    setKaggleLoading(true);
+    setKaggleMsg(null);
+    try {
+      const s = await databaseService.kaggleStatus();
+      setKaggle(s);
+    } catch (err) {
+      console.error('[DatabaseTab] Kaggle status failed:', err instanceof Error ? err.message : err);
+      setKaggle(null);
+    } finally {
+      setKaggleLoading(false);
+    }
+  }, []);
+
+  const refreshStaged = useCallback(async () => {
+    try {
+      const s = await databaseService.kaggleStaged();
+      setStaged(s.staged);
+      setStagedValidationError(s.validationError);
+    } catch (err) {
+      console.error('[DatabaseTab] Staged status failed:', err instanceof Error ? err.message : err);
+      setStaged(null);
+      setStagedValidationError(null);
+    }
+  }, []);
+
   useEffect(() => {
     refreshStatus();
-  }, [refreshStatus]);
+    refreshKaggle();
+    refreshStaged();
+  }, [refreshStatus, refreshKaggle, refreshStaged]);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
@@ -143,6 +181,114 @@ export function DatabaseTab() {
 
   function handleDownload() {
     databaseService.downloadBackup();
+  }
+
+  async function handleKagglePull() {
+    setKaggleBusy('pull');
+    setKaggleMsg(null);
+    setMergeOverlaps(null);
+    try {
+      const result = await databaseService.kagglePull();
+      if (result.success) {
+        setStaged(result.staged);
+        setStagedValidationError(result.validationError);
+        setKaggleMsg(
+          result.staged
+            ? `Pulled to staging (${formatBytes(result.staged.sizeBytes)}). Review and click Merge.`
+            : 'Pulled, but no staged data detected.',
+        );
+      } else {
+        setKaggleMsg(result.errorMessage || 'Pull failed');
+      }
+    } catch (err) {
+      setKaggleMsg(err instanceof Error ? err.message : 'Pull failed');
+    } finally {
+      setKaggleBusy(null);
+    }
+  }
+
+  async function handleKagglePush() {
+    setKaggleBusy('push');
+    setKaggleMsg(null);
+    try {
+      const result = await databaseService.kagglePush();
+      if (result.success) {
+        setKaggleMsg('Pushed to Kaggle');
+        await refreshKaggle();
+      } else {
+        setKaggleMsg(result.errorMessage || 'Push failed');
+      }
+    } catch (err) {
+      setKaggleMsg(err instanceof Error ? err.message : 'Push failed');
+    } finally {
+      setKaggleBusy(null);
+    }
+  }
+
+  async function handleKaggleMerge() {
+    setKaggleBusy('merge');
+    setKaggleMsg(null);
+    setMergeOverlaps(null);
+    try {
+      const result = await databaseService.kaggleMerge();
+      if (result.success) {
+        setKaggleMsg(`Merged ${formatNumber(result.merged ?? 0)} rows into live DB.`);
+        setStaged(null);
+        setStagedValidationError(null);
+        await refreshStatus();
+        await refreshKaggle();
+      } else {
+        setKaggleMsg(result.errorMessage || 'Merge refused');
+        if (result.overlaps && result.overlaps.length > 0) {
+          setMergeOverlaps(result.overlaps);
+        }
+      }
+    } catch (err) {
+      setKaggleMsg(err instanceof Error ? err.message : 'Merge failed');
+    } finally {
+      setKaggleBusy(null);
+    }
+  }
+
+  async function handleKaggleDiscard() {
+    setKaggleBusy('discard');
+    setKaggleMsg(null);
+    setMergeOverlaps(null);
+    try {
+      await databaseService.kaggleDiscard();
+      setStaged(null);
+      setStagedValidationError(null);
+      setKaggleMsg('Discarded staged file.');
+    } catch (err) {
+      setKaggleMsg(err instanceof Error ? err.message : 'Discard failed');
+    } finally {
+      setKaggleBusy(null);
+    }
+  }
+
+  function formatRelativeTime(iso: string | null | undefined): string {
+    if (!iso) return 'never';
+    const date = new Date(iso);
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH}h ago`;
+    const diffD = Math.floor(diffH / 24);
+    return `${diffD}d ago`;
+  }
+
+  function formatTimeframe(seconds: number | null | undefined): string {
+    if (!seconds) return 'unknown';
+    if (seconds < 60) return `${seconds}-second`;
+    if (seconds < 3600) return `${seconds / 60}-minute`;
+    if (seconds < 86400) return `${seconds / 3600}-hour`;
+    return `${seconds / 86400}-day`;
+  }
+
+  function formatEpochUtc(epoch: number): string {
+    return new Date(epoch * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
   }
 
   const hasData = (status?.contracts?.length ?? 0) > 0;
@@ -294,6 +440,240 @@ export function DatabaseTab() {
                 Cancel
               </button>
             )}
+          </div>
+        )}
+
+        {/* KAGGLE CLOUD SYNC */}
+        <div>
+          <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+            <span className={SECTION_TITLE}>Cloud Sync (Kaggle)</span>
+            <button
+              onClick={refreshKaggle}
+              disabled={kaggleLoading || kaggleBusy !== null}
+              className="text-[11px] text-(--color-text-muted) hover:text-white transition-colors disabled:opacity-50"
+            >
+              {kaggleLoading ? 'Checking…' : 'Refresh'}
+            </button>
+          </div>
+
+          {kaggleLoading && !kaggle ? (
+            <div
+              className="text-sm text-center rounded-lg border border-(--color-border)/30 text-(--color-text-muted)"
+              style={{ padding: '16px 12px' }}
+            >
+              Checking Kaggle…
+            </div>
+          ) : kaggle?.success === false || !kaggle?.kaggle ? (
+            <div
+              className="text-[11px] rounded-lg bg-(--color-error)/10 text-(--color-error)"
+              style={{ padding: '10px 12px' }}
+            >
+              {kaggle?.errorMessage || 'Could not reach Kaggle.'}
+            </div>
+          ) : (
+            <>
+              {/* status rows */}
+              <div className="rounded-lg overflow-hidden border border-(--color-border)/30" style={{ marginBottom: 10 }}>
+                <div
+                  className="flex items-center justify-between"
+                  style={{ padding: '10px 12px' }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="text-sm text-white" style={{ marginBottom: 2 }}>Kaggle</div>
+                    <div className="text-[11px] text-(--color-text-muted)">
+                      {formatRelativeTime(kaggle.kaggle.lastUpdated)}
+                      <span className="text-(--color-text-muted)"> · </span>
+                      {formatBytes(kaggle.kaggle.sizeBytes)}
+                    </div>
+                  </div>
+                  {kaggle.isKaggleAhead && (
+                    <span className="text-[11px] bg-(--color-accent)/20 text-(--color-accent-text) rounded-md" style={{ padding: '3px 8px' }}>
+                      ahead
+                    </span>
+                  )}
+                </div>
+                <div
+                  className="flex items-center justify-between"
+                  style={{ padding: '10px 12px', borderTop: '1px solid var(--color-border)' }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="text-sm text-white" style={{ marginBottom: 2 }}>Local</div>
+                    <div className="text-[11px] text-(--color-text-muted)">
+                      {kaggle.local.hasData ? (
+                        <>
+                          {formatRelativeTime(kaggle.local.lastUpdated)}
+                          <span className="text-(--color-text-muted)"> · </span>
+                          {formatBytes(kaggle.local.sizeBytes)}
+                        </>
+                      ) : (
+                        <span>empty</span>
+                      )}
+                    </div>
+                  </div>
+                  {kaggle.isLocalAhead && (
+                    <span className="text-[11px] bg-(--color-accent)/20 text-(--color-accent-text) rounded-md" style={{ padding: '3px 8px' }}>
+                      ahead
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* prompt + actions (hidden while a staged file is awaiting review) */}
+              {staged ? (
+                <div className="text-xs text-(--color-text-muted)" style={{ textAlign: 'center' }}>
+                  Staged data from Kaggle is waiting below.
+                </div>
+              ) : kaggle.isKaggleAhead ? (
+                <div className="flex items-center justify-between" style={{ gap: 10 }}>
+                  <span className="text-xs text-(--color-text)">
+                    Kaggle has a newer version. Pull to staging for review?
+                  </span>
+                  <button
+                    onClick={handleKagglePull}
+                    disabled={kaggleBusy !== null}
+                    className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
+                    style={{ padding: '7px 18px' }}
+                  >
+                    {kaggleBusy === 'pull' ? 'Pulling…' : 'Pull from Kaggle'}
+                  </button>
+                </div>
+              ) : kaggle.isLocalAhead ? (
+                <div className="flex items-center justify-between" style={{ gap: 10 }}>
+                  <span className="text-xs text-(--color-text)">
+                    Local is newer than Kaggle.
+                  </span>
+                  <button
+                    onClick={handleKagglePush}
+                    disabled={kaggleBusy !== null}
+                    className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50 shrink-0"
+                    style={{ padding: '7px 18px' }}
+                  >
+                    {kaggleBusy === 'push' ? 'Pushing…' : 'Push to Kaggle'}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-xs text-(--color-text-muted)" style={{ textAlign: 'center' }}>
+                  In sync.
+                </div>
+              )}
+
+              {kaggleMsg && (
+                <div
+                  className={`text-[11px] rounded-lg ${
+                    kaggleMsg.toLowerCase().includes('fail') ||
+                    kaggleMsg.toLowerCase().includes('error') ||
+                    kaggleMsg.toLowerCase().includes('refused')
+                      ? 'bg-(--color-error)/10 text-(--color-error)'
+                      : 'bg-(--color-buy)/10 text-(--color-buy)'
+                  }`}
+                  style={{ marginTop: 8, padding: '6px 10px' }}
+                >
+                  {kaggleMsg}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* STAGED (only when a Kaggle pull has been downloaded but not merged) */}
+        {staged && (
+          <div>
+            <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+              <span className={SECTION_TITLE}>Staged Data from Kaggle</span>
+              <span className="text-[11px] text-(--color-text-muted)">
+                {formatBytes(staged.sizeBytes)} · {formatTimeframe(staged.timeframeSeconds)}
+              </span>
+            </div>
+
+            {staged.contracts.length > 0 ? (
+              <div className="rounded-lg overflow-hidden border border-(--color-border)/30" style={{ marginBottom: 10 }}>
+                {staged.contracts.map((c, i) => (
+                  <div
+                    key={c.contractId}
+                    className="flex items-center justify-between"
+                    style={{
+                      padding: '10px 12px',
+                      borderTop: i > 0 ? '1px solid var(--color-border)' : undefined,
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div className="text-sm text-white" style={{ marginBottom: 2 }}>
+                        {c.contractId}
+                      </div>
+                      <div className="text-[11px] text-(--color-text-muted)">
+                        {formatDate(c.oldestBar)} — {formatDate(c.newestBar)}
+                        <span className="text-(--color-text-muted)"> · </span>
+                        {formatNumber(c.totalBars)} bars
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                className="text-sm text-center rounded-lg border border-(--color-border)/30 text-(--color-text-muted)"
+                style={{ padding: '16px 12px', marginBottom: 10 }}
+              >
+                Staged file contains no rows
+              </div>
+            )}
+
+            {stagedValidationError && (
+              <div
+                className="text-[11px] rounded-lg bg-(--color-error)/10 text-(--color-error)"
+                style={{ padding: '8px 12px', marginBottom: 10 }}
+              >
+                {stagedValidationError}
+              </div>
+            )}
+
+            {/* Overlap warning from a refused merge */}
+            {mergeOverlaps && mergeOverlaps.length > 0 && (
+              <div
+                className="rounded-lg bg-(--color-error)/10 text-(--color-error)"
+                style={{ padding: '10px 12px', marginBottom: 10 }}
+              >
+                <div className="text-xs font-medium" style={{ marginBottom: 6 }}>
+                  Merge refused — staged data overlaps with existing rows:
+                </div>
+                <div className="text-[11px]">
+                  {mergeOverlaps.map((o) => (
+                    <div key={o.contractId} style={{ marginBottom: 2 }}>
+                      {o.contractId}: {formatNumber(o.count)} overlapping rows · first at {formatEpochUtc(o.firstTimestamp)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end" style={{ gap: 8 }}>
+              <button
+                onClick={handleKaggleDiscard}
+                disabled={kaggleBusy !== null}
+                className="text-sm font-medium rounded-lg text-(--color-text-muted) hover:text-(--color-error) transition-all disabled:opacity-50"
+                style={{ padding: '7px 14px' }}
+              >
+                {kaggleBusy === 'discard' ? 'Discarding…' : 'Discard'}
+              </button>
+              <button
+                onClick={handleKaggleMerge}
+                disabled={
+                  kaggleBusy !== null ||
+                  !!stagedValidationError ||
+                  staged.contracts.length === 0 ||
+                  staged.timeframeSeconds !== 60
+                }
+                className="text-sm font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+                style={{ padding: '7px 18px' }}
+                title={
+                  staged.timeframeSeconds !== 60
+                    ? `Cannot merge: timeframe is ${formatTimeframe(staged.timeframeSeconds)}; live DB stores 1-minute candles only`
+                    : undefined
+                }
+              >
+                {kaggleBusy === 'merge' ? 'Merging…' : 'Merge into live DB'}
+              </button>
+            </div>
           </div>
         )}
 

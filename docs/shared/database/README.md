@@ -247,6 +247,20 @@ A tab in the Settings modal alongside the API credentials tab.
 │  SYNC                          Auto-sync every 30 min    │
 │  [ Sync Now ]                                            │
 │                                                          │
+│  CLOUD SYNC (KAGGLE)                          [Refresh]  │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ Kaggle    just now · 401 MB                ahead   │  │
+│  │ Local     never · 0 B                              │  │
+│  └────────────────────────────────────────────────────┘  │
+│  Kaggle has a newer version.        [ Pull from Kaggle ] │
+│                                                          │
+│  STAGED DATA FROM KAGGLE         401 MB · 1-minute       │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ NQ                                                 │  │
+│  │ Dec 11, 2008 — May 19, 2026 · 5,778,958 bars      │  │
+│  └────────────────────────────────────────────────────┘  │
+│                                  [ Discard ] [ Merge ]   │
+│                                                          │
 │  BACKUP                    Auto-backup daily · last 7    │
 │  Save to directory: [____________________] [Save Backup] │
 │  Or download to browser →                                │
@@ -359,11 +373,41 @@ The script always uploads the **most recent file** in `backend/data/backups/`. I
 
 ### Restoring from Kaggle
 
+**From the app (recommended)**: open Settings → Database → Cloud Sync (Kaggle). The panel compares the Kaggle dataset's `lastUpdated` timestamp against the local `candles.db` mtime and shows an "ahead" tag on whichever side is newer.
+
+Pulling is a **two-step, non-destructive** flow:
+
+1. **Pull** downloads the Kaggle dataset to `backend/data/staging/candles-from-kaggle.db`. The live DB is **not** touched.
+2. A new "Staged Data from Kaggle" panel appears showing per-contract row counts, date ranges, detected timeframe, and file size.
+3. **Merge** runs three safety checks and refuses if any fail:
+   - **Schema check**: staged file is a valid SQLite candles DB with the expected columns.
+   - **Timeframe check**: detected timeframe (modal delta between consecutive timestamps) must equal 60s. 3-minute, 5-minute, etc. data is rejected because the live DB stores 1-minute candles only.
+   - **Overlap check**: ATTACHes the staged DB and INNER JOINs `(contract_id, timestamp)` against the live DB. Any overlap → refuse with per-contract counts and the first overlapping timestamp. Strict, no force-override.
+4. If all checks pass, the merge INSERTs all staged rows in a transaction and auto-deletes the staged file. **Discard** simply removes the staged file.
+
+The Python download uses the `kaggle` Python SDK directly (not the CLI subprocess) because `kaggle datasets download` hits `GetDatasetMetadata` which returns 403 under OAuth, while `KaggleApi().dataset_download_files(...)` works.
+
+**Manual download (bypasses staging/safety):**
 ```powershell
 .\scripts\venv\Scripts\kaggle.exe datasets download greenberet99/tradingterm-candles -p backend/data --unzip
 ```
 
-This downloads the latest version. To restore a specific historical version, go to the dataset page on kaggle.com, select the version, and download manually.
+To restore a specific historical version, go to the dataset page on kaggle.com, select the version, and download manually.
+
+---
+
+### Cloud Sync API
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /database/kaggle/status` | Returns Kaggle `lastUpdated` + uncompressed size (from `dataset_list_files`, matches kaggle.com), local DB mtime + size, and `isKaggleAhead` / `isLocalAhead` booleans (>1m drift). |
+| `POST /database/kaggle/pull` | Downloads Kaggle dataset to `backend/data/staging/candles-from-kaggle.db`. Does NOT touch the live DB. Returns a summary (contracts, date ranges, detected timeframe). |
+| `GET /database/kaggle/staged` | Returns the staged-file summary (or `staged: null` if absent). |
+| `POST /database/kaggle/merge` | Validates schema + timeframe + overlap, then INSERTs all staged rows into the live DB inside a transaction. Auto-deletes the staged file on success. Returns 400 on timeframe mismatch, 409 with `overlaps[]` on collision. |
+| `POST /database/kaggle/discard` | Deletes the staged file. |
+| `POST /database/kaggle/push` | Spawns `scripts/backup_to_kaggle.py` to upload as a new dataset version. Rejects if local DB has no contracts. |
+
+All scripts spawn `scripts/venv/Scripts/python.exe` and parse a single JSON line from stdout. Because pull writes only to the staging directory, the live DB stays open throughout — no need to close/reopen handles, and no spurious auto-push back to Kaggle.
 
 ---
 
@@ -371,16 +415,24 @@ This downloads the latest version. To restore a specific historical version, go 
 
 ```
 scripts/
-  backup_to_kaggle.py     -- upload script (reads latest backup, pushes to Kaggle)
+  backup_to_kaggle.py     -- upload (reads latest backup, pushes to Kaggle), emits JSON
+  restore_from_kaggle.py  -- download latest dataset version, atomically replace target file
+  kaggle_status.py        -- query Kaggle for dataset's lastUpdated + sizeBytes
   requirements.txt        -- kaggle, python-dotenv (pinned)
   venv/                   -- Python virtual env (gitignored)
 
 backend/
   data/
+    candles.db                             -- live DB (never overwritten by pull)
     backups/
-      candles-YYYY-MM-DD.db   -- daily local snapshots (last 7 kept)
+      candles-YYYY-MM-DD.db                -- daily local snapshots (last 7 kept)
+    staging/
+      candles-from-kaggle.db               -- staged pull, awaiting merge or discard
   src/services/
-    databaseService.ts    -- spawns backup_to_kaggle.py after autoBackup()
+    databaseService.ts    -- spawns backup_to_kaggle.py after autoBackup();
+                             inspectStaged / detectStagedOverlap / mergeStaged / discardStaged
+  src/routes/
+    databaseRoutes.ts     -- /database/kaggle/{status,pull,staged,merge,discard,push}
 ```
 
 ---
