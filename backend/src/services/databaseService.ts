@@ -431,10 +431,18 @@ export interface OverlapEntry {
   firstTimestamp: number;
 }
 
-export function detectStagedOverlap(stagedPath: string): OverlapEntry[] {
+function withAttachedStaged<T>(stagedPath: string, fn: () => T): T {
   db.prepare(`ATTACH DATABASE ? AS staged`).run(stagedPath);
   try {
-    return db
+    return fn();
+  } finally {
+    db.prepare(`DETACH DATABASE staged`).run();
+  }
+}
+
+export function detectStagedOverlap(stagedPath: string): OverlapEntry[] {
+  return withAttachedStaged(stagedPath, () =>
+    db
       .prepare(
         `SELECT s.contract_id AS contractId,
                 COUNT(*) AS count,
@@ -445,17 +453,14 @@ export function detectStagedOverlap(stagedPath: string): OverlapEntry[] {
          GROUP BY s.contract_id
          ORDER BY s.contract_id`,
       )
-      .all() as OverlapEntry[];
-  } finally {
-    db.prepare(`DETACH DATABASE staged`).run();
-  }
+      .all() as OverlapEntry[],
+  );
 }
 
 export function mergeStaged(stagedPath: string): { merged: number } {
-  db.prepare(`ATTACH DATABASE ? AS staged`).run(stagedPath);
-  try {
-    // Use a transaction. Plain INSERT (no IGNORE) — caller has already verified
-    // there are no overlaps; if one slipped in (race), failure is correct.
+  return withAttachedStaged(stagedPath, () => {
+    // Plain INSERT (no IGNORE) — caller has already verified there are no
+    // overlaps; if one slipped in (race), failure is correct.
     const result = db
       .transaction(() =>
         db.prepare(
@@ -464,9 +469,7 @@ export function mergeStaged(stagedPath: string): { merged: number } {
         ).run(),
       )();
     return { merged: Number(result.changes) };
-  } finally {
-    db.prepare(`DETACH DATABASE staged`).run();
-  }
+  });
 }
 
 export function discardStaged(): boolean {

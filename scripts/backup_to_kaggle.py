@@ -9,12 +9,13 @@ Usage:
 """
 
 import json
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+from kaggle_utils import emit, get_username
 
 PROJECT_ROOT = Path(__file__).parent.parent
 BACKUPS_DIR = PROJECT_ROOT / "backend" / "data" / "backups"
@@ -29,14 +30,6 @@ def kaggle(*args: str) -> tuple[int, str]:
     return result.returncode, output
 
 
-def get_username() -> str:
-    creds = Path.home() / ".kaggle" / "credentials.json"
-    if creds.exists():
-        data = json.loads(creds.read_text())
-        return data.get("username") or data.get("user_name", "")
-    sys.exit("ERROR: Not authenticated. Run: kaggle auth login")
-
-
 def latest_backup() -> Path:
     if BACKUPS_DIR.exists():
         candidates = sorted(BACKUPS_DIR.glob("candles-*.db"), reverse=True)
@@ -45,13 +38,11 @@ def latest_backup() -> Path:
     return DB_PATH
 
 
-def emit(payload: dict) -> None:
-    """Print final result as JSON on stdout for callers that parse it."""
-    print(json.dumps(payload))
-
-
 def push():
     username = get_username()
+    if not username:
+        emit({"ok": False, "error": "Kaggle not authenticated. Run: kaggle auth login"})
+        sys.exit(1)
     source = latest_backup()
 
     if not source.exists():

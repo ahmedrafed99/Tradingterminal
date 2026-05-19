@@ -99,8 +99,8 @@ export const databaseService = {
     return res.data;
   },
 
-  async kagglePull(): Promise<KagglePullResult> {
-    const res = await api.post<KagglePullResult>(
+  async kagglePull(): Promise<KaggleStagedResult> {
+    const res = await api.post<KaggleStagedResult>(
       '/database/kaggle/pull',
       undefined,
       { timeout: 0 }, // downloads can be hundreds of MB
@@ -153,13 +153,7 @@ export interface StagedSummary {
   contracts: ContractStatus[];
 }
 
-export interface KagglePullResult {
-  success: boolean;
-  errorMessage?: string;
-  staged: StagedSummary | null;
-  validationError: string | null;
-}
-
+/** Shared result shape for both /kaggle/pull and /kaggle/staged — same payload. */
 export interface KaggleStagedResult {
   success: boolean;
   errorMessage?: string;

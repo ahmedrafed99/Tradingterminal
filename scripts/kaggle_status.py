@@ -14,28 +14,10 @@ Usage:
   scripts/venv/Scripts/python.exe scripts/kaggle_status.py
 """
 
-import json
-import sys
-from pathlib import Path
+from kaggle_utils import emit, get_username
 
 
 DATASET_SLUG = "tradingterm-candles"
-
-
-def emit(payload: dict) -> None:
-    print(json.dumps(payload))
-
-
-def get_username() -> str:
-    creds = Path.home() / ".kaggle" / "credentials.json"
-    if creds.exists():
-        data = json.loads(creds.read_text())
-        return data.get("username") or data.get("user_name", "")
-    legacy = Path.home() / ".kaggle" / "kaggle.json"
-    if legacy.exists():
-        data = json.loads(legacy.read_text())
-        return data.get("username", "")
-    return ""
 
 
 def main() -> None:

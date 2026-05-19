@@ -7,6 +7,9 @@ import {
   type StagedSummary,
   type OverlapEntry,
 } from '../../services/databaseService';
+import { formatRelativeTime, formatTimeframe, formatEpochUtc } from '../../utils/formatters';
+
+type KaggleBusy = 'pull' | 'push' | 'merge' | 'discard' | null;
 
 const POLL_INTERVAL = 1500;
 const SECTION_TITLE = 'text-xs font-medium text-(--color-text) uppercase tracking-wider';
@@ -22,11 +25,17 @@ export function DatabaseTab() {
   const [backupLoading, setBackupLoading] = useState(false);
   const [kaggle, setKaggle] = useState<KaggleStatus | null>(null);
   const [kaggleLoading, setKaggleLoading] = useState(false);
-  const [kaggleBusy, setKaggleBusy] = useState<'pull' | 'push' | 'merge' | 'discard' | null>(null);
+  const [kaggleBusy, setKaggleBusy] = useState<KaggleBusy>(null);
   const [kaggleMsg, setKaggleMsg] = useState<string | null>(null);
+  const [kaggleMsgKind, setKaggleMsgKind] = useState<'success' | 'error' | null>(null);
   const [staged, setStaged] = useState<StagedSummary | null>(null);
   const [stagedValidationError, setStagedValidationError] = useState<string | null>(null);
   const [mergeOverlaps, setMergeOverlaps] = useState<OverlapEntry[] | null>(null);
+
+  const setMsg = useCallback((text: string, kind: 'success' | 'error') => {
+    setKaggleMsg(text);
+    setKaggleMsgKind(kind);
+  }, []);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -183,112 +192,79 @@ export function DatabaseTab() {
     databaseService.downloadBackup();
   }
 
-  async function handleKagglePull() {
-    setKaggleBusy('pull');
+  async function withKaggleBusy(
+    kind: Exclude<KaggleBusy, null>,
+    label: string,
+    fn: () => Promise<void>,
+  ) {
+    setKaggleBusy(kind);
     setKaggleMsg(null);
+    setKaggleMsgKind(null);
     setMergeOverlaps(null);
     try {
+      await fn();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : `${label} failed`, 'error');
+    } finally {
+      setKaggleBusy(null);
+    }
+  }
+
+  function handleKagglePull() {
+    return withKaggleBusy('pull', 'Pull', async () => {
       const result = await databaseService.kagglePull();
-      if (result.success) {
-        setStaged(result.staged);
-        setStagedValidationError(result.validationError);
-        setKaggleMsg(
-          result.staged
-            ? `Pulled to staging (${formatBytes(result.staged.sizeBytes)}). Review and click Merge.`
-            : 'Pulled, but no staged data detected.',
-        );
-      } else {
-        setKaggleMsg(result.errorMessage || 'Pull failed');
+      if (!result.success) {
+        setMsg(result.errorMessage || 'Pull failed', 'error');
+        return;
       }
-    } catch (err) {
-      setKaggleMsg(err instanceof Error ? err.message : 'Pull failed');
-    } finally {
-      setKaggleBusy(null);
-    }
+      setStaged(result.staged);
+      setStagedValidationError(result.validationError);
+      setMsg(
+        result.staged
+          ? `Pulled to staging (${formatBytes(result.staged.sizeBytes)}). Review and click Merge.`
+          : 'Pulled, but no staged data detected.',
+        'success',
+      );
+    });
   }
 
-  async function handleKagglePush() {
-    setKaggleBusy('push');
-    setKaggleMsg(null);
-    try {
+  function handleKagglePush() {
+    return withKaggleBusy('push', 'Push', async () => {
       const result = await databaseService.kagglePush();
-      if (result.success) {
-        setKaggleMsg('Pushed to Kaggle');
-        await refreshKaggle();
-      } else {
-        setKaggleMsg(result.errorMessage || 'Push failed');
+      if (!result.success) {
+        setMsg(result.errorMessage || 'Push failed', 'error');
+        return;
       }
-    } catch (err) {
-      setKaggleMsg(err instanceof Error ? err.message : 'Push failed');
-    } finally {
-      setKaggleBusy(null);
-    }
+      setMsg('Pushed to Kaggle', 'success');
+      await refreshKaggle();
+    });
   }
 
-  async function handleKaggleMerge() {
-    setKaggleBusy('merge');
-    setKaggleMsg(null);
-    setMergeOverlaps(null);
-    try {
+  function handleKaggleMerge() {
+    return withKaggleBusy('merge', 'Merge', async () => {
       const result = await databaseService.kaggleMerge();
-      if (result.success) {
-        setKaggleMsg(`Merged ${formatNumber(result.merged ?? 0)} rows into live DB.`);
-        setStaged(null);
-        setStagedValidationError(null);
-        await refreshStatus();
-        await refreshKaggle();
-      } else {
-        setKaggleMsg(result.errorMessage || 'Merge refused');
+      if (!result.success) {
+        setMsg(result.errorMessage || 'Merge refused', 'error');
         if (result.overlaps && result.overlaps.length > 0) {
           setMergeOverlaps(result.overlaps);
         }
+        return;
       }
-    } catch (err) {
-      setKaggleMsg(err instanceof Error ? err.message : 'Merge failed');
-    } finally {
-      setKaggleBusy(null);
-    }
+      setMsg(`Merged ${formatNumber(result.merged ?? 0)} rows into live DB.`, 'success');
+      setStaged(null);
+      setStagedValidationError(null);
+      await refreshStatus();
+      await refreshKaggle();
+    });
   }
 
-  async function handleKaggleDiscard() {
-    setKaggleBusy('discard');
-    setKaggleMsg(null);
-    setMergeOverlaps(null);
-    try {
+  function handleKaggleDiscard() {
+    return withKaggleBusy('discard', 'Discard', async () => {
       await databaseService.kaggleDiscard();
       setStaged(null);
       setStagedValidationError(null);
-      setKaggleMsg('Discarded staged file.');
-    } catch (err) {
-      setKaggleMsg(err instanceof Error ? err.message : 'Discard failed');
-    } finally {
-      setKaggleBusy(null);
-    }
-  }
-
-  function formatRelativeTime(iso: string | null | undefined): string {
-    if (!iso) return 'never';
-    const date = new Date(iso);
-    const diffMs = Date.now() - date.getTime();
-    const diffMin = Math.floor(diffMs / 60_000);
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffH = Math.floor(diffMin / 60);
-    if (diffH < 24) return `${diffH}h ago`;
-    const diffD = Math.floor(diffH / 24);
-    return `${diffD}d ago`;
-  }
-
-  function formatTimeframe(seconds: number | null | undefined): string {
-    if (!seconds) return 'unknown';
-    if (seconds < 60) return `${seconds}-second`;
-    if (seconds < 3600) return `${seconds / 60}-minute`;
-    if (seconds < 86400) return `${seconds / 3600}-hour`;
-    return `${seconds / 86400}-day`;
-  }
-
-  function formatEpochUtc(epoch: number): string {
-    return new Date(epoch * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+      setMsg('Discarded staged file.', 'success');
+    });
   }
 
   const hasData = (status?.contracts?.length ?? 0) > 0;
@@ -560,9 +536,7 @@ export function DatabaseTab() {
               {kaggleMsg && (
                 <div
                   className={`text-[11px] rounded-lg ${
-                    kaggleMsg.toLowerCase().includes('fail') ||
-                    kaggleMsg.toLowerCase().includes('error') ||
-                    kaggleMsg.toLowerCase().includes('refused')
+                    kaggleMsgKind === 'error'
                       ? 'bg-(--color-error)/10 text-(--color-error)'
                       : 'bg-(--color-buy)/10 text-(--color-buy)'
                   }`}
