@@ -108,5 +108,5 @@
   transition: background var(--transition-fast);
 }
 .row-hover:hover {
-  background-color: var(--color-hover-row);
+  background-color: #16181f;
 }

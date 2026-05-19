@@ -363,5 +363,37 @@
         "Calendar width: 380px; selected day uses border-only style (no fill) to match GoToModal design"
       ]
     }
+    ,{
+      "name": "PositionsTab",
+      "description": "Bottom-panel tab listing open positions with live unrealized P&L. Default view: current account + current chart symbol only. Filters (current/all account, current/all symbol) and Flatten-all action live in the header. Each row is clickable (switches account + chart contract); inline X flattens that position.",
+      "keywords": ["positions", "open positions", "bottom panel", "flatten", "all accounts", "tp", "sl", "unrealized pnl", "pts taken", "filter"],
+      "files": [
+        "frontend/src/components/bottom-panel/PositionsTab.tsx",
+        "frontend/src/components/bottom-panel/BottomPanel.tsx",
+        "frontend/src/services/positionService.ts",
+        "frontend/src/store/slices/layoutSlice.ts"
+      ],
+      "dependencies": [
+        "useStore (positions, openOrders, accounts, activeAccountId, positionsAccountFilter, positionsInstrumentFilter, contract/secondContract, orderContract, lastPrice, pnlMode)",
+        "positionService (searchOpenPositions, closePosition, closeMany)",
+        "realtimeService (subscribeQuotes, onQuote — for live lastPrice per non-active contract)",
+        "tradeService + TradesTab.allTradesCache (history used to derive openTime + ptsTaken)",
+        "marketDataService.searchContracts (lazy contract metadata fetch)",
+        "CustomSelect (filter dropdowns)",
+        "formatAccountName (shared from utils/formatters — same label as TopBar selector)"
+      ],
+      "notes": [
+        "Lazy fetch: when positionsAccountFilter switches to 'all', positionService.searchOpenPositions is called once per non-active account; trades are fetched with getDateRange('all') to match TradesTab's window — anything shorter (e.g. 'week') silently breaks ptsTaken/openTime for older positions",
+        "findOpenSegment walks trades chronologically, resetting the segment whenever net size returns to 0. Requires Math.abs(net) === currentSize at the end; otherwise openTime/ptsTaken render as '—' (intentional safeguard against cache/realtime lag)",
+        "TP legs are sorted by distance from entry (ascending for long, descending for short) so the displayed TP price is the *closest* one — prevents flicker when the gateway reorders the legs",
+        "openOrders is only the active account's orders — for positions on other accounts the TP/SL cells always render '—' (gateway doesn't expose other accounts' bracket legs)",
+        "Quote subscriptions are not torn down (matches useAccountUpnl) — the adapter's subscribe set is not ref-counted; unsubscribing here would kill the chart's stream when both reference the same contract",
+        "Tab count badge in BottomPanel.tsx reflects ACTIVE account positions only, not the current filter scope",
+        "Row click sets contract on the currently selectedChart (left → setContract, right → setSecondContract) AND setOrderContract, then setActiveAccountId if cross-account",
+        "Flatten all closes every row in sortedRows (potentially across accounts when filter='all') — no confirm dialog; button label shows count to make scope visible",
+        "PnL cell: only the inner value span is clickable + hover-highlighted (not the whole cell) — keeps row click (focus chart) distinct from PnL mode toggle ($/pts)",
+        "Account name under symbol (all-accounts filter) is rendered via formatAccountName + last 2 digits of id — e.g. 'Practice - 45'"
+      ]
+    }
   ]
 }

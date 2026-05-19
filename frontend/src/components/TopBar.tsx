@@ -4,7 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown } from './icons/ChevronDown';
 import { realtimeService } from '../services/realtimeService';
 import type { RealtimeAccount } from '../services/realtimeService';
-import { getPnlColorClass } from '../utils/formatters';
+import { getPnlColorClass, formatAccountName } from '../utils/formatters';
 import { useAccountUpnl } from '../hooks/useAccountUpnl';
 import { useClickOutside } from '../hooks/useClickOutside';
 import type { Trade } from '../services/tradeService';
@@ -53,24 +53,6 @@ function FollowIcon() {
   );
 }
 
-/** Format TopstepX account names into { label, id } for selective privacy blur */
-function formatAccountName(raw: string): { label: string; id: string } {
-  // Practice accounts: "PRAC..." → "Practice" + id
-  if (/^prac/i.test(raw)) {
-    const id = raw.split('-').pop() ?? raw;
-    return { label: 'Practice', id };
-  }
-  // Combine accounts: "$50K TRADING COMBINE | 50KTC-V2-..." or just "50KTC-V2-..."
-  const combineMatch = raw.match(/\$?(\d+)K\s*(?:TRADING\s*COMBINE)?/i) ?? raw.match(/^(\d+)KTC/i);
-  if (combineMatch) {
-    const size = combineMatch[1];
-    const id = raw.split('-').pop() ?? raw;
-    return { label: `${size}K Trading Combine`, id };
-  }
-  // Fallback: treat whole name as label
-  return { label: raw, id: '' };
-}
-
 function aggregatePnl(trades: Trade[]): { pnl: number; fees: number } {
   let pnl = 0;
   let fees = 0;
@@ -88,7 +70,6 @@ export function TopBar() {
     connected,
     accounts,
     activeAccountId,
-    setAccounts,
     setActiveAccountId,
     setSettingsOpen,
     updateAccount,
