@@ -7,10 +7,9 @@ import { positionService } from '../../services/positionService';
 import { bracketEngine } from '../../services/bracketEngine';
 import { OrderType, OrderSide, PositionType } from '../../types/enums';
 import { markAsManualClose } from '../../services/manualCloseTracker';
-import { positionService } from '../../services/positionService';
 import { showToast, errorMessage } from '../../utils/toast';
 import { calcPnl, roundToTick } from '../../utils/instrument';
-import { formatPrice, getPnlColorClass } from '../../utils/formatters';
+import { formatPrice } from '../../utils/formatters';
 
 export function PositionDisplay() {
   const { positions, orderContract, lastPrice, activeAccountId, pnlMode, setPnlMode } = useStore(useShallow((s) => ({

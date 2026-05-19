@@ -18,11 +18,9 @@ interface HolidayInfo {
   fullClose: boolean;
 }
 
-let _holidayDates: Set<string> = new Set();
 let _holidayInfo: Map<string, HolidayInfo> = new Map();
 
 export function setHolidays(holidays: { date: string; name: string; closesAt: string; fullClose: boolean }[]): void {
-  _holidayDates = new Set(holidays.map(h => h.date));
   _holidayInfo = new Map(holidays.map(h => [h.date, { name: h.name, closesAt: h.closesAt, fullClose: h.fullClose }]));
 }
 

@@ -49,7 +49,7 @@ export function useChartWidgets(
       }
       // Merge session + display trades (deduplicate by id) so clicks from
       // the Trades tab work regardless of which date preset is active.
-      const merged = new Map<number, typeof sessionTrades[0]>();
+      const merged = new Map<string, typeof sessionTrades[0]>();
       for (const t of sessionTrades) merged.set(t.id, t);
       for (const t of displayTrades) merged.set(t.id, t);
       const zones = matchTrades([...merged.values()], visibleTradeIds, String(contractId));

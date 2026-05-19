@@ -205,7 +205,7 @@ export function buildOrderLabels(
           previewHideEntry,
           previewSide,
         }).color;
-        return { text: fmtSignedPnl(d, pnl), bg };
+        return { text: fmtSignedPnl(priceDelta, pnl), bg };
       };
     } else if (isSuspended) {
       // Suspended leg with no pendingBracketInfo (e.g. after cancelling the current bracket's entry).

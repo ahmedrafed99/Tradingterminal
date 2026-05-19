@@ -62,7 +62,7 @@ function GripIcon() {
 
 interface DrawingEditToolbarProps {
   contractId: string | undefined;
-  containerRef?: React.RefObject<HTMLDivElement>;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export function DrawingEditToolbar(props: DrawingEditToolbarProps) {

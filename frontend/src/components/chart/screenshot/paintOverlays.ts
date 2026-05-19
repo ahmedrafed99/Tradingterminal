@@ -13,7 +13,7 @@ export function paintOverlays(
   entry: ChartEntry,
   plotWidth: number,
   canvasHeight: number,
-  totalWidth?: number,
+  _totalWidth?: number,
 ): void {
   // Clip to plot area so text doesn't bleed into price scale
   ctx.save();

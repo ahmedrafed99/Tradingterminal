@@ -70,7 +70,7 @@ export const DEFAULT_BRACKET_CONFIG: BracketConfig = {
 
 export const MAX_TP_LEVELS = 8;
 
-export function slTypeToApiType(type: StopLossType): OrderType.Stop | OrderType.TrailingStop {
+export function slTypeToApiType(type: StopLossType): typeof OrderType.Stop | typeof OrderType.TrailingStop {
   return type === 'Stop' ? OrderType.Stop : OrderType.TrailingStop;
 }
 

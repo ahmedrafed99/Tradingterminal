@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { RADIUS, SHADOW, Z } from '../../constants/layout';
+import { RADIUS, Z } from '../../constants/layout';
 import { useDraggable } from '../../hooks/useDraggable';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';

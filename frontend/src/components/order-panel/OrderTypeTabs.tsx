@@ -13,7 +13,6 @@ export function OrderTypeTabs() {
     setLimitPrice: s.setLimitPrice,
     orderContract: s.orderContract,
   })));
-  const tickSize = orderContract?.tickSize ?? 0.25;
   const lastPriceRef = useRef<number | null>(null);
 
   useEffect(() => {

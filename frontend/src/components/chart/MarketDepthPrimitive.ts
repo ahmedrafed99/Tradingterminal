@@ -3,6 +3,7 @@ import type {
   SeriesAttachedParameter,
   IPrimitivePaneView,
   IPrimitivePaneRenderer,
+  PrimitivePaneViewZOrder,
   SeriesType,
   Time,
   ISeriesApi,
@@ -239,7 +240,7 @@ class MarketDepthBarsPaneView implements IPrimitivePaneView {
     );
   }
 
-  zOrder(): string {
+  zOrder(): PrimitivePaneViewZOrder {
     return 'bottom';
   }
 }
@@ -267,7 +268,7 @@ class MarketDepthTooltipPaneView implements IPrimitivePaneView {
     );
   }
 
-  zOrder(): string {
+  zOrder(): PrimitivePaneViewZOrder {
     return 'top';
   }
 }

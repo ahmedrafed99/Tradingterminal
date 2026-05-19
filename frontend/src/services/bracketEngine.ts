@@ -10,8 +10,6 @@ import { retryAsync } from '../utils/retry';
 import { audioService } from './audioService';
 import { debugLog } from '../utils/debugLog';
 
-const DEV = import.meta.env.DEV;
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -155,7 +153,7 @@ class BracketEngine {
       for (const [tpIdx, orderId] of snapshot.tpOrderIds) {
         if (!snapshot.filledTPs.has(tpIdx)) handledIds.add(orderId);
       }
-      this.cancelSessionOrders(snapshot).catch((err) => {
+      this.cancelSessionOrders(snapshot).catch((_err) => {
         showToast('warning', 'Failed to cancel some bracket orders',
           'Check open orders and cancel manually if needed.');
       });

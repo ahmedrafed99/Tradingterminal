@@ -12,7 +12,7 @@ export const credentialService = {
     if (cached !== undefined) return cached;
     const res = await api.get('/credentials');
     cached = res.data.data ?? null;
-    return cached;
+    return cached ?? null;
   },
 
   async save(userName: string, apiKey: string): Promise<void> {

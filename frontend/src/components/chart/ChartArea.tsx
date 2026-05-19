@@ -66,7 +66,6 @@ export function ChartArea() {
     // ghost clears that fire after master has been reset to null.
     let rightClearTimer: ReturnType<typeof setTimeout> | null = null;
     let leftClearTimer: ReturnType<typeof setTimeout> | null = null;
-    let master: 'left' | 'right' | null = null;
 
     // physicalFocus tracks which panel the mouse is PHYSICALLY inside, set by
     // mouseenter/mouseleave DOM events. This is the authoritative gate for the
@@ -85,7 +84,6 @@ export function ChartArea() {
     let clearingLeft = false;
 
     const resetMaster = () => {
-      master = null;
       physicalFocus = null;
       leftRef.current?.setPeerHovered(false);
       rightRef.current?.setPeerHovered(false);
@@ -115,7 +113,6 @@ export function ChartArea() {
         if (clearingLeft) { clearingLeft = false; return; }
         // Block if mouse is physically on the right panel (echo from setCrosshairPosition).
         if (physicalFocus === 'right') return;
-        master = 'left';
         rightRef.current?.setPeerHovered(true);
         leftRef.current?.setPeerHovered(false);
         if (!param.time || !param.point) {
@@ -161,7 +158,6 @@ export function ChartArea() {
         if (clearingRight) { clearingRight = false; return; }
         // Block if mouse is physically on the left panel (echo from setCrosshairPosition).
         if (physicalFocus === 'left') return;
-        master = 'right';
         leftRef.current?.setPeerHovered(true);
         rightRef.current?.setPeerHovered(false);
         if (!param.time || !param.point) {
@@ -206,12 +202,10 @@ export function ChartArea() {
       // Expose direct peer-sync callbacks so QO drag can bypass the async
       // crosshair callback chain (eliminates 1–2 frame lag).
       leftRef.current?.setPeerSync((price, time) => {
-        master = 'left';
         rightChart.setCrosshairPosition(price, time as Parameters<typeof rightChart.setCrosshairPosition>[1], rightSeries);
         rightRef.current?.setCrosshairPrice(price);
       });
       rightRef.current?.setPeerSync((price, time) => {
-        master = 'right';
         leftChart.setCrosshairPosition(price, time as Parameters<typeof leftChart.setCrosshairPosition>[1], leftSeries);
         leftRef.current?.setCrosshairPrice(price);
       });
@@ -321,7 +315,7 @@ export function ChartArea() {
 // ---------------------------------------------------------------------------
 function DraggableSeparator({
   containerRef,
-  splitRatio,
+  splitRatio: _splitRatio,
   setSplitRatio,
   onDragStart,
   onDragEnd,

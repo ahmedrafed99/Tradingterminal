@@ -11,7 +11,7 @@ import { tradingDurationMs } from './marketHours';
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface GroupedTrade {
-  entryId: number;
+  entryId: string;
   entry: Trade | null;
   exits: Trade[];
   totalQty: number;
@@ -79,7 +79,7 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
   const entryMap = buildEntryMap(trades);
   const closingTrades = trades.filter((trade) => trade.profitAndLoss != null && !trade.voided);
 
-  const byEntry = new Map<number, Trade[]>();
+  const byEntry = new Map<string, Trade[]>();
   const unmatched: Trade[] = [];
 
   for (const trade of closingTrades) {
@@ -123,7 +123,7 @@ export function groupTrades(trades: Trade[]): GroupedTrade[] {
 
   for (const trade of unmatched) {
     result.push({
-      entryId: -trade.id,
+      entryId: `unmatched:${trade.id}`,
       entry: null,
       exits: [trade],
       totalQty: trade.size,

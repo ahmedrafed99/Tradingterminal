@@ -134,7 +134,6 @@ function SoundCategory({
   const [dropIdx, setDropIdx] = useState<number | null>(null);
   const clips = audioService.getClips(name);
   const count = clips.length;
-  const hasCustom = clips.some(c => c.id !== undefined);
   const rotate = audioService.getRotate(name);
 
   async function handleFiles(files: FileList | File[]) {

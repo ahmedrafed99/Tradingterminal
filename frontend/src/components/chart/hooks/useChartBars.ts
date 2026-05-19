@@ -36,7 +36,7 @@ export function useChartBars(
 
   // Accumulated trade volume map for anchor-mode FRVP drawings (price → contracts traded)
   const tradeAnchorMapRef = useRef(new Map<number, number>());
-  const prevContractIdRef = useRef<number | null>(null);
+  const prevContractIdRef = useRef<string | null>(null);
 
   // Historical load-more state
   const earliestLoadedTimeRef = useRef<string | null>(null);

@@ -81,10 +81,10 @@ export function buildPreviewLabels(
             if (nativeSL) Object.assign(params, nativeSL);
 
             bracketEngine.armForEntry({
-              accountId: st.activeAccountId,
+              accountId: store.activeAccountId,
               contractId: contract.id,
               entrySide: side,
-              entrySize: st.orderSize,
+              entrySize: store.orderSize,
               config: mergedConfig,
               contract: contract,
               nativeSL: !!nativeSL,

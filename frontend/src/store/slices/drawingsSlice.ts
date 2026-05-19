@@ -110,24 +110,24 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
   addDrawing: (drawing) =>
     set((s) => ({
       drawings: [...s.drawings, drawing],
-      drawingUndoStack: [...s.drawingUndoStack, { type: 'add', drawingId: drawing.id }].slice(-50),
+      drawingUndoStack: [...s.drawingUndoStack, { type: 'add' as const, drawingId: drawing.id }].slice(-50),
     })),
   updateDrawing: (id, patch, skipUndo) =>
     set((s) => {
-      const result: Record<string, unknown> = {
+      const result: Partial<DrawingsSlice> = {
         drawings: s.drawings.map((d) => (d.id === id ? { ...d, ...patch } as Drawing : d)),
       };
       if (!skipUndo) {
         const existing = s.drawings.find((d) => d.id === id);
-        const previous: Record<string, unknown> = {};
+        const previous: Partial<Drawing> = {};
         if (existing) {
           for (const key of Object.keys(patch)) {
-            previous[key] = existing[key as keyof typeof existing];
+            (previous as Record<string, unknown>)[key] = existing[key as keyof typeof existing];
           }
         }
         result.drawingUndoStack = [
           ...s.drawingUndoStack,
-          { type: 'update', drawingId: id, previous },
+          { type: 'update' as const, drawingId: id, previous },
         ].slice(-50);
 
         const rectKeys = ['extendMode', 'middleLine', 'middleLineColor', 'middleLineStyle'] as const;
@@ -147,60 +147,60 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
             updated.fillColor = (typedPatch.fillColor as string) ?? cur.fillColor;
           }
           if ('mode' in patch || cur.mode) {
-            updated.mode = (p.mode as 'anchor' | 'range') ?? cur.mode;
+            updated.mode = (typedPatch.mode as 'anchor' | 'range') ?? cur.mode;
           }
           // FRVP-specific defaults
           if ('numBars' in patch || cur.numBars !== undefined) {
-            updated.numBars = (p.numBars as number) ?? cur.numBars;
+            updated.numBars = (typedPatch.numBars as number) ?? cur.numBars;
           }
           if ('rowSizeMode' in patch || cur.rowSizeMode !== undefined) {
-            updated.rowSizeMode = (p.rowSizeMode as 'count' | 'price') ?? cur.rowSizeMode;
+            updated.rowSizeMode = (typedPatch.rowSizeMode as 'count' | 'price') ?? cur.rowSizeMode;
           }
           if ('rowSizePrice' in patch || cur.rowSizePrice !== undefined) {
-            updated.rowSizePrice = (p.rowSizePrice as number) ?? cur.rowSizePrice;
+            updated.rowSizePrice = (typedPatch.rowSizePrice as number) ?? cur.rowSizePrice;
           }
           if ('rowTickSize' in patch || cur.rowTickSize !== undefined) {
-            updated.rowTickSize = (p.rowTickSize as number) ?? cur.rowTickSize;
+            updated.rowTickSize = (typedPatch.rowTickSize as number) ?? cur.rowTickSize;
           }
           if ('pocColor' in patch || cur.pocColor !== undefined) {
-            updated.pocColor = (p.pocColor as string) ?? cur.pocColor;
+            updated.pocColor = (typedPatch.pocColor as string) ?? cur.pocColor;
           }
           if ('showPoc' in patch || cur.showPoc !== undefined) {
-            updated.showPoc = (p.showPoc as boolean) ?? cur.showPoc;
+            updated.showPoc = (typedPatch.showPoc as boolean) ?? cur.showPoc;
           }
           if ('extendPoc' in patch || cur.extendPoc !== undefined) {
-            updated.extendPoc = (p.extendPoc as boolean) ?? cur.extendPoc;
+            updated.extendPoc = (typedPatch.extendPoc as boolean) ?? cur.extendPoc;
           }
           if ('showBarValues' in patch || cur.showBarValues !== undefined) {
-            updated.showBarValues = (p.showBarValues as boolean) ?? cur.showBarValues;
+            updated.showBarValues = (typedPatch.showBarValues as boolean) ?? cur.showBarValues;
           }
           if ('valuesBgColor' in patch || cur.valuesBgColor !== undefined) {
-            updated.valuesBgColor = (p.valuesBgColor as string | undefined) ?? cur.valuesBgColor;
+            updated.valuesBgColor = (typedPatch.valuesBgColor as string | undefined) ?? cur.valuesBgColor;
           }
           if ('barPlacement' in patch || cur.barPlacement !== undefined) {
-            updated.barPlacement = (p.barPlacement as 'left' | 'right' | 'middle') ?? cur.barPlacement;
+            updated.barPlacement = (typedPatch.barPlacement as 'left' | 'right' | 'middle') ?? cur.barPlacement;
           }
           if ('barOffset' in patch || cur.barOffset !== undefined) {
-            updated.barOffset = (p.barOffset as number) ?? cur.barOffset;
+            updated.barOffset = (typedPatch.barOffset as number) ?? cur.barOffset;
           }
           if ('barLength' in patch || cur.barLength !== undefined) {
-            updated.barLength = (p.barLength as number) ?? cur.barLength;
+            updated.barLength = (typedPatch.barLength as number) ?? cur.barLength;
           }
           if ('volumeType' in patch || cur.volumeType !== undefined) {
-            updated.volumeType = (p.volumeType as 'total' | 'delta' | 'updown') ?? cur.volumeType;
+            updated.volumeType = (typedPatch.volumeType as 'total' | 'delta' | 'updown') ?? cur.volumeType;
           }
           // Rect-specific defaults
           if ('extendMode' in patch || cur.extendMode !== undefined) {
-            updated.extendMode = (p.extendMode as RectExtendMode) ?? cur.extendMode;
+            updated.extendMode = (typedPatch.extendMode as RectExtendMode) ?? cur.extendMode;
           }
           if ('middleLine' in patch || cur.middleLine !== undefined) {
-            updated.middleLine = (p.middleLine as boolean) ?? cur.middleLine;
+            updated.middleLine = (typedPatch.middleLine as boolean) ?? cur.middleLine;
           }
           if ('middleLineColor' in patch || cur.middleLineColor !== undefined) {
-            updated.middleLineColor = (p.middleLineColor as string) ?? cur.middleLineColor;
+            updated.middleLineColor = (typedPatch.middleLineColor as string) ?? cur.middleLineColor;
           }
           if ('middleLineStyle' in patch || cur.middleLineStyle !== undefined) {
-            updated.middleLineStyle = (p.middleLineStyle as LineStyle) ?? cur.middleLineStyle;
+            updated.middleLineStyle = (typedPatch.middleLineStyle as LineStyle) ?? cur.middleLineStyle;
           }
           result.drawingDefaults = {
             ...s.drawingDefaults,
@@ -221,7 +221,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
         drawings: s.drawings.filter((d) => d.id !== id),
         selectedDrawingIds: s.selectedDrawingIds.filter((sid) => sid !== id),
         drawingUndoStack: drawing
-          ? [...s.drawingUndoStack, { type: 'remove', drawing }].slice(-50)
+          ? [...s.drawingUndoStack, { type: 'remove' as const, drawing }].slice(-50)
           : s.drawingUndoStack,
       };
     }),
@@ -233,7 +233,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
       return {
         drawings: s.drawings.filter((d) => !idSet.has(d.id)),
         selectedDrawingIds: [],
-        drawingUndoStack: [...s.drawingUndoStack, { type: 'bulkRemove', drawings: removed }].slice(-50),
+        drawingUndoStack: [...s.drawingUndoStack, { type: 'bulkRemove' as const, drawings: removed }].slice(-50),
       };
     }),
   undoDrawing: () =>
@@ -280,7 +280,7 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
       return {
         drawings: [],
         selectedDrawingIds: [],
-        drawingUndoStack: [...s.drawingUndoStack, { type: 'clear', drawings: s.drawings }].slice(-50),
+        drawingUndoStack: [...s.drawingUndoStack, { type: 'clear' as const, drawings: s.drawings }].slice(-50),
       };
     }),
   toggleMagnet: () => set((s) => ({ magnetEnabled: !s.magnetEnabled })),

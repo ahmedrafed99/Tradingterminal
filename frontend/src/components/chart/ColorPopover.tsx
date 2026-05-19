@@ -203,7 +203,7 @@ export function ColorSwatchButton({
     const opensAbove = triggerRect.bottom + 4 + popoverH > window.innerHeight;
     const next = opensAbove
       ? { bottom: window.innerHeight - triggerRect.top + 4, left }
-      : { top: r.bottom + 4, left };
+      : { top: triggerRect.bottom + 4, left };
     setPos((prev) => {
       if (prev) {
         const topEq = Math.abs((prev.top ?? 0) - (next.top ?? 0)) < 0.5;

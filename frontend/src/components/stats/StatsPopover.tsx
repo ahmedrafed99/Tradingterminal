@@ -17,7 +17,6 @@ import {
   buildDayOfWeekData,
   buildDurationComparison,
 } from '../../utils/tradeStats';
-import type { GroupedTrade } from '../../utils/tradeStats';
 
 export function StatsPopover({ onClose }: { onClose: () => void }) {
   const [visible, setVisible] = useState(false);

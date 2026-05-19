@@ -13,15 +13,12 @@ const MAX_DURATION_MS = 60 * 60 * 1000; // 60 min auto-stop safeguard
 class RecordingService {
   private _state: RecordingState = 'idle';
   private _startTime = 0;
-  private _chartId = '';
   private _recorder: MediaRecorder | null = null;
   private _writable: FileSystemWritableFileStream | null = null;
   private _writeError: Error | null = null;
   private _rafId = 0;
-  private _compositeCanvas: HTMLCanvasElement | null = null;
   private _micStream: MediaStream | null = null;
   private _autoStopTimer = 0;
-  private _dirHandle: FileSystemDirectoryHandle | null = null;
   private _listeners = new Set<() => void>();
 
   get state(): RecordingState { return this._state; }
@@ -46,7 +43,6 @@ class RecordingService {
       dirHandle = await pickDirectory();
       if (!dirHandle) return false;
     }
-    this._dirHandle = dirHandle;
 
     const entry = getChartEntry(chartId);
     if (!entry?.containerEl) return false;
@@ -70,11 +66,9 @@ class RecordingService {
     const composite = document.createElement('canvas');
     composite.width = container.clientWidth * devicePixelRatio;
     composite.height = container.clientHeight * devicePixelRatio;
-    this._compositeCanvas = composite;
 
     const ctx = composite.getContext('2d')!;
     this._writeError = null;
-    this._chartId = chartId;
 
     // rAF loop — draw all canvases at their positions + overlays
     const loop = () => {
@@ -192,10 +186,8 @@ class RecordingService {
     }
 
     this._recorder = null;
-    this._compositeCanvas = null;
     // Keep _dirHandle alive so next recording doesn't need re-pick
     this._state = 'idle';
-    this._chartId = '';
     this.notify();
   }
 }

@@ -217,7 +217,6 @@ function tradePoints(t: GroupedTrade | null): number | null {
 }
 
 export function StatsKpiCards({ stats }: { stats: TradeStats }) {
-  const pf = stats.profitFactor === Infinity ? '∞' : stats.profitFactor.toFixed(2);
   const [bestWorstMode, setBestWorstMode] = useState<BestWorstMode>('$');
 
   return (

@@ -38,7 +38,6 @@ export function BuySellButtons() {
     positions: s.positions,
     accounts: s.accounts,
   })));
-  const typeLabel = orderType === 'market' ? 'Market' : 'Limit';
   const [placing, setPlacing] = useState<'buy' | 'sell' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [bid, setBid] = useState<number | null>(null);

@@ -5,7 +5,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 export function SLTPInputs() {
   const {
     activePresetId, bracketPresets, draftSlPoints, draftTpPoints,
-    adHocSlPoints, adHocTpLevels, activeExchange, orderSize,
+    adHocSlPoints, adHocTpLevels, orderContract, orderSize,
     setDraftSlPoints, setDraftTpPoints,
     setAdHocSlPoints, addAdHocTp, updateAdHocTpPoints, removeAdHocTp,
     suspendedPresetId,
@@ -16,7 +16,7 @@ export function SLTPInputs() {
     draftTpPoints: s.draftTpPoints,
     adHocSlPoints: s.adHocSlPoints,
     adHocTpLevels: s.adHocTpLevels,
-    activeExchange: s.activeExchange,
+    orderContract: s.orderContract,
     orderSize: s.orderSize,
     setDraftSlPoints: s.setDraftSlPoints,
     setDraftTpPoints: s.setDraftTpPoints,
@@ -27,7 +27,7 @@ export function SLTPInputs() {
     suspendedPresetId: s.suspendedPresetId,
   })));
 
-  const isCrypto = activeExchange !== 'projectx';
+  const isCrypto = orderContract?.marketType === 'crypto';
   const unit = isCrypto ? 'USD' : 'pt';
 
   // Resolve current values

@@ -25,12 +25,17 @@ const FONT = `bold 12px ${FONT_FAMILY}`;
 // Renderer — tooltip box + upward triangle anchored to the candle low
 // ---------------------------------------------------------------------------
 class GoToTooltipRenderer implements IPrimitivePaneRenderer {
-  constructor(
-    private _x: number,       // candle centre X
-    private _lowY: number,    // candle low Y coordinate
-    private _text: string,
-    private _paneW: number,
-  ) {}
+  private _x: number;
+  private _lowY: number;
+  private _text: string;
+  private _paneW: number;
+
+  constructor(x: number, lowY: number, text: string, paneW: number) {
+    this._x = x;
+    this._lowY = lowY;
+    this._text = text;
+    this._paneW = paneW;
+  }
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx }) => {

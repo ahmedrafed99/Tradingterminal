@@ -1,4 +1,4 @@
-import type { Incident, SessionSummary } from './types';
+import type { Incident } from './types';
 import { metricCollector } from './metricCollector';
 
 // ---------------------------------------------------------------------------
@@ -161,7 +161,7 @@ class LogWriter {
     const snap = metricCollector.getSnapshot();
     const now = Date.now();
     const durationMs = now - snap.sessionStartTime;
-    const serverGaps = incidents.filter((i) => i.nodeId === 'network' && i.type === 'freeze').length;
+    const serverGaps = incidents.filter((i) => (i.nodeId === 'market-hub' || i.nodeId === 'user-hub') && i.type === 'freeze').length;
     const appLags    = incidents.filter((i) => i.nodeId === 'adapter' || (i.nodeId === 'chart' && i.type === 'lag')).length;
 
     let frozenMs = 0;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadDirectoryHandle, pickDirectory, clearDirectoryHandle, getReadyDirectoryHandle } from '../chart/recording/directoryHandle';
+import { loadDirectoryHandle, pickDirectory, clearDirectoryHandle } from '../chart/recording/directoryHandle';
 
 const MIC_KEY = 'recording-mic-enabled';
 

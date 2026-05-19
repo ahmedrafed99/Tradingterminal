@@ -109,20 +109,30 @@ function _measureCtx(): CanvasRenderingContext2D {
 
 // ── Renderer ───────────────────────────────────────────────────────────────────
 class QORenderer implements IPrimitivePaneRenderer {
+  private _y: number | null;
+  private _cellRects: CellRect[];
+  private _cells: Map<string, CellDef>;
+  private _hoveredKey: string | null;
+  private _hoveredZone: 'left' | 'right' | null;
+
   constructor(
-    private _y: number | null,
-    private _plotWidth: number,
-    private _cellRects: CellRect[],
-    private _cells: Map<string, CellDef>,
-    private _hoveredKey: string | null,
-    private _hoveredZone: 'left' | 'right' | null,
-  ) {}
+    y: number | null,
+    _plotWidth: number,
+    cellRects: CellRect[],
+    cells: Map<string, CellDef>,
+    hoveredKey: string | null,
+    hoveredZone: 'left' | 'right' | null,
+  ) {
+    this._y = y;
+    this._cellRects = cellRects;
+    this._cells = cells;
+    this._hoveredKey = hoveredKey;
+    this._hoveredZone = hoveredZone;
+  }
 
   draw(target: CanvasRenderingTarget2D): void {
     if (this._y === null || this._cellRects.length === 0) return;
     target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const yCoord = this._y!;
-
       // Cells
       ctx.save();
       ctx.font = FONT;

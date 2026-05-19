@@ -3,10 +3,12 @@ import type {
   SeriesAttachedParameter,
   IPrimitivePaneView,
   IPrimitivePaneRenderer,
+  PrimitivePaneViewZOrder,
   SeriesType,
   Time,
   ISeriesApi,
   IChartApi,
+  Coordinate,
 } from 'lightweight-charts';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { NewsEvent } from '../../../types/news';
@@ -16,7 +18,7 @@ import { FONT_FAMILY } from '../../../constants/layout';
 const MARKER_RADIUS = 10;
 const BOTTOM_OFFSET = 14;
 
-import { COLOR_SELL, COLOR_BUY, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_NEWS_EVENT, COLOR_NEWS_EVENT_HOVER } from '../../../constants/colors';
+import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_NEWS_EVENT, COLOR_NEWS_EVENT_HOVER } from '../../../constants/colors';
 
 const MARKER_FILL = COLOR_NEWS_EVENT + '2e'; // 18% opacity
 import { SHADOW, RADIUS } from '../../../constants/layout';
@@ -108,7 +110,7 @@ class NewsMarkersPaneView implements IPrimitivePaneView {
     return new NewsMarkersRenderer(this._markers, this._paneHeight, this._hoveredIdx);
   }
 
-  zOrder(): string {
+  zOrder(): PrimitivePaneViewZOrder {
     return 'normal';
   }
 }
@@ -342,7 +344,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
       // Fall back to linear extrapolation for future events beyond last candle
       if (x === null && lastCandleX !== null && eventSec > lastCandleTime && pxPerSec !== 0) {
-        x = (lastCandleX + (eventSec - lastCandleTime) * pxPerSec) as typeof lastCandleX;
+        x = (lastCandleX + (eventSec - lastCandleTime) * pxPerSec) as Coordinate;
       }
 
       if (x === null) continue;

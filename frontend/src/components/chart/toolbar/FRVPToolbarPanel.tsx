@@ -26,7 +26,7 @@ export function FRVPToolbarPanel({
   return (
     <div className="relative">
       <button
-        onClick={() => setShowSettings((v) => !v)}
+        onClick={() => setShowSettings(!showSettings)}
         className={`${btnBase} ${showSettings ? btnActive : btnHover}`}
         title="FRVP settings"
       >

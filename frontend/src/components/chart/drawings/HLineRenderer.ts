@@ -11,9 +11,9 @@ class HLineRendererImpl implements IPrimitivePaneRenderer {
   private _drawing: HLineDrawing;
   private _selected: boolean;
   private _series: ISeriesApi<SeriesType>;
-  private _chart: IChartApiBase<never>;
+  private _chart: IChartApiBase<Time>;
 
-  constructor(drawing: HLineDrawing, selected: boolean, series: ISeriesApi<SeriesType>, chart: IChartApiBase<never>) {
+  constructor(drawing: HLineDrawing, selected: boolean, series: ISeriesApi<SeriesType>, chart: IChartApiBase<Time>) {
     this._drawing = drawing;
     this._selected = selected;
     this._series = series;
@@ -145,13 +145,13 @@ export class HLinePaneView implements IPrimitivePaneView {
   private _drawing: HLineDrawing;
   private _selected: boolean;
   private _series: ISeriesApi<SeriesType>;
-  private _chart: IChartApiBase<never>;
+  private _chart: IChartApiBase<Time>;
 
   constructor(
     drawing: HLineDrawing,
     selected: boolean,
     series: ISeriesApi<SeriesType>,
-    chart: IChartApiBase<never>,
+    chart: IChartApiBase<Time>,
   ) {
     this._drawing = drawing;
     this._selected = selected;

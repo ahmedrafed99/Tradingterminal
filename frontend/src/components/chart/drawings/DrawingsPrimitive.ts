@@ -828,7 +828,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private _drawings: Drawing[] = [];
   private _selectedIds: string[] = [];
-  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | FRVPPaneView)[] = [];
+  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | MarkerPaneView | FRVPPaneView)[] = [];
 
   // Shared VP VolumeMap ref for all FRVP drawings (real trade ticks, session-scoped)
   private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
@@ -1123,7 +1123,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._paneViews = this._drawings.map((d) => {
       const selected = this._selectedIds.includes(d.id);
       if (d.type === 'hline') {
-        return new HLinePaneView(d, selected, this._series!, this._chart! as unknown as IChartApiBase<never>);
+        return new HLinePaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'rect') {
         return new RectPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'oval') {
@@ -1337,6 +1337,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     const selBottom = Math.max(y1, y2);
     const ids: string[] = [];
     for (const view of this._paneViews) {
+      if (view instanceof MarkerPaneView) continue; // markers are not user-selectable
       const bb = view.getBoundingBox();
       if (!bb) continue;
       // AABB overlap check
@@ -1351,6 +1352,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     // Iterate in reverse (topmost first)
     for (let i = this._paneViews.length - 1; i >= 0; i--) {
       const view = this._paneViews[i];
+      if (view instanceof MarkerPaneView) continue; // markers don't participate in hit testing
       let hit = false;
       if (view instanceof HLinePaneView) {
         hit = view.hitTest(x, y);

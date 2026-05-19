@@ -428,7 +428,7 @@ class MetricCollector {
 
   private onStateTransition(
     node: NodeCounters,
-    from: NodeState,
+    _from: NodeState,
     to: NodeState,
     now: number,
     ratePerMin: number,

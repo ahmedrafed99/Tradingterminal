@@ -3,7 +3,6 @@ import { FONT_FAMILY, RADIUS } from '../../constants/layout';
 import { useStore } from '../../store/useStore';
 import {
   SHORTCUT_DEFS,
-  DEFAULT_SHORTCUTS,
   getEffectiveShortcuts,
   formatKeyCombo,
   type KeyCombo,

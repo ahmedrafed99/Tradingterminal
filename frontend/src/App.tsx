@@ -22,11 +22,8 @@ import { VerticalSeparator } from './components/shared/VerticalSeparator';
 export default function App() {
   const connected = useStore((s) => s.connected);
   const settingsHydrated = useStore((s) => s.settingsHydrated);
-  const contract = useStore((s) => s.contract);
-  const orderContract = useStore((s) => s.orderContract);
   const settingsOpen = useStore((s) => s.settingsOpen);
   const conditionModalOpen = useStore((s) => s.conditionModalOpen);
-  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const bottomPanelRatio = useStore((s) => s.bottomPanelRatio);
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
   const toggleBottomPanel = useStore((s) => s.toggleBottomPanel);

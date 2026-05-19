@@ -51,7 +51,7 @@ export interface TrailToggleParams {
   size: number;
   stopPrice: number;
   trailPrice?: number;
-  targetType: OrderType.Stop | OrderType.TrailingStop;
+  targetType: typeof OrderType.Stop | typeof OrderType.TrailingStop;
 }
 
 interface GatewayResponse {

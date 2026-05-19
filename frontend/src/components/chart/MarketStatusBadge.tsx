@@ -27,7 +27,7 @@ export function MarketStatusBadge({ contract }: { contract: Contract }) {
   // Hide for 24/7 markets — always open, badge is noise
   if (marketType === 'crypto') return null;
 
-  const { open, reopenLabel, closeLabel, session } = useMarketStatus(marketType);
+  const { open, session } = useMarketStatus(marketType);
   const holidayInfo = isHolidayToday();
   const [showTip, setShowTip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

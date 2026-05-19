@@ -110,7 +110,7 @@ export const useStore = create<Store>()(
         bottomPanelRatio: s.bottomPanelRatio,
         bottomPanelPreviousRatio: s.bottomPanelPreviousRatio,
         bottomPanelTab: s.bottomPanelTab,
-        tradesDatePreset: s.tradesDatePreset === 'session' ? 'today' : s.tradesDatePreset,
+        tradesDatePreset: s.tradesDatePreset,
         contract: s.contract,
         secondContract: s.secondContract,
         orderContract: s.orderContract,

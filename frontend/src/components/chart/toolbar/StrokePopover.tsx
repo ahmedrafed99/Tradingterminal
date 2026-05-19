@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { RADIUS, Z } from '../../../constants/layout';
+import { Z } from '../../../constants/layout';
 import type { LineStyle } from '../../../types/drawing';
 import { STROKE_WIDTH_OPTIONS } from '../../../types/drawing';
 import { LINE_STYLE_DEFS } from './lineStyleDefs';

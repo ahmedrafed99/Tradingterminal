@@ -39,8 +39,8 @@ function cmeSessionDay(isoStr: string): string {
  * FIFO matching is scoped per (contractId × CME session day) so entries
  * from one session never absorb exits from a different session.
  */
-export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
-  const map = new Map<number, Trade>();
+export function buildEntryMap(sessionTrades: Trade[]): Map<string, Trade> {
+  const map = new Map<string, Trade>();
 
   // Group by contractId × session day
   const byContract = new Map<string, { opens: Trade[]; closes: Trade[] }>();
@@ -67,7 +67,7 @@ export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
     );
 
     // Track remaining unclaimed size per entry trade (supports partial exits)
-    const remaining = new Map<number, number>();
+    const remaining = new Map<string, number>();
     for (const o of opens) remaining.set(o.id, o.size);
 
     for (const exit of closes) {
@@ -98,7 +98,7 @@ export function buildEntryMap(sessionTrades: Trade[]): Map<number, Trade> {
  */
 export function matchTrades(
   sessionTrades: Trade[],
-  visibleTradeIds: number[],
+  visibleTradeIds: string[],
   contractId: string,
 ): TradeZone[] {
   const entryMap = buildEntryMap(sessionTrades);
@@ -198,7 +198,7 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
       return;
 
     // Ensure minimum width
-    let adjCssX2 = cssX2;
+    let adjCssX2: number = cssX2;
     if (Math.abs(cssX2 - cssX1) < MIN_RECT_W) {
       adjCssX2 = cssX1 + MIN_RECT_W;
     }

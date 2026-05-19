@@ -80,7 +80,7 @@ async function handleRemoteOrder(remoteOrder: any): Promise<void> {
       if (preset) bracketConfig = preset.config;
     }
 
-    const result = await placeOrderWithBrackets({
+    await placeOrderWithBrackets({
       accountId: remoteOrder.accountId,
       contractId: remoteOrder.contractId,
       contract,

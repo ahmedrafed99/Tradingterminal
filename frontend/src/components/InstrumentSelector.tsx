@@ -40,7 +40,7 @@ export function InstrumentSelector({ fixed }: { fixed?: boolean }) {
 
   const {
     query, setQuery, searching, results,
-    showingSearch, displayList, bookmarks,
+    showingSearch, displayList,
     isBookmarked, toggleBookmark,
   } = useInstrumentSearch();
 

@@ -7,8 +7,6 @@ import type { CreateConditionInput, PatchConditionInput, ConditionBracket } from
 import type { BracketPreset } from '../../types/bracket';
 import { Modal } from '../shared/Modal';
 import { CustomSelect } from '../shared/CustomSelect';
-import { INPUT_SURFACE } from '../../constants/styles';
-
 const ALL_TIMEFRAMES = [...DEFAULT_PINNED, ...MORE_TIMEFRAMES];
 
 /* ── toggle switch ── */
@@ -176,11 +174,11 @@ export function ConditionModal() {
         const patch: PatchConditionInput = { ...payload };
         const updated = await conditionService.update(serverUrl, editingConditionId, patch);
         upsertCondition(updated);
-        addToast({ type: 'success', message: 'Condition updated' });
+        addToast({ kind: 'success', title: 'Condition updated', duration: 3000 });
       } else {
         const created = await conditionService.create(serverUrl, payload);
         upsertCondition(created);
-        addToast({ type: 'success', message: 'Condition armed' });
+        addToast({ kind: 'success', title: 'Condition armed', duration: 3000 });
       }
       closeConditionModal();
     } catch (err) {

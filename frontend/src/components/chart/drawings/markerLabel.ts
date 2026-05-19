@@ -33,11 +33,7 @@ export function drawMarkerLabel(ctx: CanvasRenderingContext2D, opts: MarkerLabel
   const fontSize = Math.round((opts.fontSize ?? 12) * vpr);
   ctx.font = `${fontSize}px ${FONT_FAMILY}`;
 
-  const textWidth = ctx.measureText(text).width;
-
-  const padH = Math.round(6 * hpr);
   const padV = Math.round(3 * vpr);
-  const pillW = textWidth + padH * 2;
   const pillH = fontSize + padV * 2;
   const arrowLen = Math.round(18 * vpr);
   const gap = Math.round(14 * vpr);

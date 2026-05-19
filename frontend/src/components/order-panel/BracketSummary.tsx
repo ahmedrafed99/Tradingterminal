@@ -6,7 +6,7 @@ import { SECTION_LABEL } from '../../constants/styles';
 import type { ConditionAction, TakeProfitLevel } from '../../types/bracket';
 import { useClickOutside } from '../../hooks/useClickOutside';
 
-function formatAction(action: ConditionAction, tps: TakeProfitLevel[]): string {
+function formatAction(action: ConditionAction, _tps: TakeProfitLevel[]): string {
   switch (action.kind) {
     case 'moveSLToBreakeven': return 'SL → BE';
     case 'moveSLToPrice': return `SL → +${action.points}pt`;
@@ -187,7 +187,11 @@ export function BracketSummary() {
           {/* Conditions */}
           {config.conditions.map((cond, i) => (
             <div key={i} className="flex justify-between">
-              <span className="text-(--color-text-muted)">TP{cond.trigger.tpIndex + 1} hit</span>
+              <span className="text-(--color-text-muted)">
+                {cond.trigger.kind === 'tpFilled'
+                  ? `TP${cond.trigger.tpIndex + 1} hit`
+                  : `+${cond.trigger.points} pts profit`}
+              </span>
               <span className="text-(--color-accent-text)">{formatAction(cond.action, config.takeProfits)}</span>
             </div>
           ))}

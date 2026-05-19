@@ -3,7 +3,7 @@ import { DEFAULT_ARROWPATH_COLOR } from '../../../types/drawing';
 import type { FRVPDrawing } from '../../../types/drawing';
 import { matchesShortcut, getEffectiveShortcuts } from '../../../constants/shortcuts';
 import type { DrawingContext } from './drawingInteraction';
-import { CROSSHAIR_CURSOR, getMousePos, getDataPos, resetChartInteraction } from './drawingInteraction';
+import { CROSSHAIR_CURSOR, getMousePos, resetChartInteraction } from './drawingInteraction';
 import { CLOSE_BG, CLOSE_BG_HOVER } from './labelUtils';
 
 // ─── Close-cell hover tracking ───
@@ -36,7 +36,7 @@ function getHandleCursor(handle: string): string {
 
 export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
   e.preventDefault();
-  const { state, chart, series, container, primitive, contract } = ctx;
+  const { state, series, container, primitive, contract } = ctx;
   const { activeTool, setActiveTool } = useStore.getState();
 
   // Arrow path in progress: finalize it
@@ -226,7 +226,7 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
 // ═══════════════════════════════════════════════════════════════════
 
 export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
-  const { state, chart, container, primitive } = ctx;
+  const { state, chart, primitive } = ctx;
   const shortcuts = getEffectiveShortcuts(useStore.getState().customShortcuts);
 
   if (matchesShortcut(e, shortcuts['drawing.cancel'])) {

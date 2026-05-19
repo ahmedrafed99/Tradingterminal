@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
-import { SECTION_LABEL } from '../../constants/styles';
 import { realtimeService } from '../../services/realtimeService';
 import { orderService, type Order } from '../../services/orderService';
 import { positionService } from '../../services/positionService';
@@ -647,7 +646,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
           limitPrice: effectiveLimitPrice,
           stopPrice: effectiveStopPrice,
           status: order.status,
-          customTag: effectiveCustomTag,
+          customTag: effectiveCustomTag ?? undefined,
         });
       }
     };
@@ -670,12 +669,12 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
               (o) => String(o.contractId) === String(pos.contractId) && !bracketHandledIds.has(o.id),
             );
             for (const o of contractOrders) {
-              orderService.cancelOrder(acctId, o.id).catch((err) => {
+              orderService.cancelOrder(acctId, o.id).catch((_err) => {
                 showToast('warning', `Failed to cancel order #${o.id}`,
                   'Order may still be open. Check manually.');
               });
             }
-          }).catch((err) => {
+          }).catch((_err) => {
             showToast('warning', 'Failed to fetch orders for cleanup',
               'Some orders may not have been cancelled after position close.');
           });
@@ -704,7 +703,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
               accountId: acctId,
               orderId: slOrder.id,
               size: pos.size,
-            }).catch((err) => {
+            }).catch((_err) => {
               showToast('warning', 'SL size sync failed',
                 `SL size may not match position size (${pos.size}). Check manually.`);
             });

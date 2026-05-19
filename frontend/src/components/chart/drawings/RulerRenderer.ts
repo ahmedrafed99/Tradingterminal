@@ -36,7 +36,7 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
   }
 
   draw(target: CanvasRenderingTarget2D): void {
-    target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr, bitmapSize }) => {
+    target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr, bitmapSize: _bitmapSize }) => {
       const cssX1 = this._chart.timeScale().timeToCoordinate(this._drawing.p1.time as unknown as Time);
       const cssY1 = this._series.priceToCoordinate(this._drawing.p1.price);
       const cssX2 = this._chart.timeScale().timeToCoordinate(this._drawing.p2.time as unknown as Time);
@@ -150,7 +150,7 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
         : `(${metrics.pctChange.toFixed(2)}%)`;
       const line1 = `${priceStr} ${pctStr}`;
       const line2 = `${metrics.barCount} bars, ${metrics.timeSpan}`;
-      const line3 = `Vol ${formatVolume(m.volumeSum)}`;
+      const line3 = `Vol ${formatVolume(metrics.volumeSum)}`;
 
       const fontFamily = FONT_FAMILY;
       const fontSize = Math.round(12 * vpr);
@@ -169,12 +169,12 @@ class RulerRendererImpl implements IPrimitivePaneRenderer {
 
       const boxW = maxTextW + padH * 2;
       const boxH = lineHeight * 3 + padV * 2;
-      const boxX = left + w / 2 - boxW / 2;
+      const boxX = left + width / 2 - boxW / 2;
 
       // Position above top edge, or below bottom edge if not enough room
       const gap = Math.round(6 * vpr);
       let boxY = top - boxH - gap;
-      if (boxY < 0) boxY = top + h + gap;
+      if (boxY < 0) boxY = top + height + gap;
 
       // Background with rounded corners
       const radius = Math.round(4 * vpr);

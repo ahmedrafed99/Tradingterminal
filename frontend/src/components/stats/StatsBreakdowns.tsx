@@ -183,8 +183,6 @@ function MiniDonut({ rate, color, size = 40 }: { rate: number; color: string; si
 function LongVsShort({ long, short }: { long: DirectionStats; short: DirectionStats }) {
   const totalTrades = long.count + short.count;
   const longPct = totalTrades > 0 ? long.count / totalTrades : 0.5;
-  const totalNet = Math.abs(long.totalNet) + Math.abs(short.totalNet);
-  const longNetPct = totalNet > 0 ? Math.abs(long.totalNet) / totalNet * 100 : 50;
 
   const SEP = <div style={{ width: 1, background: 'var(--color-border)', alignSelf: 'stretch' }} />;
 
