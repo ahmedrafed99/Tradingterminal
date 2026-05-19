@@ -306,6 +306,97 @@ frontend/
 
 ---
 
+## Kaggle Backup
+
+The database is automatically backed up to a **private Kaggle dataset** once per day, immediately after the daily local backup runs. This provides off-site storage and a full version history of snapshots.
+
+**Kaggle dataset:** `greenberet99/tradingterm-candles` (private)
+
+---
+
+### How it works
+
+1. The backend creates a local dated snapshot in `backend/data/backups/candles-YYYY-MM-DD.db` (daily, keeps last 7).
+2. Immediately after, `databaseService.ts` spawns `scripts/backup_to_kaggle.py`.
+3. The Python script finds the latest backup file, uploads it to Kaggle as a new dataset version.
+4. If the dataset doesn't exist yet (first run), it creates it automatically.
+
+The Node process does not wait for the upload — it fires and forgets. Upload progress appears in the backend logs under `[kaggle]`.
+
+---
+
+### One-time setup (per machine)
+
+**1. Install dependencies**
+
+```powershell
+cd scripts
+python -m venv venv
+.\venv\Scripts\pip.exe install -r requirements.txt
+```
+
+**2. Authenticate with Kaggle (OAuth — opens browser)**
+
+```powershell
+.\scripts\venv\Scripts\kaggle.exe auth login
+```
+
+This creates `~/.kaggle/credentials.json` with a refresh token. Required once per machine.
+
+---
+
+### Manual backup
+
+Run at any time from the project root:
+
+```powershell
+.\scripts\venv\Scripts\python.exe .\scripts\backup_to_kaggle.py
+```
+
+The script always uploads the **most recent file** in `backend/data/backups/`. If no backup exists yet, it falls back to the live `backend/data/candles.db`.
+
+---
+
+### Restoring from Kaggle
+
+```powershell
+.\scripts\venv\Scripts\kaggle.exe datasets download greenberet99/tradingterm-candles -p backend/data --unzip
+```
+
+This downloads the latest version. To restore a specific historical version, go to the dataset page on kaggle.com, select the version, and download manually.
+
+---
+
+### File structure
+
+```
+scripts/
+  backup_to_kaggle.py     -- upload script (reads latest backup, pushes to Kaggle)
+  requirements.txt        -- kaggle, python-dotenv (pinned)
+  venv/                   -- Python virtual env (gitignored)
+
+backend/
+  data/
+    backups/
+      candles-YYYY-MM-DD.db   -- daily local snapshots (last 7 kept)
+  src/services/
+    databaseService.ts    -- spawns backup_to_kaggle.py after autoBackup()
+```
+
+---
+
+### Logs
+
+Kaggle push output appears in the backend process logs:
+
+```
+[kaggle] Pushed new version: auto-backup candles-2026-05-19
+```
+
+Errors (e.g. no credentials, network failure) are logged to stderr but do not affect normal backend operation — the backup is best-effort.
+
+---
+
 ## Cross-Device Sync (Git LFS) — TODO
 
 The database file is gitignored by default. To share historical data across machines, track it with Git LFS.

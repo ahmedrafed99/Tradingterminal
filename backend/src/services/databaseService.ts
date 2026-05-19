@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { spawn } from 'child_process';
 
 // ---------------------------------------------------------------------------
 // SQLite database for 1-minute candle storage
@@ -263,6 +264,7 @@ export async function autoBackup(): Promise<string | null> {
 
   await db.backup(destPath);
   console.log(`[database] Auto-backup → ${destPath}`);
+  pushToKaggle();
 
   // Rotate: delete oldest backups beyond MAX_BACKUPS
   const files = fs.readdirSync(BACKUP_DIR)
@@ -281,6 +283,17 @@ export async function autoBackup(): Promise<string | null> {
 /** Get the backup dir path (for manual backup destination). */
 export function getBackupDir(): string {
   return BACKUP_DIR;
+}
+
+// project root is three levels up from backend/src/services/
+const PYTHON_EXE = path.join(__dirname, '..', '..', '..', 'scripts', 'venv', 'Scripts', 'python.exe');
+const KAGGLE_SCRIPT = path.join(__dirname, '..', '..', '..', 'scripts', 'backup_to_kaggle.py');
+
+function pushToKaggle(): void {
+  if (!fs.existsSync(PYTHON_EXE)) return;
+  const proc = spawn(PYTHON_EXE, [KAGGLE_SCRIPT], { stdio: 'pipe' });
+  proc.stdout.on('data', (d) => console.log('[kaggle]', d.toString().trim()));
+  proc.stderr.on('data', (d) => console.error('[kaggle]', d.toString().trim()));
 }
 
 export function getDbPath(): string {
