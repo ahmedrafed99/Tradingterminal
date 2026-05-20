@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore';
 import { useShallow } from 'zustand/react/shallow';
 import { Modal } from '../shared/Modal';
 import { CustomSelect } from '../shared/CustomSelect';
+import { SpinnerInput } from '../SpinnerInput';
 import { getTicksPerPoint } from '../../utils/instrument';
 import type {
   BracketConfig,
@@ -375,27 +376,28 @@ function StopLossSection({
 }) {
   const displayVal = toDisplay(sl.points, unitMode, tpp, refPrice);
   const step = unitStep(unitMode);
-  const label = `Distance (${unitLabel(unitMode)})`;
+  const unit = unitLabel(unitMode);
 
   return (
     <div className="grid grid-cols-2" style={{ gap: '12px' }}>
       <label>
-        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>{label}</span>
-        <input
-          type="number"
-          min={0}
-          step={step}
+        <span className="block text-xs text-(--color-text)" style={{ marginBottom: '6px' }}>Distance</span>
+        <SpinnerInput
           value={displayVal}
-          onChange={(e) => {
-            const pts = fromDisplay(Math.max(0, +e.target.value || 0), unitMode, tpp, refPrice);
+          onChange={(val) => {
+            const pts = fromDisplay(val, unitMode, tpp, refPrice);
             onChange({ ...sl, points: pts });
           }}
-          className={INPUT_CLS}
-          style={{ padding: '9px 12px' }}
+          min={0}
+          step={step}
+          fullWidth
+          height={34}
+          textAlign="left"
+          suffix={unit}
         />
       </label>
       <label>
-        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>Order Type</span>
+        <span className="block text-xs text-(--color-text)" style={{ marginBottom: '6px' }}>Order Type</span>
         <CustomSelect
           value={sl.type}
           options={[
@@ -482,34 +484,35 @@ function TakeProfitRow({
 }) {
   const displayVal = toDisplay(tp.points, unitMode, tpp, refPrice);
   const step = unitStep(unitMode);
-  const label = unitLabel(unitMode);
+  const unit = unitLabel(unitMode);
 
   return (
     <div className="grid grid-cols-2" style={{ gap: '12px' }}>
       {/* Distance field */}
       <label>
-        <span className="block text-[11px] text-(--color-text-muted)" style={{ marginBottom: '6px' }}>
-          Target {index + 1} ({label})
+        <span className="block text-xs text-(--color-text)" style={{ marginBottom: '6px' }}>
+          Target {index + 1}
         </span>
-        <input
-          type="number"
-          min={unitMode === 'ticks' ? 1 : 0.001}
-          step={step}
+        <SpinnerInput
           value={displayVal}
-          onChange={(e) => {
+          onChange={(val) => {
             const minPts = unitMode === 'ticks' ? 1 / tpp : unitMode === 'pct' ? 0 : 1;
-            const pts = fromDisplay(Math.max(unitMode === 'ticks' ? 1 : 0.001, +e.target.value || (unitMode === 'ticks' ? 1 : 0.001)), unitMode, tpp, refPrice);
+            const pts = fromDisplay(val, unitMode, tpp, refPrice);
             onChange({ ...tp, points: Math.max(minPts, pts) });
           }}
-          className={INPUT_CLS}
-          style={{ padding: '9px 12px' }}
+          min={unitMode === 'ticks' ? 1 : 0.001}
+          step={step}
+          fullWidth
+          height={34}
+          textAlign="left"
+          suffix={unit}
         />
       </label>
 
       {/* Quantity field */}
       <label>
         <div className="flex items-center justify-between" style={{ marginBottom: '6px' }}>
-          <span className="text-[11px] text-(--color-text-muted)">Quantity</span>
+          <span className="text-xs text-(--color-text)">Quantity</span>
           <button
             onClick={onRemove}
             className="text-(--color-text-dim) hover:text-(--color-error) transition-colors cursor-pointer"
@@ -521,14 +524,14 @@ function TakeProfitRow({
             </svg>
           </button>
         </div>
-        <input
-          type="number"
+        <SpinnerInput
+          value={tp.size}
+          onChange={(val) => onChange({ ...tp, size: Math.max(1, val) })}
           min={1}
           step={1}
-          value={tp.size}
-          onChange={(e) => onChange({ ...tp, size: Math.max(1, +e.target.value || 1) })}
-          className={INPUT_CLS}
-          style={{ padding: '9px 12px' }}
+          fullWidth
+          height={34}
+          textAlign="left"
         />
       </label>
     </div>
@@ -609,7 +612,7 @@ function ConditionRow({
 }) {
   const triggerKind = condition.trigger.kind;
   const actionKind = condition.action.kind;
-  const label = unitLabel(unitMode);
+  const unit = unitLabel(unitMode);
   const step = unitStep(unitMode);
 
   // Build action options (skip "Move SL to Target N" self-reference for tpFilled triggers)
@@ -653,7 +656,7 @@ function ConditionRow({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* When — trigger kind selector + sub-input */}
       <div className="flex items-center" style={{ gap: '10px' }}>
-        <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>When</span>
+        <span className="text-xs text-(--color-text) font-medium shrink-0" style={{ width: '36px' }}>When</span>
         <div className="flex-1 flex items-center" style={{ gap: '8px' }}>
           {/* Trigger type dropdown */}
           <CustomSelect
@@ -684,19 +687,20 @@ function ConditionRow({
           )}
           {triggerKind === 'profitReached' && (
             <div className="flex items-center flex-1" style={{ gap: '6px' }}>
-              <input
-                type="number"
-                min={step}
-                step={step}
+              <SpinnerInput
                 value={profitDisplayVal}
-                onChange={(e) => {
-                  const pts = fromDisplay(Math.max(step, +e.target.value || step), unitMode, tpp, refPrice);
+                onChange={(val) => {
+                  const pts = fromDisplay(val, unitMode, tpp, refPrice);
                   onChange({ ...condition, trigger: { kind: 'profitReached', points: Math.max(1, pts) } });
                 }}
-                className="w-16 bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
-                style={{ padding: '7px 8px' }}
+                min={step}
+                step={step}
+                inputWidth={52}
+                height={30}
+                textAlign="left"
+                suffix={unit}
               />
-              <span className="text-[11px] text-(--color-text-muted) shrink-0">{label} profit</span>
+              <span className="text-xs text-(--color-text) shrink-0">profit</span>
             </div>
           )}
         </div>
@@ -715,7 +719,7 @@ function ConditionRow({
 
       {/* Then */}
       <div className="flex items-center" style={{ gap: '10px' }}>
-        <span className="text-[11px] text-(--color-text-muted) font-medium uppercase shrink-0" style={{ width: '36px' }}>Then</span>
+        <span className="text-xs text-(--color-text) font-medium shrink-0" style={{ width: '36px' }}>Then</span>
         <CustomSelect
           value={encodeAction()}
           options={actionOptions.map((o) => ({ value: o.value, label: o.label }))}
@@ -728,19 +732,20 @@ function ConditionRow({
       {/* Custom offset input */}
       {actionKind === 'customOffset' && (
         <div className="flex items-center" style={{ marginLeft: '46px', gap: '8px' }}>
-          <input
-            type="number"
-            min={step}
-            step={step}
+          <SpinnerInput
             value={offsetDisplayVal}
-            onChange={(e) => {
-              const pts = fromDisplay(Math.max(step, +e.target.value || step), unitMode, tpp, refPrice);
+            onChange={(val) => {
+              const pts = fromDisplay(val, unitMode, tpp, refPrice);
               onChange({ ...condition, action: { kind: 'customOffset', points: Math.max(1, pts) } });
             }}
-            className="w-20 bg-(--color-input) border border-(--color-border) rounded-lg text-xs text-white text-center focus:outline-none focus:border-(--color-accent)/50 transition-all [&::-webkit-inner-spin-button]:appearance-none"
-            style={{ padding: '6px 8px' }}
+            min={step}
+            step={step}
+            inputWidth={64}
+            height={30}
+            textAlign="left"
+            suffix={unit}
           />
-          <span className="text-[11px] text-(--color-text-muted)">{label} past entry</span>
+          <span className="text-xs text-(--color-text)">past entry</span>
         </div>
       )}
     </div>

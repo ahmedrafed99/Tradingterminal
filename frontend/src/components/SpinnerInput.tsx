@@ -9,6 +9,8 @@ interface SpinnerInputProps {
   inputWidth?: number;
   height?: number;
   fullWidth?: boolean;
+  textAlign?: 'left' | 'center' | 'right';
+  suffix?: string;
 }
 
 const PX_PER_STEP = 2;
@@ -28,6 +30,8 @@ export function SpinnerInput({
   inputWidth = 44,
   height = 26,
   fullWidth = false,
+  textAlign = 'center',
+  suffix,
 }: SpinnerInputProps) {
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -110,16 +114,39 @@ export function SpinnerInput({
         }}
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          ...(fullWidth ? { flex: 1 } : { width: inputWidth }),
+          ...(suffix
+            ? { flex: 'none', width: `${Math.max(2, inputStr.length) + 0.5}ch`, boxSizing: 'content-box' }
+            : fullWidth
+              ? { flex: 1 }
+              : { width: inputWidth }),
           border: 'none',
           background: 'transparent',
           color: 'var(--color-text)',
           fontSize: 12,
-          textAlign: 'center',
-          padding: '0 4px',
+          textAlign,
+          padding: textAlign === 'left' ? '0 4px 0 10px' : textAlign === 'right' ? '0 10px 0 4px' : '0 4px',
           outline: 'none',
         }}
       />
+      {suffix && (
+        <>
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              paddingLeft: 2,
+              paddingRight: 6,
+              color: 'var(--color-text)',
+              fontSize: 12,
+              pointerEvents: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {suffix}
+          </span>
+          <div style={{ flex: 1 }} />
+        </>
+      )}
       <div
         onMouseDown={startDrag}
         style={{
