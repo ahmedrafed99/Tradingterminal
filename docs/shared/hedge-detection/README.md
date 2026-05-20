@@ -6,7 +6,7 @@ Client-side safety guard that prevents placing orders that would create a hedgin
 
 ## What counts as a hedge
 
-A hedge occurs when an open position exists in one direction and a new order would put you in the opposite direction — on any account, for the same symbol or its micro/standard sibling.
+A hedge occurs when an open position exists in one direction and a new order would *leave* you exposed in the opposite direction at the same time — on any account, for the same symbol or its micro/standard sibling.
 
 **Blocked combinations (any account):**
 
@@ -17,6 +17,10 @@ A hedge occurs when an open position exists in one direction and a new order wou
 | Long NQ | Short NQ or Short MNQ |
 
 The rule applies across all accounts simultaneously. Having a long on account A and trying to short on account B is blocked just the same as doing it on the same account.
+
+### Flips on the active account
+
+An order on the active account that's larger than the existing same-contract position (e.g. sell 5 when long 3) is **not** a hedge by itself — the broker nets the 3 flat and opens the remaining 2 in the opposite direction. The guard allows this *unless* another conflicting position exists on a different account (or sibling contract), which would leave you hedged after the flip.
 
 ---
 
@@ -53,6 +57,8 @@ When a hedge would result from placing the order:
 - A warning row appears below the buttons identifying the conflict:  
   `"Hedge blocked: Long ES open on Account A"`
 - If an order somehow reaches `placeOrderWithBrackets` (chart quick-order, bot), a last-resort check throws and surfaces the same message as a toast
+
+A flip on the active account (orderSize > own position size) is allowed as long as no other conflicting position would remain after the flip.
 
 The check runs on every render — it is fully reactive. The moment a conflicting position opens (via WebSocket push), the buttons disable automatically with no user action required.
 

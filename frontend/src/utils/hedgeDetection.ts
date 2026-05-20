@@ -58,19 +58,24 @@ export function detectHedge(
 ): HedgeConflict | null {
   const conflictingType = orderSide === OrderSide.Buy ? PositionType.Short : PositionType.Long;
 
-  // If this order closes/reduces an existing position on the same account+contract,
-  // no short is ever created — skip the entire hedge check.
-  const isClosingOwn = positions.some(
+  // Active-account, same-contract position that this order would close or flip.
+  const ownPos = positions.find(
     (p) => p.contractId === orderContractId
       && p.accountId === activeAccountId
       && p.type === conflictingType
-      && p.size >= orderSize,
+      && p.size > 0,
   );
-  if (isClosingOwn) return null;
 
+  // Pure close/reduce (size >= orderSize) — no opposite position is ever created.
+  if (ownPos && ownPos.size >= orderSize) return null;
+
+  // Flip (ownPos.size < orderSize) or fresh order. A flip is only a hedge if
+  // another conflicting position exists elsewhere; otherwise the broker nets
+  // the own position flat and opens the remainder cleanly.
   for (const pos of positions) {
     if (pos.size <= 0) continue;
     if (pos.type !== conflictingType) continue;
+    if (pos === ownPos) continue;
 
     const isSameContract = pos.contractId === orderContractId;
     const isSibling = !isSameContract && areSiblings(pos.contractId, orderContractId, orderBaseSymbol);
