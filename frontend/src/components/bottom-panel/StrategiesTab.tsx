@@ -9,8 +9,10 @@ import {
 } from '../../services/liveStrategyService';
 import { IS_DEMO } from '../../adapters/demo/index';
 import { resolveConditionServerUrl } from '../../store/slices/conditionsSlice';
-import { RADIUS, Z } from '../../constants/layout';
+import { Z } from '../../constants/layout';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -126,124 +128,77 @@ function ConfigModal({ strategy, serverUrl, onClose, onStarted }: ConfigModalPro
     }
   }
 
-  return (
+  const footer = (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0"
-        style={{ zIndex: (Z.MODAL ?? 200) - 1, background: 'rgba(0,0,0,0.4)' }}
-        onClick={onClose}
-      />
-      {/* Modal — matches Popover shell */}
-      <div
-        className="fixed bg-(--color-surface) border border-(--color-border) rounded-xl shadow-lg"
-        style={{ zIndex: Z.MODAL ?? 200, width: 380, top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }}
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
+      <Button variant="secondary" onClick={onClose} disabled={loading}>
+        Cancel
+      </Button>
+      <Button
+        variant="primary"
+        onClick={handleStart}
+        disabled={loading || !accountId || !contractId}
       >
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px 10px' }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>
-            Start — {strategy.name}
-          </span>
-          <button
-            onClick={onClose}
-            className="focus:outline-none"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              width: 22, height: 22, borderRadius: RADIUS.MD,
-              border: 'none', background: 'transparent', cursor: 'pointer',
-              color: 'var(--color-text-muted)',
-              transition: 'background var(--transition-fast), color var(--transition-fast)',
-              flexShrink: 0,
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
-            </svg>
-          </button>
-        </div>
-
-        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
-
-        {/* Body */}
-        <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Account */}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] text-(--color-text-medium)">Account</span>
-            <select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim) cursor-pointer"
-              style={{ padding: '10px 12px' }}
-            >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>{a.name || a.id}</option>
-              ))}
-              {accounts.length === 0 && <option value="" disabled>No accounts</option>}
-            </select>
-          </label>
-
-          {/* Contract ID */}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] text-(--color-text-medium)">Contract ID</span>
-            <input
-              type="text"
-              value={contractId}
-              onChange={(e) => setContractId(e.target.value)}
-              className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim)"
-              style={{ padding: '10px 12px' }}
-              placeholder="e.g. CON.F.US.MNQ..."
-            />
-          </label>
-
-          {/* Contract Name */}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] text-(--color-text-medium)">Contract Name</span>
-            <input
-              type="text"
-              value={contractName}
-              onChange={(e) => setContractName(e.target.value)}
-              className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim)"
-              style={{ padding: '10px 12px' }}
-              placeholder="e.g. MNQ Sep 2025"
-            />
-          </label>
-
-          {error && (
-            <span className="text-[11px] text-(--color-sell)">{error}</span>
-          )}
-        </div>
-
-        <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
-
-        {/* Footer */}
-        <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="rounded disabled:opacity-50"
-            style={{ fontSize: 13, padding: '5px 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', color: 'var(--color-text)', transition: 'background var(--transition-fast)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-toolbar)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)'; }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleStart}
-            disabled={loading || !accountId || !contractId}
-            className="rounded disabled:opacity-50"
-            style={{ fontSize: 13, padding: '5px 16px', background: 'var(--color-label-close)', color: 'var(--color-label-text)', border: 'none', cursor: 'pointer', transition: 'background var(--transition-fast)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-label-close-hover)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-label-close)'; }}
-          >
-            {loading ? 'Starting…' : 'Start Strategy'}
-          </button>
-        </div>
-      </div>
+        {loading ? 'Starting…' : 'Start Strategy'}
+      </Button>
     </>
+  );
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Start — ${strategy.name}`}
+      width={380}
+      footer={footer}
+    >
+      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* Account */}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11px] text-(--color-text-medium)">Account</span>
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim) cursor-pointer"
+            style={{ padding: '10px 12px' }}
+          >
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>{a.name || a.id}</option>
+            ))}
+            {accounts.length === 0 && <option value="" disabled>No accounts</option>}
+          </select>
+        </label>
+
+        {/* Contract ID */}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11px] text-(--color-text-medium)">Contract ID</span>
+          <input
+            type="text"
+            value={contractId}
+            onChange={(e) => setContractId(e.target.value)}
+            className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim)"
+            style={{ padding: '10px 12px' }}
+            placeholder="e.g. CON.F.US.MNQ..."
+          />
+        </label>
+
+        {/* Contract Name */}
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[11px] text-(--color-text-medium)">Contract Name</span>
+          <input
+            type="text"
+            value={contractName}
+            onChange={(e) => setContractName(e.target.value)}
+            className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim)"
+            style={{ padding: '10px 12px' }}
+            placeholder="e.g. MNQ Sep 2025"
+          />
+        </label>
+
+        {error && (
+          <span className="text-[11px] text-(--color-sell)">{error}</span>
+        )}
+      </div>
+    </Modal>
   );
 }
 

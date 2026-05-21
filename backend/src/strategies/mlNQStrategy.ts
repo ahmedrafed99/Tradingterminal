@@ -449,16 +449,26 @@ export class MLNQStrategy implements ILiveStrategy {
 
       const fills = (fillsRaw?.trades ?? []).filter((f) => f.contractId === contractId);
 
-      // Entry fill = first fill after entry; exit fill = last fill
-      const entryFill = fills[0];
-      const exitFill  = fills[fills.length - 1];
-      const entryPrice = entryFill?.price ?? null;
-      const exitPrice  = exitFill?.price  ?? null;
+      // Entry fills match the signal direction; exit fills are the opposite side.
+      // Use size-weighted average (VWAP) to handle partial TP fills correctly.
+      const entrySide = trade.signal === 'long' ? 0 : 1; // OrderSide.Buy=0, Sell=1
+      const exitSide  = trade.signal === 'long' ? 1 : 0;
+
+      const entryFills = fills.filter((f) => f.side === entrySide);
+      const exitFills  = fills.filter((f) => f.side === exitSide);
+      const entryTotal = entryFills.reduce((s, f) => s + f.size, 0);
+      const exitTotal  = exitFills.reduce((s, f) => s + f.size, 0);
+      const entryPrice = entryTotal > 0
+        ? entryFills.reduce((s, f) => s + f.price * f.size, 0) / entryTotal
+        : null;
+      const exitPrice = exitTotal > 0
+        ? exitFills.reduce((s, f) => s + f.price * f.size, 0) / exitTotal
+        : null;
 
       let pnl: number | null = null;
       if (entryPrice !== null && exitPrice !== null) {
-        const rawPnl = (exitPrice - entryPrice) * trade.contracts;
-        pnl = trade.signal === 'long' ? rawPnl : -rawPnl;
+        const dir = trade.signal === 'long' ? 1 : -1;
+        pnl = (exitPrice - entryPrice) * dir * trade.contracts;
       }
 
       const record = {

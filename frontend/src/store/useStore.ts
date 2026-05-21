@@ -41,7 +41,7 @@ export type { ToastItem } from './slices/toastSlice';
 // ---------------------------------------------------------------------------
 
 // AUTO-BUMPED by pre-commit hook when store slices change. Do not edit manually.
-const STORE_VERSION = 12;
+const STORE_VERSION = 14;
 
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
   & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice & LiveStrategySlice;
@@ -104,9 +104,19 @@ export const useStore = create<Store>()(
         domEnabled: s.domEnabled,
         domColor: s.domColor,
         domHoverExpand: s.domHoverExpand,
+        domRowLayout: s.domRowLayout,
+        domRowSize: s.domRowSize,
+        domBarPlacement: s.domBarPlacement,
+        domBarOffset: s.domBarOffset,
+        domBarLength: s.domBarLength,
         secondDomEnabled: s.secondDomEnabled,
         secondDomColor: s.secondDomColor,
         secondDomHoverExpand: s.secondDomHoverExpand,
+        secondDomRowLayout: s.secondDomRowLayout,
+        secondDomRowSize: s.secondDomRowSize,
+        secondDomBarPlacement: s.secondDomBarPlacement,
+        secondDomBarOffset: s.secondDomBarOffset,
+        secondDomBarLength: s.secondDomBarLength,
         bidAskEnabled: s.bidAskEnabled,
         secondBidAskEnabled: s.secondBidAskEnabled,
         bottomPanelOpen: s.bottomPanelOpen,
