@@ -104,21 +104,30 @@ const DEMO_TRADES = [
 ];
 
 // ─── Historical bar generator ─────────────────────────────────────────────────
-// Cached — called twice (bootstrap seed + axios mock) but must return the same
-// bars both times so the seeded live price matches what the chart loads.
-let _cachedBars: Bar[] | null = null;
+// Cached per period — keyed by periodMs so 1m, 5m, 15m etc. each get their own
+// set of bars with correctly-aligned timestamps.
+// Date.now() is called inside the function (not at module load) so the last
+// bar's timestamp is always the current in-progress period — no gap at the
+// right edge even if the page was open for a while before the chart mounts.
+const _barsCache = new Map<number, Bar[]>();
 
-function generateBars(count = 500): Bar[] {
-  if (_cachedBars) return _cachedBars;
+// Convert BarUnit (1=Sec 2=Min 3=Hr 4=Day 5=Wk 6=Mo) + unitNumber → ms
+function periodMsFrom(unit: number, unitNumber: number): number {
+  const unitMs: Record<number, number> = {
+    1: 1_000, 2: 60_000, 3: 3_600_000, 4: 86_400_000,
+    5: 7 * 86_400_000, 6: 30 * 86_400_000,
+  };
+  return (unitMs[unit] ?? 60_000) * unitNumber;
+}
+
+function generateBars(count = 500, periodMs = 60_000): Bar[] {
+  if (_barsCache.has(periodMs)) return _barsCache.get(periodMs)!;
   let p = 21_350;
   const bars: Bar[] = [];
-  const PERIOD_MS = 5 * 60_000;
-  // Floor 'now' to the current 5-min boundary so the last bar's timestamp
-  // matches what floorToCandlePeriod() produces from a live quote — otherwise
-  // lastBar.time > candleTime and every tick is silently dropped by useChartBars.
-  const base = Math.floor(now / PERIOD_MS) * PERIOD_MS;
+  // Fresh Date.now() so the last bar is always the current in-progress period.
+  const base = Math.floor(Date.now() / periodMs) * periodMs;
   for (let i = count; i >= 0; i--) {
-    const t   = new Date(base - i * PERIOD_MS).toISOString();
+    const t   = new Date(base - i * periodMs).toISOString();
     const o   = p;
     const mv  = (Math.random() - 0.47) * 14 + (Math.random() - 0.5) * 4;
     const c   = Math.round((o + mv) * 4) / 4;
@@ -129,7 +138,7 @@ function generateBars(count = 500): Bar[] {
     bars.push({ t, o, h, l, c, v });
     p = c;
   }
-  _cachedBars = bars;
+  _barsCache.set(periodMs, bars);
   return bars;
 }
 
@@ -185,7 +194,11 @@ const demoAxiosAdapter: AxiosAdapter = (config) => {
     return mockResp({ contracts: [DEMO_CONTRACT], success: true }, config);
   }
   if (url.includes('/market/bars') && method === 'post') {
-    return mockResp({ bars: generateBars(), success: true }, config);
+    const body: { unit?: number; unitNumber?: number } = config.data
+      ? (typeof config.data === 'string' ? JSON.parse(config.data) : config.data)
+      : {};
+    const periodMs = periodMsFrom(body.unit ?? 2, body.unitNumber ?? 1);
+    return mockResp({ bars: generateBars(500, periodMs), success: true }, config);
   }
 
   // Settings (read/write — return empty so useSettingsSync doesn't crash)
