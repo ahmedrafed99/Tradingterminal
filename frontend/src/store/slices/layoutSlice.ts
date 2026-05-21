@@ -91,15 +91,35 @@ export interface MarketDepthState {
   domEnabled: boolean;
   domColor: string;
   domHoverExpand: boolean;
+  domRowLayout: 'count' | 'price';
+  domRowSize: number;
+  domBarPlacement: 'left' | 'right' | 'middle';
+  domBarOffset: number;
+  domBarLength: number;
   secondDomEnabled: boolean;
   secondDomColor: string;
   secondDomHoverExpand: boolean;
+  secondDomRowLayout: 'count' | 'price';
+  secondDomRowSize: number;
+  secondDomBarPlacement: 'left' | 'right' | 'middle';
+  secondDomBarOffset: number;
+  secondDomBarLength: number;
   setDomEnabled: (enabled: boolean) => void;
   setDomColor: (color: string) => void;
   setDomHoverExpand: (enabled: boolean) => void;
+  setDomRowLayout: (mode: 'count' | 'price') => void;
+  setDomRowSize: (size: number) => void;
+  setDomBarPlacement: (placement: 'left' | 'right' | 'middle') => void;
+  setDomBarOffset: (offset: number) => void;
+  setDomBarLength: (length: number) => void;
   setSecondDomEnabled: (enabled: boolean) => void;
   setSecondDomColor: (color: string) => void;
   setSecondDomHoverExpand: (enabled: boolean) => void;
+  setSecondDomRowLayout: (mode: 'count' | 'price') => void;
+  setSecondDomRowSize: (size: number) => void;
+  setSecondDomBarPlacement: (placement: 'left' | 'right' | 'middle') => void;
+  setSecondDomBarOffset: (offset: number) => void;
+  setSecondDomBarLength: (length: number) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -246,15 +266,35 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   domEnabled: false,
   domColor: '#808080',
   domHoverExpand: true,
+  domRowLayout: 'price' as 'count' | 'price',
+  domRowSize: 1,
+  domBarPlacement: 'left' as 'left' | 'right' | 'middle',
+  domBarOffset: 0,
+  domBarLength: 30,
   secondDomEnabled: false,
   secondDomColor: '#808080',
   secondDomHoverExpand: true,
+  secondDomRowLayout: 'price' as 'count' | 'price',
+  secondDomRowSize: 1,
+  secondDomBarPlacement: 'left' as 'left' | 'right' | 'middle',
+  secondDomBarOffset: 0,
+  secondDomBarLength: 30,
   setDomEnabled: (domEnabled) => set({ domEnabled }),
   setDomColor: (domColor) => set({ domColor }),
   setDomHoverExpand: (domHoverExpand) => set({ domHoverExpand }),
+  setDomRowLayout: (domRowLayout) => set({ domRowLayout }),
+  setDomRowSize: (domRowSize) => set({ domRowSize }),
+  setDomBarPlacement: (domBarPlacement) => set({ domBarPlacement }),
+  setDomBarOffset: (domBarOffset) => set({ domBarOffset }),
+  setDomBarLength: (domBarLength) => set({ domBarLength }),
   setSecondDomEnabled: (secondDomEnabled) => set({ secondDomEnabled }),
   setSecondDomColor: (secondDomColor) => set({ secondDomColor }),
   setSecondDomHoverExpand: (secondDomHoverExpand) => set({ secondDomHoverExpand }),
+  setSecondDomRowLayout: (secondDomRowLayout) => set({ secondDomRowLayout }),
+  setSecondDomRowSize: (secondDomRowSize) => set({ secondDomRowSize }),
+  setSecondDomBarPlacement: (secondDomBarPlacement) => set({ secondDomBarPlacement }),
+  setSecondDomBarOffset: (secondDomBarOffset) => set({ secondDomBarOffset }),
+  setSecondDomBarLength: (secondDomBarLength) => set({ secondDomBarLength }),
 
   // Bid/Ask Footprint
   bidAskEnabled: false,

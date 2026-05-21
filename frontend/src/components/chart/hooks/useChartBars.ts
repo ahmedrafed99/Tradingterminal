@@ -51,6 +51,11 @@ export function useChartBars(
   const domEnabled = useStore((s) => chartId === 'left' ? s.domEnabled : chartId === 'right' ? s.secondDomEnabled : false);
   const domColor = useStore((s) => chartId === 'left' ? s.domColor : chartId === 'right' ? s.secondDomColor : '#2196f3');
   const domHoverExpand = useStore((s) => chartId === 'left' ? s.domHoverExpand : chartId === 'right' ? s.secondDomHoverExpand : false);
+  const domRowLayout = useStore((s) => chartId === 'left' ? s.domRowLayout : chartId === 'right' ? s.secondDomRowLayout : 'price');
+  const domRowSize = useStore((s) => chartId === 'left' ? s.domRowSize : chartId === 'right' ? s.secondDomRowSize : 1);
+  const domBarPlacement = useStore((s) => chartId === 'left' ? s.domBarPlacement : chartId === 'right' ? s.secondDomBarPlacement : 'left');
+  const domBarOffset = useStore((s) => chartId === 'left' ? s.domBarOffset : chartId === 'right' ? s.secondDomBarOffset : 0);
+  const domBarLength = useStore((s) => chartId === 'left' ? s.domBarLength : chartId === 'right' ? s.secondDomBarLength : 30);
   const bidAskEnabled = useStore((s) => chartId === 'left' ? s.bidAskEnabled : chartId === 'right' ? s.secondBidAskEnabled : false);
 
   // Bump to force historical bar reload on market hub reconnect
@@ -835,6 +840,26 @@ export function useChartBars(
   useEffect(() => {
     refs.domPrimitive.current?.setHoverExpand(domHoverExpand);
   }, [domHoverExpand]);
+
+  // -- Market depth row layout sync --
+  useEffect(() => {
+    refs.domPrimitive.current?.setRowLayout(domRowLayout, domRowSize);
+  }, [domRowLayout, domRowSize]);
+
+  // -- Market depth bar placement sync --
+  useEffect(() => {
+    refs.domPrimitive.current?.setBarPlacement(domBarPlacement);
+  }, [domBarPlacement]);
+
+  // -- Market depth bar offset sync --
+  useEffect(() => {
+    refs.domPrimitive.current?.setBarOffset(domBarOffset);
+  }, [domBarOffset]);
+
+  // -- Market depth bar length sync --
+  useEffect(() => {
+    refs.domPrimitive.current?.setBarLength(domBarLength);
+  }, [domBarLength]);
 
   // -- Bid/Ask footprint enabled sync --
   useEffect(() => {

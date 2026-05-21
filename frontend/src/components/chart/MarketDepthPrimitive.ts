@@ -53,7 +53,6 @@ const TOOLTIP_BG = 'rgba(19, 23, 34, 0.90)';
 import { COLOR_TEXT } from '../../constants/colors';
 
 const TOOLTIP_TEXT = COLOR_TEXT;
-const MAX_WIDTH_RATIO = 0.30;
 import { FONT_FAMILY } from '../../constants/layout';
 
 /** Data passed from primitive → renderer (no width yet — computed in draw) */
@@ -83,12 +82,18 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
   private _expandMap: Map<number, number>;
   private _hoverExpand: boolean;
   private _requestUpdate: (() => void) | null;
+  private _barPlacement: 'left' | 'right' | 'middle';
+  private _barOffset: number;
+  private _barLength: number;
 
   constructor(
     bars: BarData[], hoverIdx: number,
     barColor: string, hoverColor: string, refLineColor: string,
     expandMap: Map<number, number>, hoverExpand: boolean,
     requestUpdate: (() => void) | null,
+    barPlacement: 'left' | 'right' | 'middle',
+    barOffset: number,
+    barLength: number,
   ) {
     this._bars = bars;
     this._hoverIdx = hoverIdx;
@@ -98,6 +103,9 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
     this._expandMap = expandMap;
     this._hoverExpand = hoverExpand;
     this._requestUpdate = requestUpdate;
+    this._barPlacement = barPlacement;
+    this._barOffset = barOffset;
+    this._barLength = barLength;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -105,7 +113,9 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
       const bars = this._bars;
       if (bars.length === 0) return;
 
-      const maxBarWidth = mediaSize.width * MAX_WIDTH_RATIO;
+      const maxBarWidth = mediaSize.width * (this._barLength / 100);
+      const offset = this._barOffset;
+      const placement = this._barPlacement;
       let needsAnim = false;
 
       // Animate expand values toward targets
@@ -128,8 +138,18 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
         const bar = bars[i];
         const barWidth = bar.volumeRatio * maxBarWidth;
         const expand = this._hoverExpand ? (this._expandMap.get(bar.price) ?? 0) : 0;
+
+        let barX: number;
+        if (placement === 'right') {
+          barX = mediaSize.width - offset - barWidth;
+        } else if (placement === 'middle') {
+          barX = mediaSize.width / 2 + offset;
+        } else {
+          barX = offset; // left
+        }
+
         ctx.fillStyle = i === this._hoverIdx ? this._hoverColor : this._barColor;
-        ctx.fillRect(0, bar.y - expand, barWidth, Math.max(bar.height, 1) + expand * 2);
+        ctx.fillRect(barX, bar.y - expand, barWidth, Math.max(bar.height, 1) + expand * 2);
       }
 
       // Dotted reference line on hover
@@ -140,10 +160,23 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
         ctx.strokeStyle = this._refLineColor;
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 3]);
-        const lineY = hb.y + hb.height / 2;
+        const lineY = hb.y + Math.max(hb.height, 1) / 2;
+
+        let refStart: number, refEnd: number;
+        if (placement === 'right') {
+          refStart = 0;
+          refEnd = mediaSize.width - offset - hbWidth;
+        } else if (placement === 'middle') {
+          refStart = mediaSize.width / 2 + offset + hbWidth;
+          refEnd = mediaSize.width;
+        } else {
+          refStart = offset + hbWidth;
+          refEnd = mediaSize.width;
+        }
+
         ctx.beginPath();
-        ctx.moveTo(hbWidth, lineY);
-        ctx.lineTo(mediaSize.width, lineY);
+        ctx.moveTo(refStart, lineY);
+        ctx.lineTo(refEnd, lineY);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -162,23 +195,36 @@ class MarketDepthTooltipRenderer implements IPrimitivePaneRenderer {
   private _hoverIdx: number;
   private _expandMap: Map<number, number>;
   private _hoverExpand: boolean;
+  private _barPlacement: 'left' | 'right' | 'middle';
+  private _barOffset: number;
+  private _barLength: number;
 
   constructor(
     bars: BarData[], hoverIdx: number,
     expandMap: Map<number, number>, hoverExpand: boolean,
+    barPlacement: 'left' | 'right' | 'middle',
+    barOffset: number,
+    barLength: number,
   ) {
     this._bars = bars;
     this._hoverIdx = hoverIdx;
     this._expandMap = expandMap;
     this._hoverExpand = hoverExpand;
+    this._barPlacement = barPlacement;
+    this._barOffset = barOffset;
+    this._barLength = barLength;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
     if (this._hoverIdx < 0 || this._hoverIdx >= this._bars.length) return;
 
-    target.useMediaCoordinateSpace(({ context: ctx }) => {
+    target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
       const hb = this._bars[this._hoverIdx];
       const expand = this._hoverExpand ? (this._expandMap.get(hb.price) ?? 0) : 0;
+      const maxBarWidth = mediaSize.width * (this._barLength / 100);
+      const hbWidth = hb.volumeRatio * maxBarWidth;
+      const offset = this._barOffset;
+      const placement = this._barPlacement;
 
       const volText = hb.volume.toLocaleString();
       ctx.font = `11px ${FONT_FAMILY}`;
@@ -186,7 +232,20 @@ class MarketDepthTooltipRenderer implements IPrimitivePaneRenderer {
       const pad = 5;
       const tooltipW = textWidth + pad * 2;
       const tooltipH = 18;
-      const tooltipX = 4;
+
+      // Position tooltip near the bar edge, inside the bar area
+      let tooltipX: number;
+      if (placement === 'right') {
+        const barX = mediaSize.width - offset - hbWidth;
+        tooltipX = barX + 4;
+      } else if (placement === 'middle') {
+        tooltipX = mediaSize.width / 2 + offset + 4;
+      } else {
+        tooltipX = offset + 4;
+      }
+      // Clamp so tooltip doesn't overflow right edge
+      tooltipX = Math.min(tooltipX, mediaSize.width - tooltipW - 4);
+
       const barTop = hb.y - expand;
       const barH = Math.max(hb.height, 1) + expand * 2;
       const tooltipY = barTop + barH / 2 - tooltipH / 2;
@@ -217,11 +276,17 @@ class MarketDepthBarsPaneView implements IPrimitivePaneView {
   _expandMap: Map<number, number> = new Map();
   _hoverExpand = true;
   _requestUpdate: (() => void) | null = null;
+  _barPlacement: 'left' | 'right' | 'middle' = 'left';
+  _barOffset = 0;
+  _barLength = 30;
 
   update(
     bars: BarData[], hoverIdx: number,
     barColor: string, hoverColor: string, refLineColor: string,
     hoverExpand: boolean, requestUpdate: (() => void) | null,
+    barPlacement: 'left' | 'right' | 'middle',
+    barOffset: number,
+    barLength: number,
   ): void {
     this._bars = bars;
     this._hoverIdx = hoverIdx;
@@ -230,6 +295,9 @@ class MarketDepthBarsPaneView implements IPrimitivePaneView {
     this._refLineColor = refLineColor;
     this._hoverExpand = hoverExpand;
     this._requestUpdate = requestUpdate;
+    this._barPlacement = barPlacement;
+    this._barOffset = barOffset;
+    this._barLength = barLength;
   }
 
   renderer(): IPrimitivePaneRenderer {
@@ -237,6 +305,7 @@ class MarketDepthBarsPaneView implements IPrimitivePaneView {
       this._bars, this._hoverIdx,
       this._barColor, this._hoverColor, this._refLineColor,
       this._expandMap, this._hoverExpand, this._requestUpdate,
+      this._barPlacement, this._barOffset, this._barLength,
     );
   }
 
@@ -250,21 +319,33 @@ class MarketDepthTooltipPaneView implements IPrimitivePaneView {
   _hoverIdx = -1;
   _expandMap: Map<number, number>; // shared ref with bars view
   _hoverExpand = true;
+  _barPlacement: 'left' | 'right' | 'middle' = 'left';
+  _barOffset = 0;
+  _barLength = 30;
 
   constructor(expandMap: Map<number, number>) {
     this._expandMap = expandMap;
   }
 
-  update(bars: BarData[], hoverIdx: number, hoverExpand: boolean): void {
+  update(
+    bars: BarData[], hoverIdx: number, hoverExpand: boolean,
+    barPlacement: 'left' | 'right' | 'middle',
+    barOffset: number,
+    barLength: number,
+  ): void {
     this._bars = bars;
     this._hoverIdx = hoverIdx;
     this._hoverExpand = hoverExpand;
+    this._barPlacement = barPlacement;
+    this._barOffset = barOffset;
+    this._barLength = barLength;
   }
 
   renderer(): IPrimitivePaneRenderer {
     return new MarketDepthTooltipRenderer(
       this._bars, this._hoverIdx,
       this._expandMap, this._hoverExpand,
+      this._barPlacement, this._barOffset, this._barLength,
     );
   }
 
@@ -287,6 +368,17 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
   private _enabled = false;
   private _hoverPrice: number | null = null;
   private _hoverExpand = true;
+
+  // Row layout settings
+  private _rowSizeMode: 'count' | 'price' = 'price';
+  private _numRows = 20;       // used when rowSizeMode === 'count'
+  private _rowSizeTicks = 1;   // used when rowSizeMode === 'price'
+  private _lastRowHeight = 0;  // computed in _buildBars; used for hover hit-test
+
+  // Bar style settings
+  private _barPlacement: 'left' | 'right' | 'middle' = 'left';
+  private _barOffset = 0;
+  private _barLength = 30; // 1–100 (% of chart width)
 
   // Derived color strings (from hex)
   private _barColor = 'rgba(128, 128, 128, 0.22)';
@@ -335,6 +427,28 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  setRowLayout(mode: 'count' | 'price', rowSize: number): void {
+    this._rowSizeMode = mode;
+    if (mode === 'count') this._numRows = Math.max(1, rowSize);
+    else this._rowSizeTicks = Math.max(1, rowSize);
+    this._requestUpdate?.();
+  }
+
+  setBarPlacement(placement: 'left' | 'right' | 'middle'): void {
+    this._barPlacement = placement;
+    this._requestUpdate?.();
+  }
+
+  setBarOffset(offset: number): void {
+    this._barOffset = Math.max(0, offset);
+    this._requestUpdate?.();
+  }
+
+  setBarLength(length: number): void {
+    this._barLength = Math.max(1, Math.min(100, length));
+    this._requestUpdate?.();
+  }
+
   /** Replace the entire volume map (used on snapshot) */
   setVolumeMap(map: VolumeMap): void {
     this._volumeMap = map;
@@ -363,10 +477,10 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
     if (price === this._hoverPrice) return;
     const prev = this._hoverPrice;
     this._hoverPrice = price;
-    // Skip repaint if hover stays on the same bar (or stays off)
-    const tickSize = this._tickSize;
-    const prevBar = prev !== null ? Math.round(prev / tickSize) : null;
-    const newBar  = price !== null ? Math.round(price / tickSize) : null;
+    // Skip repaint if hover stays on the same row
+    const rh = this._lastRowHeight > 0 ? this._lastRowHeight : this._tickSize;
+    const prevBar = prev !== null ? Math.floor(prev / rh) : null;
+    const newBar  = price !== null ? Math.floor(price / rh) : null;
     if (prevBar !== newBar) this._requestUpdate?.();
   }
 
@@ -388,8 +502,15 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
 
     const bars = this._buildBars();
     const hoverIdx = this._findHoverIdx(bars);
-    this._barsView.update(bars, hoverIdx, this._barColor, this._hoverColor, this._refLineColor, this._hoverExpand, this._requestUpdate);
-    this._tooltipView.update(bars, hoverIdx, this._hoverExpand);
+    this._barsView.update(
+      bars, hoverIdx, this._barColor, this._hoverColor, this._refLineColor,
+      this._hoverExpand, this._requestUpdate,
+      this._barPlacement, this._barOffset, this._barLength,
+    );
+    this._tooltipView.update(
+      bars, hoverIdx, this._hoverExpand,
+      this._barPlacement, this._barOffset, this._barLength,
+    );
     return this._paneViewsArr;
   }
 
@@ -410,17 +531,55 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
   private _buildBars(): BarData[] {
     const series = this._series;
     if (!series) return [];
+    if (this._maxVolume === 0) return [];
 
-    const maxVol = this._maxVolume;
-    if (maxVol === 0) return [];
-
-    const bars: BarData[] = [];
     const tickSize = this._tickSize;
 
+    // Compute row height in price units
+    let rowHeight: number;
+    if (this._rowSizeMode === 'count') {
+      let minP = Infinity, maxP = -Infinity;
+      for (const p of this._volumeMap.keys()) {
+        if (p < minP) minP = p;
+        if (p > maxP) maxP = p;
+      }
+      if (!isFinite(minP)) return [];
+      const priceRange = maxP - minP + tickSize;
+      rowHeight = priceRange / Math.max(1, this._numRows);
+    } else {
+      // price mode: N ticks per row
+      rowHeight = tickSize * Math.max(1, this._rowSizeTicks);
+    }
+    this._lastRowHeight = rowHeight;
+
+    // Bucket volume map into rows
+    const buckets = new Map<number, { volume: number; priceSum: number; count: number }>();
     for (const [price, volume] of this._volumeMap) {
-      // Bar spans one tick — from price-tickSize/2 to price+tickSize/2
-      const yTop = series.priceToCoordinate(price + tickSize / 2);
-      const yBottom = series.priceToCoordinate(price - tickSize / 2);
+      const key = Math.floor((price + tickSize * 0.5) / rowHeight);
+      const bucket = buckets.get(key);
+      if (bucket) {
+        bucket.volume += volume;
+        bucket.priceSum += price;
+        bucket.count++;
+      } else {
+        buckets.set(key, { volume, priceSum: price, count: 1 });
+      }
+    }
+
+    // Max bucket volume (for ratio normalization)
+    let maxBucketVol = 0;
+    for (const { volume } of buckets.values()) {
+      if (volume > maxBucketVol) maxBucketVol = volume;
+    }
+
+    const bars: BarData[] = [];
+    for (const [key, { volume, priceSum, count }] of buckets) {
+      const priceCenter = priceSum / count;
+      const priceBottom = key * rowHeight;
+      const priceTop = priceBottom + rowHeight;
+
+      const yTop = series.priceToCoordinate(priceTop);
+      const yBottom = series.priceToCoordinate(priceBottom);
       if (yTop === null || yBottom === null) continue;
 
       const top = Math.min(yTop, yBottom);
@@ -429,8 +588,8 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
       bars.push({
         y: top,
         height,
-        volumeRatio: volume / maxVol,
-        price,
+        volumeRatio: volume / maxBucketVol,
+        price: priceCenter,
         volume,
       });
     }
@@ -441,9 +600,9 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
   private _findHoverIdx(bars: BarData[]): number {
     if (this._hoverPrice === null) return -1;
     const hp = this._hoverPrice;
-    const halfTick = this._tickSize / 2;
+    const halfRow = (this._lastRowHeight > 0 ? this._lastRowHeight : this._tickSize) / 2;
     for (let i = 0; i < bars.length; i++) {
-      if (Math.abs(bars[i].price - hp) < halfTick + 0.0001) return i;
+      if (Math.abs(bars[i].price - hp) <= halfRow + 0.0001) return i;
     }
     return -1;
   }

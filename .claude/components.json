@@ -36,6 +36,33 @@
       ]
     }
     ,{
+      "name": "MarketDepthSettingsModal",
+      "description": "Settings modal for the Market Depth indicator. Two tabs: Input (Row Layout dropdown + Row Size spinner) and Style (Color swatch, Hover Expand toggle, Placement dropdown, Offset spinner, Length % spinner). Follows the same pattern as FRVPSettingsPopover — uses Popover shell with persistKey.",
+      "keywords": ["market depth", "dom", "indicator", "settings", "modal", "row layout", "placement", "offset", "length"],
+      "files": [
+        "frontend/src/components/chart/toolbar/MarketDepthSettingsModal.tsx",
+        "frontend/src/store/slices/layoutSlice.ts",
+        "frontend/src/components/chart/MarketDepthPrimitive.ts",
+        "frontend/src/components/chart/hooks/useChartBars.ts",
+        "frontend/src/components/chart/ChartToolbar.tsx"
+      ],
+      "dependencies": [
+        "Popover (shared draggable modal shell)",
+        "ColorSwatchButton (ColorPopover)",
+        "DropdownButton",
+        "SpinnerInput",
+        "layoutSlice (domRowLayout, domRowSize, domBarPlacement, domBarOffset, domBarLength + second* variants)"
+      ],
+      "notes": [
+        "Row Layout: 'count' (N rows over price range) or 'price' (N ticks per row). Default 'price'/1 = original 1-tick-per-row behavior.",
+        "barLength (1–100) maps to % of chart width; default 30 matches old MAX_WIDTH_RATIO=0.30 hardcode.",
+        "Bucketing is done at render time in _buildBars — _volumeMap stays tick-level so FRVP can still read getVolumeMap().",
+        "Placement 'left'=bars from left+offset; 'right'=bars from right-offset growing left; 'middle'=bars from center+offset.",
+        "persistKey='popover-market-depth' so position survives re-opens.",
+        "Pencil button in IndicatorsDropdown closes the dropdown and opens this modal; cancel button reverts all settings via snapshot."
+      ]
+    }
+    ,{
       "name": "DrawingEditToolbar",
       "description": "Floating toolbar that appears when a drawing is selected. Shows type-specific controls: color, fill color, text, stroke width/style, hline extend/template, rect settings, FRVP input/style tabs. Multi-select shows count + delete only.",
       "keywords": ["toolbar", "drawing", "edit", "selected", "color", "stroke", "text", "template", "rect", "hline", "frvp", "delete", "draggable", "bounds"],
