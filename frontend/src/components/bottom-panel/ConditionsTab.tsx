@@ -8,6 +8,7 @@ import type { Condition } from '../../services/conditionService';
 import { shortSymbol } from '../../utils/formatters';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { syncForwarder } from '../../services/conditionTickForwarder';
+import { IS_DEMO } from '../../adapters/demo/index';
 import { OrderSide, OrderStatus, OrderType } from '../../types/enums';
 import { pointsToPrice } from '../../utils/instrument';
 import { fitTpsToOrderSize } from '../chart/hooks/resolvePreviewConfig';
@@ -149,6 +150,8 @@ export function ConditionsTab() {
 
   // SSE connection
   useEffect(() => {
+    if (IS_DEMO) return;
+
     // Initial fetch
     conditionService.getAll(serverUrl).then(setConditions).catch((err) => {
       console.error('[ConditionsTab] Initial fetch failed:', err instanceof Error ? err.message : err);

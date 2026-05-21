@@ -18,6 +18,7 @@ import { getCmeSessionStart, getDateRange } from './utils/cmeSession';
 import { allTradesCache } from './components/bottom-panel/TradesTab';
 import { tradeService } from './services/tradeService';
 import { VerticalSeparator } from './components/shared/VerticalSeparator';
+import { IS_DEMO } from './adapters/demo/index';
 
 export default function App() {
   const connected = useStore((s) => s.connected);
@@ -61,6 +62,7 @@ export default function App() {
 
   // Listen for backend-pushed events (e.g. remote disconnect via Telegram)
   useEffect(() => {
+    if (IS_DEMO) return;
     let active = true;
     const ws = new WebSocket('ws://localhost:3001/ws/events');
     ws.onopen = () => { if (!active) ws.close(); };

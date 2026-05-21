@@ -263,11 +263,20 @@ const demoAxiosAdapter: AxiosAdapter = (config) => {
   return mockResp({ success: true }, config);
 };
 
+// ─── Demo flag ────────────────────────────────────────────────────────────────
+/**
+ * True once bootstrapDemoMode() has been called.
+ * Import this anywhere that opens raw browser connections (WebSocket, EventSource,
+ * fetch) that bypass the axios mock — guard those with `if (IS_DEMO) return`.
+ */
+export let IS_DEMO = false;
+
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 // Round to nearest 0.25-pt tick
 function roundTick(p: number): number { return Math.round(p * 4) / 4; }
 
 export function bootstrapDemoMode(): void {
+  IS_DEMO = true;
   // Seed the live price from the last historical bar so the current candle
   // continues exactly where history ended — no gap at the right edge.
   const seedBars  = generateBars();

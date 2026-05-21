@@ -142,7 +142,7 @@ class AudioService {
       this.indices.set(name, 0);
       // Always include the default clip first
       const list: { audio: HTMLAudioElement; id?: number; name: string }[] = [
-        { audio: this.createAudio(`/sounds/${name}/1.mp3`), name: 'Default' },
+        { audio: this.createAudio(`${import.meta.env.BASE_URL}sounds/${name}/1.mp3`), name: 'Default' },
       ];
       // Append any user-uploaded clips
       const records = await getAllClips(name);

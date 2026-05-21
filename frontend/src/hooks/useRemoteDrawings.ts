@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
+import { IS_DEMO } from '../adapters/demo/index';
 import { placeOrderWithBrackets } from '../services/placeOrderWithBrackets';
 import { OrderType, OrderSide } from '../types/enums';
 import type { BracketConfig } from '../types/bracket';
@@ -22,6 +23,7 @@ export function useRemoteDrawings(): void {
   clearAllRef.current = clearAllDrawings;
 
   useEffect(() => {
+    if (IS_DEMO) return;
     const es = new EventSource('/drawings/events');
 
     es.onmessage = (e) => {

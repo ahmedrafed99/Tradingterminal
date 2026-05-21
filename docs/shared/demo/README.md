@@ -6,12 +6,20 @@ A fully self-contained demo that runs the real frontend with synthetic NQ data �
 
 ## How it works
 
-Demo mode is activated at startup by calling `bootstrapDemoMode()` from `frontend/src/adapters/demo/index.ts`. This does two things before React renders:
+Demo mode is activated at startup by calling `bootstrapDemoMode()` from `frontend/src/adapters/demo/index.ts`. This does three things before React renders:
 
-1. **Replaces the axios adapter** — every REST call (`/auth/status`, `/accounts`, `/market/bars`, `/positions/open`, etc.) returns a hardcoded mock response without touching the network.
-2. **Installs `DemoRealtimeAdapter`** — replaces the ProjectX SignalR adapter. No WebSocket connections are made. The adapter emits synthetic NQ price ticks at 280ms intervals and fires a fake long position + SL/TP bracket orders after a 400ms delay.
+1. **Sets `IS_DEMO = true`** — exported flag used by any code that opens raw browser connections (WebSocket, EventSource) that bypass the axios mock. Import and guard with `if (IS_DEMO) return`.
+2. **Replaces the axios adapter** — every REST call (`/auth/status`, `/accounts`, `/market/bars`, `/positions/open`, etc.) returns a hardcoded mock response without touching the network.
+3. **Installs `DemoRealtimeAdapter`** — replaces the ProjectX SignalR adapter. No WebSocket connections are made. The adapter emits synthetic NQ price ticks at 280ms intervals and fires a fake long position + SL/TP bracket orders after a 400ms delay.
 
 The rest of the app boots exactly as normal and never knows it's in demo mode.
+
+> **Adding new backend connections?** If you open a raw `WebSocket`, `EventSource`, or `fetch` (not through axios), guard it:
+> ```ts
+> import { IS_DEMO } from '../adapters/demo/index';
+> if (IS_DEMO) return;
+> ```
+> Currently guarded: `ws://localhost:3001/ws/events` (App.tsx) and `/drawings/events` (useRemoteDrawings.ts).
 
 ### Key files
 
