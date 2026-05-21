@@ -305,7 +305,7 @@ export function StrategiesTab() {
         style={{ zIndex: Z.HEADER }}
       >
         <div className={`grid ${cols} items-center h-8 text-(--color-text-muted) pl-4`} style={{ width: '70%' }}>
-          <div className="px-3">Name</div>
+          <div style={{ paddingLeft: 24 }}>Name</div>
           <div className="px-3 text-center">Status</div>
           <div className="px-3 text-center">Signal</div>
           <div className="px-3 text-center">Bars</div>
@@ -334,7 +334,7 @@ export function StrategiesTab() {
           <div key={strategy.id} className={`${stripe} row-hover`}>
             <div className={`grid ${cols} items-center h-7 pl-4`} style={{ width: '70%' }}>
               {/* Name */}
-              <div className="px-3 text-(--color-text) truncate" title={strategy.description}>
+              <div className="text-(--color-text) truncate" style={{ paddingLeft: 24 }} title={strategy.description}>
                 {strategy.name}
               </div>
 
@@ -374,7 +374,10 @@ export function StrategiesTab() {
                     style={{ width: 22, height: 22 }}
                     title="Stop"
                   >
-                    {busy || isTransitioning(strategy.state) ? '…' : '■'}
+                    {busy || isTransitioning(strategy.state)
+                      ? '…'
+                      : <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><rect width="10" height="10" rx="1.5" /></svg>
+                    }
                   </button>
                 )}
               </div>
