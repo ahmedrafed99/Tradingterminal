@@ -90,7 +90,10 @@ export function useChartContextMenu(
 
       const rect = container!.getBoundingClientRect();
       const localX = e.clientX - rect.left;
-      const localY = e.clientY - rect.top;
+      // priceToCoordinate returns pane-relative Y; find the pane canvas top to match.
+      // Falls back to container top if the canvas isn't found (single-pane charts always have it).
+      const paneCanvas = chart.chartElement().querySelector('tr:first-child td:first-child canvas') as HTMLCanvasElement | null;
+      const localY = e.clientY - (paneCanvas?.getBoundingClientRect().top ?? rect.top);
       const time = chart.timeScale().coordinateToTime(localX);
       if (time == null) return;
 

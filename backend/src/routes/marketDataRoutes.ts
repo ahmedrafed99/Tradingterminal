@@ -152,7 +152,10 @@ const ChartApiTestQuery = z.object({
   live:       z.enum(['true', 'false']).optional().default('false'),
 });
 
-router.get('/chartapi-test', validateQuery(ChartApiTestQuery), async (req, res) => {
+router.get('/chartapi-test', (req, res, next) => {
+  if (process.env.NODE_ENV === 'production') { res.status(404).json({ success: false, error: 'Not found' }); return; }
+  next();
+}, validateQuery(ChartApiTestQuery), async (req, res) => {
   const { symbol, resolution, from, to, countback, live } = req.query as Record<string, string>;
 
   try {

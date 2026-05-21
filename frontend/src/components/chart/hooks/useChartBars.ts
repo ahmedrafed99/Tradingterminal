@@ -337,10 +337,11 @@ export function useChartBars(
 
         // For tick bars: initialise tick counter from the partial bar's tv field.
         // tv tells us how many ticks are already in the forming bar; we need (unitNumber - tv) more.
+        // If tv >= unitNumber the bar is already closed — set to 0 so the next live tick opens a new bar.
         if (timeframe.unit === 7 && sorted.length > 0) {
           const partialBar = sorted[sorted.length - 1];
           const tvSoFar = partialBar.tv ?? 0;
-          ticksRemainingRef.current = Math.max(1, timeframe.unitNumber - tvSoFar);
+          ticksRemainingRef.current = tvSoFar >= timeframe.unitNumber ? 0 : Math.max(0, timeframe.unitNumber - tvSoFar);
           refs.countdown.current?.setTicksRemaining(ticksRemainingRef.current);
         }
 
@@ -676,6 +677,7 @@ export function useChartBars(
             refs.bars.current.push({ t: new Date(safeTime * 1000).toISOString(), o: tick.price, h: tick.price, l: tick.price, c: tick.price, v: 0 });
             refs.drawingsPrimitive.current?.setLastBarTime(safeTime);
             useStore.getState().setLastBarTime(safeTime);
+            pendingBarVolume = tick.size; // first tick of the new bar
             ticksRemainingRef.current = timeframe.unitNumber - 1; // this tick already counted
             refs.countdown.current?.setTicksRemaining(ticksRemainingRef.current);
           } else {
@@ -689,8 +691,17 @@ export function useChartBars(
               close: tick.price,
             };
             refs.lastBar.current = updated;
+            pendingBarVolume += tick.size;
             ticksRemainingRef.current -= 1;
             refs.countdown.current?.setTicksRemaining(ticksRemainingRef.current);
+            // Keep refs.bars.current in sync immediately so context-menu hit-testing
+            // (isOverCandle) sees current h/l without waiting for the next RAF flush.
+            const lastBarData = refs.bars.current[refs.bars.current.length - 1];
+            if (lastBarData) {
+              if (updated.high > lastBarData.h) lastBarData.h = updated.high;
+              if (updated.low  < lastBarData.l) lastBarData.l = updated.low;
+              lastBarData.c = tick.price;
+            }
             pendingBar   = updated;
             pendingPrice = tick.price;
             if (!quoteRafId) quoteRafId = requestAnimationFrame(flushQuote);

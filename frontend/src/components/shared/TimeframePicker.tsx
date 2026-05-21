@@ -5,6 +5,7 @@ import { useClickOutside } from '../../hooks/useClickOutside';
 import { SHADOW, Z } from '../../constants/layout';
 import { SECTION_LABEL } from '../../constants/styles';
 import { SpinnerInput } from '../SpinnerInput';
+import { CustomSelect } from './CustomSelect';
 
 const UNIT_OPTIONS = [
   { value: 1, label: 'Seconds', suffix: 's' },
@@ -41,40 +42,7 @@ export function StarIcon({ filled, color }: { filled: boolean; color?: string })
   );
 }
 
-function UnitDropdown({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, open, () => setOpen(false));
-  const current = UNIT_OPTIONS.find((u) => u.value === value);
-  return (
-    <div ref={ref} className="relative flex-1">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-1 text-xs text-(--color-text) bg-(--color-panel) border border-(--color-border) rounded-md hover:border-(--color-text-dim) transition-colors"
-        style={{ padding: '5px 8px' }}
-      >
-        <span>{current?.label ?? 'Minutes'}</span>
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
-          <path d="M2.5 3.75L5 6.25L7.5 3.75" />
-        </svg>
-      </button>
-      {open && (
-        <div className="absolute top-full mt-1 left-0 right-0 bg-(--color-surface) border border-(--color-border) rounded-md overflow-hidden"
-          style={{ zIndex: Z.DROPDOWN + 1, boxShadow: SHADOW.LG }}>
-          {UNIT_OPTIONS.map((u) => (
-            <button
-              key={u.value}
-              onClick={() => { onChange(u.value); setOpen(false); }}
-              className={`w-full text-left text-xs px-2 py-1.5 transition-colors ${value === u.value ? 'bg-(--color-text) text-(--color-surface)' : 'text-(--color-text) hover:bg-(--color-hover-row)'}`}
-            >
-              {u.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+const UNIT_SELECT_OPTIONS = UNIT_OPTIONS.map((u) => ({ value: String(u.value), label: u.label }));
 
 export interface TimeframePickerProps {
   value: Timeframe;
@@ -259,7 +227,13 @@ export function TimeframePicker({
                     inputWidth={40}
                     height={28}
                   />
-                  <UnitDropdown value={customUnit} onChange={(v) => { setCustomUnit(v); setShowDupeError(false); }} />
+                  <CustomSelect
+                    value={String(customUnit)}
+                    options={UNIT_SELECT_OPTIONS}
+                    onChange={(v) => { setCustomUnit(Number(v)); setShowDupeError(false); }}
+                    padding="5px 8px"
+                    className="flex-1"
+                  />
                   <button
                     onClick={handleApplyCustom}
                     className={`text-xs font-medium rounded-md bg-(--color-panel) border transition-all shrink-0 ${
