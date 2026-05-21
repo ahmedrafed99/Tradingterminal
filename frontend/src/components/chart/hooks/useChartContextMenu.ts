@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { ChartRefs } from './types';
+import type { Bar } from '../../../services/marketDataService';
 import { getCandlePeriodSeconds } from '../barUtils';
 import { useStore, type Timeframe } from '../../../store/useStore';
 
@@ -13,6 +14,19 @@ export interface ContextMenuState {
 export interface TimeScaleMenuState {
   x: number;
   y: number;
+}
+
+/** Binary-search bars (sorted by time) for the one whose open time matches utcSeconds. */
+function findBarByTime(bars: Bar[], utcSeconds: number): Bar | null {
+  let lo = 0, hi = bars.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const t = Math.floor(new Date(bars[mid].t).getTime() / 1000);
+    if (t === utcSeconds) return bars[mid];
+    if (t < utcSeconds) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return null;
 }
 
 export function useChartContextMenu(
@@ -33,6 +47,21 @@ export function useChartContextMenu(
   useEffect(() => {
     const container = refs.container.current;
     if (!container) return;
+
+    function setCursorOnCanvases(cursor: string) {
+      container!.querySelectorAll('canvas').forEach((c) => { c.style.cursor = cursor; });
+    }
+
+    /** Returns true if pointY (pane-local px) is within the candle's high–low range. */
+    function isOverCandle(utcSeconds: number, pointY: number): boolean {
+      const bar = findBarByTime(refs.bars.current, utcSeconds);
+      if (!bar) return false;
+      const series = refs.series.current;
+      const highY = series?.priceToCoordinate(bar.h) ?? null;
+      const lowY  = series?.priceToCoordinate(bar.l) ?? null;
+      if (highY == null || lowY == null) return false;
+      return pointY >= highY && pointY <= lowY;
+    }
 
     function handleContextMenu(e: MouseEvent) {
       e.preventDefault();
@@ -61,11 +90,15 @@ export function useChartContextMenu(
 
       const rect = container!.getBoundingClientRect();
       const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
       const time = chart.timeScale().coordinateToTime(localX);
       if (time == null) return;
 
       const lastBar = refs.lastBar.current;
       if (lastBar && (time as number) > (lastBar.time as number)) return;
+
+      // Only show menu when clicking directly on a candle (within high–low range)
+      if (!isOverCandle(time as number, localY)) return;
 
       setTimeScaleMenuState(null);
       setMenuState({
@@ -76,8 +109,24 @@ export function useChartContextMenu(
       });
     }
 
+    // Cursor hint via subscribeCrosshairMove (fires for every mouse move over the chart)
+    const chart = refs.chart.current;
+    let unsubCrosshair: (() => void) | null = null;
+    if (chart) {
+      const handler = (param: { time?: unknown; point?: { x: number; y: number } }) => {
+        if (!param.time || !param.point) { setCursorOnCanvases(''); return; }
+        setCursorOnCanvases(isOverCandle(param.time as number, param.point.y) ? 'pointer' : '');
+      };
+      chart.subscribeCrosshairMove(handler);
+      unsubCrosshair = () => chart.unsubscribeCrosshairMove(handler);
+    }
+
     container.addEventListener('contextmenu', handleContextMenu);
-    return () => container.removeEventListener('contextmenu', handleContextMenu);
+    return () => {
+      container.removeEventListener('contextmenu', handleContextMenu);
+      unsubCrosshair?.();
+      setCursorOnCanvases('');
+    };
   }, [refs, timeframe]);
 
   return { menuState, closeMenu, timeScaleMenuState, closeTimeScaleMenu };
