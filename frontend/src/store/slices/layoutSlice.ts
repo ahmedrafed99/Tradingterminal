@@ -40,7 +40,7 @@ export interface UiState {
 export interface BottomPanelState {
   bottomPanelOpen: boolean;
   bottomPanelRatio: number;
-  bottomPanelTab: 'orders' | 'positions' | 'trades' | 'conditions' | 'stats';
+  bottomPanelTab: 'orders' | 'positions' | 'trades' | 'conditions' | 'stats' | 'strategies';
   tradesDatePreset: DatePreset;
   sessionTrades: Trade[];
   displayTrades: Trade[];
@@ -54,7 +54,7 @@ export interface BottomPanelState {
   setBottomPanelPreviousRatio: (ratio: number) => void;
   setBottomPanelOpen: (open: boolean) => void;
   setBottomPanelRatio: (ratio: number) => void;
-  setBottomPanelTab: (tab: 'orders' | 'positions' | 'trades' | 'conditions' | 'stats') => void;
+  setBottomPanelTab: (tab: 'orders' | 'positions' | 'trades' | 'conditions' | 'stats' | 'strategies') => void;
   toggleBottomPanel: () => void;
   setTradesDatePreset: (preset: DatePreset) => void;
   setSessionTrades: (trades: Trade[]) => void;
@@ -181,7 +181,7 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   bottomPanelOpen: false,
   bottomPanelRatio: 0,
   bottomPanelPreviousRatio: 0.3,
-  bottomPanelTab: 'orders' as 'orders' | 'positions' | 'trades' | 'conditions' | 'stats',
+  bottomPanelTab: 'orders' as 'orders' | 'positions' | 'trades' | 'conditions' | 'stats' | 'strategies',
   tradesDatePreset: 'today' as DatePreset,
   sessionTrades: [] as Trade[],
   displayTrades: [] as Trade[],

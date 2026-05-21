@@ -14,6 +14,16 @@ interface Props {
 export function ChartContextMenu({ x, y, candleSeconds, onSelectTimeframe, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [submenuOpen, setSubmenuOpen] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  function openSubmenu() {
+    clearTimeout(closeTimerRef.current);
+    setSubmenuOpen(true);
+  }
+
+  function scheduleClose() {
+    closeTimerRef.current = setTimeout(() => setSubmenuOpen(false), 120);
+  }
 
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
@@ -22,7 +32,10 @@ export function ChartContextMenu({ x, y, candleSeconds, onSelectTimeframe, onClo
       }
     }
     document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown);
+      clearTimeout(closeTimerRef.current);
+    };
   }, [onClose]);
 
   // Adjust position so menu doesn't overflow viewport
@@ -36,8 +49,8 @@ export function ChartContextMenu({ x, y, candleSeconds, onSelectTimeframe, onClo
     >
       <div
         className="relative"
-        onMouseEnter={() => setSubmenuOpen(true)}
-        onMouseLeave={() => setSubmenuOpen(false)}
+        onMouseEnter={openSubmenu}
+        onMouseLeave={scheduleClose}
       >
         <div
           className="flex items-center justify-between hover:bg-(--color-border) transition-colors cursor-default w-full"
@@ -59,16 +72,17 @@ export function ChartContextMenu({ x, y, candleSeconds, onSelectTimeframe, onClo
 
         {submenuOpen && (
           <div
+            onMouseEnter={openSubmenu}
+            onMouseLeave={scheduleClose}
             style={{
               position: 'absolute',
-              top: '100%',
-              left: 0,
-              marginTop: 2,
+              top: 0,
+              left: '100%',
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               borderRadius: RADIUS.LG,
               boxShadow: SHADOW.MD,
-              minWidth: '100%',
+              minWidth: 120,
               zIndex: Z.DROPDOWN + 11,
             }}
           >

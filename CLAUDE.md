@@ -8,6 +8,16 @@ read root readme.md file and use quick lookup table.
 ### When editing a component
 read `.claude/components.json` first — use it to locate relevant files instead of re-exploring the codebase. After editing, update the component's entry if description, keywords, or notes changed.
 
+### When creating a new UI component (modal, popover, menu, button, form, etc.)
+**Always compose from the ui primitives first** — `frontend/src/components/ui/`:
+- `Modal` — accessible dialog with focus trap, backdrop, header/footer. Use instead of a raw `div` overlay.
+- `Button` — all variants (primary, secondary, accent, danger, toolbar, ghost). Never style raw `<button>` manually.
+- `Menu` / `MenuItem` / `MenuContent` — dropdown menus with keyboard nav. Never hand-roll click-outside + positioning.
+
+These primitives use Radix UI for behavior and inline styles + CSS variables for visuals — exactly matching the design system.
+
+Only reach for raw markup when the primitive genuinely doesn't fit. When you do, read at least one existing similar component from the codebase.
+
 ### After making code changes
 don't commit unless user tests
 if a feature changes, always update its relevant documentation

@@ -4,6 +4,7 @@ import { OrdersTab } from './OrdersTab';
 import { PositionsTab } from './PositionsTab';
 import { TradesTab } from './TradesTab';
 import { ConditionsTab } from './ConditionsTab';
+import { StrategiesTab } from './StrategiesTab';
 import { StatsPopover } from '../stats/StatsPopover';
 
 export function BottomPanel() {
@@ -52,6 +53,11 @@ export function BottomPanel() {
           active={tab === 'stats'}
           onClick={() => setTab(tab === 'stats' ? 'trades' : 'stats')}
         />
+        <TabButton
+          label="Strategies"
+          active={tab === 'strategies'}
+          onClick={() => setTab('strategies')}
+        />
       </div>
 
       {/* Content */}
@@ -62,6 +68,10 @@ export function BottomPanel() {
         {/* Keep ConditionsTab mounted (SSE connection alive) but hidden when inactive */}
         <div className={tab === 'conditions' ? undefined : 'hidden'}>
           <ConditionsTab />
+        </div>
+        {/* Keep StrategiesTab mounted (SSE connection alive) but hidden when inactive */}
+        <div className={tab === 'strategies' ? undefined : 'hidden'}>
+          <StrategiesTab />
         </div>
       </div>
 

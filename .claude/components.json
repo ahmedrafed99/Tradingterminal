@@ -395,5 +395,79 @@
         "Account name under symbol (all-accounts filter) is rendered via formatAccountName + last 2 digits of id — e.g. 'Practice - 45'"
       ]
     }
+    ,{
+      "name": "StrategiesTab",
+      "description": "Bottom-panel tab showing live strategy instances. Displays strategy name, status (with colored dot), signal direction, confidence, bar count, and start/stop action. Start opens a config modal (account, contractId, contractName, tickSize). SSE subscription keeps state live.",
+      "keywords": ["strategy", "live strategy", "strategies", "signal", "confidence", "warming up", "running", "start", "stop", "sse"],
+      "files": [
+        "frontend/src/components/bottom-panel/StrategiesTab.tsx",
+        "frontend/src/services/liveStrategyService.ts",
+        "frontend/src/store/slices/liveStrategySlice.ts"
+      ],
+      "dependencies": [
+        "useStore (liveStrategies, setLiveStrategies, updateLiveStrategy, baseUrl, accounts, activeAccountId, contract)",
+        "liveStrategyService (listStrategies, startStrategy, stopStrategy, subscribeStrategies)",
+        "liveStrategySlice (LiveStrategyInfo, StrategyState, createLiveStrategySlice)"
+      ],
+      "notes": [
+        "liveStrategies is NOT persisted — it is live-only state reset on each mount via the SSE snapshot",
+        "serverUrl comes from useStore(s => s.baseUrl) — same base URL as the main backend",
+        "IS_DEMO guard skips both initial fetch and SSE subscription",
+        "Config modal pre-fills contractId/contractName/tickSize from useStore(s => s.contract)"
+      ]
+    }
+    ,{
+      "name": "ui/Modal",
+      "description": "Accessible modal dialog primitive. Built on Radix Dialog — provides focus trap, Escape-to-close, portal rendering, backdrop. Styled with project CSS variables. Use this for ALL new modals instead of raw div overlays.",
+      "keywords": ["modal", "dialog", "popup", "overlay", "primitive", "radix", "focus trap", "backdrop"],
+      "files": [
+        "frontend/src/components/ui/Modal.tsx"
+      ],
+      "dependencies": [
+        "@radix-ui/react-dialog",
+        "RADIUS, SHADOW, Z (constants/layout)"
+      ],
+      "notes": [
+        "Props: open, onClose, title, children, width (440), minHeight, footer (custom ReactNode), onConfirm, confirmLabel ('Ok'), cancelLabel ('Cancel'), hideFooter",
+        "Default footer = Cancel + Ok buttons matching project style; pass footer={<node>} for full custom footer",
+        "Body children render between the two hr dividers — bring your own padding (e.g. style={{ padding: '16px' }})",
+        "Replaces hand-rolled modals and the existing Popover.tsx for non-draggable use cases"
+      ]
+    }
+    ,{
+      "name": "ui/Button",
+      "description": "Shared button primitive with 6 variants. All hover via onMouseEnter/onMouseLeave (inline styles). Never style raw <button> manually — use this.",
+      "keywords": ["button", "cta", "action", "primary", "secondary", "accent", "danger", "toolbar", "ghost", "primitive"],
+      "files": [
+        "frontend/src/components/ui/Button.tsx"
+      ],
+      "dependencies": [
+        "RADIUS (constants/layout)"
+      ],
+      "notes": [
+        "Variants: primary (label-close bg), secondary (surface + border), accent (blue), danger (red), toolbar (input bg pill), ghost (transparent)",
+        "Sizes: sm (12px, 5px 10px), md (13px, 5px 16px)",
+        "forwardRef — usable as Radix asChild trigger",
+        "disabled=true → opacity 0.5 + not-allowed cursor automatically"
+      ]
+    }
+    ,{
+      "name": "ui/Menu",
+      "description": "Dropdown menu primitives built on Radix DropdownMenu. Handles keyboard nav, focus, portal, sub-menus. Use for all context menus and dropdown actions instead of hand-rolling.",
+      "keywords": ["menu", "dropdown", "context menu", "action menu", "submenu", "primitive", "radix"],
+      "files": [
+        "frontend/src/components/ui/Menu.tsx"
+      ],
+      "dependencies": [
+        "@radix-ui/react-dropdown-menu",
+        "RADIUS, SHADOW, Z (constants/layout)"
+      ],
+      "notes": [
+        "Exports: Menu (Root), MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuLabel, MenuSub, MenuSubTrigger, MenuSubContent",
+        "MenuItem props: onSelect, icon, danger (red text), disabled, rightSlot (e.g. shortcut label)",
+        "MenuContent props: align ('start'), side ('bottom'), sideOffset (4), minWidth (168)",
+        "Hover via onMouseEnter/onMouseLeave → --color-hover-row bg (NOT --color-border which is toolbar-only)"
+      ]
+    }
   ]
 }

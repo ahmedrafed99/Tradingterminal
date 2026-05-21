@@ -23,6 +23,8 @@ import blacklistRoutes from './routes/blacklistRoutes';
 import lockoutRoutes from './routes/lockoutRoutes';
 import logRoutes from './routes/logRoutes';
 import backtestRoutes from './routes/backtestRoutes';
+import liveStrategyRoutes from './routes/liveStrategyRoutes';
+import * as liveStrategyManager from './services/liveStrategyManager';
 import WebSocket from 'ws';
 import * as conditionEngine from './services/conditionEngine';
 import * as conditionStore from './services/conditionStore';
@@ -84,6 +86,7 @@ app.use('/blacklist', blacklistRoutes);
 app.use('/lockout', lockoutRoutes);
 app.use('/log', logRoutes);
 app.use('/backtest', backtestRoutes);
+app.use('/strategies', liveStrategyRoutes);
 
 // Health check — connection status, condition engine, backfill
 app.get('/health', (_req, res) => {
@@ -248,6 +251,7 @@ server.listen(PORT, async () => {
   conditionEngine.start();
   backfillService.startAutoSync();
   telegramBot.start();
+  liveStrategyManager.init();
 });
 
 // Graceful shutdown
@@ -255,6 +259,7 @@ process.on('SIGINT', () => {
   telegramBot.stop();
   backfillService.stopAutoSync();
   conditionEngine.stop();
+  liveStrategyManager.shutdown();
   databaseService.close();
   process.exit(0);
 });
@@ -262,6 +267,7 @@ process.on('SIGTERM', () => {
   telegramBot.stop();
   backfillService.stopAutoSync();
   conditionEngine.stop();
+  liveStrategyManager.shutdown();
   databaseService.close();
   process.exit(0);
 });

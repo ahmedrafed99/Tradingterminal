@@ -14,6 +14,7 @@ import { createShortcutsSlice } from './slices/shortcutsSlice';
 import { createBlacklistSlice } from './slices/blacklistSlice';
 import { createLockoutSlice } from './slices/lockoutSlice';
 import { createBacktestSlice } from './slices/backtestSlice';
+import { createLiveStrategySlice } from './slices/liveStrategySlice';
 
 // Slice types
 import type { ConnectionSlice } from './slices/connectionSlice';
@@ -28,6 +29,7 @@ import type { ShortcutsSlice } from './slices/shortcutsSlice';
 import type { BlacklistSlice } from './slices/blacklistSlice';
 import type { LockoutSlice } from './slices/lockoutSlice';
 import type { BacktestSlice } from './slices/backtestSlice';
+import type { LiveStrategySlice } from './slices/liveStrategySlice';
 
 // Re-export commonly used types so consumers don't need to change imports
 export type { Timeframe } from './slices/instrumentSlice';
@@ -42,7 +44,7 @@ export type { ToastItem } from './slices/toastSlice';
 const STORE_VERSION = 12;
 
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
-  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice;
+  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice & LiveStrategySlice;
 
 export const useStore = create<Store>()(
   persist(
@@ -59,6 +61,7 @@ export const useStore = create<Store>()(
       ...createBlacklistSlice(set as any, get as any),
       ...createLockoutSlice(set as any, get as any),
       ...createBacktestSlice(set as any),
+      ...createLiveStrategySlice(set as any),
     }),
     {
       name: 'chart-store',

@@ -62,6 +62,7 @@ export default defineConfig({
       '/blacklist': { target: BACKEND, changeOrigin: true },
       '/lockout':  { target: BACKEND, changeOrigin: true },
       '/backtest': { target: BACKEND, changeOrigin: true },
+      '/strategies': { target: BACKEND, changeOrigin: true },
       '/hubs':    { target: BACKEND, changeOrigin: true, ws: true },
     },
   },
