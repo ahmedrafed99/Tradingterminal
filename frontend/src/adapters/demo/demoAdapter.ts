@@ -23,10 +23,16 @@ import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enu
 export const DEMO_CONTRACT_ID = 'demo-nq-contract';
 export const DEMO_ACCOUNT_ID  = 'demo-account-1';
 
-const ENTRY_PRICE = 21_480;
-const SL_PRICE    = 21_440;
-const TP_PRICE    = 21_560;
-const POS_SIZE    = 2;
+let ENTRY_PRICE = 21_480;
+let SL_PRICE    = 21_440;
+let TP_PRICE    = 21_560;
+const POS_SIZE  = 2;
+
+export function setDemoBracketPrices(entry: number, sl: number, tp: number): void {
+  ENTRY_PRICE = entry;
+  SL_PRICE    = sl;
+  TP_PRICE    = tp;
+}
 
 // Shared mutable price — seeded from the last historical bar by bootstrapDemoMode()
 export let demoPrice = 21_543.25;

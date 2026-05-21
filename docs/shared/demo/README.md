@@ -83,7 +83,7 @@ This runs `vite build --mode demo --base ./`, which:
 
 ## Deploying to the portfolio
 
-The portfolio site (`c:\Users\ahmed\projects\portfolio\portfolio\`) serves demo files as local iframes. The trading terminal demo lives at `trading-terminal/index.html`.
+The portfolio site (`c:\Users\ahmed\projects\portfolio\portfolio\`) serves demo files as local iframes. The trading terminal demo lives at `demos/trading-terminal/index.html`.
 
 ### Build and copy
 
@@ -93,8 +93,8 @@ cd c:\Users\ahmed\projects\tradingterminal\frontend
 npm run build:demo
 
 # 2. Replace the old copy
-Remove-Item ..\..\portfolio\portfolio\trading-terminal -Recurse -Force -ErrorAction SilentlyContinue
-Copy-Item dist ..\..\portfolio\portfolio\trading-terminal -Recurse
+Remove-Item ..\..\portfolio\portfolio\demos\trading-terminal -Recurse -Force -ErrorAction SilentlyContinue
+Copy-Item dist ..\..\portfolio\portfolio\demos\trading-terminal -Recurse
 ```
 
 ### Portfolio entry (`index.html`)

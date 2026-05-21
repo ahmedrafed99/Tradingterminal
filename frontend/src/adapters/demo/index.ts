@@ -13,7 +13,7 @@ import type { Bar } from '../../services/marketDataService';
 import type { RealtimePosition, RealtimeOrder } from '../types';
 import type { Order } from '../../services/orderService';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
-import { DemoRealtimeAdapter, DEMO_CONTRACT_ID, DEMO_ACCOUNT_ID, setDemoPrice } from './demoAdapter';
+import { DemoRealtimeAdapter, DEMO_CONTRACT_ID, DEMO_ACCOUNT_ID, setDemoPrice, setDemoBracketPrices } from './demoAdapter';
 import { setRealtimeAdapter } from '../registry';
 
 // Shared adapter reference — lets the axios mock fire realtime events for
@@ -251,11 +251,29 @@ const demoAxiosAdapter: AxiosAdapter = (config) => {
 };
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
+// Round to nearest 0.25-pt tick
+function roundTick(p: number): number { return Math.round(p * 4) / 4; }
+
 export function bootstrapDemoMode(): void {
   // Seed the live price from the last historical bar so the current candle
   // continues exactly where history ended — no gap at the right edge.
-  const seedBars = generateBars();
-  setDemoPrice(seedBars[seedBars.length - 1].c);
+  const seedBars  = generateBars();
+  const lastPrice = seedBars[seedBars.length - 1].c;
+  setDemoPrice(lastPrice);
+
+  // Compute bracket prices relative to the live seed price so everything
+  // appears around the current candle — not at arbitrary hardcoded levels.
+  const entry = roundTick(lastPrice - 20);   // entry 20 pts below → small open loss on long
+  const sl    = roundTick(entry - 40);       // SL 40 pts below entry
+  const tp    = roundTick(entry + 80);       // TP 80 pts above entry
+
+  setDemoBracketPrices(entry, sl, tp);
+
+  // Patch the REST snapshot objects so the initial HTTP calls also return
+  // the same relative prices (realtime emits above stay in sync via the consts).
+  DEMO_POSITIONS[0].averagePrice   = entry;
+  DEMO_OPEN_ORDERS[0].stopPrice    = sl;
+  DEMO_OPEN_ORDERS[1].limitPrice   = tp;
 
   // 1. Replace axios adapter — all REST calls now return mock data
   api.defaults.adapter = demoAxiosAdapter;
