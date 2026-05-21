@@ -3,7 +3,7 @@ import type { Contract } from '../../services/marketDataService';
 // ---------------------------------------------------------------------------
 // Timeframe type + presets
 // ---------------------------------------------------------------------------
-export type Timeframe = { unit: 1|2|3|4|5|6; unitNumber: number; label: string };
+export type Timeframe = { unit: 1|2|3|4|5|6|7; unitNumber: number; label: string };
 
 export const DEFAULT_PINNED: Timeframe[] = [
   { unit: 2, unitNumber: 1,  label: '1m'  },
@@ -11,12 +11,13 @@ export const DEFAULT_PINNED: Timeframe[] = [
 ];
 
 export const MORE_TIMEFRAMES: Timeframe[] = [
-  { unit: 1, unitNumber: 5,  label: '5s'  },
-  { unit: 1, unitNumber: 15, label: '15s' },
-  { unit: 2, unitNumber: 3,  label: '3m'  },
-  { unit: 3, unitNumber: 1,  label: '1h'  },
-  { unit: 3, unitNumber: 4,  label: '4h'  },
-  { unit: 4, unitNumber: 1,  label: 'D'   },
+  { unit: 1, unitNumber: 5,   label: '5s'   },
+  { unit: 1, unitNumber: 15,  label: '15s'  },
+  { unit: 2, unitNumber: 3,   label: '3m'   },
+  { unit: 3, unitNumber: 1,   label: '1h'   },
+  { unit: 3, unitNumber: 4,   label: '4h'   },
+  { unit: 4, unitNumber: 1,   label: 'D'    },
+  { unit: 7, unitNumber: 100, label: '100T' },
 ];
 
 const _tfWeight = (t: Timeframe) => t.unit * 100000 + t.unitNumber;

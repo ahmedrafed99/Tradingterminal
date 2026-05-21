@@ -20,7 +20,8 @@ export function sortBarsAscending(bars: Bar[]): Bar[] {
   );
 }
 
-/** Get the candle period duration in seconds for a given timeframe */
+/** Get the candle period duration in seconds for a given timeframe.
+ *  Returns 0 for tick bars (unit=7) — bars close on tick count, not time. */
 export function getCandlePeriodSeconds(tf: Timeframe): number {
   switch (tf.unit) {
     case 1: return tf.unitNumber;            // seconds
@@ -29,14 +30,17 @@ export function getCandlePeriodSeconds(tf: Timeframe): number {
     case 4: return tf.unitNumber * 86400;    // days
     case 5: return tf.unitNumber * 604800;   // weeks
     case 6: return tf.unitNumber * 2592000;  // months (~30 days)
+    case 7: return 0;                        // tick bars — no fixed time period
     default: return 300;
   }
 }
 
 /** Compute an appropriate startTime lookback for the given timeframe */
 export function computeStartTime(tf: Timeframe): string {
-  const periodSec = getCandlePeriodSeconds(tf);
   const MS_DAY = 86_400_000;
+  // Tick bars: 3-day window is enough; countback=500 caps the actual bar count
+  if (tf.unit === 7) return new Date(Date.now() - 3 * MS_DAY).toISOString();
+  const periodSec = getCandlePeriodSeconds(tf);
   // ~500 candles of lookback, clamped between 14 days and 365 days
   // 14-day minimum ensures we always span two full trading weeks (covers weekends + recent holidays)
   const lookbackMs = Math.min(Math.max(periodSec * 500 * 1000, 14 * MS_DAY), 365 * MS_DAY);

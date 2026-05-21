@@ -123,6 +123,8 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   private _countdownText = '';
   private _isLive = false;
   private _periodSec = 60;
+  // When non-null, overrides the time-based countdown with a tick counter (e.g. "42t")
+  private _ticksRemaining: number | null = null;
   private _formatter = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   private _intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -163,6 +165,13 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
 
   setPeriod(periodSec: number): void {
     this._periodSec = periodSec;
+  }
+
+  /** Switch to tick-remaining mode. Pass null to revert to time-based countdown. */
+  setTicksRemaining(n: number | null): void {
+    this._ticksRemaining = n;
+    this._countdownText = n !== null ? `${n}t` : '';
+    this._requestUpdate?.();
   }
 
   setColors(upColor: string, downColor: string): void {
@@ -220,6 +229,8 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
   }
 
   private _updateCountdown(): void {
+    // Tick mode: countdown text is managed by setTicksRemaining, not the timer
+    if (this._ticksRemaining !== null) return;
     if (!this._isLive || this._periodSec >= 86400) {
       this._countdownText = '';
       return;

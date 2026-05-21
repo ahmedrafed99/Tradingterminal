@@ -8,6 +8,7 @@ export interface Bar {
   l: number;
   c: number;
   v: number;
+  tv?: number; // tick count — only present for tick-resolution bars (unit=7); tv=100 means bar is complete
 }
 
 export interface Contract {
@@ -37,7 +38,7 @@ function normalizeContract(raw: Contract): Contract {
   };
 }
 
-export type BarUnit = 1 | 2 | 3 | 4 | 5 | 6; // Second|Minute|Hour|Day|Week|Month
+export type BarUnit = 1 | 2 | 3 | 4 | 5 | 6 | 7; // Second|Minute|Hour|Day|Week|Month|Tick
 
 export interface RetrieveBarsParams {
   contractId: string;

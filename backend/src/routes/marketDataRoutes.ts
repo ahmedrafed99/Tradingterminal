@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import axios from 'axios';
 import { validateBody, validateQuery } from '../validate';
 import { withConnection, resolveAdapter } from '../middleware/withConnection';
+import { getToken } from '../adapters/projectx/auth';
 
 const router = Router();
 
@@ -133,5 +135,56 @@ router.get('/contracts/:id', withConnection(async (req, res) => {
   res.json(data);
 }));
 
+
+// ---------------------------------------------------------------------------
+// GET /market/chartapi-test
+// Thin proxy to chartapi.topstepx.com for testing tick bar resolutions.
+// Query params: symbol (e.g. /NQ), resolution (e.g. 100T), from (unix sec),
+//               to (unix sec), countback (optional, bar count limit).
+// Returns { success, data: { bars } } matching testTickResolutions.ts expectations.
+// ---------------------------------------------------------------------------
+const ChartApiTestQuery = z.object({
+  symbol:     z.string().min(1),
+  resolution: z.string().min(1),
+  from:       z.string().min(1),
+  to:         z.string().min(1),
+  countback:  z.string().optional(),
+  live:       z.enum(['true', 'false']).optional().default('false'),
+});
+
+router.get('/chartapi-test', validateQuery(ChartApiTestQuery), async (req, res) => {
+  const { symbol, resolution, from, to, countback, live } = req.query as Record<string, string>;
+
+  try {
+    const token = getToken();
+    if (!token) {
+      res.status(401).json({ success: false, error: 'Not connected to ProjectX — no auth token' });
+      return;
+    }
+
+    const queryParams: Record<string, string> = {
+      Symbol:     symbol,
+      Resolution: resolution,
+      From:       from,
+      To:         to,
+      SessionId:  'extended',
+      Live:       live === 'true' ? 'true' : 'false',
+    };
+    if (countback) queryParams['Countback'] = countback;
+
+    const url = `https://chartapi.topstepx.com/History/v2?${new URLSearchParams(queryParams)}`;
+
+    const response = await axios.get<unknown>(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    });
+
+    res.json({ success: true, data: response.data });
+  } catch (err: unknown) {
+    const msg = axios.isAxiosError(err)
+      ? `chartapi HTTP ${err.response?.status}: ${JSON.stringify(err.response?.data)}`
+      : (err instanceof Error ? err.message : String(err));
+    res.status(500).json({ success: false, error: msg });
+  }
+});
 
 export default router;

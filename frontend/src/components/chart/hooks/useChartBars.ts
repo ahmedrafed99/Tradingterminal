@@ -38,6 +38,10 @@ export function useChartBars(
   const tradeAnchorMapRef = useRef(new Map<number, number>());
   const prevContractIdRef = useRef<string | null>(null);
 
+  // Tick bar live state: how many more ticks until the current bar closes.
+  // Initialised from the partial bar's tv field on load; decremented by handleMarketTick.
+  const ticksRemainingRef = useRef<number>(0);
+
   // Historical load-more state
   const earliestLoadedTimeRef = useRef<string | null>(null);
   const isLoadingMoreRef = useRef(false);
@@ -204,7 +208,10 @@ export function useChartBars(
       try {
         const periodSec = getCandlePeriodSeconds(timeframe);
         const MS_DAY = 86_400_000;
-        const lookbackMs = Math.min(Math.max(periodSec * 500 * 1000, 14 * MS_DAY), 365 * MS_DAY);
+        // Tick bars: use a 3-day window (periodSec=0 so the normal formula gives 0)
+        const lookbackMs = periodSec === 0
+          ? 3 * MS_DAY
+          : Math.min(Math.max(periodSec * 500 * 1000, 14 * MS_DAY), 365 * MS_DAY);
         const startTime = new Date(new Date(earliest).getTime() - lookbackMs).toISOString();
 
         const bars = await marketDataService.retrieveBars({
@@ -223,6 +230,17 @@ export function useChartBars(
         const sorted = sortBarsAscending(bars);
         // Exclude any bars at or after earliest (avoid duplicates at boundary)
         const filtered = sorted.filter((b) => b.t < earliest);
+
+        // Tick bars: deduplicate second-level timestamps within this older batch
+        if (timeframe.unit === 7) {
+          for (let i = 1; i < filtered.length; i++) {
+            const prevSec = Math.floor(new Date(filtered[i - 1].t).getTime() / 1000);
+            const currSec = Math.floor(new Date(filtered[i].t).getTime() / 1000);
+            if (currSec <= prevSec) {
+              filtered[i] = { ...filtered[i], t: new Date((prevSec + 1) * 1000).toISOString() };
+            }
+          }
+        }
 
         if (filtered.length === 0) {
           reachedHistoryStartRef.current = true;
@@ -262,6 +280,8 @@ export function useChartBars(
       try {
         const startTime = computeStartTime(timeframe);
         const endTime = new Date().toISOString();
+        // Tick bars: cap at 500 bars (chartapi uses Countback; 20000 ticks would be days of data)
+        const initialLimit = timeframe.unit === 7 ? 500 : 20000;
         const bars = await marketDataService.retrieveBars({
           contractId: contract!.id,
           live: false,
@@ -269,7 +289,7 @@ export function useChartBars(
           unitNumber: timeframe.unitNumber,
           startTime,
           endTime,
-          limit: 20000,
+          limit: initialLimit,
           includePartialBar: true,
         });
 
@@ -283,6 +303,20 @@ export function useChartBars(
         }
 
         const sorted = sortBarsAscending(bars);
+
+        // Tick bars: chartapi timestamps are millisecond-precise but LWC uses seconds.
+        // Multiple bars can close within the same second — bump duplicates by 1s so
+        // setData never gets two bars with identical timestamps.
+        if (timeframe.unit === 7) {
+          for (let i = 1; i < sorted.length; i++) {
+            const prevSec = Math.floor(new Date(sorted[i - 1].t).getTime() / 1000);
+            const currSec = Math.floor(new Date(sorted[i].t).getTime() / 1000);
+            if (currSec <= prevSec) {
+              sorted[i] = { ...sorted[i], t: new Date((prevSec + 1) * 1000).toISOString() };
+            }
+          }
+        }
+
         refs.bars.current = sorted;
         const candles = sorted.map(barToCandle);
 
@@ -291,7 +325,8 @@ export function useChartBars(
         const wsCount = Math.min(2000, Math.max(50, Math.ceil(TARGET_FUTURE_SECS / periodSec)));
 
         const lastTime = candles.length > 0 ? (candles[candles.length - 1].time as number) : 0;
-        if (lastTime > 0 && refs.whitespaceSeries.current) {
+        // Tick bars have no fixed period — skip whitespace (bars don't land on regular intervals)
+        if (periodSec > 0 && lastTime > 0 && refs.whitespaceSeries.current) {
           const wsFilter = contract?.marketType === 'futures' ? isTimestampInCMETradingSession : undefined;
           refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, wsCount, wsFilter));
         }
@@ -300,10 +335,20 @@ export function useChartBars(
         earliestLoadedTimeRef.current = sorted.length > 0 ? sorted[0].t : null;
         refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
 
+        // For tick bars: initialise tick counter from the partial bar's tv field.
+        // tv tells us how many ticks are already in the forming bar; we need (unitNumber - tv) more.
+        if (timeframe.unit === 7 && sorted.length > 0) {
+          const partialBar = sorted[sorted.length - 1];
+          const tvSoFar = partialBar.tv ?? 0;
+          ticksRemainingRef.current = Math.max(1, timeframe.unitNumber - tvSoFar);
+          refs.countdown.current?.setTicksRemaining(ticksRemainingRef.current);
+        }
+
         // If the last loaded bar is behind the current candle period (stale cache or API omission),
         // fetch the partial bar explicitly so there's no gap at the right edge on load.
-        const currentPeriodStart = floorToCandlePeriod(Date.now() / 1000, periodSec);
-        if (refs.lastBar.current && (refs.lastBar.current.time as number) < currentPeriodStart) {
+        // Not applicable for tick bars — their bars close on tick count, not time.
+        const currentPeriodStart = periodSec > 0 ? floorToCandlePeriod(Date.now() / 1000, periodSec) : Infinity;
+        if (periodSec > 0 && refs.lastBar.current && (refs.lastBar.current.time as number) < currentPeriodStart) {
           try {
             const partialBars = await marketDataService.retrieveBars({
               contractId: contract!.id,
@@ -388,7 +433,7 @@ export function useChartBars(
         if (cd) {
           const dec = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
           cd.setDecimals(dec);
-          cd.setPeriod(periodSec);
+          if (periodSec > 0) cd.setPeriod(periodSec); // tick bars have no fixed period
           refs.drawingsPrimitive.current?.setDecimals(dec);
           refs.drawingsPrimitive.current?.setTickSize(contract?.tickSize ?? 0.01);
           refs.drawingsPrimitive.current?.setBarsRef(sorted);
@@ -518,6 +563,9 @@ export function useChartBars(
     function handleQuote(quoteContractId: string, data: GatewayQuote) {
       if (quoteContractId !== contractId || !refs.series.current) return;
 
+      // Tick bars update from individual trade ticks (handleMarketTick), not time-based quotes
+      if (periodSec === 0) return;
+
       // Skip quotes while market is closed (e.g. CME maintenance/weekend)
       if (!getSchedule(contract?.marketType).isOpen()) return;
 
@@ -587,11 +635,78 @@ export function useChartBars(
     function handleMarketTick(tickContractId: string, ticks: MarketTick[]) {
       if (tickContractId !== contractId) return;
       const ts = contract?.tickSize ?? 0.01;
-      const lastBar = refs.lastBar.current;
-      const barStartMs = lastBar ? (lastBar.time as number) * 1000 : null;
+
+      // FRVP anchor-mode volume map (all timeframes)
       for (const tick of ticks) {
         const key = Math.round(Math.round(tick.price / ts) * ts * 1e10) / 1e10;
         tradeAnchorMapRef.current.set(key, (tradeAnchorMapRef.current.get(key) ?? 0) + tick.size);
+      }
+
+      if (periodSec === 0) {
+        // ── Tick bar live updates ─────────────────────────────────────────────
+        // Each MarketTick is one trade. Decrement ticksRemainingRef; when it hits
+        // 0 the current bar is complete and the next tick opens a new bar.
+        for (const tick of ticks) {
+          if (!refs.lastBar.current || !refs.series.current) continue;
+
+          if (ticksRemainingRef.current <= 0) {
+            // Flush any pending RAF update for the just-completed bar immediately
+            if (pendingBar) {
+              cancelAnimationFrame(quoteRafId);
+              quoteRafId = 0;
+              refs.series.current.update(pendingBar);
+              refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
+              const bars = refs.bars.current;
+              const lastB = bars[bars.length - 1];
+              if (lastB) { lastB.c = pendingBar.close; lastB.h = pendingBar.high; lastB.l = pendingBar.low; }
+              pendingBar = null;
+              pendingPrice = null;
+            }
+
+            // Open new bar with this tick
+            const newTimeSec = Math.floor(tick.timestampMs / 1000) as import('lightweight-charts').UTCTimestamp;
+            // LWC requires strictly increasing timestamps
+            const safeTime = Math.max(newTimeSec, (refs.lastBar.current.time as number) + 1) as import('lightweight-charts').UTCTimestamp;
+            const newBar: import('lightweight-charts').CandlestickData<import('lightweight-charts').UTCTimestamp> = {
+              time: safeTime, open: tick.price, high: tick.price, low: tick.price, close: tick.price,
+            };
+            refs.lastBar.current = newBar;
+            refs.series.current.update(newBar);
+            refs.dataMap.current.set(safeTime, tick.price);
+            refs.bars.current.push({ t: new Date(safeTime * 1000).toISOString(), o: tick.price, h: tick.price, l: tick.price, c: tick.price, v: 0 });
+            refs.drawingsPrimitive.current?.setLastBarTime(safeTime);
+            useStore.getState().setLastBarTime(safeTime);
+            ticksRemainingRef.current = timeframe.unitNumber - 1; // this tick already counted
+            refs.countdown.current?.setTicksRemaining(ticksRemainingRef.current);
+          } else {
+            // Update the forming bar with this tick
+            const lb = refs.lastBar.current;
+            const updated: import('lightweight-charts').CandlestickData<import('lightweight-charts').UTCTimestamp> = {
+              time: lb.time,
+              open: lb.open,
+              high: Math.max(lb.high, tick.price),
+              low:  Math.min(lb.low,  tick.price),
+              close: tick.price,
+            };
+            refs.lastBar.current = updated;
+            ticksRemainingRef.current -= 1;
+            refs.countdown.current?.setTicksRemaining(ticksRemainingRef.current);
+            pendingBar   = updated;
+            pendingPrice = tick.price;
+            if (!quoteRafId) quoteRafId = requestAnimationFrame(flushQuote);
+          }
+
+          refs.countdown.current?.updatePrice(tick.price, true);
+          if (refs.lastBar.current) refs.countdown.current?.setOpen(refs.lastBar.current.open);
+          refs.drawingsPrimitive.current?.setCountdownPrice(tick.price);
+        }
+        return;
+      }
+
+      // ── Time-based bars: accumulate per-bar volume for FRVP range mode ─────
+      const lastBar = refs.lastBar.current;
+      const barStartMs = lastBar ? (lastBar.time as number) * 1000 : null;
+      for (const tick of ticks) {
         if (barStartMs !== null && tick.timestampMs >= barStartMs) {
           pendingBarVolume += tick.size;
         }
@@ -601,7 +716,9 @@ export function useChartBars(
 
     // When the tab regains visibility after being backgrounded, silently
     // backfill any candles that closed while RAF was throttled.
+    // Tick bars skip this — they don't have time-aligned periods to backfill.
     function handleVisibilityChange() {
+      if (periodSec === 0) return;
       if (document.hidden || !refs.series.current || cancelled || !getSchedule(contract?.marketType).isOpen()) return;
 
       // Flush any pending bar immediately
@@ -646,6 +763,7 @@ export function useChartBars(
       cancelled = true;
       cancelAnimationFrame(quoteRafId);
       refs.countdown.current?.setLive(false);
+      refs.countdown.current?.setTicksRemaining(null); // revert to time-based mode
       realtimeService.offQuote(handleQuote);
       realtimeService.offMarketTick(handleMarketTick);
       realtimeService.unsubscribeQuotes(contractId);

@@ -14,6 +14,7 @@ const UNIT_OPTIONS = [
 ] as const;
 
 const GROUPS = [
+  { label: 'Ticks',   unit: 7 },
   { label: 'Seconds', unit: 1 },
   { label: 'Minutes', unit: 2 },
   { label: 'Hours',   unit: 3 },

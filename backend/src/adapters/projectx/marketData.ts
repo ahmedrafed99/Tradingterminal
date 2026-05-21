@@ -35,6 +35,7 @@ function toChartResolution(unit: number, unitNumber: number): string | null {
     case 4: return 'D';
     case 5: return 'W';
     case 6: return 'M';
+    case 7: return `${unitNumber}T`; // Tick bars (e.g. 100T)
     default: return null;
   }
 }
@@ -55,10 +56,11 @@ function candlePeriodMs(unit: number, unitNumber: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Normalize chartapi bar → standard bar { t: ISO, o, h, l, c, v }
+// Normalize chartapi bar → standard bar { t: ISO, o, h, l, c, v, tv? }
 // chartapi returns { t: ms, o, c, l, h, v, tv }
+// tv = tick count (number of individual trades in this bar); only present for tick resolutions
 // ---------------------------------------------------------------------------
-interface NormalizedBar { t: string; o: number; h: number; l: number; c: number; v: number }
+interface NormalizedBar { t: string; o: number; h: number; l: number; c: number; v: number; tv?: number }
 
 function normalizeChartBar(bar: Record<string, unknown>): NormalizedBar {
   return {
@@ -68,6 +70,7 @@ function normalizeChartBar(bar: Record<string, unknown>): NormalizedBar {
     l: bar['l'] as number,
     c: bar['c'] as number,
     v: bar['v'] as number,
+    ...(bar['tv'] !== undefined ? { tv: bar['tv'] as number } : {}),
   };
 }
 
@@ -139,6 +142,12 @@ export const projectXMarketData: ExchangeMarketData = {
     const endTime    = params['endTime'] as string;
     const endTimeMs  = new Date(endTime).getTime();
     const periodMs   = candlePeriodMs(unit, unitNumber);
+
+    // ── Tick bars: chartapi only (ProjectX primary API doesn't support tick resolution) ──
+    if (unit === 7) {
+      const bars = await fetchFromChartApi(params, startTime, endTime);
+      return { success: true, bars };
+    }
 
     // ── Primary attempt ────────────────────────────────────────────────────
     let primaryBars: NormalizedBar[] | null = null;
