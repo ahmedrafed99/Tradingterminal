@@ -10,11 +10,15 @@
 import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios';
 import api from '../../services/api';
 import type { Bar } from '../../services/marketDataService';
-import type { RealtimePosition } from '../types';
+import type { RealtimePosition, RealtimeOrder } from '../types';
 import type { Order } from '../../services/orderService';
 import { OrderType, OrderSide, OrderStatus, PositionType } from '../../types/enums';
 import { DemoRealtimeAdapter, DEMO_CONTRACT_ID, DEMO_ACCOUNT_ID, setDemoPrice } from './demoAdapter';
 import { setRealtimeAdapter } from '../registry';
+
+// Shared adapter reference — lets the axios mock fire realtime events for
+// interactive ops (place / cancel / modify) so the UI stays consistent.
+let _demoAdapter: DemoRealtimeAdapter | null = null;
 
 // ─── Demo contract ────────────────────────────────────────────────────────────
 const DEMO_CONTRACT = {
@@ -194,6 +198,54 @@ const demoAxiosAdapter: AxiosAdapter = (config) => {
     return mockResp({ drawings: [], success: true }, config);
   }
 
+  // ── Order mutations — fire realtime confirmation so the UI stays consistent ──
+
+  // Place order: emit a Working order back through the realtime adapter
+  if (url.includes('/orders/place')) {
+    const body: Partial<RealtimeOrder> = config.data
+      ? (typeof config.data === 'string' ? JSON.parse(config.data) : config.data)
+      : {};
+    const id = `demo-order-${Date.now()}`;
+    const order: RealtimeOrder = {
+      id,
+      accountId:  String(body.accountId  ?? DEMO_ACCOUNT_ID),
+      contractId: String(body.contractId ?? DEMO_CONTRACT_ID),
+      status:     OrderStatus.Working,
+      type:       body.type   ?? OrderType.Limit,
+      side:       body.side   ?? OrderSide.Buy,
+      size:       body.size   ?? 1,
+      limitPrice: body.limitPrice,
+      stopPrice:  body.stopPrice,
+      customTag:  body.customTag,
+    };
+    setTimeout(() => _demoAdapter?.emitOrder(order, 0), 100);
+    return mockResp({ orderId: id, success: true }, config);
+  }
+
+  // Cancel order: emit Cancelled status back through the realtime adapter
+  if (url.includes('/orders/cancel')) {
+    const body: { orderId?: string | number } = config.data
+      ? (typeof config.data === 'string' ? JSON.parse(config.data) : config.data)
+      : {};
+    const orderId = String(body.orderId ?? '');
+    setTimeout(() => _demoAdapter?.emitCancelOrder(orderId), 100);
+    return mockResp({ success: true }, config);
+  }
+
+  // Modify order: re-emit the order with updated prices
+  if (url.includes('/orders/modify')) {
+    const body: Partial<RealtimeOrder> & { orderId?: string | number } = config.data
+      ? (typeof config.data === 'string' ? JSON.parse(config.data) : config.data)
+      : {};
+    const orderId = String(body.orderId ?? '');
+    setTimeout(() => _demoAdapter?.emitModifyOrder(orderId, {
+      limitPrice: body.limitPrice,
+      stopPrice:  body.stopPrice,
+      size:       body.size,
+    }), 100);
+    return mockResp({ success: true }, config);
+  }
+
   // Catch-all: silently succeed
   return mockResp({ success: true }, config);
 };
@@ -208,6 +260,9 @@ export function bootstrapDemoMode(): void {
   // 1. Replace axios adapter — all REST calls now return mock data
   api.defaults.adapter = demoAxiosAdapter;
 
-  // 2. Replace realtime adapter — no WebSocket / SignalR connections
-  setRealtimeAdapter(new DemoRealtimeAdapter());
+  // 2. Replace realtime adapter — no WebSocket / SignalR connections.
+  //    Keep a reference so the axios mock can fire realtime confirmations
+  //    for order placement / cancel / modify.
+  _demoAdapter = new DemoRealtimeAdapter();
+  setRealtimeAdapter(_demoAdapter);
 }

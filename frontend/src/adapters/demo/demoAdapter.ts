@@ -7,6 +7,7 @@
 
 import type {
   RealtimeAdapter,
+  RealtimeOrder,
   QuoteHandler,
   DepthHandler,
   OrderHandler,
@@ -32,8 +33,8 @@ export let demoPrice = 21_543.25;
 export function setDemoPrice(p: number) { demoPrice = p; }
 const SESSION_OPEN   = 21_500;
 
-function tick(): number {
-  const delta = (Math.random() - 0.49) * 2.5 + (Math.random() - 0.5) * 0.5;
+function tick(pull = 0): number {
+  const delta = pull + (Math.random() - 0.5) * 2.5 + (Math.random() - 0.5) * 0.5;
   demoPrice   = Math.round((demoPrice + delta) * 4) / 4; // 0.25-pt tick
   return demoPrice;
 }
@@ -52,8 +53,11 @@ class HandlerSet<T extends (...args: never[]) => void> {
 //  Adapter
 // ---------------------------------------------------------------------------
 export class DemoRealtimeAdapter implements RealtimeAdapter {
-  private connected_ = false;
+  private connected_       = false;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
+  private userEventsSeeded = false;
+  private sessionVolume    = 125_000;
+  private orderRegistry    = new Map<string, RealtimeOrder>();
 
   private quoteH    = new HandlerSet<QuoteHandler>();
   private depthH    = new HandlerSet<DepthHandler>();
@@ -92,8 +96,8 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
     this._startTicking();
   }
 
-  unsubscribeQuotes(_contractId: string): void {
-    this._stopTicking();
+  unsubscribeQuotes(contractId: string): void {
+    if (contractId === DEMO_CONTRACT_ID) this._stopTicking();
   }
 
   subscribeDepth(_contractId: string): void { /* no-op */ }
@@ -102,6 +106,11 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
   // ── User subscriptions ────────────────────────────────────────────────────
 
   subscribeUserEvents(_accountId: string): void {
+    // Guard: only seed once — re-subscribing (reconnect, account switch) must
+    // not duplicate the position + orders in the store.
+    if (this.userEventsSeeded) return;
+    this.userEventsSeeded = true;
+
     // Emit the fake long position + bracket orders after a short delay
     // (gives the store time to set up handlers)
     setTimeout(() => {
@@ -118,8 +127,8 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
         0, // action 0 = new/update
       );
 
-      // Stop Loss (suspended bracket leg)
-      this.orderH.fire(
+      // Stop Loss bracket leg
+      this.emitOrder(
         {
           id: 'demo-sl',
           accountId: DEMO_ACCOUNT_ID,
@@ -134,8 +143,8 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
         0,
       );
 
-      // Take Profit (suspended bracket leg)
-      this.orderH.fire(
+      // Take Profit bracket leg
+      this.emitOrder(
         {
           id: 'demo-tp1',
           accountId: DEMO_ACCOUNT_ID,
@@ -161,9 +170,13 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
     let sessionLow  = Math.min(demoPrice, SESSION_OPEN);
 
     this.tickInterval = setInterval(() => {
-      const p = tick();
+      // Soft mean-reversion pull toward entry keeps price near SL/TP
+      const pull = (ENTRY_PRICE - demoPrice) * 0.003;
+      const p    = tick(pull);
       sessionHigh = Math.max(sessionHigh, p);
       sessionLow  = Math.min(sessionLow,  p);
+      // Volume accumulates through the session instead of oscillating
+      this.sessionVolume += Math.floor(Math.random() * 30) + 5;
       const now = new Date().toISOString();
 
       const quote: Quote = {
@@ -177,7 +190,7 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
         open:          SESSION_OPEN,
         high:          sessionHigh,
         low:           sessionLow,
-        volume:        125_000 + Math.floor(Math.random() * 10_000),
+        volume:        this.sessionVolume,
         lastUpdated:   now,
         timestamp:     now,
       };
@@ -199,6 +212,36 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
       clearInterval(this.tickInterval);
       this.tickInterval = null;
     }
+  }
+
+  // ── Public emit helpers (used by demoAxiosAdapter for interactive ops) ───
+
+  /** Emit an order event and keep the registry in sync. */
+  emitOrder(order: RealtimeOrder, action: number): void {
+    if (action === 0) {
+      this.orderRegistry.set(order.id, order);
+    } else {
+      this.orderRegistry.delete(order.id);
+    }
+    this.orderH.fire(order, action);
+  }
+
+  /** Look up a tracked order and re-emit it as Cancelled. */
+  emitCancelOrder(orderId: string): void {
+    const existing = this.orderRegistry.get(orderId);
+    if (!existing) return;
+    const cancelled = { ...existing, status: OrderStatus.Cancelled };
+    this.orderRegistry.delete(orderId);
+    this.orderH.fire(cancelled, 1);
+  }
+
+  /** Apply price/size updates to a tracked order and re-emit it. */
+  emitModifyOrder(orderId: string, updates: Partial<RealtimeOrder>): void {
+    const existing = this.orderRegistry.get(orderId);
+    if (!existing) return;
+    const updated = { ...existing, ...updates, id: orderId };
+    this.orderRegistry.set(orderId, updated);
+    this.orderH.fire(updated, 0);
   }
 
   // ── Handler registration ──────────────────────────────────────────────────
