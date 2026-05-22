@@ -14,6 +14,7 @@ import { useRecording } from './recording/useRecording';
 import { RecordingIndicator } from './recording/RecordingIndicator';
 import { CHART_ICON_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 import { MarketDepthSettingsModal } from './toolbar/MarketDepthSettingsModal';
+import { Dropdown } from '../shared/Dropdown';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -75,10 +76,7 @@ function IndicatorsDropdown() {
       </button>
 
       {open && (
-        <div
-          className="absolute top-full left-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg"
-          style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, minWidth: 220 }}
-        >
+        <Dropdown minWidth={220}>
           <div style={{ padding: 6 }}>
             {/* Market Depth row */}
             <div
@@ -164,7 +162,7 @@ function IndicatorsDropdown() {
               </span>
             </div>
           </div>
-        </div>
+        </Dropdown>
       )}
 
       {domSettingsOpen && (

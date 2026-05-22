@@ -112,23 +112,24 @@
     }
     ,{
       "name": "Dropdown",
-      "description": "Shared dropdown styling conventions. No single shell component — dropdowns inline the container div. Standard style: bg --color-surface, SHADOW.LG, border --color-border, rounded-lg. Items: hover:bg-(--color-hover-row), active: bg --color-text + color --color-surface. CustomSelect covers option-list dropdowns; complex/multi-step dropdowns inline their own container.",
-      "keywords": ["dropdown", "menu", "hover", "selected", "active", "color-hover-row", "color-surface", "CustomSelect"],
+      "description": "Shared dropdown panel shell. Handles absolute positioning + standard styling (surface bg, border, SHADOW.LG, rounded-lg, Z.DROPDOWN). Caller owns open state, wrapper ref, and useClickOutside. For option-list dropdowns use CustomSelect; for action rows use MenuItem inside Dropdown.",
+      "keywords": ["dropdown", "menu", "panel", "shell", "hover", "selected", "active", "color-hover-row", "color-surface", "CustomSelect"],
       "files": [
+        "frontend/src/components/shared/Dropdown.tsx",
         "frontend/src/components/shared/CustomSelect.tsx",
-        "frontend/src/components/shared/MenuItem.tsx",
-        "frontend/src/components/chart/ChartToolbar.tsx",
-        "frontend/src/components/LockoutButton.tsx"
+        "frontend/src/components/shared/MenuItem.tsx"
       ],
-      "dependencies": [],
+      "dependencies": [
+        "Z, SHADOW (constants/layout)"
+      ],
       "notes": [
-        "Container: bg-(--color-surface), SHADOW.LG, border border-(--color-border), rounded-lg",
-        "Item hover: hover:bg-(--color-hover-row)",
-        "Item active/selected: background var(--color-text), color var(--color-surface)",
+        "Props: align ('left'|'right', default 'left'), offset (px gap, default 4), minWidth, className, style",
+        "Caller must wrap trigger + Dropdown in a `position: relative` div and call useClickOutside on that wrapper ref",
+        "Item hover: hover:bg-(--color-hover-row); active/selected: bg var(--color-text), color var(--color-surface)",
         "Toolbar buttons use hover:bg-(--color-border) — different from dropdown items, intentional",
-        "Camera screenshot dropdown (ChartToolbar) is intentionally styled differently: rounded-xl, SHADOW.XXL",
-        "CustomSelect default dropdownBg is --color-surface; active item color inverts to dropdownBg",
-        "CustomSelect supports renderItemAction (trailing per-row node, e.g. delete/rename), renderItem (full row override — return non-null to replace label+action, e.g. inline rename input), footer (node below the list with a divider), and dropdownMinWidth (force min width when button is narrower than the menu) — used by the Strategy Lab strategy dropdown"
+        "Camera screenshot dropdown (ChartToolbar) is intentionally different: uses inline div with rounded-xl + SHADOW.XXL + --color-panel bg — pass overrides via style/className when needed",
+        "CustomSelect manages its own fixed positioning and panel styling; don't wrap it in Dropdown",
+        "CustomSelect supports renderItemAction, renderItem, footer, dropdownMinWidth — used by Strategy Lab strategy dropdown"
       ]
     }
     ,{
@@ -434,66 +435,61 @@
       "dependencies": [
         "useStore (liveStrategies, setLiveStrategies, updateLiveStrategy, baseUrl, accounts, activeAccountId, contract)",
         "liveStrategyService (listStrategies, startStrategy, stopStrategy, subscribeStrategies)",
-        "liveStrategySlice (LiveStrategyInfo, StrategyState, createLiveStrategySlice)"
+        "liveStrategySlice (LiveStrategyInfo, StrategyState, createLiveStrategySlice)",
+        "shared/Modal (ConfigModal backdrop)"
       ],
       "notes": [
         "liveStrategies is NOT persisted — it is live-only state reset on each mount via the SSE snapshot",
         "serverUrl comes from useStore(s => s.baseUrl) — same base URL as the main backend",
         "IS_DEMO guard skips both initial fetch and SSE subscription",
-        "Config modal pre-fills contractId/contractName/tickSize from useStore(s => s.contract)"
+        "Config modal uses shared/Modal as backdrop shell; panel styled inline (FRVP-style label+control rows, inline footer buttons)"
       ]
     }
     ,{
-      "name": "ui/Modal",
-      "description": "Accessible modal dialog primitive. Built on Radix Dialog — provides focus trap, Escape-to-close, portal rendering, backdrop. Styled with project CSS variables. Use this for ALL new modals instead of raw div overlays.",
-      "keywords": ["modal", "dialog", "popup", "overlay", "primitive", "radix", "focus trap", "backdrop"],
+      "name": "shared/Modal",
+      "description": "Bare backdrop + centered panel shell. Handles Escape-to-close and backdrop-click-to-close only. No title, footer, or styling — caller owns everything inside via children + className/style. Used by StrategiesTab ConfigModal and any non-draggable modal that needs a raw backdrop.",
+      "keywords": ["modal", "backdrop", "overlay", "shell", "primitive", "escape", "portal"],
       "files": [
-        "frontend/src/components/ui/Modal.tsx"
+        "frontend/src/components/shared/Modal.tsx"
       ],
       "dependencies": [
-        "@radix-ui/react-dialog",
-        "RADIUS, SHADOW, Z (constants/layout)"
+        "Z (constants/layout)"
       ],
       "notes": [
-        "Props: open, onClose, title, children, width (440), minHeight, footer (custom ReactNode), onConfirm, confirmLabel ('Ok'), cancelLabel ('Cancel'), hideFooter",
-        "Default footer = Cancel + Ok buttons matching project style; pass footer={<node>} for full custom footer",
-        "Body children render between the two hr dividers — bring your own padding (e.g. style={{ padding: '16px' }})",
-        "Replaces hand-rolled modals and the existing Popover.tsx for non-draggable use cases"
+        "Props: onClose, children, className (panel div), style (panel div), backdropClassName, backdropStyle",
+        "Backdrop click only closes when the click target IS the backdrop div (not bubbled from children)",
+        "No Radix — hand-rolled; no focus trap, no portal. Use for simple inline modals",
+        "For modals that need title+footer+ok/cancel, use Popover.tsx instead"
       ]
     }
     ,{
-      "name": "ui/Button",
-      "description": "Shared button primitive with 6 variants. All hover via onMouseEnter/onMouseLeave (inline styles). Never style raw <button> manually — use this.",
-      "keywords": ["button", "cta", "action", "primary", "secondary", "accent", "danger", "toolbar", "ghost", "primitive"],
+      "name": "shared/Button",
+      "description": "Shared button primitive. variant × tone × size matrix. Use instead of raw <button> for all action buttons.",
+      "keywords": ["button", "action", "ghost", "filled", "danger", "default", "primitive"],
       "files": [
-        "frontend/src/components/ui/Button.tsx"
+        "frontend/src/components/shared/Button.tsx"
       ],
-      "dependencies": [
-        "RADIUS (constants/layout)"
-      ],
+      "dependencies": [],
       "notes": [
-        "Variants: primary (label-close bg), secondary (surface + border), accent (blue), danger (red), toolbar (input bg pill), ghost (transparent)",
-        "Sizes: sm (12px, 5px 10px), md (13px, 5px 16px)",
-        "forwardRef — usable as Radix asChild trigger",
-        "disabled=true → opacity 0.5 + not-allowed cursor automatically"
+        "variant: 'ghost' (transparent bg + border) | 'filled' (surface or error bg)",
+        "tone: 'default' | 'danger' — danger ghost = red hover; danger filled = error bg + white text",
+        "size: 'sm' (6px 12px) | 'md' (8px 16px). Font size = var(--font-size-overlay)",
+        "fullWidth=true adds w-full; disabled=true → opacity-50 + cursor-not-allowed automatically",
+        "Spreads all HTMLButtonAttributes — usable anywhere a <button> is expected"
       ]
     }
     ,{
-      "name": "ui/Menu",
-      "description": "Dropdown menu primitives built on Radix DropdownMenu. Handles keyboard nav, focus, portal, sub-menus. Use for all context menus and dropdown actions instead of hand-rolling.",
-      "keywords": ["menu", "dropdown", "context menu", "action menu", "submenu", "primitive", "radix"],
+      "name": "shared/TabButton",
+      "description": "Reusable tab button with active underline indicator. Used in BottomPanel and settings modals.",
+      "keywords": ["tab", "tab button", "active", "underline", "bottom panel", "shared"],
       "files": [
-        "frontend/src/components/ui/Menu.tsx"
+        "frontend/src/components/shared/TabButton.tsx"
       ],
-      "dependencies": [
-        "@radix-ui/react-dropdown-menu",
-        "RADIUS, SHADOW, Z (constants/layout)"
-      ],
+      "dependencies": [],
       "notes": [
-        "Exports: Menu (Root), MenuTrigger, MenuContent, MenuItem, MenuSeparator, MenuLabel, MenuSub, MenuSubTrigger, MenuSubContent",
-        "MenuItem props: onSelect, icon, danger (red text), disabled, rightSlot (e.g. shortcut label)",
-        "MenuContent props: align ('start'), side ('bottom'), sideOffset (4), minWidth (168)",
-        "Hover via onMouseEnter/onMouseLeave → --color-hover-row bg (NOT --color-border which is toolbar-only)"
+        "Props: label, active, count (optional badge), onClick",
+        "Active: full --color-text + 2px bottom accent bar. Inactive: --color-text-muted + hover to --color-text",
+        "count renders as '(N)' in muted text next to the label when > 0"
       ]
     }
   ]
