@@ -1,0 +1,27 @@
+{
+  "trades": [
+    {
+      "date": "2026-05-22",
+      "entryTime": "2026-05-22T09:20:02.549Z",
+      "exitTime": "2026-05-22T09:21:04.007Z",
+      "signal": "short",
+      "contracts": 5,
+      "orderId": "3017831667",
+      "entryPrice": 29519.5,
+      "exitPrice": 29514.5,
+      "pnl": 25,
+      "outcome": "win"
+    }
+  ],
+  "stats": {
+    "total": 1,
+    "wins": 1,
+    "losses": 0,
+    "unknown": 0,
+    "winRate": 100,
+    "totalPnl": 25,
+    "avgWin": 25,
+    "avgLoss": null,
+    "lastUpdated": "2026-05-22T09:21:04.101Z"
+  }
+}

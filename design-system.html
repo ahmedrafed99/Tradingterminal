@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TradingTerminal — Design System</title>
+<style>
+  /* ── Tokens (verbatim from frontend/src/styles/tokens.css) ── */
+  :root {
+    --color-bg: #131722;
+    --color-panel: #0f0f0f;
+    --color-surface: #0f0f0f;
+    --color-input: #111111;
+    --color-hover-row: #1e222d;
+    --color-hover-toolbar: #363a45;
+    --color-table-stripe: #0d1117;
+    --color-popover: #0a0a0f;
+
+    --color-text: #d1d4dc;
+    --color-text-bright: #ffffff;
+    --color-text-muted: #787b86;
+    --color-text-dim: #434651;
+    --color-text-medium: #9598a1;
+
+    --color-border: #2a2e39;
+    --color-separator: #2a2e39;
+    --color-focus-ring: #1a3a6e;
+
+    --color-accent: #2962ff;
+    --color-accent-hover: #1e4fcc;
+    --color-accent-text: #5b8def;
+    --color-warning: #f0a830;
+    --color-error: #f23645;
+    --color-news-event: #9b59b6;
+    --color-news-event-hover: #b07cc6;
+
+    --color-role-master: #3c9cef;
+    --color-role-follower: #5cb270;
+
+    --color-buy: #26a69a;
+    --color-sell: #ef5350;
+    --color-buy-tint: rgba(38,166,154,0.15);
+    --color-sell-tint: rgba(239,83,80,0.12);
+    --color-sell-subtle: rgba(239,83,80,0.07);
+
+    --color-btn-buy: #1b6b4a;
+    --color-btn-buy-hover: #22835b;
+    --color-btn-sell: #8b2232;
+    --color-btn-sell-hover: #a62a3d;
+
+    --color-line-buy: #00c805;
+    --color-line-buy-hover: #00a004;
+    --color-line-sell: #ff0000;
+    --color-line-sell-hover: #cc0000;
+
+    --color-heat-green: #1a6b5a;
+    --color-heat-red: #6b2a2a;
+
+    --color-label-bg: #cac9cb;
+    --color-chart-label-overlay: rgba(19,23,34,0.90);
+    --color-label-text: #000000;
+    --color-label-close: #e0e0e0;
+    --color-label-close-hover: #b8b8b8;
+    --color-trail-hover: #dbeafe;
+    --color-handle-stroke: #4a90d9;
+
+    --font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+    --font-family-mono: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+    --font-size-xxxs: 8px;
+    --font-size-xxs: 9px;
+    --font-size-xs: 10px;
+    --font-size-sm: 11px;
+    --font-size-base: 12px;
+    --font-size-md: 13px;
+    --font-size-lg: 14px;
+    --font-size-xl: 16px;
+    --font-size-xxl: 18px;
+
+    --color-backdrop: rgba(0,0,0,0.65);
+    --transition-fast: 0.15s;
+    --transition-normal: 0.2s;
+    --transition-slow: 0.25s;
+    --disabled-opacity: 0.5;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-family);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: var(--font-size-base);
+    min-height: 100vh;
+    display: flex;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--color-panel);
+    border-right: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0 24px;
+  }
+  .sidebar-logo {
+    padding: 0 16px 16px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 12px;
+  }
+  .sidebar-logo .wordmark {
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    color: var(--color-text-bright);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .sidebar-logo .sub {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-dim);
+    margin-top: 2px;
+    letter-spacing: 0.03em;
+  }
+  .nav-group {
+    padding: 0 8px;
+    margin-bottom: 4px;
+  }
+  .nav-label {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-dim);
+    padding: 8px 8px 4px;
+    display: block;
+  }
+  .nav-item {
+    display: block;
+    padding: 5px 8px;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    border-radius: 3px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    cursor: pointer;
+  }
+  .nav-item:hover { background: var(--color-hover-row); color: var(--color-text); }
+  .nav-item.active { background: rgba(41,98,255,0.12); color: var(--color-accent-text); }
+
+  /* ── Main content ── */
+  .main {
+    flex: 1;
+    padding: 40px 48px;
+    max-width: 1100px;
+    overflow-x: hidden;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 64px;
+    scroll-margin-top: 32px;
+  }
+  .section-title {
+    font-size: var(--font-size-xxl);
+    font-weight: 600;
+    color: var(--color-text-bright);
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+  .section-desc {
+    font-size: var(--font-size-md);
+    color: var(--color-text-muted);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+  .subsection { margin-bottom: 36px; }
+  .subsection-title {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--color-text-dim);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* ── Color grid ── */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+  }
+  .color-card {
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+  .color-swatch {
+    height: 52px;
+    width: 100%;
+    position: relative;
+  }
+  .color-swatch.checker {
+    background-image: repeating-conic-gradient(#2a2e39 0% 25%, transparent 0% 50%);
+    background-size: 12px 12px;
+  }
+  .color-swatch.checker .alpha-fill {
+    position: absolute; inset: 0;
+  }
+  .color-meta {
+    padding: 8px 10px;
+    border-top: 1px solid var(--color-border);
+  }
+  .color-name {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-medium);
+    font-family: var(--font-family-mono);
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .color-value {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-dim);
+    font-family: var(--font-family-mono);
+  }
+  .color-usage {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-dim);
+    margin-top: 3px;
+    line-height: 1.4;
+    font-style: italic;
+  }
+
+  /* ── Type scale ── */
+  .type-row {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .type-meta {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    min-width: 140px;
+  }
+  .type-token {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
+    color: var(--color-accent-text);
+    min-width: 80px;
+  }
+  .type-px {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
+    color: var(--color-text-dim);
+  }
+  .type-sample { color: var(--color-text); flex: 1; }
+
+  /* ── Token table ── */
+  .token-table { width: 100%; border-collapse: collapse; }
+  .token-table th {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-dim);
+    text-align: left;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .token-table td {
+    padding: 8px 12px;
+    font-size: var(--font-size-sm);
+    color: var(--color-text);
+    border-bottom: 1px solid rgba(42,46,57,0.5);
+    vertical-align: middle;
+  }
+  .token-table tr:last-child td { border-bottom: none; }
+  .token-table tr:hover td { background: var(--color-hover-row); }
+  code {
+    font-family: var(--font-family-mono);
+    font-size: var(--font-size-xs);
+    color: var(--color-accent-text);
+    background: rgba(41,98,255,0.08);
+    padding: 1px 5px;
+    border-radius: 2px;
+  }
+  .muted { color: var(--color-text-muted); }
+  .dim { color: var(--color-text-dim); }
+
+  /* ── Shadow demos ── */
+  .shadow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; }
+  .shadow-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 20px 14px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .shadow-box {
+    width: 56px; height: 40px;
+    background: var(--color-panel);
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+  }
+  .shadow-label { font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; }
+  .shadow-value { font-size: var(--font-size-xs); color: var(--color-text-dim); font-family: var(--font-family-mono); text-align: center; line-height: 1.4; }
+
+  /* ── Radius demos ── */
+  .radius-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+  .radius-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .radius-box {
+    width: 52px; height: 40px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+  }
+  .radius-label { font-size: var(--font-size-xs); color: var(--color-text-muted); font-family: var(--font-family-mono); }
+  .radius-value { font-size: var(--font-size-xs); color: var(--color-text-dim); }
+
+  /* ── Z-index stack ── */
+  .zstack { display: flex; flex-direction: column; gap: 4px; }
+  .zstack-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    transition: background var(--transition-fast);
+  }
+  .zstack-item:hover { background: var(--color-hover-row); }
+  .zstack-bar {
+    height: 4px;
+    background: var(--color-accent);
+    border-radius: 2px;
+    opacity: 0.6;
+  }
+  .zstack-token { font-family: var(--font-family-mono); font-size: var(--font-size-xs); color: var(--color-accent-text); min-width: 120px; }
+  .zstack-num { font-family: var(--font-family-mono); font-size: var(--font-size-xs); color: var(--color-text-muted); min-width: 30px; }
+  .zstack-desc { font-size: var(--font-size-xs); color: var(--color-text-dim); }
+
+  /* ── Buttons ── */
+  .button-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--font-family);
+    font-size: 13px;
+    padding: 5px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background var(--transition-fast), color var(--transition-fast);
+    font-weight: 400;
+    border: none;
+    outline: none;
+  }
+  .btn-primary { background: var(--color-label-close); color: var(--color-label-text); }
+  .btn-primary:hover { background: var(--color-label-close-hover); }
+  .btn-secondary { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); }
+  .btn-secondary:hover { background: var(--color-hover-toolbar); }
+  .btn-accent { background: var(--color-accent); color: #fff; }
+  .btn-accent:hover { background: var(--color-accent-hover); }
+  .btn-danger { background: rgba(242,54,69,0.15); color: var(--color-error); border: 1px solid var(--color-error); }
+  .btn-danger:hover { background: rgba(242,54,69,0.25); }
+  .btn-toolbar { background: var(--color-input); color: var(--color-text); border: 1px solid var(--color-border); }
+  .btn-toolbar:hover { background: var(--color-border); }
+  .btn-ghost { background: transparent; color: var(--color-text-muted); }
+  .btn-ghost:hover { background: var(--color-hover-row); color: var(--color-text); }
+  .btn-buy { background: var(--color-btn-buy); color: var(--color-text-bright); font-weight: 600; letter-spacing: 0.03em; }
+  .btn-buy:hover { background: var(--color-btn-buy-hover); }
+  .btn-sell { background: var(--color-btn-sell); color: var(--color-text-bright); font-weight: 600; letter-spacing: 0.03em; }
+  .btn-sell:hover { background: var(--color-btn-sell-hover); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Inputs ── */
+  .input-row { display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+  .input-demo {
+    width: 100%;
+    border-radius: 4px;
+    font-family: var(--font-family);
+    font-size: 13px;
+    color: var(--color-text);
+    outline: none;
+    padding: 6px 10px;
+    transition: border-color var(--transition-fast);
+    border: 1px solid var(--color-border);
+  }
+  .input-dark { background: var(--color-input); }
+  .input-dark::placeholder { color: var(--color-text-dim); }
+  .input-dark:focus { border-color: var(--color-accent); }
+  .input-surface { background: var(--color-bg); color: var(--color-text); }
+  .input-surface::placeholder { color: var(--color-hover-toolbar); }
+  .input-surface:focus { border-color: var(--color-accent); }
+  .input-error { border-color: var(--color-error) !important; }
+
+  /* ── Section label ── */
+  .section-label-demo {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Table demo ── */
+  .table-demo { width: 100%; border-collapse: collapse; }
+  .table-demo th {
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-dim);
+    text-align: left;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-panel);
+  }
+  .table-demo td {
+    padding: 7px 10px;
+    font-size: var(--font-size-sm);
+    border-bottom: 1px solid rgba(42,46,57,0.4);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .table-demo tr:hover td { background: rgba(17,17,17,0.5); }
+  .table-demo tr:nth-child(even) td { background: rgba(13,17,23,0.4); }
+  .table-demo tr:nth-child(even):hover td { background: rgba(17,17,17,0.5); }
+  .buy-text { color: var(--color-buy); }
+  .sell-text { color: var(--color-sell); }
+  .muted-text { color: var(--color-text-muted); }
+  .warning-text { color: var(--color-warning); }
+
+  /* ── Modal demo ── */
+  .modal-demo {
+    width: 380px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06);
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px 10px;
+  }
+  .modal-title { flex: 1; font-size: 14px; font-weight: 600; color: var(--color-text); }
+  .modal-close {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 3px; border: none;
+    background: transparent; cursor: pointer;
+    color: var(--color-text-muted);
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  .modal-close:hover { background: var(--color-hover-row); color: var(--color-text); }
+  .modal-divider { border: none; border-top: 1px solid var(--color-border); margin: 0 5%; }
+  .modal-body { padding: 16px; font-size: var(--font-size-md); color: var(--color-text-medium); line-height: 1.5; }
+  .modal-footer {
+    padding: 8px 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  /* ── Swatch pattern ── */
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .swatch-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--color-text-muted);
+    background: transparent;
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+  }
+  .swatch-btn:hover { border-color: var(--color-text); }
+  .swatch-inner { display: block; width: 18px; height: 18px; border-radius: 4px; }
+
+  /* ── Animation demos ── */
+  .anim-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  .anim-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    min-width: 160px;
+  }
+  .anim-name { font-size: var(--font-size-xs); font-family: var(--font-family-mono); color: var(--color-accent-text); margin-bottom: 6px; }
+  .anim-duration { font-size: var(--font-size-xs); color: var(--color-text-dim); margin-bottom: 10px; }
+  .anim-demo-btn {
+    font-size: var(--font-size-xs);
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--color-border);
+    background: var(--color-input);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+  }
+  .anim-demo-btn:hover { background: var(--color-hover-toolbar); }
+
+  @keyframes toolbar-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes toolbar-left {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes dropdown-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes recording-pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* ── Transition demos ── */
+  .transition-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .transition-demo {
+    padding: 8px 16px;
+    border-radius: 3px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    font-family: var(--font-family);
+  }
+  .transition-fast-demo { transition: background var(--transition-fast), color var(--transition-fast); }
+  .transition-normal-demo { transition: background var(--transition-normal), color var(--transition-normal); }
+  .transition-slow-demo { transition: background var(--transition-slow), color var(--transition-slow); }
+  .transition-demo:hover { background: var(--color-hover-toolbar); color: var(--color-text-bright); }
+
+  /* ── Toast demo ── */
+  .toast-demo {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    font-size: var(--font-size-md);
+    max-width: 320px;
+  }
+  .toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Misc ── */
+  .pill {
+    display: inline-flex; align-items: center;
+    padding: 2px 8px;
+    border-radius: 9px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+  }
+  .divider { border: none; border-top: 1px solid var(--color-border); margin: 40px 0; }
+  .inline-code { font-family: var(--font-family-mono); font-size: 11px; color: var(--color-accent-text); background: rgba(41,98,255,0.08); padding: 1px 5px; border-radius: 2px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
+  .recording-indicator {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: var(--font-size-xs); color: var(--color-error);
+  }
+  .recording-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--color-error);
+    animation: recording-pulse 1.2s ease-in-out infinite;
+  }
+
+  /* ── Header strip ── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .page-header h1 { font-size: 24px; font-weight: 700; color: var(--color-text-bright); letter-spacing: -0.02em; }
+  .page-header .version {
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family-mono);
+    color: var(--color-text-dim);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 2px 7px;
+    border-radius: 2px;
+    margin-left: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <div class="wordmark">TradingTerminal</div>
+    <div class="sub">Design System</div>
+  </div>
+
+  <div class="nav-group">
+    <span class="nav-label">Foundations</span>
+    <a class="nav-item active" href="#colors" onclick="setActive(this)">Colors</a>
+    <a class="nav-item" href="#typography" onclick="setActive(this)">Typography</a>
+    <a class="nav-item" href="#spacing" onclick="setActive(this)">Spacing</a>
+    <a class="nav-item" href="#shadows" onclick="setActive(this)">Shadows</a>
+    <a class="nav-item" href="#zindex" onclick="setActive(this)">Z-Index</a>
+    <a class="nav-item" href="#transitions" onclick="setActive(this)">Motion</a>
+  </div>
+
+  <div class="nav-group">
+    <span class="nav-label">Components</span>
+    <a class="nav-item" href="#buttons" onclick="setActive(this)">Buttons</a>
+    <a class="nav-item" href="#inputs" onclick="setActive(this)">Inputs</a>
+    <a class="nav-item" href="#modal" onclick="setActive(this)">Modal</a>
+    <a class="nav-item" href="#patterns" onclick="setActive(this)">Patterns</a>
+    <a class="nav-item" href="#toasts" onclick="setActive(this)">Toasts</a>
+  </div>
+
+  <div class="nav-group">
+    <span class="nav-label">Rules</span>
+    <a class="nav-item" href="#rules" onclick="setActive(this)">Token Rules</a>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<main class="main">
+
+  <div class="page-header">
+    <h1>Design System</h1>
+    <span class="version">tokens.css · dev</span>
+  </div>
+
+  <!-- ═══════════════════════════════ COLORS ═══════════════════════════════ -->
+  <section class="section" id="colors">
+    <div class="section-title">Colors</div>
+    <div class="section-desc">All color values live in <span class="inline-code">frontend/src/styles/tokens.css</span>. Never hardcode a hex value in a component — use <span class="inline-code">var(--color-*)</span>.</div>
+
+    <div class="subsection">
+      <div class="subsection-title">Backgrounds</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#131722"></div><div class="color-meta"><div class="color-name">--color-bg</div><div class="color-value">#131722</div><div class="color-usage">Page background, chart canvas</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#0f0f0f"></div><div class="color-meta"><div class="color-name">--color-panel</div><div class="color-value">#0f0f0f</div><div class="color-usage">Panel bg, top bar, toolbars, dropdowns</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#0f0f0f"></div><div class="color-meta"><div class="color-name">--color-surface</div><div class="color-value">#0f0f0f</div><div class="color-usage">Modal panels, card backgrounds</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#111111"></div><div class="color-meta"><div class="color-name">--color-input</div><div class="color-value">#111111</div><div class="color-usage">Text inputs, search fields</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#1e222d"></div><div class="color-meta"><div class="color-name">--color-hover-row</div><div class="color-value">#1e222d</div><div class="color-usage">Dropdown item / list row hover</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#363a45"></div><div class="color-meta"><div class="color-name">--color-hover-toolbar</div><div class="color-value">#363a45</div><div class="color-usage">Toolbar icon button hover</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#0d1117"></div><div class="color-meta"><div class="color-name">--color-table-stripe</div><div class="color-value">#0d1117</div><div class="color-usage">Alt table row (use /40 opacity)</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#0a0a0f"></div><div class="color-meta"><div class="color-name">--color-popover</div><div class="color-value">#0a0a0f</div><div class="color-usage">Popover / overlay panel</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Text</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#d1d4dc"></div><div class="color-meta"><div class="color-name">--color-text</div><div class="color-value">#d1d4dc</div><div class="color-usage">Primary body text</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#ffffff"></div><div class="color-meta"><div class="color-name">--color-text-bright</div><div class="color-value">#ffffff</div><div class="color-usage">Active/selected, modal titles</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#787b86"></div><div class="color-meta"><div class="color-name">--color-text-muted</div><div class="color-value">#787b86</div><div class="color-usage">Section labels, secondary info</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#434651"></div><div class="color-meta"><div class="color-name">--color-text-dim</div><div class="color-value">#434651</div><div class="color-usage">Placeholders, empty states, disabled</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#9598a1"></div><div class="color-meta"><div class="color-name">--color-text-medium</div><div class="color-value">#9598a1</div><div class="color-usage">Field labels, supporting descriptions</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Borders</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#2a2e39"></div><div class="color-meta"><div class="color-name">--color-border</div><div class="color-value">#2a2e39</div><div class="color-usage">Structural borders, dividers, tables</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#2a2e39"></div><div class="color-meta"><div class="color-name">--color-separator</div><div class="color-value">#2a2e39</div><div class="color-usage">Bottom panel resize handle</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#1a3a6e"></div><div class="color-meta"><div class="color-name">--color-focus-ring</div><div class="color-value">#1a3a6e</div><div class="color-usage">Focus ring on inputs and controls</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Accents</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#2962ff"></div><div class="color-meta"><div class="color-name">--color-accent</div><div class="color-value">#2962ff</div><div class="color-usage">Primary interactive, checkboxes, CTAs</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#1e4fcc"></div><div class="color-meta"><div class="color-name">--color-accent-hover</div><div class="color-value">#1e4fcc</div><div class="color-usage">Accent hover state</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#5b8def"></div><div class="color-meta"><div class="color-name">--color-accent-text</div><div class="color-value">#5b8def</div><div class="color-usage">Ghost button text, soft links</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#f0a830"></div><div class="color-meta"><div class="color-name">--color-warning</div><div class="color-value">#f0a830</div><div class="color-usage">Active instrument, warning toasts</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#f23645"></div><div class="color-meta"><div class="color-name">--color-error</div><div class="color-value">#f23645</div><div class="color-usage">Error toasts, validation, delete</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#9b59b6"></div><div class="color-meta"><div class="color-name">--color-news-event</div><div class="color-value">#9b59b6</div><div class="color-usage">News event markers</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Trade Direction</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#26a69a"></div><div class="color-meta"><div class="color-name">--color-buy</div><div class="color-value">#26a69a</div><div class="color-usage">Positive P&L, BUY labels</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#ef5350"></div><div class="color-meta"><div class="color-name">--color-sell</div><div class="color-value">#ef5350</div><div class="color-usage">Negative P&L, SELL labels</div></div></div>
+        <div class="color-card"><div class="color-swatch checker"><div class="alpha-fill" style="background:rgba(38,166,154,0.15)"></div></div><div class="color-meta"><div class="color-name">--color-buy-tint</div><div class="color-value">rgba(38,166,154,0.15)</div><div class="color-usage">Buy row tint background</div></div></div>
+        <div class="color-card"><div class="color-swatch checker"><div class="alpha-fill" style="background:rgba(239,83,80,0.12)"></div></div><div class="color-meta"><div class="color-name">--color-sell-tint</div><div class="color-value">rgba(239,83,80,0.12)</div><div class="color-usage">Sell row tint background</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#1b6b4a"></div><div class="color-meta"><div class="color-name">--color-btn-buy</div><div class="color-value">#1b6b4a</div><div class="color-usage">Buy button background</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#22835b"></div><div class="color-meta"><div class="color-name">--color-btn-buy-hover</div><div class="color-value">#22835b</div><div class="color-usage">Buy button hover</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#8b2232"></div><div class="color-meta"><div class="color-name">--color-btn-sell</div><div class="color-value">#8b2232</div><div class="color-usage">Sell button background</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#a62a3d"></div><div class="color-meta"><div class="color-name">--color-btn-sell-hover</div><div class="color-value">#a62a3d</div><div class="color-usage">Sell button hover</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Chart Lines</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#00c805"></div><div class="color-meta"><div class="color-name">--color-line-buy</div><div class="color-value">#00c805</div><div class="color-usage">Green order/position line</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#00a004"></div><div class="color-meta"><div class="color-name">--color-line-buy-hover</div><div class="color-value">#00a004</div><div class="color-usage">Green line hover</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#ff0000"></div><div class="color-meta"><div class="color-name">--color-line-sell</div><div class="color-value">#ff0000</div><div class="color-usage">Red order/position line</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#cc0000"></div><div class="color-meta"><div class="color-name">--color-line-sell-hover</div><div class="color-value">#cc0000</div><div class="color-usage">Red line hover</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Heatmap &amp; Roles</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#1a6b5a"></div><div class="color-meta"><div class="color-name">--color-heat-green</div><div class="color-value">#1a6b5a</div><div class="color-usage">Calendar heatmap green cells</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#6b2a2a"></div><div class="color-meta"><div class="color-name">--color-heat-red</div><div class="color-value">#6b2a2a</div><div class="color-usage">Calendar heatmap red cells</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#3c9cef"></div><div class="color-meta"><div class="color-name">--color-role-master</div><div class="color-value">#3c9cef</div><div class="color-usage">Copy trading master role</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#5cb270"></div><div class="color-meta"><div class="color-name">--color-role-follower</div><div class="color-value">#5cb270</div><div class="color-usage">Copy trading follower role</div></div></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Label System (Chart Overlays)</div>
+      <div class="color-grid">
+        <div class="color-card"><div class="color-swatch" style="background:#cac9cb"></div><div class="color-meta"><div class="color-name">--color-label-bg</div><div class="color-value">#cac9cb</div><div class="color-usage">Neutral label background (light)</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#000000"></div><div class="color-meta"><div class="color-name">--color-label-text</div><div class="color-value">#000000</div><div class="color-usage">Label text (dark on light bg)</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#e0e0e0"></div><div class="color-meta"><div class="color-name">--color-label-close</div><div class="color-value">#e0e0e0</div><div class="color-usage">Close (X) button background</div></div></div>
+        <div class="color-card"><div class="color-swatch" style="background:#4a90d9"></div><div class="color-meta"><div class="color-name">--color-handle-stroke</div><div class="color-value">#4a90d9</div><div class="color-usage">Drawing selection handle border</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ TYPOGRAPHY ═══════════════════════════════ -->
+  <section class="section" id="typography">
+    <div class="section-title">Typography</div>
+    <div class="section-desc">Two font stacks. All sizes via <span class="inline-code">FONT_SIZE.*</span> (JS) or <span class="inline-code">--font-size-*</span> (CSS). Never hardcode a pixel value.</div>
+
+    <div class="subsection">
+      <div class="subsection-title">Font Families</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:4px; padding:20px 20px 14px;">
+          <div style="font-size:32px; font-weight:500; color:var(--color-text-bright); margin-bottom:6px; font-family:var(--font-family);">Aa Bb Cc 0123</div>
+          <div style="font-size:var(--font-size-xs); color:var(--color-text-dim); font-family:var(--font-family-mono);">--font-family · -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif</div>
+        </div>
+        <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:4px; padding:20px 20px 14px;">
+          <div style="font-size:28px; color:var(--color-text-bright); margin-bottom:6px; font-family:var(--font-family-mono); letter-spacing:-0.01em;">Aa 01 {} () []</div>
+          <div style="font-size:var(--font-size-xs); color:var(--color-text-dim); font-family:var(--font-family-mono);">--font-family-mono · 'Consolas', 'Cascadia Code', 'Courier New', monospace</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Type Scale</div>
+      <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:4px; overflow:hidden;">
+        <div class="type-row" style="padding:8px 16px; background:var(--color-panel);">
+          <div class="type-meta"><span class="type-token" style="color:var(--color-text-dim);">Token</span><span class="type-px" style="color:var(--color-text-dim);">px</span></div>
+          <div class="type-sample" style="color:var(--color-text-dim); font-size:11px;">Usage</div>
+        </div>
+        <div style="padding:0 16px;">
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.XXXS</span><span class="type-px">8px</span></div><div class="type-sample" style="font-size:8px;">Tiny icon labels, density indicators</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.XXS</span><span class="type-px">9px</span></div><div class="type-sample" style="font-size:9px;">Compact secondary text</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.XS</span><span class="type-px">10px</span></div><div class="type-sample" style="font-size:10px;">Small labels, captions</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.SM</span><span class="type-px">11px</span></div><div class="type-sample" style="font-size:11px;">Section labels, form fields, compact UI</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.BASE</span><span class="type-px">12px</span></div><div class="type-sample" style="font-size:12px;">Body text, charts, default size</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.MD</span><span class="type-px">13px</span></div><div class="type-sample" style="font-size:13px;">Medium text, inputs</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.LG</span><span class="type-px">14px</span></div><div class="type-sample" style="font-size:14px;">Buttons, subheadings, overlays</div></div>
+          <div class="type-row"><div class="type-meta"><span class="type-token">FONT_SIZE.XL</span><span class="type-px">16px</span></div><div class="type-sample" style="font-size:16px;">Section titles</div></div>
+          <div class="type-row" style="border-bottom:none;"><div class="type-meta"><span class="type-token">FONT_SIZE.XXL</span><span class="type-px">18px</span></div><div class="type-sample" style="font-size:18px; font-weight:600;">Modal titles, large headings</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ SPACING / RADIUS ═══════════════════════════════ -->
+  <section class="section" id="spacing">
+    <div class="section-title">Border Radius</div>
+    <div class="section-desc">Sourced from <span class="inline-code">RADIUS.*</span> in <span class="inline-code">constants/layout.ts</span>. Never use a raw number.</div>
+
+    <div class="radius-grid">
+      <div class="radius-item"><div class="radius-box" style="border-radius:1px;"></div><div class="radius-label">RADIUS.XS</div><div class="radius-value">1px</div></div>
+      <div class="radius-item"><div class="radius-box" style="border-radius:2px;"></div><div class="radius-label">RADIUS.SM</div><div class="radius-value">2px</div></div>
+      <div class="radius-item"><div class="radius-box" style="border-radius:3px;"></div><div class="radius-label">RADIUS.MD</div><div class="radius-value">3px</div></div>
+      <div class="radius-item"><div class="radius-box" style="border-radius:4px;"></div><div class="radius-label">RADIUS.LG</div><div class="radius-value">4px · buttons, inputs</div></div>
+      <div class="radius-item"><div class="radius-box" style="border-radius:8px;"></div><div class="radius-label">RADIUS.XL</div><div class="radius-value">8px · sliders, toast</div></div>
+      <div class="radius-item"><div class="radius-box" style="border-radius:9px;"></div><div class="radius-label">RADIUS.PILL</div><div class="radius-value">9px · toggle track</div></div>
+      <div class="radius-item"><div class="radius-box" style="border-radius:50%; width:52px; height:52px;"></div><div class="radius-label">RADIUS.CIRCLE</div><div class="radius-value">50% · toggle thumb</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ SHADOWS ═══════════════════════════════ -->
+  <section class="section" id="shadows">
+    <div class="section-title">Box Shadows</div>
+    <div class="section-desc">From <span class="inline-code">SHADOW.*</span> in <span class="inline-code">constants/layout.ts</span>. All use black with increasing radius and opacity.</div>
+    <div class="shadow-grid">
+      <div class="shadow-card"><div class="shadow-box" style="box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div><div class="shadow-label">SHADOW.SM</div><div class="shadow-value">0 1px 3px rgba(0,0,0,0.4)<br>Slider thumbs, small controls</div></div>
+      <div class="shadow-card"><div class="shadow-box" style="box-shadow:0 4px 12px rgba(0,0,0,0.5)"></div><div class="shadow-label">SHADOW.MD</div><div class="shadow-value">0 4px 12px rgba(0,0,0,0.5)<br>Settings dropdown</div></div>
+      <div class="shadow-card"><div class="shadow-box" style="box-shadow:0 4px 16px rgba(0,0,0,0.4)"></div><div class="shadow-label">SHADOW.LG</div><div class="shadow-value">0 4px 16px rgba(0,0,0,0.4)<br>Toolbar menus, selects</div></div>
+      <div class="shadow-card"><div class="shadow-box" style="box-shadow:0 4px 24px rgba(0,0,0,0.5)"></div><div class="shadow-label">SHADOW.XL</div><div class="shadow-value">0 4px 24px rgba(0,0,0,0.5)<br>Instrument selector, toast</div></div>
+      <div class="shadow-card"><div class="shadow-box" style="box-shadow:0 8px 32px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)"></div><div class="shadow-label">SHADOW.XXL</div><div class="shadow-value">Heavy — camera menu, large panels</div></div>
+      <div class="shadow-card"><div class="shadow-box" style="box-shadow:0 24px 80px rgba(0,0,0,0.6), 0 0 1px rgba(255,255,255,0.06)"></div><div class="shadow-label">SHADOW.HERO</div><div class="shadow-value">Hero — screenshot preview modal</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ Z-INDEX ═══════════════════════════════ -->
+  <section class="section" id="zindex">
+    <div class="section-title">Z-Index Stack</div>
+    <div class="section-desc">Layers from <span class="inline-code">Z.*</span> in <span class="inline-code">constants/layout.ts</span>. Never use a raw number. Intentionally spaced to allow future insertions.</div>
+    <div class="zstack">
+      <div class="zstack-item"><div class="zstack-bar" style="width:10px"></div><span class="zstack-token">Z.HEADER</span><span class="zstack-num">10</span><span class="zstack-desc">Sticky table headers, loading overlays, labels</span></div>
+      <div class="zstack-item"><div class="zstack-bar" style="width:20px"></div><span class="zstack-token">Z.OVERLAY</span><span class="zstack-num">20</span><span class="zstack-desc">Overlay containers (chart overlay wrapper)</span></div>
+      <div class="zstack-item"><div class="zstack-bar" style="width:30px"></div><span class="zstack-token">Z.TOOLBAR</span><span class="zstack-num">30</span><span class="zstack-desc">Drawing toolbar, quick-order box, scroll buttons</span></div>
+      <div class="zstack-item"><div class="zstack-bar" style="width:40px"></div><span class="zstack-token">Z.TOOLBAR_EDIT</span><span class="zstack-num">40</span><span class="zstack-desc">Drawing edit toolbar (must sit above Z.TOOLBAR)</span></div>
+      <div class="zstack-item"><div class="zstack-bar" style="width:50px"></div><span class="zstack-token">Z.DROPDOWN</span><span class="zstack-num">50</span><span class="zstack-desc">All dropdowns, popovers, selects, color pickers</span></div>
+      <div class="zstack-item"><div class="zstack-bar" style="width:60px"></div><span class="zstack-token">Z.MODAL</span><span class="zstack-num">60</span><span class="zstack-desc">Full-screen modal overlays (above dropdowns)</span></div>
+      <div class="zstack-item"><div class="zstack-bar" style="width:100px; opacity:1"></div><span class="zstack-token">Z.TOAST</span><span class="zstack-num">100</span><span class="zstack-desc">Toast notifications, top-level color popovers</span></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ MOTION ═══════════════════════════════ -->
+  <section class="section" id="transitions">
+    <div class="section-title">Motion</div>
+    <div class="section-desc">Three transition speeds from <span class="inline-code">tokens.css</span>. Every interactive state change must be animated — never use instant color changes.</div>
+
+    <div class="subsection">
+      <div class="subsection-title">Transition Durations — hover to compare</div>
+      <div class="transition-row">
+        <div class="transition-demo transition-fast-demo"><code>--transition-fast</code> · 0.15s<br><span style="color:var(--color-text-dim);font-size:var(--font-size-xs);">Most interactions</span></div>
+        <div class="transition-demo transition-normal-demo"><code>--transition-normal</code> · 0.2s<br><span style="color:var(--color-text-dim);font-size:var(--font-size-xs);">Icon opacity, scroll button</span></div>
+        <div class="transition-demo transition-slow-demo"><code>--transition-slow</code> · 0.25s<br><span style="color:var(--color-text-dim);font-size:var(--font-size-xs);">Modal entrance, crosshair</span></div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Keyframe Animations — click to replay</div>
+      <div class="anim-grid">
+        <div class="anim-card">
+          <div class="anim-name">toolbar-in</div>
+          <div class="anim-duration">0.15s ease-out · slides down from -6px</div>
+          <div id="anim1-target" style="width:48px;height:32px;background:var(--color-hover-toolbar);border-radius:3px;margin-bottom:8px;"></div>
+          <button class="anim-demo-btn" onclick="replay('anim1-target','toolbar-in 0.15s ease-out')">Replay</button>
+        </div>
+        <div class="anim-card">
+          <div class="anim-name">toolbar-left</div>
+          <div class="anim-duration">0.15s ease-out · slides in from left</div>
+          <div id="anim2-target" style="width:48px;height:32px;background:var(--color-hover-toolbar);border-radius:3px;margin-bottom:8px;"></div>
+          <button class="anim-demo-btn" onclick="replay('anim2-target','toolbar-left 0.15s ease-out')">Replay</button>
+        </div>
+        <div class="anim-card">
+          <div class="anim-name">dropdown-in</div>
+          <div class="anim-duration">0.15s ease-out · fade + scale(0.97→1)</div>
+          <div id="anim3-target" style="width:48px;height:32px;background:var(--color-hover-toolbar);border-radius:3px;margin-bottom:8px;"></div>
+          <button class="anim-demo-btn" onclick="replay('anim3-target','dropdown-in 0.15s ease-out')">Replay</button>
+        </div>
+        <div class="anim-card">
+          <div class="anim-name">modal-in</div>
+          <div class="anim-duration">0.25s cubic-bezier(0.16,1,0.3,1)</div>
+          <div id="anim4-target" style="width:48px;height:32px;background:var(--color-hover-toolbar);border-radius:3px;margin-bottom:8px;"></div>
+          <button class="anim-demo-btn" onclick="replay('anim4-target','modal-in 0.25s cubic-bezier(0.16,1,0.3,1)')">Replay</button>
+        </div>
+        <div class="anim-card">
+          <div class="anim-name">toast-in</div>
+          <div class="anim-duration">0.2s ease-out · slide from right</div>
+          <div id="anim5-target" style="width:48px;height:32px;background:var(--color-hover-toolbar);border-radius:3px;margin-bottom:8px;"></div>
+          <button class="anim-demo-btn" onclick="replay('anim5-target','toast-in 0.2s ease-out')">Replay</button>
+        </div>
+        <div class="anim-card">
+          <div class="anim-name">recording-pulse</div>
+          <div class="anim-duration">1.2s ease-in-out infinite</div>
+          <div class="recording-indicator" style="margin-bottom:8px;">
+            <div class="recording-dot"></div>
+            <span>LIVE</span>
+          </div>
+          <div style="font-size:var(--font-size-xs); color:var(--color-text-dim);">Runs continuously</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ BUTTONS ═══════════════════════════════ -->
+  <section class="section" id="buttons">
+    <div class="section-title">Buttons</div>
+    <div class="section-desc">The <span class="inline-code">Button</span> primitive in <span class="inline-code">components/ui/Button.tsx</span>. Never style a raw <span class="inline-code">&lt;button&gt;</span> manually.</div>
+
+    <div class="subsection">
+      <div class="subsection-title">General Variants</div>
+      <div class="button-row">
+        <button class="btn btn-primary">primary</button>
+        <button class="btn btn-secondary">secondary</button>
+        <button class="btn btn-accent">accent</button>
+        <button class="btn btn-danger">danger</button>
+        <button class="btn btn-toolbar">toolbar ▾</button>
+        <button class="btn btn-ghost">ghost</button>
+        <button class="btn btn-secondary" disabled>disabled</button>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Trade Buttons</div>
+      <div class="button-row">
+        <button class="btn btn-buy" style="min-width:100px; font-size:14px; padding:8px 20px;">BUY</button>
+        <button class="btn btn-sell" style="min-width:100px; font-size:14px; padding:8px 20px;">SELL</button>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Size Variants</div>
+      <div class="button-row" style="align-items:center;">
+        <button class="btn btn-accent" style="font-size:12px; padding:5px 10px; border-radius:3px;">size="sm"</button>
+        <button class="btn btn-accent" style="font-size:13px; padding:5px 16px; border-radius:3px;">size="md" (default)</button>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Variant Reference</div>
+      <table class="token-table">
+        <thead><tr><th>Variant</th><th>Background</th><th>Text</th><th>Usage</th></tr></thead>
+        <tbody>
+          <tr><td><code>primary</code></td><td class="muted">--color-label-close</td><td class="muted">--color-label-text</td><td class="dim">Ok / Confirm actions</td></tr>
+          <tr><td><code>secondary</code></td><td class="muted">--color-surface + border</td><td class="muted">--color-text</td><td class="dim">Cancel, secondary actions</td></tr>
+          <tr><td><code>accent</code></td><td class="muted">--color-accent</td><td class="muted">#fff</td><td class="dim">Primary CTA</td></tr>
+          <tr><td><code>danger</code></td><td class="muted">error/15% + border</td><td class="muted">--color-error</td><td class="dim">Destructive actions</td></tr>
+          <tr><td><code>toolbar</code></td><td class="muted">--color-input + border</td><td class="muted">--color-text</td><td class="dim">Toolbar / header pill buttons</td></tr>
+          <tr><td><code>ghost</code></td><td class="muted">transparent</td><td class="muted">--color-text-muted</td><td class="dim">Subtle icon actions</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ INPUTS ═══════════════════════════════ -->
+  <section class="section" id="inputs">
+    <div class="section-title">Inputs</div>
+    <div class="section-desc">Use class strings from <span class="inline-code">constants/styles.ts</span>. Focus ring is <span class="inline-code">--color-accent</span>. Disabled is always <span class="inline-code">opacity: 0.5</span>.</div>
+
+    <div class="two-col">
+      <div class="subsection">
+        <div class="subsection-title">INPUT_DARK</div>
+        <div class="input-row">
+          <input class="input-demo input-dark" type="text" placeholder="Placeholder text…" />
+          <input class="input-demo input-dark" type="text" value="Filled value" />
+          <input class="input-demo input-dark" type="text" value="Error state" style="border-color:var(--color-error)" />
+          <input class="input-demo input-dark" type="text" placeholder="Disabled" disabled style="opacity:0.5" />
+        </div>
+        <div style="margin-top:8px; font-size:var(--font-size-xs); color:var(--color-text-dim); line-height:1.6;">
+          <code>bg-(--color-input)</code> · Used inside modals and dark panels
+        </div>
+      </div>
+      <div class="subsection">
+        <div class="subsection-title">INPUT_SURFACE</div>
+        <div class="input-row">
+          <input class="input-demo input-surface" type="text" placeholder="Placeholder text…" />
+          <input class="input-demo input-surface" type="text" value="Filled value" />
+          <input class="input-demo input-surface" type="number" value="42.50" />
+        </div>
+        <div style="margin-top:8px; font-size:var(--font-size-xs); color:var(--color-text-dim); line-height:1.6;">
+          <code>bg-(--color-bg)</code> · Used in toolbar-adjacent controls
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ MODAL ═══════════════════════════════ -->
+  <section class="section" id="modal">
+    <div class="section-title">Modal</div>
+    <div class="section-desc">The <span class="inline-code">Modal</span> primitive in <span class="inline-code">components/ui/Modal.tsx</span> (built on Radix Dialog). Handles focus trap, Escape-to-close, portal rendering.</div>
+
+    <div class="subsection">
+      <div class="subsection-title">Anatomy</div>
+      <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+        <div class="modal-demo">
+          <div class="modal-header">
+            <span class="modal-title">Confirm Action</span>
+            <button class="modal-close" onclick="this.blur()">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="1" y1="1" x2="9" y2="9"/><line x1="9" y1="1" x2="1" y2="9"/></svg>
+            </button>
+          </div>
+          <hr class="modal-divider" />
+          <div class="modal-body">
+            Are you sure you want to close all positions? This action cannot be undone.
+          </div>
+          <hr class="modal-divider" />
+          <div class="modal-footer">
+            <button class="btn btn-secondary" style="font-size:13px; padding:5px 16px;">Cancel</button>
+            <button class="btn btn-primary" style="font-size:13px; padding:5px 16px;">Confirm</button>
+          </div>
+        </div>
+
+        <div style="font-size:var(--font-size-xs); color:var(--color-text-dim); line-height:2; padding-top:4px;">
+          <div style="color:var(--color-text-muted); margin-bottom:4px;">Structure</div>
+          <div>Header · <code>padding: 12px 16px 10px</code></div>
+          <div>Divider · <code>border-top: 1px solid --color-border</code></div>
+          <div>Body · customizable content</div>
+          <div>Divider</div>
+          <div>Footer · <code>Cancel</code> + <code>Ok</code> default</div>
+          <div style="margin-top:12px; color:var(--color-text-muted);">Properties</div>
+          <div>width · default <code>440px</code></div>
+          <div>background · <code>--color-surface</code></div>
+          <div>border-radius · <code>RADIUS.XL (8px)</code></div>
+          <div>shadow · <code>SHADOW.XXL</code></div>
+          <div>z-index · <code>Z.MODAL (60)</code></div>
+          <div>backdrop · <code>bg-black/65</code></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ PATTERNS ═══════════════════════════════ -->
+  <section class="section" id="patterns">
+    <div class="section-title">Patterns</div>
+    <div class="section-desc">Reusable UI idioms used throughout the codebase.</div>
+
+    <div class="subsection">
+      <div class="subsection-title">Section Label — <code>SECTION_LABEL</code></div>
+      <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:4px; padding:16px;">
+        <div class="section-label-demo">Order Settings</div>
+        <div style="margin-top:8px; color:var(--color-text-muted); font-size:var(--font-size-xs);">font-size: 10px · uppercase · tracking: 0.09em · color: --color-text-muted</div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Color Swatch — two-layer pattern</div>
+      <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:4px; padding:16px;">
+        <div style="margin-bottom:12px; color:var(--color-text-muted); font-size:var(--font-size-xs);">Outer: 28×28 container with border · Inner: 18×18 colored fill · border-radius: RADIUS.XL / RADIUS.LG</div>
+        <div class="swatch-row">
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#2962ff"></span></button>
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#26a69a"></span></button>
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#ef5350"></span></button>
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#f0a830"></span></button>
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#9b59b6"></span></button>
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#ffffff"></span></button>
+          <button class="swatch-btn"><span class="swatch-inner" style="background:#434651"></span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Table / Data Rows</div>
+      <div style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:4px; overflow:hidden;">
+        <table class="table-demo">
+          <thead>
+            <tr><th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>P&amp;L</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>BTC/USDT</td><td class="buy-text">BUY</td><td>0.5</td><td class="muted-text">43,210.00</td><td class="buy-text">+$126.40</td></tr>
+            <tr><td>ETH/USDT</td><td class="sell-text">SELL</td><td>2.0</td><td class="muted-text">2,841.00</td><td class="sell-text">-$38.20</td></tr>
+            <tr><td>SOL/USDT</td><td class="buy-text">BUY</td><td>10</td><td class="muted-text">148.30</td><td class="warning-text">$0.00</td></tr>
+            <tr><td>DOGE/USDT</td><td class="sell-text">SELL</td><td>5000</td><td class="muted-text">0.0812</td><td class="buy-text">+$9.05</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px; font-size:var(--font-size-xs); color:var(--color-text-dim);">Striped even rows via <code>--color-table-stripe / 40%</code> · hover via <code>--color-surface / 50%</code> · <code>transition-colors: --transition-fast</code></div>
+    </div>
+
+    <div class="subsection">
+      <div class="subsection-title">Role Badges</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="pill" style="background:rgba(60,156,239,0.12); color:var(--color-role-master);">Master</span>
+        <span class="pill" style="background:rgba(92,178,112,0.12); color:var(--color-role-follower);">Follower</span>
+        <span class="pill" style="background:rgba(242,54,69,0.12); color:var(--color-error);">Error</span>
+        <span class="pill" style="background:rgba(240,168,48,0.12); color:var(--color-warning);">Warning</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ TOASTS ═══════════════════════════════ -->
+  <section class="section" id="toasts">
+    <div class="section-title">Toasts</div>
+    <div class="section-desc">Z-index <span class="inline-code">Z.TOAST (100)</span>. Shadow <span class="inline-code">SHADOW.XL</span>. Animated with <span class="inline-code">toast-in</span> / <span class="inline-code">toast-out</span>.</div>
+    <div style="display:flex; flex-direction:column; gap:8px; max-width:340px;">
+      <div class="toast-demo" style="background:var(--color-surface); border:1px solid var(--color-border);">
+        <div class="toast-dot" style="background:var(--color-buy)"></div>
+        <span style="color:var(--color-text);">Order filled: BUY 0.5 BTC @ 43,210</span>
+      </div>
+      <div class="toast-demo" style="background:var(--color-surface); border:1px solid var(--color-border);">
+        <div class="toast-dot" style="background:var(--color-error)"></div>
+        <span style="color:var(--color-text);">Connection lost — reconnecting…</span>
+      </div>
+      <div class="toast-demo" style="background:var(--color-surface); border:1px solid var(--color-border);">
+        <div class="toast-dot" style="background:var(--color-warning)"></div>
+        <span style="color:var(--color-text);">Insufficient margin for order</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ RULES ═══════════════════════════════ -->
+  <section class="section" id="rules">
+    <div class="section-title">Token Rules</div>
+    <div class="section-desc">Enforced project-wide. No exceptions outside of documented acceptable cases.</div>
+    <table class="token-table">
+      <thead><tr><th>Rule</th><th>Do</th><th>Don't</th></tr></thead>
+      <tbody>
+        <tr><td>Colors</td><td><code>var(--color-surface)</code></td><td class="dim">Any hardcoded hex value</td></tr>
+        <tr><td>Border (structural)</td><td><code>1px solid var(--color-border)</code></td><td class="dim">#222, #333, #4a4a4a</td></tr>
+        <tr><td>Border (interactive)</td><td><code>1px solid var(--color-text-muted)</code></td><td class="dim">Same as structural borders</td></tr>
+        <tr><td>Disabled</td><td><code>opacity: 0.5</code></td><td class="dim">opacity: 0.3 or 0.4</td></tr>
+        <tr><td>Modal backdrop</td><td><code>rgba(0,0,0,0.65)</code></td><td class="dim">bg-black/40 or /80</td></tr>
+        <tr><td>Transitions</td><td><code>var(--transition-fast)</code></td><td class="dim">Raw 0.15s or instant</td></tr>
+        <tr><td>Z-index</td><td><code>Z.DROPDOWN</code></td><td class="dim">Raw number like zIndex: 50</td></tr>
+        <tr><td>Shadow</td><td><code>SHADOW.LG</code></td><td class="dim">Inline shadow string</td></tr>
+        <tr><td>Border radius</td><td><code>RADIUS.LG</code></td><td class="dim">borderRadius: 4</td></tr>
+        <tr><td>Font size</td><td><code>FONT_SIZE.BASE</code></td><td class="dim">fontSize: 12 or text-[12px]</td></tr>
+        <tr><td>Hover state</td><td>Tailwind <code>hover:</code> or inline styles</td><td class="dim">onMouseEnter setState for colors</td></tr>
+        <tr><td>New colors</td><td>Add token to tokens.css with semantic name</td><td class="dim">One-off hex in a component</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<script>
+  function setActive(el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function replay(id, animation) {
+    const el = document.getElementById(id);
+    el.style.animation = 'none';
+    el.offsetHeight; // reflow
+    el.style.animation = animation;
+  }
+
+  // Highlight active nav on scroll
+  const sections = document.querySelectorAll('.section[id]');
+  const navItems = document.querySelectorAll('.nav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(n => {
+          n.classList.toggle('active', n.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { threshold: 0.2 });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

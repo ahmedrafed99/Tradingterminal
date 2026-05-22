@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../../store/useStore';
 import type { LiveStrategyInfo } from '../../store/slices/liveStrategySlice';
 import {
@@ -11,8 +11,7 @@ import { IS_DEMO } from '../../adapters/demo/index';
 import { resolveConditionServerUrl } from '../../store/slices/conditionsSlice';
 import { Z } from '../../constants/layout';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
+import { Modal } from '../shared/Modal';
 
 // ---------------------------------------------------------------------------
 // Status helpers
@@ -128,75 +127,82 @@ function ConfigModal({ strategy, serverUrl, onClose, onStarted }: ConfigModalPro
     }
   }
 
-  const footer = (
-    <>
-      <Button variant="secondary" onClick={onClose} disabled={loading}>
-        Cancel
-      </Button>
-      <Button
-        variant="primary"
-        onClick={handleStart}
-        disabled={loading || !accountId || !contractId}
-      >
-        {loading ? 'Starting…' : 'Start Strategy'}
-      </Button>
-    </>
-  );
+  const rowLabel: React.CSSProperties = {
+    fontSize: 13, color: 'var(--color-text)', whiteSpace: 'nowrap', width: 100, flexShrink: 0,
+  };
+  const btnBase: React.CSSProperties = {
+    fontSize: 13, padding: '5px 16px', borderRadius: 4, cursor: 'pointer',
+    transition: 'background var(--transition-fast)',
+  };
+  const canStart = !loading && !!accountId && !!contractId;
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={`Start — ${strategy.name}`}
-      width={380}
-      footer={footer}
-    >
-      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Account */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] text-(--color-text-medium)">Account</span>
-          <select
-            value={accountId}
-            onChange={(e) => setAccountId(e.target.value)}
-            className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim) cursor-pointer"
-            style={{ padding: '10px 12px' }}
+    <Modal onClose={onClose}>
+      {/* Panel */}
+      <div style={{ width: 380, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px 10px', borderBottom: '1px solid var(--color-border)' }}>
+          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>
+            Start — {strategy.name}
+          </span>
+          <button
+            onClick={onClose}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'background var(--transition-fast), color var(--transition-fast)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
           >
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>{a.name || a.id}</option>
-            ))}
-            {accounts.length === 0 && <option value="" disabled>No accounts</option>}
-          </select>
-        </label>
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
+            </svg>
+          </button>
+        </div>
 
-        {/* Contract ID */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] text-(--color-text-medium)">Contract ID</span>
-          <input
-            type="text"
-            value={contractId}
-            onChange={(e) => setContractId(e.target.value)}
-            className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim)"
-            style={{ padding: '10px 12px' }}
-            placeholder="e.g. CON.F.US.MNQ..."
-          />
-        </label>
+        {/* Body */}
+        <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={rowLabel}>Account</span>
+            <select
+              value={accountId}
+              onChange={(e) => setAccountId(e.target.value)}
+              style={{ flex: 1, background: 'var(--color-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '5px 8px', fontSize: 13, cursor: 'pointer', outline: 'none' }}
+            >
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name || a.id}</option>)}
+              {accounts.length === 0 && <option value="" disabled>No accounts</option>}
+            </select>
+          </div>
 
-        {/* Contract Name */}
-        <label className="flex flex-col gap-1.5">
-          <span className="text-[11px] text-(--color-text-medium)">Contract Name</span>
-          <input
-            type="text"
-            value={contractName}
-            onChange={(e) => setContractName(e.target.value)}
-            className="w-full text-[13px] bg-(--color-input) border border-(--color-border) text-(--color-text) rounded-md focus:outline-none focus:border-(--color-text-dim)"
-            style={{ padding: '10px 12px' }}
-            placeholder="e.g. MNQ Sep 2025"
-          />
-        </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={rowLabel}>Contract ID</span>
+            <input type="text" value={contractId} onChange={(e) => setContractId(e.target.value)}
+              style={{ flex: 1, background: 'var(--color-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+              placeholder="CON.F.US.MNQ..."
+            />
+          </div>
 
-        {error && (
-          <span className="text-[11px] text-(--color-sell)">{error}</span>
-        )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={rowLabel}>Contract Name</span>
+            <input type="text" value={contractName} onChange={(e) => setContractName(e.target.value)}
+              style={{ flex: 1, background: 'var(--color-input)', color: 'var(--color-text)', border: '1px solid var(--color-border)', borderRadius: 4, padding: '5px 8px', fontSize: 13, outline: 'none' }}
+              placeholder="e.g. MNQ Sep 2025"
+            />
+          </div>
+
+          {error && <span style={{ fontSize: 11, color: 'var(--color-sell)' }}>{error}</span>}
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop: '1px solid var(--color-border)', padding: '8px 16px', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+          <button onClick={onClose} disabled={loading} style={{ ...btnBase, background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-toolbar)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-surface)'; }}>
+            Cancel
+          </button>
+          <button onClick={handleStart} disabled={!canStart} style={{ ...btnBase, background: 'var(--color-label-close)', color: 'var(--color-label-text)', border: 'none', opacity: canStart ? 1 : 0.5 }}
+            onMouseEnter={(e) => { if (canStart) e.currentTarget.style.background = 'var(--color-label-close-hover)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-label-close)'; }}>
+            {loading ? 'Starting…' : 'Start Strategy'}
+          </button>
+        </div>
       </div>
     </Modal>
   );
