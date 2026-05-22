@@ -165,7 +165,7 @@ export function FibSettingsPopover({
       const current = resolvedFibLevels(fib);
       const mirrored: FibLevel[] = current
         .filter((l) => l.ratio > 0)
-        .map((l) => ({ ratio: -l.ratio, color: l.color, visible: l.visible }));
+        .map((l) => ({ ratio: -l.ratio, visible: l.visible }));
       updateDrawing(drawingId, {
         showNegative: true,
         levels: [...current.filter((l) => l.ratio >= 0), ...mirrored],
