@@ -182,8 +182,32 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     const exitTs = Math.floor(
       new Date(zone.exitTrade.creationTimestamp).getTime() / 1000,
     );
-    const entryCandle = floorToCandlePeriod(entryTs, this._periodSec);
-    const exitCandle = floorToCandlePeriod(exitTs, this._periodSec);
+
+    // For tick bars periodSec=0 — bar boundaries aren't fixed time intervals,
+    // so we binary-search the series for the latest bar whose time ≤ the trade timestamp.
+    const seriesData = this._series.data() as any[];
+    const findTickBarTime = (ts: number): number | null => {
+      let lo = 0, hi = seriesData.length - 1, result: number | null = null;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if ((seriesData[mid].time as number) <= ts) {
+          result = seriesData[mid].time as number;
+          lo = mid + 1;
+        } else {
+          hi = mid - 1;
+        }
+      }
+      return result;
+    };
+
+    const entryCandle = this._periodSec > 0
+      ? floorToCandlePeriod(entryTs, this._periodSec)
+      : (findTickBarTime(entryTs) as unknown as ReturnType<typeof floorToCandlePeriod>);
+    const exitCandle = this._periodSec > 0
+      ? floorToCandlePeriod(exitTs, this._periodSec)
+      : (findTickBarTime(exitTs) as unknown as ReturnType<typeof floorToCandlePeriod>);
+
+    if (entryCandle === null || exitCandle === null) return;
 
     const cssX1 = this._chart
       .timeScale()
@@ -241,7 +265,6 @@ class TradeZoneRenderer implements IPrimitivePaneRenderer {
     ctx.setLineDash([]);
 
     // Look up candle data so labels sit outside the candle body
-    const seriesData = this._series.data() as any[];
     const entryBar = seriesData.find((d: any) => d.time === entryCandle);
     const exitBar = seriesData.find((d: any) => d.time === exitCandle);
 

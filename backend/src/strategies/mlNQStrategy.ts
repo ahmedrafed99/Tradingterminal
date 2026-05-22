@@ -398,7 +398,10 @@ export class MLNQStrategy implements ILiveStrategy {
       this.activeTrade = { entryTime: new Date().toISOString(), signal: resp.signal, contracts: resp.trade_config.total_contracts, orderId };
 
       // Place standalone trailing stop after entry (opposite side to close the position)
+      // trailPrice must be in ticks — convert from pts
       if (useTrailing) {
+        const trailTicks = Math.round(resp.trade_config.trailing_dist_pts / tickSize);
+        let trailPlaced = false;
         try {
           const trailResult = await adapter.orders.place({
             accountId,
@@ -406,19 +409,40 @@ export class MLNQStrategy implements ILiveStrategy {
             type: OrderType.TrailingStop,
             side: isBuy ? OrderSide.Sell : OrderSide.Buy,
             size: resp.trade_config.total_contracts,
-            trailPrice: resp.trade_config.trailing_dist_pts,
+            trailPrice: trailTicks,
           }) as { success?: boolean; errorMessage?: string; orderId?: string | number };
 
           if (trailResult.success === false) {
             console.error(`[ml-nq] trailing stop rejected: ${trailResult.errorMessage}`);
             debugLog.log('[ml-nq] trailing stop rejected', { error: trailResult.errorMessage });
           } else {
+            trailPlaced = true;
             const trailId = trailResult.orderId != null ? String(trailResult.orderId) : undefined;
-            console.log(`[ml-nq] trailing stop placed — id=${trailId} dist=${resp.trade_config.trailing_dist_pts}pts`);
-            debugLog.log('[ml-nq] trailing stop placed', { trailId, dist: resp.trade_config.trailing_dist_pts });
+            console.log(`[ml-nq] trailing stop placed — id=${trailId} dist=${trailTicks}ticks`);
+            debugLog.log('[ml-nq] trailing stop placed', { trailId, trailTicks });
           }
         } catch (trailErr: unknown) {
           debugLog.log('[ml-nq]', { trailStopError: trailErr instanceof Error ? trailErr.message : String(trailErr) });
+        }
+
+        // Fallback: place fixed SL if trailing stop was rejected — position must not be naked
+        if (!trailPlaced) {
+          try {
+            const slResult = await adapter.orders.place({
+              accountId,
+              contractId,
+              type: OrderType.Stop,
+              side: isBuy ? OrderSide.Sell : OrderSide.Buy,
+              size: resp.trade_config.total_contracts,
+              stopLossBracket: { ticks: slTicks, type: OrderType.Stop },
+            }) as { success?: boolean; errorMessage?: string; orderId?: string | number };
+            const slId = slResult.orderId != null ? String(slResult.orderId) : undefined;
+            console.warn(`[ml-nq] trailing stop failed — fallback SL placed id=${slId} ticks=${slTicks}`);
+            debugLog.log('[ml-nq] fallback SL placed', { slId, slTicks });
+          } catch (slErr: unknown) {
+            console.error('[ml-nq] fallback SL also failed — position unprotected!');
+            debugLog.log('[ml-nq]', { fallbackSlError: slErr instanceof Error ? slErr.message : String(slErr) });
+          }
         }
       }
 
