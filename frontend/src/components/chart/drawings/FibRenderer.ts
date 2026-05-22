@@ -35,8 +35,7 @@ export function resolvedFibLevels(drawing: FibDrawing): FibLevel[] {
   if (!drawing.levels || drawing.levels.length === 0) return DEFAULT_FIB_LEVELS;
   // Use only the stored ratios — fill in default color for known ones but never
   // re-add a ratio the user removed or changed.
-  const defaultMap = new Map(DEFAULT_FIB_LEVELS.map((l) => [l.ratio, l]));
-  return drawing.levels.map((l) => ({ ...(defaultMap.get(l.ratio) ?? { ratio: l.ratio }), ...l }));
+  return drawing.levels.map((l) => ({ ...l }));
 }
 
 // ---------------------------------------------------------------------------
@@ -335,7 +334,7 @@ class FibPreviewRenderer implements IPrimitivePaneRenderer {
       const { _x1: x1, _y1: y1, _x2: x2, _y2: y2 } = this;
 
       ctx.strokeStyle = this._color;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 1;
       ctx.setLineDash([5, 4]);
       ctx.beginPath();
       ctx.moveTo(x1, y1);

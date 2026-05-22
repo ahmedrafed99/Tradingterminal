@@ -165,7 +165,22 @@ export function FibSettingsPopover({
     const current = resolvedFibLevels(fib);
     // Skip if the target ratio already exists on a different level
     if (current.some((l, i) => i !== origIdx && l.ratio === newRatio)) return;
-    const updated = current.map((l, i) => i === origIdx ? { ...l, ratio: newRatio } : l);
+    let updated = current.map((l, i) => i === origIdx ? { ...l, ratio: newRatio } : l);
+
+    // When negatives are active and a positive ratio changed, sync the mirror
+    if (showNegative && oldRatio > 0) {
+      const mirrorOld = -oldRatio;
+      const mirrorNew = -newRatio;
+      const mirrorIdx = updated.findIndex((l) => l.ratio === mirrorOld);
+      if (mirrorIdx !== -1) {
+        // Update existing mirror — strip explicit color so it follows negative master
+        updated = updated.map((l, i) => i === mirrorIdx ? { ratio: mirrorNew, visible: l.visible } : l);
+      } else if (!updated.some((l) => l.ratio === mirrorNew)) {
+        // No mirror yet — add one using negative master color (no explicit color)
+        updated = [...updated, { ratio: mirrorNew, visible: true }];
+      }
+    }
+
     updateDrawing(drawingId, { levels: updated } as Partial<Drawing>);
   };
 
