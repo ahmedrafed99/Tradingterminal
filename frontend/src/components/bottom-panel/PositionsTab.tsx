@@ -394,8 +394,16 @@ export function PositionsTab() {
 
   const togglePnlMode = useCallback(() => setPnlMode(pnlMode === '$' ? 'points' : '$'), [pnlMode, setPnlMode]);
 
+  // TP/SL display mode — cycles independently of global pnlMode
+  // 'price' → show raw price · '$' → projected P&L in dollars · 'pts' → projected P&L in points
+  const [tpSlMode, setTpSlMode] = useState<'price' | '$' | 'pts'>('price');
+  const cycleTpSlMode = useCallback(() => {
+    setTpSlMode((m) => m === 'price' ? '$' : m === '$' ? 'pts' : 'price');
+  }, []);
+
   // ── Layout ──
-  const cols = 'grid-cols-[1.1fr_0.7fr_1fr_0.5fr_1.1fr_1fr_1.1fr_1fr_1fr_0.9fr_0.5fr]';
+  // minmax(0,Nfr) prevents content from driving column width — badges never push neighbours
+  const cols = 'grid-cols-[minmax(0,1.1fr)_minmax(0,0.7fr)_minmax(0,1fr)_minmax(0,0.5fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1.1fr)_minmax(0,0.5fr)]';
   let rowIdx = 0;
 
   const headerCells: [string, SortColumn][] = [
@@ -489,6 +497,9 @@ export function PositionsTab() {
       ) : (
         sortedRows.map((r) => {
           const stripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
+          const dir = r.isLong ? 1 : -1;
+
+          // Unreal P&L
           const pnl = (r.lastPrice != null && r.contract)
             ? calcPnl((r.isLong ? r.lastPrice - r.averagePrice : r.averagePrice - r.lastPrice), r.contract, r.size)
             : null;
@@ -497,6 +508,22 @@ export function PositionsTab() {
             : null;
           const pnlColor = pnl == null ? 'text-(--color-text-muted)'
             : pnl > 0 ? 'text-(--color-buy)' : pnl < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)';
+
+          // TP projected P&L — independent of global pnlMode
+          const tpDiff = r.tpPrice != null ? (r.tpPrice - r.averagePrice) * dir : null;
+          const tpProjPnl = tpDiff != null && r.contract ? calcPnl(tpDiff, r.contract, r.size) : null;
+          const tpProjPts = tpDiff != null && r.contract ? roundToTick(tpDiff, r.contract.tickSize) : null;
+          const tpVal = tpSlMode === '$' ? tpProjPnl : tpSlMode === 'pts' ? tpProjPts : null;
+          const tpColor = tpSlMode === 'price' ? 'text-(--color-buy)'
+            : tpVal == null ? 'text-(--color-buy)' : tpVal >= 0 ? 'text-(--color-buy)' : 'text-(--color-sell)';
+
+          // SL projected P&L — independent of global pnlMode
+          const slDiff = r.slPrice != null ? (r.slPrice - r.averagePrice) * dir : null;
+          const slProjPnl = slDiff != null && r.contract ? calcPnl(slDiff, r.contract, r.size) : null;
+          const slProjPts = slDiff != null && r.contract ? roundToTick(slDiff, r.contract.tickSize) : null;
+          const slVal = tpSlMode === '$' ? slProjPnl : tpSlMode === 'pts' ? slProjPts : null;
+          const slColor = tpSlMode === 'price' ? 'text-(--color-sell)'
+            : slVal == null ? 'text-(--color-sell)' : slVal >= 0 ? 'text-(--color-buy)' : 'text-(--color-sell)';
 
           return (
             <div
@@ -569,21 +596,61 @@ export function PositionsTab() {
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {r.openTime ? formatDuration(tradingDurationMs(r.openTime, new Date().toISOString())) : EMPTY}
                 </div>
-                <div className="px-3 text-center whitespace-nowrap">
+                {/* TP */}
+                <div className="px-3 text-center whitespace-nowrap overflow-hidden">
                   {r.tpPrice == null ? (
                     <span className="text-(--color-text-dim)">{EMPTY}</span>
-                  ) : (
-                    <span className="text-(--color-buy)">
+                  ) : tpSlMode === 'price' ? (
+                    <span
+                      className="text-(--color-buy) cursor-pointer rounded px-1 hover:bg-(--color-hover-row) hover:font-semibold transition-all"
+                      onClick={(e) => { e.stopPropagation(); cycleTpSlMode(); }}
+                      title="Show projected P&L"
+                    >
                       {r.tpPrice.toFixed(2)}
-                      {r.tpCount > 1 && <span className="text-(--color-text-dim)"> +{r.tpCount - 1}</span>}
+                      {r.tpCount > 1 && <span className="text-(--color-text-dim) font-normal"> +{r.tpCount - 1}</span>}
+                    </span>
+                  ) : (
+                    <span
+                      className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) hover:font-semibold transition-all"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      onClick={(e) => { e.stopPropagation(); cycleTpSlMode(); }}
+                      title={tpSlMode === '$' ? 'Switch to points' : 'Show TP price'}
+                    >
+                      <span className={tpColor}>
+                        {tpVal != null ? `${tpVal >= 0 ? '+' : ''}${tpVal.toFixed(2)}` : EMPTY}
+                      </span>
+                      <span className="text-(--color-text-muted) font-normal" style={{ opacity: 0.6 }}>
+                        {tpSlMode === '$' ? '$' : 'pt'}
+                      </span>
                     </span>
                   )}
                 </div>
-                <div className="px-3 text-center whitespace-nowrap">
+                {/* SL */}
+                <div className="px-3 text-center whitespace-nowrap overflow-hidden">
                   {r.slPrice == null ? (
                     <span className="text-(--color-text-dim)">{EMPTY}</span>
+                  ) : tpSlMode === 'price' ? (
+                    <span
+                      className="text-(--color-sell) cursor-pointer rounded px-1 hover:bg-(--color-hover-row) hover:font-semibold transition-all"
+                      onClick={(e) => { e.stopPropagation(); cycleTpSlMode(); }}
+                      title="Show projected P&L"
+                    >
+                      {r.slPrice.toFixed(2)}
+                    </span>
                   ) : (
-                    <span className="text-(--color-sell)">{r.slPrice.toFixed(2)}</span>
+                    <span
+                      className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) hover:font-semibold transition-all"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      onClick={(e) => { e.stopPropagation(); cycleTpSlMode(); }}
+                      title={tpSlMode === '$' ? 'Switch to points' : 'Show SL price'}
+                    >
+                      <span className={slColor}>
+                        {slVal != null ? `${slVal >= 0 ? '+' : ''}${slVal.toFixed(2)}` : EMPTY}
+                      </span>
+                      <span className="text-(--color-text-muted) font-normal" style={{ opacity: 0.6 }}>
+                        {tpSlMode === '$' ? '$' : 'pt'}
+                      </span>
+                    </span>
                   )}
                 </div>
                 <div className="px-3 flex items-center justify-center">
