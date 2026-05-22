@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
+import { ChevronDown } from '../icons/ChevronDown';
 
 export interface SelectOption {
   value: string;
@@ -56,7 +57,7 @@ export function CustomSelect({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number; up: boolean } | null>(null);
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, open, close);
 
@@ -70,16 +71,18 @@ export function CustomSelect({
     return () => window.removeEventListener('keydown', handler);
   }, [open]);
 
-  // Compute fixed position when opening
+  // Compute fixed position when opening; auto-flip upward when near bottom edge
   useEffect(() => {
     if (!open || !btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
-    if (dropUp) {
-      setDropPos({ top: rect.top - 4, left: rect.left, width: rect.width });
+    const estimatedHeight = Math.min(options.length, 8) * 32 + 8;
+    const up = dropUp || (window.innerHeight - rect.bottom < estimatedHeight + 4);
+    if (up) {
+      setDropPos({ top: rect.top - 4, left: rect.left, width: rect.width, up: true });
     } else {
-      setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+      setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width, up: false });
     }
-  }, [open, dropUp]);
+  }, [open, dropUp, options.length]);
 
   const selected = options.find((o) => o.value === value);
 
@@ -113,9 +116,7 @@ export function CustomSelect({
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {selected?.label ?? value}
         </span>
-        <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0 }}>
-          <path d={dropUp && open ? 'M0 5l4-5 4 5z' : 'M0 0l4 5 4-5z'} />
-        </svg>
+        <ChevronDown size={8} className={`opacity-50 shrink-0 transition-transform${open ? ' rotate-180' : ''}`} />
       </button>
       {open && dropPos && (
         <div
@@ -123,8 +124,8 @@ export function CustomSelect({
           style={{
             zIndex: Z.DROPDOWN,
             position: 'fixed',
-            top: dropUp ? undefined : dropPos.top,
-            bottom: dropUp ? `calc(100vh - ${dropPos.top}px)` : undefined,
+            top: dropPos.up ? undefined : dropPos.top,
+            bottom: dropPos.up ? `calc(100vh - ${dropPos.top}px)` : undefined,
             left: dropPos.left,
             width: Math.max(dropPos.width, dropdownMinWidth ?? 0),
             background: dropdownBg,

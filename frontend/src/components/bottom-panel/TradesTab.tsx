@@ -300,6 +300,7 @@ export function TradesTab() {
               options={presetOptions}
               padding="4px 8px"
               fontSize={11}
+              dropdownMinWidth={130}
             />
           </div>
         </div>
@@ -363,6 +364,7 @@ export function TradesTab() {
               options={presetOptions}
               padding="4px 8px"
               fontSize={11}
+              dropdownMinWidth={130}
             />
           </div>
         </div>
