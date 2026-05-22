@@ -63,7 +63,7 @@ export default defineConfig({
       '/lockout':  { target: BACKEND, changeOrigin: true },
       '/backtest': { target: BACKEND, changeOrigin: true },
       '/strategies': { target: BACKEND, changeOrigin: true },
-      '/hubs':    { target: BACKEND, changeOrigin: true, ws: true },
+      '/ws':      { target: BACKEND, changeOrigin: true, ws: true },
     },
   },
 })

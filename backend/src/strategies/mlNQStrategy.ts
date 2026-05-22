@@ -5,6 +5,8 @@ import { spawn, ChildProcess } from 'child_process';
 import { getAdapter, isConnected } from '../adapters/registry';
 import { OrderType, OrderSide } from '../types/enums';
 import type { ILiveStrategy, LiveStrategyConfig, LiveStrategyInfo, StrategyState } from './ILiveStrategy';
+import type { BracketConfig } from '../types/bracket';
+import { bracketEngine } from '../services/bracketEngine';
 import { debugLog } from '../utils/debugLog';
 
 const RESULTS_FILE = path.resolve(process.cwd(), 'log', 'strategy-results.json');
@@ -127,6 +129,10 @@ export class MLNQStrategy implements ILiveStrategy {
     if (this.pollTimer) {
       clearTimeout(this.pollTimer);
       this.pollTimer = null;
+    }
+    // Cancel any live bracket session (cancels open SL + TP orders)
+    if (this.activeTrade?.orderId) {
+      await bracketEngine.cancelSession(this.activeTrade.orderId).catch(() => {});
     }
     this._setState('stopped');
     debugLog.log('[ml-nq]', 'stopped');
@@ -311,7 +317,7 @@ export class MLNQStrategy implements ILiveStrategy {
       // Console: only non-flat signals
       if (resp.ready && resp.signal !== 'flat') {
         console.log(`[ml-nq] signal=${resp.signal.toUpperCase()} confidence=${Math.round(resp.confidence * 100)}% bars=${resp.bars}`);
-        await this._maybeExecute(resp, accountId, contractId, tickSize);
+        await this._maybeExecute(resp, accountId, contractId, tickSize, bar.c);
       }
     } catch (err) {
       debugLog.log('[ml-nq]', { pollError: err instanceof Error ? err.message : String(err) });
@@ -325,6 +331,7 @@ export class MLNQStrategy implements ILiveStrategy {
     accountId: string,
     contractId: string,
     tickSize: number,
+    _barClose: number, // reserved — bracketEngine uses actual fill price from SignalR
   ): Promise<void> {
     const adapter = getAdapter();
 
@@ -347,43 +354,36 @@ export class MLNQStrategy implements ILiveStrategy {
     }
 
     const isBuy = resp.signal === 'long';
-    const dir = isBuy ? 1 : -1;
-    const slTicks = Math.round(resp.trade_config.sl_pts / tickSize) * -dir;
-    const side = isBuy ? 'BUY' : 'SELL';
     const useTrailing = resp.trade_config.trailing_stop && resp.trade_config.trailing_dist_pts > 0;
 
-    // Build TP brackets from targets array; fall back to tp_pts if no targets
-    const targets = resp.trade_config.targets;
-    const takeProfitBrackets = (targets && targets.length > 0)
-      ? targets.map((t) => ({
-          ticks: Math.round(t.tp_pts / tickSize) * dir,
-          type: OrderType.Limit,
-        }))
-      : resp.trade_config.tp_pts
-        ? [{ ticks: Math.round(resp.trade_config.tp_pts / tickSize) * dir, type: OrderType.Limit }]
-        : undefined;
+    // SL distance in ticks (unsigned — direction is handled by bracketEngine)
+    const slTicks = Math.round(resp.trade_config.sl_pts / tickSize);
 
-    const tpSummary = takeProfitBrackets
-      ? takeProfitBrackets.map((t) => `${t.ticks}ticks`).join(', ')
-      : 'none';
+    // Build TP levels from ML targets or fallback tp_pts
+    const targets = resp.trade_config.targets;
+    const tpLevels: Array<{ ticks: number; contracts: number }> = (targets && targets.length > 0)
+      ? targets.map((t) => ({ ticks: Math.round(t.tp_pts / tickSize), contracts: t.contracts }))
+      : resp.trade_config.tp_pts
+        ? [{ ticks: Math.round(resp.trade_config.tp_pts / tickSize), contracts: resp.trade_config.total_contracts }]
+        : [];
+
+    const tpSummary = tpLevels.map((t) => `${t.contracts}x${t.ticks}tks`).join(', ') || 'none';
     const slDesc = useTrailing
-      ? `trail=${resp.trade_config.trailing_dist_pts}pts`
-      : `sl=${slTicks}ticks`;
+      ? `trail=${Math.round(resp.trade_config.trailing_dist_pts / tickSize)}tks`
+      : `sl=${slTicks}tks`;
+    const side = isBuy ? 'BUY' : 'SELL';
     console.log(`[ml-nq] placing ${side} x${resp.trade_config.total_contracts} ${slDesc} tp=[${tpSummary}]`);
     debugLog.log('[ml-nq] order', { side, size: resp.trade_config.total_contracts, slDesc, tpSummary });
 
     try {
-      // When trailing: entry has no SL bracket — trailing stop placed as a standalone order after fill
+      // Place entry with NO brackets — bracketEngine places SL + TPs after fill
+      const entryOrderPlacedAt = new Date().toISOString();
       const orderResult = await adapter.orders.place({
         accountId,
         contractId,
         type: OrderType.Market,
         side: isBuy ? OrderSide.Buy : OrderSide.Sell,
         size: resp.trade_config.total_contracts,
-        ...(useTrailing ? {} : {
-          stopLossBracket: { ticks: slTicks, type: OrderType.Stop },
-        }),
-        ...(takeProfitBrackets ? { takeProfitBrackets } : {}),
       }) as { success?: boolean; errorMessage?: string; orderId?: string | number };
 
       if (orderResult.success === false) {
@@ -395,65 +395,71 @@ export class MLNQStrategy implements ILiveStrategy {
       const orderId = orderResult.orderId != null ? String(orderResult.orderId) : undefined;
       console.log(`[ml-nq] order placed — id=${orderId}`);
       debugLog.log('[ml-nq] order placed', { orderId });
-      this.activeTrade = { entryTime: new Date().toISOString(), signal: resp.signal, contracts: resp.trade_config.total_contracts, orderId };
 
-      // Place standalone trailing stop after entry (opposite side to close the position)
-      // trailPrice must be in ticks — convert from pts
-      if (useTrailing) {
-        const trailTicks = Math.round(resp.trade_config.trailing_dist_pts / tickSize);
-        let trailPlaced = false;
-        try {
-          const trailResult = await adapter.orders.place({
-            accountId,
-            contractId,
-            type: OrderType.TrailingStop,
-            side: isBuy ? OrderSide.Sell : OrderSide.Buy,
-            size: resp.trade_config.total_contracts,
-            trailPrice: trailTicks,
-          }) as { success?: boolean; errorMessage?: string; orderId?: string | number };
+      this.activeTrade = {
+        entryTime: entryOrderPlacedAt,
+        signal: resp.signal,
+        contracts: resp.trade_config.total_contracts,
+        orderId,
+      };
 
-          if (trailResult.success === false) {
-            console.error(`[ml-nq] trailing stop rejected: ${trailResult.errorMessage}`);
-            debugLog.log('[ml-nq] trailing stop rejected', { error: trailResult.errorMessage });
-          } else {
-            trailPlaced = true;
-            const trailId = trailResult.orderId != null ? String(trailResult.orderId) : undefined;
-            console.log(`[ml-nq] trailing stop placed — id=${trailId} dist=${trailTicks}ticks`);
-            debugLog.log('[ml-nq] trailing stop placed', { trailId, trailTicks });
-          }
-        } catch (trailErr: unknown) {
-          debugLog.log('[ml-nq]', { trailStopError: trailErr instanceof Error ? trailErr.message : String(trailErr) });
-        }
-
-        // Fallback: place fixed SL if trailing stop was rejected — position must not be naked
-        if (!trailPlaced) {
-          try {
-            const slResult = await adapter.orders.place({
-              accountId,
-              contractId,
-              type: OrderType.Stop,
-              side: isBuy ? OrderSide.Sell : OrderSide.Buy,
-              size: resp.trade_config.total_contracts,
-              stopLossBracket: { ticks: slTicks, type: OrderType.Stop },
-            }) as { success?: boolean; errorMessage?: string; orderId?: string | number };
-            const slId = slResult.orderId != null ? String(slResult.orderId) : undefined;
-            console.warn(`[ml-nq] trailing stop failed — fallback SL placed id=${slId} ticks=${slTicks}`);
-            debugLog.log('[ml-nq] fallback SL placed', { slId, slTicks });
-          } catch (slErr: unknown) {
-            console.error('[ml-nq] fallback SL also failed — position unprotected!');
-            debugLog.log('[ml-nq]', { fallbackSlError: slErr instanceof Error ? slErr.message : String(slErr) });
-          }
-        }
+      if (!orderId) {
+        debugLog.log('[ml-nq] no orderId — skipping bracketEngine', {});
+        return;
       }
 
-      await axios.post(`${ML_SERVER_BASE}/trade_event`, {
-        ts: Date.now() / 1000,
-        side: 'entry',
-        price: null,
-        size: resp.trade_config.total_contracts,
-        signal: resp.signal,
-        order_id: orderId,
-      }, { timeout: 3000 }).catch(() => {});
+      // Build bracket config for the engine
+      const bracketCfg: BracketConfig = {
+        stopLoss: {
+          ticks: useTrailing
+            ? Math.round(resp.trade_config.trailing_dist_pts / tickSize)
+            : slTicks,
+          type: useTrailing ? 'TrailingStop' : 'Stop',
+        },
+        takeProfits: tpLevels.map((t, i) => ({
+          id: `tp${i}`,
+          ticks: t.ticks,
+          size: t.contracts,
+        })),
+        conditions: [],
+      };
+
+      bracketEngine.trackEntry({
+        sessionId: orderId,
+        accountId,
+        contractId,
+        entryOrderId: orderId,
+        entryOrderPlacedAt,
+        entrySide: isBuy ? OrderSide.Buy : OrderSide.Sell,
+        entrySize: resp.trade_config.total_contracts,
+        config: bracketCfg,
+        // tickValue for NQ/MNQ: each tick = tickSize × 2 dollars (0.25 → $0.50, 0.5 → $1.00)
+        contract: { tickSize, tickValue: tickSize * 2 },
+        callbacks: {
+          onEntryFilled: (_sid, fillPrice) => {
+            console.log(`[ml-nq] entry filled @ ${fillPrice}`);
+            axios.post(`${ML_SERVER_BASE}/trade_event`, {
+              ts: Date.now() / 1000, side: 'entry', price: fillPrice,
+              size: resp.trade_config.total_contracts, signal: resp.signal, order_id: orderId,
+            }, { timeout: 3000 }).catch(() => {});
+          },
+          onTpFilled: (_sid, tpIdx, fillPrice, _filledSize, remaining) => {
+            console.log(`[ml-nq] TP${tpIdx + 1} filled @ ${fillPrice} — remaining ${remaining} contracts`);
+            debugLog.log('[ml-nq] tpFilled', { tpIdx, fillPrice, remaining });
+          },
+          onSlFilled: (_sid, fillPrice) => {
+            console.log(`[ml-nq] SL filled @ ${fillPrice}`);
+            debugLog.log('[ml-nq] slFilled', { fillPrice });
+          },
+          onSlPlacementFailed: (_sid, err) => {
+            console.error(`[ml-nq] CRITICAL: SL placement failed — position is UNPROTECTED`, err instanceof Error ? err.message : err);
+            debugLog.log('[ml-nq] slPlacementFailed', { error: String(err) });
+          },
+          onSessionEnd: (_sid, reason) => {
+            debugLog.log('[ml-nq] bracketSession ended', { reason });
+          },
+        },
+      });
     } catch (err: unknown) {
       debugLog.log('[ml-nq]', { executeError: err instanceof Error ? err.message : String(err) });
     }

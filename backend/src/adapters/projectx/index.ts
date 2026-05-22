@@ -5,7 +5,6 @@ import { projectXMarketData } from './marketData';
 import { projectXOrders } from './orders';
 import { projectXPositions } from './positions';
 import { projectXTrades } from './trades';
-import { projectXRealtime } from './realtime';
 
 export function createProjectXAdapter(): ExchangeAdapter {
   return {
@@ -16,6 +15,6 @@ export function createProjectXAdapter(): ExchangeAdapter {
     orders: projectXOrders,
     positions: projectXPositions,
     trades: projectXTrades,
-    realtime: projectXRealtime,
+    // realtime is now managed by realtimeService.ts (sole SignalR connection)
   };
 }

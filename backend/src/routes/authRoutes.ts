@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateBody } from '../validate';
 import { getAdapter, setAdapter, removeAdapter, isConnected, listConnected, getDefaultExchangeId, setDefaultExchangeId } from '../adapters/registry';
 import { createAdapter, listExchanges } from '../adapters/factory';
+import { realtimeService } from '../services/realtimeService';
 
 const router = Router();
 
@@ -41,6 +42,12 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
       baseUrl: credentials['baseUrl'],
     });
     setAdapter(exchange, adapter);
+    // Connect the backend realtime service for ProjectX (sole SignalR connection)
+    if (exchange === 'projectx') {
+      realtimeService.connect().catch((err) => {
+        console.error('[auth] realtimeService connect failed:', err instanceof Error ? err.message : err);
+      });
+    }
     res.json({ success: true, exchange });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -59,12 +66,16 @@ router.post('/disconnect', (req, res) => {
       getAdapter(exchange).auth.disconnect();
       removeAdapter(exchange);
     }
+    if (exchange === 'projectx') {
+      realtimeService.disconnect().catch(() => {});
+    }
   } else {
     // Disconnect all
     for (const id of listConnected()) {
       getAdapter(id).auth.disconnect();
       removeAdapter(id);
     }
+    realtimeService.disconnect().catch(() => {});
   }
   res.json({ success: true });
 });

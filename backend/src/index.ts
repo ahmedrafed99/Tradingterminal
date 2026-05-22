@@ -26,6 +26,7 @@ import backtestRoutes from './routes/backtestRoutes';
 import liveStrategyRoutes from './routes/liveStrategyRoutes';
 import * as liveStrategyManager from './services/liveStrategyManager';
 import WebSocket from 'ws';
+import { realtimeService } from './services/realtimeService';
 import * as conditionEngine from './services/conditionEngine';
 import * as conditionStore from './services/conditionStore';
 import * as databaseService from './services/databaseService';
@@ -101,22 +102,10 @@ app.get('/health', (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// SignalR hub — HTTP negotiate proxy (/hubs/* HTTP requests)
-//
-// Delegates to the active exchange adapter's negotiate middleware.
+// SignalR negotiate — no longer proxied here.
+// The backend realtimeService holds the sole SignalR connection.
+// Frontend connects via /ws/realtime WebSocket (see upgrade handler below).
 // ---------------------------------------------------------------------------
-app.use('/hubs', (req, res, next) => {
-  if (!isConnected()) {
-    res.status(401).json({ success: false, errorMessage: 'Not connected' });
-    return;
-  }
-  const { realtime } = getAdapter();
-  if (realtime?.kind === 'signalr') {
-    realtime.negotiateMiddleware(req, res, next);
-  } else {
-    res.status(404).json({ success: false, errorMessage: 'This exchange does not support SignalR hubs' });
-  }
-});
 
 // ---------------------------------------------------------------------------
 // HTTP server + WebSocket upgrade proxy
@@ -133,6 +122,10 @@ conditionWss.on('connection', (ws) => tickAggregator.addClient(ws));
 const eventsWss = new WebSocket.Server({ noServer: true });
 eventsWss.on('connection', (ws) => eventsService.addClient(ws));
 
+// WebSocket server for realtime events (SignalR → frontend forwarding)
+const realtimeWss = new WebSocket.Server({ noServer: true });
+realtimeWss.on('connection', (ws) => realtimeService.registerClient(ws));
+
 server.on('upgrade', (req, socket, head) => {
   const url = req.url ?? '';
 
@@ -148,6 +141,14 @@ server.on('upgrade', (req, socket, head) => {
   if (url.startsWith('/ws/events')) {
     eventsWss.handleUpgrade(req, socket, head, (ws) => {
       eventsWss.emit('connection', ws, req);
+    });
+    return;
+  }
+
+  // Realtime SignalR forwarding — frontend connects here instead of /hubs/*
+  if (url.startsWith('/ws/realtime')) {
+    realtimeWss.handleUpgrade(req, socket, head, (ws) => {
+      realtimeWss.emit('connection', ws, req);
     });
     return;
   }
@@ -169,19 +170,9 @@ server.on('upgrade', (req, socket, head) => {
     return;
   }
 
-  // ProjectX SignalR hubs — route to PX adapter (or default adapter)
-  if (!isConnected()) {
-    socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-  const { realtime } = getAdapter();
-  if (realtime?.handleUpgrade) {
-    realtime.handleUpgrade(req, socket, head);
-  } else {
-    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-    socket.destroy();
-  }
+  // Unrecognised WebSocket path
+  socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+  socket.destroy();
 });
 
 // ---------------------------------------------------------------------------
@@ -219,6 +210,11 @@ async function autoConnect(): Promise<void> {
     await adapter.auth.connect({ exchange, credentials });
     setAdapter(exchange, adapter);
     console.log(`[auto-connect] Connected to ${exchange} successfully`);
+    if (exchange === 'projectx') {
+      realtimeService.connect().catch((err) => {
+        console.error('[auto-connect] realtimeService connect failed:', err instanceof Error ? err.message : err);
+      });
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[auto-connect] Failed:', msg);
@@ -260,6 +256,7 @@ process.on('SIGINT', () => {
   backfillService.stopAutoSync();
   conditionEngine.stop();
   liveStrategyManager.shutdown();
+  realtimeService.disconnect().catch(() => {});
   databaseService.close();
   process.exit(0);
 });
@@ -268,6 +265,7 @@ process.on('SIGTERM', () => {
   backfillService.stopAutoSync();
   conditionEngine.stop();
   liveStrategyManager.shutdown();
+  realtimeService.disconnect().catch(() => {});
   databaseService.close();
   process.exit(0);
 });

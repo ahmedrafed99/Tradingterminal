@@ -1,5 +1,14 @@
-import * as signalR from '@microsoft/signalr';
-import { HttpTransportType } from '@microsoft/signalr';
+/**
+ * ProjectX realtime adapter — backend WebSocket client.
+ *
+ * Connects to the backend's /ws/realtime endpoint instead of ProjectX
+ * SignalR directly. The backend holds the sole SignalR connection and
+ * forwards all events here as simple JSON messages.
+ *
+ * Public API is identical to the previous SignalR-based adapter so all
+ * consumers (chart, OrderPanel, TradesTab, PositionsTab, etc.) are unaffected.
+ */
+
 import type {
   RealtimeAdapter, Quote, DepthEntry,
   RealtimeOrder, RealtimePosition, RealtimeAccount, RealtimeTrade,
@@ -7,27 +16,37 @@ import type {
   AccountHandler, TradeHandler, MarketTick, MarketTickHandler, HubStateHandler,
 } from '../types';
 
-// ── SignalR-specific helpers (not part of the public adapter API) ──────────
+// ---------------------------------------------------------------------------
+// Message shapes from backend
+// ---------------------------------------------------------------------------
 
-// User Hub events arrive as arrays of { action, data }
-// action: 0=new, 1=update
-interface UserHubItem<T> {
-  action: number;
-  data: T;
+interface BackendEvent {
+  event: string;
+  contractId?: string;
+  action?: number;
+  data?: unknown;
+  hub?: string;
+  state?: string;
+  id?: unknown;
 }
 
-// SignalR may deliver user hub items as a single array arg or as spread args
-function normalizeUserHubArgs<T>(args: unknown[]): UserHubItem<T>[] {
-  if (args.length === 1 && Array.isArray(args[0])) return args[0];
-  return args as UserHubItem<T>[];
-}
+// ---------------------------------------------------------------------------
+// Reconnect config
+// ---------------------------------------------------------------------------
 
-// ── ProjectX Realtime Adapter ─────────────────────────────────────────────
+const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+
+// ---------------------------------------------------------------------------
+// Adapter
+// ---------------------------------------------------------------------------
 
 export class ProjectXRealtimeAdapter implements RealtimeAdapter {
-  private marketHub: signalR.HubConnection | null = null;
-  private userHub:   signalR.HubConnection | null = null;
+  private ws: WebSocket | null = null;
+  private reconnectAttempt = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private intentionalClose = false;
 
+  // Handler lists
   private quoteHandlers:      QuoteHandler[]      = [];
   private depthHandlers:      DepthHandler[]      = [];
   private orderHandlers:      OrderHandler[]      = [];
@@ -35,315 +54,324 @@ export class ProjectXRealtimeAdapter implements RealtimeAdapter {
   private accountHandlers:    AccountHandler[]    = [];
   private tradeHandlers:      TradeHandler[]      = [];
   private marketTickHandlers: MarketTickHandler[] = [];
-
-  // Refcount per contract — multiple consumers (chart, UP&L hook, Positions
-  // tab) can subscribe to the same quote stream independently. The actual
-  // SignalR subscribe/unsubscribe only fires on the 0↔1 transitions, so one
-  // consumer unsubscribing never kills the stream for the others.
-  private subscribedQuotes: Map<string, number> = new Map();
-  private subscribedDepth: Set<string> = new Set();
-  private lastQuote: Map<string, Quote> = new Map();
-  private subscribedOrderAccounts: Set<string> = new Set();
-  private connectingPromise: Promise<void> | null = null;
-  private userReconnectHandlers: (() => void)[] = [];
-  private marketReconnectHandlers: (() => void)[] = [];
   private marketHubStateHandlers: HubStateHandler[] = [];
-  private userHubStateHandlers: HubStateHandler[] = [];
+  private userHubStateHandlers:   HubStateHandler[] = [];
+  private userReconnectHandlers:   (() => void)[] = [];
+  private marketReconnectHandlers: (() => void)[] = [];
 
-  async connect() {
+  // Subscription tracking (for re-subscribe on reconnect)
+  private subscribedQuotes   = new Map<string, number>(); // refcount
+  private subscribedDepth    = new Map<string, number>(); // refcount
+  private subscribedAccounts = new Set<string>();
+  private lastQuote          = new Map<string, Quote>();
+
+  // Pending ping resolvers: id → resolve
+  private pingResolvers = new Map<string, (ms: number) => void>();
+
+  // ── Connection ─────────────────────────────────────────────────────────────
+
+  async connect(): Promise<void> {
     if (this.isConnected()) return;
-    if (this.connectingPromise) return this.connectingPromise;
-
-    this.connectingPromise = this.doConnect();
-    try {
-      await this.connectingPromise;
-    } finally {
-      this.connectingPromise = null;
-    }
+    return new Promise<void>((resolve) => {
+      this.intentionalClose = false;
+      this._open(resolve);
+    });
   }
 
-  private async doConnect() {
-    // Connect through the backend proxy — JWT is injected server-side.
-    // The proxy handles negotiate (HTTP) and WebSocket upgrade, so the
-    // browser never sees the token.
-    this.marketHub = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/market', {
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets,
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
+  private _open(onFirstConnect?: () => void): void {
+    if (this.ws) {
+      try { this.ws.close(); } catch { /* ignore */ }
+      this.ws = null;
+    }
 
-    this.userHub = new signalR.HubConnectionBuilder()
-      .withUrl('/hubs/user', {
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets,
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
+    // Use relative path — Vite proxy maps /ws → backend:3001
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${location.host}/ws/realtime`;
 
-    // Market hub: GatewayQuote has two params (contractId, data)
-    this.marketHub.on('GatewayQuote', (contractId: string, data: Quote) => {
-      this.lastQuote.set(contractId, data);
-      this.quoteHandlers.forEach((h) => h(contractId, data));
-    });
+    const ws = new WebSocket(url);
+    this.ws = ws;
 
-    // Market hub: GatewayTrade — dispatch fills as MarketTick[] and synthesize quote update.
-    // GatewayQuote only fires on best-bid/ask changes and can go silent;
-    // trades fire on every fill, so we synthesize a quote update from them.
-    this.marketHub.on('GatewayTrade', (contractId: string, trades: unknown) => {
-      const arr = Array.isArray(trades) ? trades : [trades];
-
-      // Dispatch to market tick handlers (for FRVP trade volume accumulation)
-      if (this.marketTickHandlers.length > 0) {
-        const ticks: MarketTick[] = [];
-        for (const t of arr) {
-          const raw = t as { price?: number; Price?: number; size?: number; Size?: number; volume?: number; Volume?: number; timestamp?: string };
-          const price = raw.price ?? raw.Price;
-          const size = raw.size ?? raw.Size ?? raw.volume ?? raw.Volume ?? 1;
-          if (price && price > 0) {
-            ticks.push({ price, size, timestampMs: raw.timestamp ? new Date(raw.timestamp).getTime() : Date.now() });
-          }
-        }
-        if (ticks.length > 0) this.marketTickHandlers.forEach((h) => h(contractId, ticks));
-      }
-
-      const last = arr[arr.length - 1] as { price?: number; timestamp?: string } | undefined;
-      if (!last?.price) return;
-
-      const prev = this.lastQuote.get(contractId);
-      const synthetic: Quote = {
-        symbol: prev?.symbol ?? '',
-        symbolName: prev?.symbolName ?? '',
-        lastPrice: last.price,
-        bestBid: prev?.bestBid ?? last.price,
-        bestAsk: prev?.bestAsk ?? last.price,
-        change: prev?.change ?? 0,
-        changePercent: prev?.changePercent ?? 0,
-        open: prev?.open ?? last.price,
-        high: Math.max(prev?.high ?? last.price, last.price),
-        low: Math.min(prev?.low ?? last.price, last.price),
-        volume: (prev?.volume ?? 0) + arr.length,
-        lastUpdated: last.timestamp ?? new Date().toISOString(),
-        timestamp: last.timestamp ?? new Date().toISOString(),
-      };
-      this.lastQuote.set(contractId, synthetic);
-      this.quoteHandlers.forEach((h) => h(contractId, synthetic));
-    });
-
-    // Market hub: GatewayDepth has two params (contractId, entries[])
-    this.marketHub.on('GatewayDepth', (contractId: string, entries: (DepthEntry | null)[]) => {
-      const valid = entries.filter((e): e is DepthEntry => e != null);
-      this.depthHandlers.forEach((h) => h(contractId, valid));
-    });
-
-    // User hub events — may arrive as a single array arg OR spread args.
-    // ProjectX delivers numeric IDs; normalize to strings at the boundary.
-    this.userHub.on('GatewayUserOrder', (...args: unknown[]) => {
-      const items = normalizeUserHubArgs<RealtimeOrder>(args);
-      for (const item of items) {
-        const data = item.data;
-        const order: RealtimeOrder = { ...data, id: String(data.id), accountId: String(data.accountId) };
-        this.orderHandlers.forEach((handler) => handler(order, item.action));
-      }
-    });
-    this.userHub.on('GatewayUserPosition', (...args: unknown[]) => {
-      for (const item of normalizeUserHubArgs<RealtimePosition>(args)) {
-        const data = item.data;
-        const pos: RealtimePosition = { ...data, id: String(data.id), accountId: String(data.accountId) };
-        this.positionHandlers.forEach((handler) => handler(pos, item.action));
-      }
-    });
-    this.userHub.on('GatewayUserAccount', (...args: unknown[]) => {
-      for (const item of normalizeUserHubArgs<RealtimeAccount>(args)) {
-        const data = item.data;
-        const acct: RealtimeAccount = { ...data, id: String(data.id) };
-        this.accountHandlers.forEach((handler) => handler(acct, item.action));
-      }
-    });
-    this.userHub.on('GatewayUserTrade', (...args: unknown[]) => {
-      for (const item of normalizeUserHubArgs<RealtimeTrade>(args)) {
-        const data = item.data;
-        const trade: RealtimeTrade = { ...data, id: String(data.id), accountId: String(data.accountId), orderId: String(data.orderId) };
-        this.tradeHandlers.forEach((handler) => handler(trade, item.action));
-      }
-    });
-
-    // Resubscribe on reconnect
-    this.marketHub.onreconnecting(() => {
-      this.marketHubStateHandlers.forEach((h) => h('reconnecting'));
-    });
-    this.marketHub.onreconnected(() => {
+    ws.onopen = () => {
+      this.reconnectAttempt = 0;
+      // Re-subscribe everything
       for (const contractId of this.subscribedQuotes.keys()) {
-        this.marketHub?.invoke('SubscribeContractQuotes', contractId).catch(console.error);
-        this.marketHub?.invoke('SubscribeContractTrades', contractId).catch(console.error);
+        this._send({ cmd: 'subscribeQuotes', contractId });
       }
-      for (const contractId of this.subscribedDepth) {
-        this.marketHub?.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
+      for (const contractId of this.subscribedDepth.keys()) {
+        this._send({ cmd: 'subscribeDepth', contractId });
       }
-      this.marketReconnectHandlers.forEach((h) => h());
-      this.marketHubStateHandlers.forEach((h) => h('connected'));
-    });
-    this.marketHub.onclose(() => {
-      this.marketHubStateHandlers.forEach((h) => h('disconnected'));
-    });
+      for (const accountId of this.subscribedAccounts) {
+        this._send({ cmd: 'subscribeUser', accountId });
+      }
+      onFirstConnect?.();
+    };
 
-    this.userHub.onreconnecting(() => {
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as string) as BackendEvent;
+        this._dispatch(msg);
+      } catch { /* ignore malformed */ }
+    };
+
+    ws.onclose = () => {
+      this.ws = null;
+      if (this.intentionalClose) return;
+
+      this.marketHubStateHandlers.forEach((h) => h('reconnecting'));
       this.userHubStateHandlers.forEach((h) => h('reconnecting'));
-    });
-    this.userHub.onreconnected(() => {
-      for (const accountId of this.subscribedOrderAccounts) {
-        this.flushUserSubscriptions(accountId);
-      }
-      this.userReconnectHandlers.forEach((h) => h());
-      this.userHubStateHandlers.forEach((h) => h('connected'));
-    });
-    this.userHub.onclose(() => {
-      this.userHubStateHandlers.forEach((h) => h('disconnected'));
-    });
 
-    await this.marketHub.start();
-    await this.userHub.start();
-    this.marketHubStateHandlers.forEach((h) => h('connected'));
-    this.userHubStateHandlers.forEach((h) => h('connected'));
+      const delay = RECONNECT_DELAYS[Math.min(this.reconnectAttempt, RECONNECT_DELAYS.length - 1)];
+      this.reconnectAttempt++;
+      this.reconnectTimer = setTimeout(() => { this._open(); }, delay);
+    };
 
-    // Flush any subscriptions that were requested before connection was ready
-    for (const contractId of this.subscribedQuotes.keys()) {
-      this.marketHub.invoke('SubscribeContractQuotes', contractId).catch(console.error);
-      this.marketHub.invoke('SubscribeContractTrades', contractId).catch(console.error);
-    }
-    for (const contractId of this.subscribedDepth) {
-      this.marketHub.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
-    }
-    for (const accountId of this.subscribedOrderAccounts) {
-      this.flushUserSubscriptions(accountId);
-    }
+    ws.onerror = () => { /* onclose fires after onerror */ };
   }
 
-  async disconnect() {
-    await this.marketHub?.stop();
-    await this.userHub?.stop();
-    this.marketHub = null;
-    this.userHub   = null;
+  async disconnect(): Promise<void> {
+    this.intentionalClose = true;
+    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    this.ws?.close();
+    this.ws = null;
     this.subscribedQuotes.clear();
-    this.subscribedDepth.clear();
-    this.subscribedOrderAccounts.clear();
+    this.subscribedDepth.clear();  // Map.clear() works unchanged
+    this.subscribedAccounts.clear();
   }
 
   isConnected(): boolean {
-    return this.marketHub?.state === signalR.HubConnectionState.Connected;
+    return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  // ── Market hub subscriptions ───────────────────────────────────────────
+  // ── Incoming event dispatch ─────────────────────────────────────────────────
 
-  subscribeQuotes(contractId: string) {
-    const prev = this.subscribedQuotes.get(contractId) ?? 0;
-    this.subscribedQuotes.set(contractId, prev + 1);
-    // Only fire the actual SignalR subscribe on the 0→1 transition
-    if (prev === 0 && this.marketHub?.state === signalR.HubConnectionState.Connected) {
-      this.marketHub.invoke('SubscribeContractQuotes', contractId).catch(console.error);
-      this.marketHub.invoke('SubscribeContractTrades', contractId).catch(console.error);
+  private _dispatch(msg: BackendEvent): void {
+    switch (msg.event) {
+
+      case 'GatewayQuote': {
+        const contractId = msg.contractId ?? '';
+        const data = msg.data as Quote;
+        this.lastQuote.set(contractId, data);
+        this.quoteHandlers.forEach((h) => h(contractId, data));
+        break;
+      }
+
+      case 'GatewayTrade': {
+        const contractId = msg.contractId ?? '';
+        const arr = (Array.isArray(msg.data) ? msg.data : [msg.data]) as Array<{
+          price?: number; Price?: number;
+          size?: number; Size?: number; volume?: number; Volume?: number;
+          timestamp?: string;
+        }>;
+
+        // Dispatch market ticks
+        if (this.marketTickHandlers.length > 0) {
+          const ticks: MarketTick[] = [];
+          for (const t of arr) {
+            const price = t.price ?? t.Price;
+            const size  = t.size ?? t.Size ?? t.volume ?? t.Volume ?? 1;
+            if (price && price > 0) {
+              ticks.push({ price, size, timestampMs: t.timestamp ? new Date(t.timestamp).getTime() : Date.now() });
+            }
+          }
+          if (ticks.length > 0) this.marketTickHandlers.forEach((h) => h(contractId, ticks));
+        }
+
+        // Synthesize quote from last trade price
+        const last = arr[arr.length - 1];
+        if (!last?.price && !last?.Price) break;
+        const lastPrice = (last.price ?? last.Price)!;
+        const prev = this.lastQuote.get(contractId);
+        const synthetic: Quote = {
+          symbol:        prev?.symbol        ?? '',
+          symbolName:    prev?.symbolName    ?? '',
+          lastPrice,
+          bestBid:       prev?.bestBid       ?? lastPrice,
+          bestAsk:       prev?.bestAsk       ?? lastPrice,
+          change:        prev?.change        ?? 0,
+          changePercent: prev?.changePercent ?? 0,
+          open:          prev?.open          ?? lastPrice,
+          high: Math.max(prev?.high ?? lastPrice, lastPrice),
+          low:  Math.min(prev?.low  ?? lastPrice, lastPrice),
+          volume: (prev?.volume ?? 0) + arr.length,
+          lastUpdated: last.timestamp ?? new Date().toISOString(),
+          timestamp:   last.timestamp ?? new Date().toISOString(),
+        };
+        this.lastQuote.set(contractId, synthetic);
+        this.quoteHandlers.forEach((h) => h(contractId, synthetic));
+        break;
+      }
+
+      case 'GatewayDepth': {
+        const contractId = msg.contractId ?? '';
+        const entries = (Array.isArray(msg.data) ? msg.data : []).filter(Boolean) as DepthEntry[];
+        this.depthHandlers.forEach((h) => h(contractId, entries));
+        break;
+      }
+
+      case 'GatewayUserOrder': {
+        const order = msg.data as RealtimeOrder;
+        const action = msg.action ?? 0;
+        this.orderHandlers.forEach((h) => h(order, action));
+        break;
+      }
+
+      case 'GatewayUserPosition': {
+        const pos = msg.data as RealtimePosition;
+        const action = msg.action ?? 0;
+        this.positionHandlers.forEach((h) => h(pos, action));
+        break;
+      }
+
+      case 'GatewayUserAccount': {
+        const acct = msg.data as RealtimeAccount;
+        const action = msg.action ?? 0;
+        this.accountHandlers.forEach((h) => h(acct, action));
+        break;
+      }
+
+      case 'GatewayUserTrade': {
+        const trade = msg.data as RealtimeTrade;
+        const action = msg.action ?? 0;
+        this.tradeHandlers.forEach((h) => h(trade, action));
+        break;
+      }
+
+      case 'hubState': {
+        const state = (msg.state ?? 'disconnected') as 'connected' | 'reconnecting' | 'disconnected';
+        if (msg.hub === 'market') {
+          this.marketHubStateHandlers.forEach((h) => h(state));
+          if (state === 'connected') this.marketReconnectHandlers.forEach((h) => h());
+        } else if (msg.hub === 'user') {
+          this.userHubStateHandlers.forEach((h) => h(state));
+          if (state === 'connected') this.userReconnectHandlers.forEach((h) => h());
+        }
+        break;
+      }
+
+      case 'pong': {
+        const id = String(msg.id ?? '');
+        const resolver = this.pingResolvers.get(id);
+        if (resolver) {
+          this.pingResolvers.delete(id);
+          resolver(Date.now());
+        }
+        break;
+      }
     }
   }
 
-  unsubscribeQuotes(contractId: string) {
+  // ── Outgoing commands ───────────────────────────────────────────────────────
+
+  private _send(payload: Record<string, unknown>): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(payload));
+    }
+  }
+
+  // ── Market hub subscriptions ────────────────────────────────────────────────
+
+  subscribeQuotes(contractId: string): void {
+    const prev = this.subscribedQuotes.get(contractId) ?? 0;
+    this.subscribedQuotes.set(contractId, prev + 1);
+    if (prev === 0) this._send({ cmd: 'subscribeQuotes', contractId });
+  }
+
+  unsubscribeQuotes(contractId: string): void {
     const prev = this.subscribedQuotes.get(contractId) ?? 0;
     if (prev <= 1) {
       this.subscribedQuotes.delete(contractId);
       this.lastQuote.delete(contractId);
-      if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
-        this.marketHub.invoke('UnsubscribeContractQuotes', contractId).catch(console.error);
-        this.marketHub.invoke('UnsubscribeContractTrades', contractId).catch(console.error);
-      }
+      this._send({ cmd: 'unsubscribeQuotes', contractId });
     } else {
       this.subscribedQuotes.set(contractId, prev - 1);
     }
   }
 
-  subscribeDepth(contractId: string) {
-    this.subscribedDepth.add(contractId);
-    if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
-      this.marketHub.invoke('SubscribeContractMarketDepth', contractId).catch(console.error);
+  subscribeDepth(contractId: string): void {
+    const prev = this.subscribedDepth.get(contractId) ?? 0;
+    this.subscribedDepth.set(contractId, prev + 1);
+    if (prev === 0) this._send({ cmd: 'subscribeDepth', contractId });
+  }
+
+  unsubscribeDepth(contractId: string): void {
+    const prev = this.subscribedDepth.get(contractId) ?? 0;
+    if (prev <= 1) {
+      this.subscribedDepth.delete(contractId);
+      this._send({ cmd: 'unsubscribeDepth', contractId });
+    } else {
+      this.subscribedDepth.set(contractId, prev - 1);
     }
   }
 
-  unsubscribeDepth(contractId: string) {
-    this.subscribedDepth.delete(contractId);
-    if (this.marketHub?.state === signalR.HubConnectionState.Connected) {
-      this.marketHub.invoke('UnsubscribeContractMarketDepth', contractId).catch(console.error);
-    }
+  // ── User hub subscriptions ──────────────────────────────────────────────────
+
+  subscribeUserEvents(accountId: string): void {
+    this.subscribedAccounts.add(accountId);
+    this._send({ cmd: 'subscribeUser', accountId });
   }
 
-  // ── User hub subscriptions ────────────────────────────────────────────
+  // ── Event handler registration ──────────────────────────────────────────────
 
-  subscribeUserEvents(accountId: string) {
-    this.subscribedOrderAccounts.add(accountId);
-    if (this.userHub?.state === signalR.HubConnectionState.Connected) {
-      this.flushUserSubscriptions(accountId);
-    }
-  }
+  onQuote(h: QuoteHandler)           { this.quoteHandlers.push(h); }
+  offQuote(h: QuoteHandler)          { this.quoteHandlers = this.quoteHandlers.filter((x) => x !== h); }
+  onDepth(h: DepthHandler)           { this.depthHandlers.push(h); }
+  offDepth(h: DepthHandler)          { this.depthHandlers = this.depthHandlers.filter((x) => x !== h); }
+  onOrder(h: OrderHandler)           { this.orderHandlers.push(h); }
+  offOrder(h: OrderHandler)          { this.orderHandlers = this.orderHandlers.filter((x) => x !== h); }
+  onPosition(h: PositionHandler)     { this.positionHandlers.push(h); }
+  offPosition(h: PositionHandler)    { this.positionHandlers = this.positionHandlers.filter((x) => x !== h); }
+  onAccount(h: AccountHandler)       { this.accountHandlers.push(h); }
+  offAccount(h: AccountHandler)      { this.accountHandlers = this.accountHandlers.filter((x) => x !== h); }
+  onTrade(h: TradeHandler)           { this.tradeHandlers.push(h); }
+  offTrade(h: TradeHandler)          { this.tradeHandlers = this.tradeHandlers.filter((x) => x !== h); }
+  onMarketTick(h: MarketTickHandler) { this.marketTickHandlers.push(h); }
+  offMarketTick(h: MarketTickHandler){ this.marketTickHandlers = this.marketTickHandlers.filter((x) => x !== h); }
 
-  private flushUserSubscriptions(accountId: string) {
-    const numericId = Number(accountId);
-    this.userHub?.invoke('SubscribeAccounts').catch(console.error);
-    this.userHub?.invoke('SubscribeOrders', numericId).catch(console.error);
-    this.userHub?.invoke('SubscribePositions', numericId).catch(console.error);
-    this.userHub?.invoke('SubscribeTrades', numericId).catch(console.error);
-  }
+  onUserReconnect(h: () => void)     { this.userReconnectHandlers.push(h); }
+  offUserReconnect(h: () => void)    { this.userReconnectHandlers = this.userReconnectHandlers.filter((x) => x !== h); }
+  onMarketReconnect(h: () => void)   { this.marketReconnectHandlers.push(h); }
+  offMarketReconnect(h: () => void)  { this.marketReconnectHandlers = this.marketReconnectHandlers.filter((x) => x !== h); }
 
-  // ── Event handlers ────────────────────────────────────────────────────
+  onMarketHubState(h: HubStateHandler)  { this.marketHubStateHandlers.push(h); }
+  offMarketHubState(h: HubStateHandler) { this.marketHubStateHandlers = this.marketHubStateHandlers.filter((x) => x !== h); }
+  onUserHubState(h: HubStateHandler)    { this.userHubStateHandlers.push(h); }
+  offUserHubState(h: HubStateHandler)   { this.userHubStateHandlers = this.userHubStateHandlers.filter((x) => x !== h); }
 
-  onQuote(handler: QuoteHandler)       { this.quoteHandlers.push(handler); }
-  onOrder(handler: OrderHandler)       { this.orderHandlers.push(handler); }
-  onPosition(handler: PositionHandler) { this.positionHandlers.push(handler); }
-  onAccount(handler: AccountHandler)   { this.accountHandlers.push(handler); }
+  // ── Latency ping ───────────────────────────────────────────────────────────
 
-  onDepth(handler: DepthHandler)         { this.depthHandlers.push(handler); }
-  offQuote(handler: QuoteHandler)       { this.quoteHandlers    = this.quoteHandlers.filter((h) => h !== handler); }
-  offDepth(handler: DepthHandler)       { this.depthHandlers    = this.depthHandlers.filter((h) => h !== handler); }
-  offOrder(handler: OrderHandler)       { this.orderHandlers    = this.orderHandlers.filter((h) => h !== handler); }
-  offPosition(handler: PositionHandler) { this.positionHandlers = this.positionHandlers.filter((h) => h !== handler); }
-  offAccount(handler: AccountHandler)   { this.accountHandlers  = this.accountHandlers.filter((h) => h !== handler); }
-
-  onTrade(handler: TradeHandler)             { this.tradeHandlers.push(handler); }
-  offTrade(handler: TradeHandler)            { this.tradeHandlers       = this.tradeHandlers.filter((h) => h !== handler); }
-
-  onMarketTick(handler: MarketTickHandler)   { this.marketTickHandlers.push(handler); }
-  offMarketTick(handler: MarketTickHandler)  { this.marketTickHandlers  = this.marketTickHandlers.filter((h) => h !== handler); }
-
-  onUserReconnect(handler: () => void)  { this.userReconnectHandlers.push(handler); }
-  offUserReconnect(handler: () => void) { this.userReconnectHandlers = this.userReconnectHandlers.filter((h) => h !== handler); }
-
-  onMarketReconnect(handler: () => void)  { this.marketReconnectHandlers.push(handler); }
-  offMarketReconnect(handler: () => void) { this.marketReconnectHandlers = this.marketReconnectHandlers.filter((h) => h !== handler); }
-
-  onMarketHubState(handler: HubStateHandler)  { this.marketHubStateHandlers.push(handler); }
-  offMarketHubState(handler: HubStateHandler) { this.marketHubStateHandlers = this.marketHubStateHandlers.filter((h) => h !== handler); }
-  onUserHubState(handler: HubStateHandler)    { this.userHubStateHandlers.push(handler); }
-  offUserHubState(handler: HubStateHandler)   { this.userHubStateHandlers = this.userHubStateHandlers.filter((h) => h !== handler); }
-
-  /** Measure WebSocket round-trip latency in ms. Returns -1 if not connected. */
   async ping(): Promise<number> {
-    if (!this.marketHub || this.marketHub.state !== signalR.HubConnectionState.Connected) return -1;
-    const start = performance.now();
-    try {
-      await this.marketHub.invoke('Ping');
-    } catch {
-      // Server may not support Ping, but the error still travels the WebSocket round-trip
-    }
-    return Math.round(performance.now() - start);
+    if (!this.isConnected()) return -1;
+    return this._doPing();
   }
 
   async pingUserHub(): Promise<number> {
-    if (!this.userHub || this.userHub.state !== signalR.HubConnectionState.Connected) return -1;
-    const start = performance.now();
-    try {
-      await this.userHub.invoke('Ping');
-    } catch {
-      // Same pattern — error round-trips the WebSocket
-    }
-    return Math.round(performance.now() - start);
+    // Single connection — same measurement
+    return this.ping();
   }
+
+  private _doPing(): Promise<number> {
+    return new Promise((resolve) => {
+      const id  = String(Date.now());
+      const start = Date.now();
+      const timeout = setTimeout(() => {
+        this.pingResolvers.delete(id);
+        resolve(-1);
+      }, 5000);
+
+      this.pingResolvers.set(id, () => {
+        clearTimeout(timeout);
+        resolve(Date.now() - start);
+      });
+
+      this._send({ cmd: 'ping', id });
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Factory used by realtimeService.ts adapter registry
+// ---------------------------------------------------------------------------
+
+export function createProjectXRealtimeAdapter(): ProjectXRealtimeAdapter {
+  return new ProjectXRealtimeAdapter();
 }
