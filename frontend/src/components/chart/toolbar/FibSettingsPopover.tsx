@@ -209,18 +209,28 @@ export function FibSettingsPopover({
 
         {/* ── Positive Lines ─────────────────────── */}
         <SectionHeader label="Positive Lines" color={positiveMasterColor} onColorChange={applyPositiveMaster} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
-          {positiveLevels.map(({ level, origIdx }) => (
-            <LevelRow
-              key={origIdx}
-              level={level}
-              masterColor={positiveMasterColor}
-              onToggle={() => patchLevel(origIdx, { visible: level.visible === false ? true : false })}
-              onColorChange={(c) => patchLevel(origIdx, { color: c })}
-              onRatioChange={(r) => changeLevelRatio(origIdx, level.ratio, r)}
-            />
-          ))}
-        </div>
+        {(() => {
+          const half = Math.ceil(positiveLevels.length / 2);
+          const cols = [positiveLevels.slice(0, half), positiveLevels.slice(half)];
+          return (
+            <div style={{ display: 'flex', gap: 20 }}>
+              {cols.map((col, ci) => (
+                <div key={ci} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {col.map(({ level, origIdx }) => (
+                    <LevelRow
+                      key={origIdx}
+                      level={level}
+                      masterColor={positiveMasterColor}
+                      onToggle={() => patchLevel(origIdx, { visible: level.visible === false ? true : false })}
+                      onColorChange={(c) => patchLevel(origIdx, { color: c })}
+                      onRatioChange={(r) => changeLevelRatio(origIdx, level.ratio, r)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         <div style={{ borderTop: '1px solid var(--color-border)' }} />
 
@@ -235,18 +245,28 @@ export function FibSettingsPopover({
         {showNegative && (
           <>
             <SectionHeader label="Negative Lines" color={negativeMasterColor} onColorChange={applyNegativeMaster} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
-              {negativeLevels.map(({ level, origIdx }) => (
-                <LevelRow
-                  key={origIdx}
-                  level={level}
-                  masterColor={negativeMasterColor}
-                  onToggle={() => patchLevel(origIdx, { visible: level.visible === false ? true : false })}
-                  onColorChange={(c) => patchLevel(origIdx, { color: c })}
-                  onRatioChange={(r) => changeLevelRatio(origIdx, level.ratio, r)}
-                />
-              ))}
-            </div>
+            {(() => {
+              const half = Math.ceil(negativeLevels.length / 2);
+              const cols = [negativeLevels.slice(0, half), negativeLevels.slice(half)];
+              return (
+                <div style={{ display: 'flex', gap: 20 }}>
+                  {cols.map((col, ci) => (
+                    <div key={ci} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {col.map(({ level, origIdx }) => (
+                        <LevelRow
+                          key={origIdx}
+                          level={level}
+                          masterColor={negativeMasterColor}
+                          onToggle={() => patchLevel(origIdx, { visible: level.visible === false ? true : false })}
+                          onColorChange={(c) => patchLevel(origIdx, { color: c })}
+                          onRatioChange={(r) => changeLevelRatio(origIdx, level.ratio, r)}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </>
         )}
 
