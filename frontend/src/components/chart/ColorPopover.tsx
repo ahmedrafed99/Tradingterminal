@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
 import { SpinnerInput } from '../SpinnerInput';
@@ -215,11 +214,17 @@ export function ColorSwatchButton({
     });
   };
 
-  // Keep position in sync while open (handles parent drag)
+  // Recompute position on scroll/resize while open
   useEffect(() => {
     if (!open) return;
-    window.addEventListener('mousemove', computePos);
-    return () => window.removeEventListener('mousemove', computePos);
+    const refresh = () => computePos();
+    window.addEventListener('resize', refresh);
+    window.addEventListener('scroll', refresh, true);
+    return () => {
+      window.removeEventListener('resize', refresh);
+      window.removeEventListener('scroll', refresh, true);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -248,9 +253,20 @@ export function ColorSwatchButton({
         <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: color }} />
       </button>
       {open && !disabled && pos && createPortal(
-        <div data-ignore-click-outside="" style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}>
-          <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
-        </div>,
+        <>
+          {/* Backdrop: sits above the settings panel, below the color picker.
+              Intercepts all outside clicks and closes the picker directly,
+              bypassing the data-ignore-click-outside walk that would otherwise
+              bail when clicking inside the parent Popover. */}
+          <div
+            data-ignore-click-outside=""
+            style={{ position: 'fixed', inset: 0, zIndex: Z.TOAST - 1 }}
+            onMouseDown={(e) => { e.stopPropagation(); setOpen(false); }}
+          />
+          <div data-ignore-click-outside="" style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}>
+            <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
+          </div>
+        </>,
         document.body
       )}
     </div>
@@ -273,8 +289,6 @@ export function ColorPopover({
   const removeCustomColor = useStore((s) => s.removeCustomColor);
   const parsed = parseColorWithOpacity(current);
   const [localOpacity, setLocalOpacity] = useState(parsed.opacity);
-
-  useClickOutside(ref, true, onClose);
 
   // Sync opacity when current color changes externally
   useEffect(() => {
