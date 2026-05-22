@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { useClickOutside } from '../../hooks/useClickOutside';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
@@ -195,7 +194,19 @@ export function ColorSwatchButton({
   const pickerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
-  useClickOutside(pickerRef, open, () => setOpen(false));
+  // Close picker on any mousedown outside the picker panel or the swatch button.
+  // Intentionally ignores data-ignore-click-outside so clicks anywhere inside
+  // the parent Popover (which has that attribute) still close the color picker.
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (pickerRef.current?.contains(e.target as Node)) return;
+      if (ref.current?.contains(e.target as Node)) return; // swatch button — toggle handles it
+      setOpen(false);
+    }
+    document.addEventListener('mousedown', handler, true);
+    return () => document.removeEventListener('mousedown', handler, true);
+  }, [open]);
 
   const computePos = () => {
     if (!ref.current) return;
