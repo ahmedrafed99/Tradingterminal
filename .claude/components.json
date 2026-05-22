@@ -447,49 +447,69 @@
     }
     ,{
       "name": "shared/Modal",
-      "description": "Bare backdrop + centered panel shell. Handles Escape-to-close and backdrop-click-to-close only. No title, footer, or styling — caller owns everything inside via children + className/style. Used by StrategiesTab ConfigModal and any non-draggable modal that needs a raw backdrop.",
-      "keywords": ["modal", "backdrop", "overlay", "shell", "primitive", "escape", "portal"],
+      "description": "Modal shell: backdrop overlay + centered panel. Handles Escape-to-close and backdrop-click-to-close. Optional title prop renders a standard header with XIcon close button. Minimal mode (no title) leaves callers in full control of children.",
+      "keywords": ["modal", "backdrop", "overlay", "shell", "primitive", "escape", "title", "header"],
       "files": [
         "frontend/src/components/shared/Modal.tsx"
       ],
       "dependencies": [
-        "Z (constants/layout)"
+        "Z (constants/layout)",
+        "XIcon (icons/XIcon)"
       ],
       "notes": [
-        "Props: onClose, children, className (panel div), style (panel div), backdropClassName, backdropStyle",
-        "Backdrop click only closes when the click target IS the backdrop div (not bubbled from children)",
-        "No Radix — hand-rolled; no focus trap, no portal. Use for simple inline modals",
-        "For modals that need title+footer+ok/cancel, use Popover.tsx instead"
+        "Props: onClose, children, className, style, backdropClassName, backdropStyle, title?, headerActions?, headerStyle?",
+        "title: pass a string or ReactNode — Modal renders flex header row with X button. Omit for raw-shell mode.",
+        "headerActions: ReactNode rendered between title and X (e.g. UnitToggle in BracketSettingsModal)",
+        "headerStyle: overrides default header padding (default '12px 16px 10px')",
+        "Backdrop click only closes when the click target IS the backdrop div"
       ]
     }
     ,{
       "name": "shared/Button",
-      "description": "Shared button primitive. variant × tone × size matrix. Use instead of raw <button> for all action buttons.",
-      "keywords": ["button", "action", "ghost", "filled", "danger", "default", "primitive"],
+      "description": "Shared button primitive. variant × tone × size matrix, plus toolbar and tab variants. Use instead of raw <button> for all action buttons.",
+      "keywords": ["button", "action", "ghost", "filled", "danger", "toolbar", "tab", "pill", "primitive"],
       "files": [
         "frontend/src/components/shared/Button.tsx"
       ],
       "dependencies": [],
       "notes": [
-        "variant: 'ghost' (transparent bg + border) | 'filled' (surface or error bg)",
-        "tone: 'default' | 'danger' — danger ghost = red hover; danger filled = error bg + white text",
-        "size: 'sm' (6px 12px) | 'md' (8px 16px). Font size = var(--font-size-overlay)",
+        "variant: 'ghost' | 'filled' | 'toolbar' | 'tab'",
+        "tone: 'default' | 'danger' (only applies to ghost/filled)",
+        "size: 'sm' (6px 12px) | 'md' (8px 16px). Font = var(--font-size-overlay)",
+        "toolbar: pill button — bg --color-input, border, hover bg --color-border, rounded-md, xs font",
+        "tab: transparent, text-muted → text on hover/active; active prop shows 2px bottom underline",
         "fullWidth=true adds w-full; disabled=true → opacity-50 + cursor-not-allowed automatically",
-        "Spreads all HTMLButtonAttributes — usable anywhere a <button> is expected"
+        "Replaced: ToolbarPillButton (→ variant='toolbar') and TabButton (→ variant='tab' active={bool})"
       ]
     }
     ,{
-      "name": "shared/TabButton",
-      "description": "Reusable tab button with active underline indicator. Used in BottomPanel and settings modals.",
-      "keywords": ["tab", "tab button", "active", "underline", "bottom panel", "shared"],
+      "name": "shared/Checkbox",
+      "description": "Custom-styled checkbox primitive. White fill + black checkmark SVG when checked. Renders a bare box when no label, or a click-anywhere label row when label is provided.",
+      "keywords": ["checkbox", "check", "form", "input", "primitive", "shared"],
       "files": [
-        "frontend/src/components/shared/TabButton.tsx"
+        "frontend/src/components/shared/Checkbox.tsx"
+      ],
+      "dependencies": [
+        "RADIUS (constants/layout)"
+      ],
+      "notes": [
+        "Props: checked, onChange(checked), label?, disabled?, className?",
+        "Extracted from ChartSettingsModal local Checkbox — same visual: 16x16, border, white bg + black check",
+        "SettingsModal's native <input type='checkbox'> has been migrated to this component"
+      ]
+    }
+    ,{
+      "name": "shared/Toggle",
+      "description": "On/off toggle switch primitive. Accent-colored track when on, --color-border when off. Renders a bare switch or a full label row (label on left, switch on right).",
+      "keywords": ["toggle", "switch", "on off", "form", "primitive", "shared"],
+      "files": [
+        "frontend/src/components/shared/Toggle.tsx"
       ],
       "dependencies": [],
       "notes": [
-        "Props: label, active, count (optional badge), onClick",
-        "Active: full --color-text + 2px bottom accent bar. Inactive: --color-text-muted + hover to --color-text",
-        "count renders as '(N)' in muted text next to the label when > 0"
+        "Props: value, onChange(value), label?, disabled?, className?",
+        "Track: 32×18px, radius 9px. Thumb: 14×14px, transitions left 2px → 14px",
+        "With label: renders flex row justify-between (label left, switch right)"
       ]
     }
   ]

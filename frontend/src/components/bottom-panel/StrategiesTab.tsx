@@ -137,25 +137,12 @@ function ConfigModal({ strategy, serverUrl, onClose, onStarted }: ConfigModalPro
   const canStart = !loading && !!accountId && !!contractId;
 
   return (
-    <Modal onClose={onClose}>
-      {/* Panel */}
-      <div style={{ width: 380, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 12, display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px 10px', borderBottom: '1px solid var(--color-border)' }}>
-          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>
-            Start — {strategy.name}
-          </span>
-          <button
-            onClick={onClose}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, borderRadius: 4, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-text-muted)', transition: 'background var(--transition-fast), color var(--transition-fast)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
-            </svg>
-          </button>
-        </div>
+    <Modal
+      onClose={onClose}
+      className="flex flex-col rounded-xl bg-(--color-surface) border border-(--color-border)"
+      style={{ width: 380 }}
+      title={`Start — ${strategy.name}`}
+    >
 
         {/* Body */}
         <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -203,7 +190,6 @@ function ConfigModal({ strategy, serverUrl, onClose, onStarted }: ConfigModalPro
             {loading ? 'Starting…' : 'Start Strategy'}
           </button>
         </div>
-      </div>
     </Modal>
   );
 }

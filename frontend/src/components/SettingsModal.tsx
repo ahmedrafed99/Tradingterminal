@@ -13,6 +13,7 @@ import { CopyTradingTab } from './settings/CopyTradingTab';
 import { TradingTab } from './settings/TradingTab';
 import { Modal } from './shared/Modal';
 import { CustomSelect } from './shared/CustomSelect';
+import { Checkbox } from './shared/Checkbox';
 
 const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
@@ -122,21 +123,9 @@ export function SettingsModal() {
       backdropClassName="!items-start"
       className="w-screen h-screen flex flex-col bg-(--color-surface) border-x border-(--color-border) shadow-2xl overflow-hidden"
       style={{ marginTop: 0 }}
+      title="Settings"
+      headerStyle={{ padding: '12px 24px' }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-(--color-border)/30 shrink-0" style={{ padding: '16px 24px' }}>
-        <h2 className="text-sm font-semibold text-white">Settings</h2>
-        <button
-          onClick={() => setSettingsOpen(false)}
-          className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
-          style={{ width: 32, height: 32 }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
 
       {/* Body: sidebar + content */}
       <div className="flex flex-1 overflow-hidden">
@@ -215,21 +204,17 @@ export function SettingsModal() {
                         />
                       </label>
                     </div>
-                    <label className="flex items-center gap-2 cursor-pointer select-none" style={{ marginTop: 10 }}>
-                      <input
-                        type="checkbox"
+                    <div style={{ marginTop: 10 }}>
+                      <Checkbox
                         checked={rememberCredentials}
-                        onChange={(e) => {
-                          const on = e.target.checked;
+                        onChange={(on) => {
                           setRememberCredentials(on);
-                          if (!on) {
-                            credentialService.clear().catch(() => {});
-                          }
+                          if (!on) credentialService.clear().catch(() => {});
                         }}
-                        className="accent-(--color-accent)"
+                        label="Remember credentials"
+                        className="text-xs"
                       />
-                      <span className="text-xs text-(--color-text)">Remember credentials</span>
-                    </label>
+                    </div>
                   </div>
 
                   {/* URLs — 2-col */}

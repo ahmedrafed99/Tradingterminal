@@ -91,25 +91,17 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
         minWidth: 420,
         boxShadow: SHADOW.HERO,
       }}
-    >
-        {/* Header */}
-        <div className="flex items-center justify-between" style={{ padding: '14px 20px 10px' }}>
-          <div className="flex items-center gap-2.5">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
-              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-              <circle cx="12" cy="13" r="4" />
-            </svg>
-            <span className="text-[13px] text-(--color-text) font-medium tracking-tight">Chart Screenshot</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-(--color-border) text-(--color-text-muted) hover:text-(--color-text) hover:border-(--color-text-dim) hover:bg-(--color-border) transition-all"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
+      title={
+        <div className="flex items-center gap-2.5">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="1.8">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+            <circle cx="12" cy="13" r="4" />
+          </svg>
+          <span className="font-medium tracking-tight">Chart Screenshot</span>
         </div>
+      }
+      headerStyle={{ padding: '14px 20px 10px' }}
+    >
 
         {/* Preview image */}
         <div className="flex-1 overflow-auto" style={{ padding: '4px 20px 16px', minHeight: 180 }}>

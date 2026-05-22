@@ -1,5 +1,5 @@
 import { useStore } from '../../store/useStore';
-import { TabButton } from '../shared/TabButton';
+import { Button } from '../shared/Button';
 import { OrdersTab } from './OrdersTab';
 import { PositionsTab } from './PositionsTab';
 import { TradesTab } from './TradesTab';
@@ -24,40 +24,24 @@ export function BottomPanel() {
     <div className="flex flex-col h-full bg-(--color-panel)">
       {/* Tab bar */}
       <div className="flex items-center h-10 shrink-0 pr-4 gap-6" style={{ marginLeft: 16 }}>
-        <TabButton
-          label="Orders"
-          active={tab === 'orders'}
-          count={openOrders.length}
-          onClick={() => setTab('orders')}
-        />
-        <TabButton
-          label="Positions"
-          active={tab === 'positions'}
-          count={positionsCount}
-          onClick={() => setTab('positions')}
-        />
-        <TabButton
-          label="Trades"
-          active={tab === 'trades'}
-          count={sessionTrades.filter((t) => t.profitAndLoss != null && !t.voided).length}
-          onClick={() => setTab('trades')}
-        />
-        <TabButton
-          label="Conditions"
-          active={tab === 'conditions'}
-          count={conditions.filter((c) => c.status === 'armed').length}
-          onClick={() => setTab('conditions')}
-        />
-        <TabButton
-          label="Stats"
-          active={tab === 'stats'}
-          onClick={() => setTab(tab === 'stats' ? 'trades' : 'stats')}
-        />
-        <TabButton
-          label="Strategies"
-          active={tab === 'strategies'}
-          onClick={() => setTab('strategies')}
-        />
+        <Button variant="tab" active={tab === 'orders'} onClick={() => setTab('orders')}>
+          Orders{openOrders.length > 0 && <span className="text-(--color-text-muted)">({openOrders.length})</span>}
+        </Button>
+        <Button variant="tab" active={tab === 'positions'} onClick={() => setTab('positions')}>
+          Positions{positionsCount > 0 && <span className="text-(--color-text-muted)">({positionsCount})</span>}
+        </Button>
+        <Button variant="tab" active={tab === 'trades'} onClick={() => setTab('trades')}>
+          Trades{sessionTrades.filter((t) => t.profitAndLoss != null && !t.voided).length > 0 && <span className="text-(--color-text-muted)">({sessionTrades.filter((t) => t.profitAndLoss != null && !t.voided).length})</span>}
+        </Button>
+        <Button variant="tab" active={tab === 'conditions'} onClick={() => setTab('conditions')}>
+          Conditions{conditions.filter((c) => c.status === 'armed').length > 0 && <span className="text-(--color-text-muted)">({conditions.filter((c) => c.status === 'armed').length})</span>}
+        </Button>
+        <Button variant="tab" active={tab === 'stats'} onClick={() => setTab(tab === 'stats' ? 'trades' : 'stats')}>
+          Stats
+        </Button>
+        <Button variant="tab" active={tab === 'strategies'} onClick={() => setTab('strategies')}>
+          Strategies
+        </Button>
       </div>
 
       {/* Content */}

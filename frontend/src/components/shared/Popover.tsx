@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { RADIUS, Z } from '../../constants/layout';
+import { XIcon } from '../icons/XIcon';
 import { useDraggable } from '../../hooks/useDraggable';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
@@ -57,12 +58,9 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
             transition: 'background var(--transition-fast), color var(--transition-fast)',
             flexShrink: 0,
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+          className="hover:bg-(--color-hover-row) hover:text-(--color-text) transition-colors"
         >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-            <line x1="1" y1="1" x2="9" y2="9" /><line x1="9" y1="1" x2="1" y2="9" />
-          </svg>
+          <XIcon size={10} />
         </button>
       </div>
 

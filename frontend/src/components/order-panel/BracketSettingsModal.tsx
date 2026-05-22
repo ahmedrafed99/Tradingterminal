@@ -193,26 +193,13 @@ export function BracketSettingsModal() {
   }
 
   return (
-    <Modal onClose={() => setEditingPresetId(null)} className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-(--color-border)/30" style={{ padding: '18px 24px' }}>
-          <h2 className="text-sm font-semibold text-white">
-            {isCreate ? 'New Bracket Preset' : 'Edit Bracket Preset'}
-          </h2>
-          <div className="flex items-center" style={{ gap: '12px' }}>
-            <UnitToggle value={unitMode} onChange={setUnitMode} canUsePct={canUsePct} />
-            <button
-              onClick={() => setEditingPresetId(null)}
-              className="flex items-center justify-center rounded-full hover:bg-(--color-border)/30 transition-colors"
-              style={{ width: '32px', height: '32px' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    <Modal
+      onClose={() => setEditingPresetId(null)}
+      className="w-[480px] max-h-[85vh] flex flex-col rounded-2xl bg-(--color-surface) border border-(--color-border) shadow-2xl overflow-hidden"
+      title={isCreate ? 'New Bracket Preset' : 'Edit Bracket Preset'}
+      headerActions={<UnitToggle value={unitMode} onChange={setUnitMode} canUsePct={canUsePct} />}
+      headerStyle={{ padding: '12px 20px' }}
+    >
 
         {/* Body */}
         <div className="overflow-y-auto flex-1" style={{ padding: '20px 24px' }}>

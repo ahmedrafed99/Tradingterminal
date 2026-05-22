@@ -21,6 +21,26 @@ don't log in console, log into a file. use `debugLog.log(tag, data)` from `src/u
 ## Architecture principles
 always look for modularity, nothing is to be harcoded.
 
+### Buttons
+never create a raw `<button>` or a new button file. use `shared/Button.tsx`.
+- variants: `ghost` | `filled` | `toolbar` | `tab` (with `active` prop)
+- tones: `default` | `danger`
+
+### Modals
+use `shared/Modal.tsx`. pass `title` prop to get the standard header + X button for free — don't build a header div manually inside the modal.
+
+### Icons
+import from `components/icons/` (`XIcon`, `ChevronDown`, `ChevronRight`, `ChevronUp`).
+inline SVGs only for one-off decorative icons local to a single component.
+when the same SVG appears in 2+ places, extract it to `components/icons/`.
+icon shape: `{ size?: number; className?: string }` — `stroke="currentColor"`, no hardcoded colors.
+
+### Form controls
+use `shared/Checkbox.tsx` and `shared/Toggle.tsx` — never `<input type="checkbox">` or a hand-rolled toggle div.
+
+### Hover state
+use CSS / Tailwind `hover:` classes. never `onMouseEnter`/`onMouseLeave` to swap inline styles.
+
 ## Zustand store versioning
 `STORE_VERSION` constant in `frontend/src/store/useStore.ts` controls persist compatibility.
 - Pre-commit hook (`.git/hooks/pre-commit`) auto-bumps it whenever any file in `frontend/src/store/` is staged — no manual edits needed.

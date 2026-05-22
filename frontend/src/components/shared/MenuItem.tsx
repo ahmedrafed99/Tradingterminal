@@ -1,3 +1,5 @@
+import { ChevronRight } from '../icons/ChevronRight';
+
 interface MenuItemProps {
   onClick?: () => void;
   icon?: React.ReactNode;
@@ -35,11 +37,7 @@ export function MenuItem({ onClick, icon, children, disabled, danger, hasSubmenu
         </span>
       )}
       <span className="flex-1">{children}</span>
-      {hasSubmenu && (
-        <svg className="text-(--color-text-muted) shrink-0 ml-2" width="12" height="12" viewBox="0 0 16 16" fill="none">
-          <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      )}
+      {hasSubmenu && <ChevronRight size={12} className="text-(--color-text-muted) shrink-0 ml-2" />}
     </button>
   );
 }

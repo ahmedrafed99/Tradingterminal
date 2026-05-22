@@ -193,27 +193,23 @@ export function ConditionModal() {
   const sectionLabel = 'text-[11px] uppercase tracking-wider text-(--color-text-muted) font-medium';
 
   return (
-    <Modal onClose={closeConditionModal} className="w-[440px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl max-h-[85vh] flex flex-col">
-
-        {/* ── Header ── */}
-        <div className="flex items-center justify-between shrink-0" style={{ padding: '20px 28px 16px' }}>
-          <div className="flex items-center gap-2.5">
-            <span className="text-[15px] font-bold text-white">
-              {editingConditionId ? 'Edit Condition' : 'New Condition'}
+    <Modal
+      onClose={closeConditionModal}
+      className="w-[440px] rounded-xl bg-(--color-surface) border border-(--color-border) shadow-2xl max-h-[85vh] flex flex-col"
+      title={
+        <div className="flex items-center gap-2.5">
+          <span className="text-[15px] font-bold text-white">
+            {editingConditionId ? 'Edit Condition' : 'New Condition'}
+          </span>
+          {contract && (
+            <span className="text-[11px] font-medium text-(--color-accent) bg-(--color-accent)/15 rounded-md" style={{ padding: '2px 10px' }}>
+              {contract.name?.split(' ')[0] ?? contract.id}
             </span>
-            {contract && (
-              <span className="text-[11px] font-medium text-(--color-accent) bg-(--color-accent)/15 rounded-md" style={{ padding: '2px 10px' }}>
-                {contract.name?.split(' ')[0] ?? contract.id}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={closeConditionModal}
-            className="text-(--color-text-muted) hover:text-(--color-text) transition-colors text-base leading-none"
-          >
-            ✕
-          </button>
+          )}
         </div>
+      }
+      headerStyle={{ padding: '16px 28px' }}
+    >
 
         {/* ── Body ── */}
         <div className="overflow-auto flex-1" style={{ padding: '0 28px 20px' }}>

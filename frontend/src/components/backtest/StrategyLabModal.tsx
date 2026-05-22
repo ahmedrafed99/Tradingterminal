@@ -7,7 +7,7 @@ import { BacktestTradesTable } from './BacktestTradesTable';
 import { DateRangePicker } from './DateRangePicker';
 import { SymbolPickerModal } from '../shared/SymbolPickerModal';
 import { TimeframePicker } from '../shared/TimeframePicker';
-import { ToolbarPillButton } from '../shared/ToolbarPillButton';
+import { Button } from '../shared/Button';
 import { CustomSelect } from '../shared/CustomSelect';
 import { VerticalSeparator } from '../shared/VerticalSeparator';
 import { ChevronDown } from '../icons/ChevronDown';
@@ -263,22 +263,22 @@ export function StrategyLabModal() {
         style={{ padding: '10px 16px', background: 'var(--color-panel)' }}
       >
         {/* Symbol selector */}
-        <ToolbarPillButton onClick={() => setSymbolMenuOpen(true)} className="font-medium">
+        <Button variant="toolbar" onClick={() => setSymbolMenuOpen(true)} className="font-medium">
           <span style={{ color: 'var(--color-text-muted)', marginRight: 2 }}>{exchange}</span>
           {symbol}
           <ChevronDown className="opacity-50" />
-        </ToolbarPillButton>
+        </Button>
 
         <div className="w-px self-stretch bg-(--color-border)" style={{ margin: '0 4px' }} />
 
         {/* Date range button */}
-        <ToolbarPillButton onClick={() => setDatePickerOpen(true)}>
+        <Button variant="toolbar" onClick={() => setDatePickerOpen(true)}>
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
             <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
             <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
           </svg>
           {from} → {to}
-        </ToolbarPillButton>
+        </Button>
 
         {/* Timeframe picker */}
         <TimeframePicker

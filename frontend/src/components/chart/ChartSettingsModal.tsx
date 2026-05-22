@@ -5,6 +5,7 @@ import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
 import { ColorSwatchButton } from './ColorPopover';
 import { CustomSelect } from '../shared/CustomSelect';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
+import { Checkbox } from '../shared/Checkbox';
 
 type Category = 'bars' | 'canvas' | 'trading' | 'events';
 
@@ -40,58 +41,6 @@ function EventsIcon() {
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
       <path fill="currentColor" d="M10 6h8V4h1v2h1.5A2.5 2.5 0 0 1 23 8.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 5 19.5v-11A2.5 2.5 0 0 1 7.5 6H9V4h1zM6 19.5A1.5 1.5 0 0 0 7.5 21h13a1.5 1.5 0 0 0 1.5-1.5V11H6zM7.5 7A1.5 1.5 0 0 0 6 8.5V10h16V8.5A1.5 1.5 0 0 0 20.5 7H19v1h-1V7h-8v1H9V7z" />
     </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// Checkbox
-// ---------------------------------------------------------------------------
-function Checkbox({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        cursor: 'pointer',
-        fontSize: 13,
-        color: 'var(--color-text)',
-        fontFamily: FONT_FAMILY,
-      }}
-    >
-      <span
-        onClick={() => onChange(!checked)}
-        style={{
-          width: 16,
-          height: 16,
-          borderRadius: RADIUS.MD,
-          border: '1px solid var(--color-border)',
-          background: checked ? '#ffffff' : 'transparent',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background var(--transition-fast)',
-          flexShrink: 0,
-          cursor: 'pointer',
-        }}
-      >
-        {checked && (
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M2 5.5l2 2L8 3" stroke="black" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </span>
-      {label}
-    </label>
   );
 }
 

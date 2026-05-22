@@ -1,4 +1,4 @@
-export function ChevronDown({ size = 10, className }: { size?: number; className?: string }) {
+export function ChevronRight({ size = 10, className }: { size?: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -9,7 +9,7 @@ export function ChevronDown({ size = 10, className }: { size?: number; className
       strokeWidth="1.5"
       className={className}
     >
-      <path d="M2.5 3.75L5 6.25L7.5 3.75" />
+      <path d="M3.75 2.5L6.25 5L3.75 7.5" />
     </svg>
   );
 }
