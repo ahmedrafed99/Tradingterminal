@@ -1179,7 +1179,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
         }
         return new FRVPPaneView(d as FRVPDrawing, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
       } else if (d.type === 'fib') {
-        return new FibPaneView(d as FibDrawing, selected, this._series!, this._chart!);
+        return new FibPaneView(d as FibDrawing, selected, this._series!, this._chart!, this._decimals);
       } else {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }

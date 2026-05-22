@@ -9,6 +9,7 @@ import {
 } from '../../../types/drawing';
 import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
+import { PRICE_SCALE_FONT_SIZE } from '../chartTheme';
 import { applyLineDash } from './rendererUtils';
 
 // ---------------------------------------------------------------------------
@@ -64,17 +65,20 @@ class FibRendererImpl implements IPrimitivePaneRenderer {
   private _selected: boolean;
   private _series: ISeriesApi<SeriesType>;
   private _chart: IChartApiBase<Time>;
+  private _decimals: number;
 
   constructor(
     drawing: FibDrawing,
     selected: boolean,
     series: ISeriesApi<SeriesType>,
     chart: IChartApiBase<Time>,
+    decimals: number,
   ) {
     this._drawing = drawing;
     this._selected = selected;
     this._series = series;
     this._chart = chart;
+    this._decimals = decimals;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -140,13 +144,20 @@ class FibRendererImpl implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Label outside (to the left) of the drawing boundary, right-aligned
-        const fs = Math.round(11 * vpr);
-        ctx.font = `600 ${fs}px ${FONT_FAMILY}`;
+        // Labels outside (to the left) — same font/color as the price scale
+        const fs = Math.round(PRICE_SCALE_FONT_SIZE * vpr);
+        const labelY = ly - Math.round(2 * vpr);
+        const priceLabel = `(${price.toFixed(this._decimals)})`;
+        const ratioLabel = formatRatioLabel(level.ratio);
+        ctx.font = `${fs}px ${FONT_FAMILY}`;
         ctx.fillStyle = color;
         ctx.textAlign = 'right';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(formatRatioLabel(level.ratio), left - labelOffsetX, ly - Math.round(2 * vpr));
+        // Price in parens (right-most)
+        ctx.fillText(priceLabel, left - labelOffsetX, labelY);
+        // Ratio label to the left of price
+        const priceWidth = ctx.measureText(priceLabel).width;
+        ctx.fillText(ratioLabel, left - labelOffsetX - priceWidth - Math.round(4 * hpr), labelY);
       }
       ctx.restore();
 
@@ -175,17 +186,20 @@ export class FibPaneView implements IPrimitivePaneView {
   private _selected: boolean;
   private _series: ISeriesApi<SeriesType>;
   private _chart: IChartApiBase<Time>;
+  private _decimals: number;
 
   constructor(
     drawing: FibDrawing,
     selected: boolean,
     series: ISeriesApi<SeriesType>,
     chart: IChartApiBase<Time>,
+    decimals: number = 2,
   ) {
     this._drawing = drawing;
     this._selected = selected;
     this._series = series;
     this._chart = chart;
+    this._decimals = decimals;
   }
 
   zOrder(): 'normal' {
@@ -193,7 +207,7 @@ export class FibPaneView implements IPrimitivePaneView {
   }
 
   renderer(): IPrimitivePaneRenderer | null {
-    return new FibRendererImpl(this._drawing, this._selected, this._series, this._chart);
+    return new FibRendererImpl(this._drawing, this._selected, this._series, this._chart, this._decimals);
   }
 
   hitTest(mouseX: number, mouseY: number): boolean {
@@ -215,11 +229,15 @@ export class FibPaneView implements IPrimitivePaneView {
     const basePrice = Math.min(this._drawing.p1.price, this._drawing.p2.price);
     const priceSpan = Math.abs(this._drawing.p2.price - this._drawing.p1.price);
 
+    const LABEL_ZONE = 72; // px to the left of `left` where labels are drawn
     for (const level of visibleLevels) {
       const price = basePrice + level.ratio * priceSpan;
       const cssY = this._series.priceToCoordinate(price);
       if (cssY === null) continue;
+      // Hit the line itself
       if (mouseX >= left - 4 && mouseX <= right + 4 && Math.abs(mouseY - cssY) <= 4) return true;
+      // Hit the label area (to the left of the drawing boundary)
+      if (mouseX >= left - LABEL_ZONE && mouseX < left && Math.abs(mouseY - cssY) <= 8) return true;
     }
 
     // Also hit the border of the core rectangle (edges)

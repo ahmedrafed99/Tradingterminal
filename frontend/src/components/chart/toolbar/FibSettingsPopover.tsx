@@ -3,7 +3,6 @@ import type { Drawing, FibDrawing, FibLevel } from '../../../types/drawing';
 import { DEFAULT_FIB_LEVELS, DEFAULT_FIB_COLOR, DEFAULT_FIB_NEG_COLOR } from '../../../types/drawing';
 import { Popover } from '../../shared/Popover';
 import { ColorSwatchButton } from '../ColorPopover';
-import { SpinnerInput } from '../../SpinnerInput';
 import { resolvedFibLevels } from '../drawings/FibRenderer';
 
 interface FibSettingsPopoverProps {
@@ -57,18 +56,31 @@ function LevelRow({ level, masterColor, onToggle, onColorChange, onRatioChange }
         {checked && <Checkmark />}
       </span>
 
-      {/* Ratio value as editable spinner */}
-      <div style={{ opacity: checked ? 1 : 0.45, transition: 'opacity var(--transition-fast)', flex: 1, minWidth: 0 }}>
-        <SpinnerInput
-          value={level.ratio}
-          onChange={onRatioChange}
-          step={1}
-          decimals={3}
-          min={-1000}
-          max={1000}
-          inputWidth={62}
-        />
-      </div>
+      {/* Ratio value */}
+      <input
+        type="text"
+        inputMode="numeric"
+        defaultValue={level.ratio}
+        key={level.ratio}
+        onBlur={(e) => {
+          const v = parseFloat(e.target.value);
+          if (!isNaN(v)) onRatioChange(v);
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        style={{
+          flex: 1, minWidth: 0, width: 62,
+          opacity: checked ? 1 : 0.45,
+          transition: 'opacity var(--transition-fast)',
+          background: 'transparent',
+          border: '1px solid var(--color-border)',
+          borderRadius: 6,
+          color: 'var(--color-text)',
+          fontSize: 12,
+          padding: '0 6px',
+          height: 26,
+          outline: 'none',
+        }}
+      />
 
       {/* Per-level color swatch */}
       <ColorSwatchButton
@@ -103,29 +115,30 @@ export function FibSettingsPopover({
     onClose();
   };
 
-  // Current merged level list
+  // Current merged level list — carry original index so each row has a stable identity
   const levels = resolvedFibLevels(fib);
-  const positiveLevels = levels.filter((l) => l.ratio >= 0).sort((a, b) => a.ratio - b.ratio);
-  const negativeLevels = levels.filter((l) => l.ratio < 0).sort((a, b) => b.ratio - a.ratio);
+  const levelsWithIdx = levels.map((l, i) => ({ level: l, origIdx: i }));
+  const positiveLevels = levelsWithIdx.filter(({ level }) => level.ratio >= 0).sort((a, b) => a.level.ratio - b.level.ratio);
+  const negativeLevels = levelsWithIdx.filter(({ level }) => level.ratio < 0).sort((a, b) => b.level.ratio - a.level.ratio);
 
   // ---------------------------------------------------------------------------
-  // Patch helpers
+  // Patch helpers — keyed by origIdx so duplicate ratios never cross-contaminate
   // ---------------------------------------------------------------------------
-  const patchLevel = (oldRatio: number, patch: Partial<FibLevel>) => {
+  const patchLevel = (origIdx: number, patch: Partial<FibLevel>) => {
     const current = resolvedFibLevels(fib);
-    const updated = current.map((l) => l.ratio === oldRatio ? { ...l, ...patch } : l);
+    const updated = current.map((l, i) => i === origIdx ? { ...l, ...patch } : l);
     updateDrawing(drawingId, { levels: updated } as Partial<Drawing>);
   };
 
-  const changeLevelRatio = (oldRatio: number, newRatio: number) => {
+  const changeLevelRatio = (origIdx: number, oldRatio: number, newRatio: number) => {
     if (oldRatio === newRatio) return;
-    const current = resolvedFibLevels(fib);
-    // Prevent duplicate ratios — skip the step if that value already exists on another row
-    if (current.some((l) => l.ratio === newRatio && l.ratio !== oldRatio)) return;
-    // Prevent crossing zero — positive levels stay positive, negative levels stay negative
+    // Positive levels stay positive, negative stay negative
     if (oldRatio >= 0 && newRatio < 0) return;
     if (oldRatio < 0 && newRatio >= 0) return;
-    const updated = current.map((l) => l.ratio === oldRatio ? { ...l, ratio: newRatio } : l);
+    const current = resolvedFibLevels(fib);
+    // Skip if the target ratio already exists on a different level
+    if (current.some((l, i) => i !== origIdx && l.ratio === newRatio)) return;
+    const updated = current.map((l, i) => i === origIdx ? { ...l, ratio: newRatio } : l);
     updateDrawing(drawingId, { levels: updated } as Partial<Drawing>);
   };
 
@@ -145,6 +158,22 @@ export function FibSettingsPopover({
 
   const showNegative = !!fib.showNegative;
   const extendRight = !!fib.extendRight;
+
+  // When enabling negatives, always mirror the current positive levels
+  const toggleShowNegative = () => {
+    if (!showNegative) {
+      const current = resolvedFibLevels(fib);
+      const mirrored: FibLevel[] = current
+        .filter((l) => l.ratio > 0)
+        .map((l) => ({ ratio: -l.ratio, color: l.color, visible: l.visible }));
+      updateDrawing(drawingId, {
+        showNegative: true,
+        levels: [...current.filter((l) => l.ratio >= 0), ...mirrored],
+      } as Partial<Drawing>);
+    } else {
+      updateDrawing(drawingId, { showNegative: false } as Partial<Drawing>);
+    }
+  };
   const positiveMasterColor = fib.color ?? DEFAULT_FIB_COLOR;
   const negativeMasterColor = fib.negativeMasterColor ?? DEFAULT_FIB_NEG_COLOR;
 
@@ -181,14 +210,14 @@ export function FibSettingsPopover({
         {/* ── Positive Lines ─────────────────────── */}
         <SectionHeader label="Positive Lines" color={positiveMasterColor} onColorChange={applyPositiveMaster} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
-          {positiveLevels.map((level) => (
+          {positiveLevels.map(({ level, origIdx }) => (
             <LevelRow
-              key={level.ratio}
+              key={origIdx}
               level={level}
               masterColor={positiveMasterColor}
-              onToggle={() => patchLevel(level.ratio, { visible: level.visible === false ? true : false })}
-              onColorChange={(c) => patchLevel(level.ratio, { color: c })}
-              onRatioChange={(r) => changeLevelRatio(level.ratio, r)}
+              onToggle={() => patchLevel(origIdx, { visible: level.visible === false ? true : false })}
+              onColorChange={(c) => patchLevel(origIdx, { color: c })}
+              onRatioChange={(r) => changeLevelRatio(origIdx, level.ratio, r)}
             />
           ))}
         </div>
@@ -199,7 +228,7 @@ export function FibSettingsPopover({
         <OptionRow
           checked={showNegative}
           label="Show Negative"
-          onClick={() => updateDrawing(drawingId, { showNegative: !showNegative } as Partial<Drawing>)}
+          onClick={toggleShowNegative}
         />
 
         {/* Negative Lines — only when showNegative */}
@@ -207,14 +236,14 @@ export function FibSettingsPopover({
           <>
             <SectionHeader label="Negative Lines" color={negativeMasterColor} onColorChange={applyNegativeMaster} />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
-              {negativeLevels.map((level) => (
+              {negativeLevels.map(({ level, origIdx }) => (
                 <LevelRow
-                  key={level.ratio}
+                  key={origIdx}
                   level={level}
                   masterColor={negativeMasterColor}
-                  onToggle={() => patchLevel(level.ratio, { visible: level.visible === false ? true : false })}
-                  onColorChange={(c) => patchLevel(level.ratio, { color: c })}
-                  onRatioChange={(r) => changeLevelRatio(level.ratio, r)}
+                  onToggle={() => patchLevel(origIdx, { visible: level.visible === false ? true : false })}
+                  onColorChange={(c) => patchLevel(origIdx, { color: c })}
+                  onRatioChange={(r) => changeLevelRatio(origIdx, level.ratio, r)}
                 />
               ))}
             </div>
