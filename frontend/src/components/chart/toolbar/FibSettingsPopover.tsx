@@ -35,6 +35,36 @@ function Checkmark() {
 }
 
 // ---------------------------------------------------------------------------
+// SectionHeader — label + "All" master color swatch
+// ---------------------------------------------------------------------------
+function SectionHeader({ label, color, onColorChange }: { label: string; color: string; onColorChange: (c: string) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>All</span>
+        <ColorSwatchButton color={color} onChange={onColorChange} />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// OptionRow — checkbox + label
+// ---------------------------------------------------------------------------
+function OptionRow({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
+  return (
+    <div
+      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
+      onClick={onClick}
+    >
+      <span style={checkboxStyle(checked)}>{checked && <Checkmark />}</span>
+      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{label}</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // LevelRow — one row per fib level
 // ---------------------------------------------------------------------------
 interface LevelRowProps {
@@ -176,32 +206,6 @@ export function FibSettingsPopover({
   };
   const positiveMasterColor = fib.color ?? DEFAULT_FIB_COLOR;
   const negativeMasterColor = fib.negativeMasterColor ?? DEFAULT_FIB_NEG_COLOR;
-
-  // ---------------------------------------------------------------------------
-  // Section header row
-  // ---------------------------------------------------------------------------
-  const SectionHeader = ({ label, color, onColorChange }: { label: string; color: string; onColorChange: (c: string) => void }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{label}</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>All</span>
-        <ColorSwatchButton color={color} onChange={onColorChange} />
-      </div>
-    </div>
-  );
-
-  // ---------------------------------------------------------------------------
-  // Checkbox row (options)
-  // ---------------------------------------------------------------------------
-  const OptionRow = ({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) => (
-    <div
-      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
-      onClick={onClick}
-    >
-      <span style={checkboxStyle(checked)}>{checked && <Checkmark />}</span>
-      <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{label}</span>
-    </div>
-  );
 
   return (
     <Popover title="Fibonacci Settings" onClose={onClose} onCancel={handleCancel} width={500} persistKey="popover-fib">

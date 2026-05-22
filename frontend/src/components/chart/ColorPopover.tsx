@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useClickOutside } from '../../hooks/useClickOutside';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
@@ -191,7 +192,10 @@ export function ColorSwatchButton({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLButtonElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+
+  useClickOutside(pickerRef, open, () => setOpen(false));
 
   const computePos = () => {
     if (!ref.current) return;
@@ -253,20 +257,13 @@ export function ColorSwatchButton({
         <span style={{ display: 'block', width: 24, height: 24, borderRadius: RADIUS.LG, background: color }} />
       </button>
       {open && !disabled && pos && createPortal(
-        <>
-          {/* Backdrop: sits above the settings panel, below the color picker.
-              Intercepts all outside clicks and closes the picker directly,
-              bypassing the data-ignore-click-outside walk that would otherwise
-              bail when clicking inside the parent Popover. */}
-          <div
-            data-ignore-click-outside=""
-            style={{ position: 'fixed', inset: 0, zIndex: Z.TOAST - 1 }}
-            onMouseDown={(e) => { e.stopPropagation(); setOpen(false); }}
-          />
-          <div data-ignore-click-outside="" style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}>
-            <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
-          </div>
-        </>,
+        <div
+          ref={pickerRef}
+          data-ignore-click-outside=""
+          style={{ position: 'fixed', top: pos.top, bottom: pos.bottom, left: pos.left, zIndex: Z.TOAST }}
+        >
+          <ColorPopover current={color} onChange={onChange} onClose={() => setOpen(false)} />
+        </div>,
         document.body
       )}
     </div>
