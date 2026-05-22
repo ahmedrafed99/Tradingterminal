@@ -54,11 +54,8 @@ function SectionHeader({ label, color, onColorChange }: { label: string; color: 
 // ---------------------------------------------------------------------------
 function OptionRow({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
   return (
-    <div
-      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
-      onClick={onClick}
-    >
-      <span style={checkboxStyle(checked)}>{checked && <Checkmark />}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={checkboxStyle(checked)} onClick={onClick}>{checked && <Checkmark />}</span>
       <span style={{ fontSize: 13, color: 'var(--color-text)' }}>{label}</span>
     </div>
   );
