@@ -299,6 +299,13 @@ class BackendRealtimeService extends EventEmitter {
       this.emit('depth', contractId, arr);
     });
 
+    // ProjectX sends this when it forces a session disconnect (e.g. another client logged in).
+    // Register a handler on both hubs so SignalR doesn't warn about unknown method.
+    // withAutomaticReconnect() handles the reconnect automatically after the timeout drop.
+    this.marketHub.on('gatewaylogout', () => {
+      debugLog.log('realtimeService:gatewaylogout', { hub: 'market' });
+    });
+
     // ── Market hub lifecycle ───────────────────────────────────────────────
 
     this.marketHub.onreconnecting(() => {
@@ -366,6 +373,10 @@ class BackendRealtimeService extends EventEmitter {
         this._broadcast({ event: 'GatewayUserTrade', action: item.action, data: trade });
         this.emit('trade', trade, item.action);
       }
+    });
+
+    this.userHub.on('gatewaylogout', () => {
+      debugLog.log('realtimeService:gatewaylogout', { hub: 'user' });
     });
 
     // ── User hub lifecycle ─────────────────────────────────────────────────
