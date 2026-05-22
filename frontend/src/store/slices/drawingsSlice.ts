@@ -1,4 +1,4 @@
-import type { Drawing, DrawingTool, HLineTemplate, LineStyle, RectExtendMode } from '../../types/drawing';
+import type { Drawing, DrawingTool, FibLevel, HLineTemplate, LineStyle, RectExtendMode } from '../../types/drawing';
 
 // ---------------------------------------------------------------------------
 // Drawings
@@ -35,6 +35,11 @@ interface DrawingStyleDefaults {
   barOffset?: number;
   barLength?: number;
   volumeType?: 'total' | 'delta' | 'updown';
+  // Fib-specific
+  showNegative?: boolean;
+  extendRight?: boolean;
+  negativeMasterColor?: string;
+  levels?: FibLevel[];
 }
 
 export interface DrawingsState {
@@ -132,7 +137,8 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
 
         const rectKeys = ['extendMode', 'middleLine', 'middleLineColor', 'middleLineStyle'] as const;
         const frvpKeys = ['numBars', 'rowSizeMode', 'rowSizePrice', 'rowTickSize', 'pocColor', 'showPoc', 'extendPoc', 'showBarValues', 'barLength'] as const;
-        const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...rectKeys, ...frvpKeys] as const;
+        const fibKeys = ['showNegative', 'extendRight', 'negativeMasterColor', 'levels'] as const;
+        const styleKeys = ['color', 'strokeWidth', 'lineStyle', 'fillColor', 'mode', ...rectKeys, ...frvpKeys, ...fibKeys] as const;
         if (existing && styleKeys.some((k) => k in patch)) {
           const cur = s.drawingDefaults[existing.type] ?? { color: existing.color, strokeWidth: existing.strokeWidth };
           const typedPatch = patch as Record<string, unknown>;
@@ -201,6 +207,19 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
           }
           if ('middleLineStyle' in patch || cur.middleLineStyle !== undefined) {
             updated.middleLineStyle = (typedPatch.middleLineStyle as LineStyle) ?? cur.middleLineStyle;
+          }
+          // Fib-specific defaults
+          if ('showNegative' in patch || cur.showNegative !== undefined) {
+            updated.showNegative = (typedPatch.showNegative as boolean) ?? cur.showNegative;
+          }
+          if ('extendRight' in patch || cur.extendRight !== undefined) {
+            updated.extendRight = (typedPatch.extendRight as boolean) ?? cur.extendRight;
+          }
+          if ('negativeMasterColor' in patch || cur.negativeMasterColor !== undefined) {
+            updated.negativeMasterColor = (typedPatch.negativeMasterColor as string) ?? cur.negativeMasterColor;
+          }
+          if ('levels' in patch || cur.levels !== undefined) {
+            updated.levels = (typedPatch.levels as FibLevel[]) ?? cur.levels;
           }
           result.drawingDefaults = {
             ...s.drawingDefaults,

@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore } from '../../store/useStore';
 import { RADIUS, SHADOW, Z } from '../../constants/layout';
-import type { Drawing, HLineTemplate, LineStyle, RectDrawing, FRVPDrawing } from '../../types/drawing';
+import type { Drawing, HLineTemplate, LineStyle, RectDrawing, FRVPDrawing, FibDrawing } from '../../types/drawing';
 import { ColorPopover } from './ColorPopover';
 import { TextPopover } from './toolbar/TextPopover';
 import { StrokePopover } from './toolbar/StrokePopover';
 import { TemplatePopover } from './toolbar/TemplatePopover';
 import { RectSettingsPopover } from './toolbar/RectSettingsPopover';
 import { FRVPToolbarPanel } from './toolbar/FRVPToolbarPanel';
+import { FibToolbarPanel } from './toolbar/FibToolbarPanel';
 import { useDraggable } from '../../hooks/useDraggable';
 
 const BTN_BASE = 'relative flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent cursor-pointer text-(--color-text) transition-colors duration-150';
@@ -95,6 +96,7 @@ function DrawingEditToolbarInner({
   const [showTemplate, setShowTemplate] = useState(false);
   const [showRectSettings, setShowRectSettings] = useState(false);
   const [showFrvpSettings, setShowFrvpSettings] = useState(false);
+  const [showFibSettings, setShowFibSettings] = useState(false);
 
   const frvpSettingsOpen = useStore((s) => s.frvpSettingsOpen);
   const setFrvpSettingsOpen = useStore((s) => s.setFrvpSettingsOpen);
@@ -152,6 +154,7 @@ function DrawingEditToolbarInner({
     setShowTemplate(false);
     setShowRectSettings(false);
     setShowFrvpSettings(false);
+    setShowFibSettings(false);
   }, []);
 
   if (!drawing && !isMulti) return null;
@@ -245,16 +248,24 @@ function DrawingEditToolbarInner({
         />
       ) : (
         <>
-          {/* Color picker */}
+          {/* Color picker — pencil for most, bucket for fib (controls fill/lines via master color) */}
           <div className="relative">
             <PopoverToggleButton
               open={showColor}
               onToggle={() => { const nextOpen = !showColor; closeAll(); setShowColor(nextOpen); }}
               title="Color"
             >
-              <svg width="18" height="18" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
-                <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
-              </svg>
+              {drawing.type === 'fib' ? (
+                <svg width="20" height="20" viewBox="0 0 20 20" shapeRendering="geometricPrecision" fill="none">
+                  <path stroke="currentColor" d="M13.5 6.5l-3-3-7 7 7.59 7.59a2 2 0 0 0 2.82 0l4.18-4.18a2 2 0 0 0 0-2.82L13.5 6.5zm0 0v-4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6" />
+                  <path fill="currentColor" d="M0 16.5C0 15 2.5 12 2.5 12S5 15 5 16.5 4 19 2.5 19 0 18 0 16.5z" />
+                  <circle fill="currentColor" cx="9.5" cy="9.5" r="1.5" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 16 16" shapeRendering="geometricPrecision" fill="currentColor">
+                  <path d="M10.62.72a2.47 2.47 0 0 1 3.5 0l1.16 1.16c.96.97.96 2.54 0 3.5l-.58.58-8.9 8.9-1 1-.14.14H0v-4.65l.14-.15 1-1 8.9-8.9.58-.58Zm2.8.7a1.48 1.48 0 0 0-2.1 0l-.23.23 3.26 3.26.23-.23c.58-.58.58-1.52 0-2.1l-1.16-1.16Zm.23 4.2-3.26-3.27-8.2 8.2 3.25 3.27 8.2-8.2Zm-8.9 8.9-3.27-3.26-.5.5V15h3.27l.5-.5Z" />
+                </svg>
+              )}
               <div style={{
                 position: 'absolute', bottom: 4, right: 4,
                 width: 8, height: 8, borderRadius: RADIUS.CIRCLE,
@@ -307,8 +318,8 @@ function DrawingEditToolbarInner({
             </>
           )}
 
-          {/* Text (not shown for freedraw) */}
-          {drawing.type !== 'freedraw' && (
+          {/* Text (not shown for freedraw or fib) */}
+          {drawing.type !== 'freedraw' && drawing.type !== 'fib' && (
             <>
               <Divider />
               <div className="relative">
@@ -453,6 +464,20 @@ function DrawingEditToolbarInner({
                   />
                 )}
               </div>
+            </>
+          )}
+
+          {/* Fib settings */}
+          {drawing.type === 'fib' && (
+            <>
+              <Divider />
+              <FibToolbarPanel
+                fib={drawing as FibDrawing}
+                drawingId={drawing.id}
+                updateDrawing={updateDrawing}
+                open={showFibSettings}
+                onOpenChange={(v) => { if (v) { closeAll(); setShowFibSettings(true); } else { setShowFibSettings(false); } }}
+              />
             </>
           )}
         </>

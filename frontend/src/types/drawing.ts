@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Drawing tool identifiers
 // ---------------------------------------------------------------------------
-export type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp';
+export type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp' | 'fib';
 
 // ---------------------------------------------------------------------------
 // Text configuration for drawings
@@ -165,9 +165,30 @@ export interface FRVPDrawing extends DrawingBase {
 }
 
 // ---------------------------------------------------------------------------
+// Fibonacci Retracement drawing
+// ---------------------------------------------------------------------------
+
+/** Configuration for a single Fibonacci level line */
+export interface FibLevel {
+  ratio: number;       // e.g. 0.0, 0.618, 1.0, 1.618, -0.618, -1.618
+  visible?: boolean;   // default true
+  color?: string;      // per-level color override; undefined = inherit master color
+}
+
+export interface FibDrawing extends DrawingBase {
+  type: 'fib';
+  p1: AnchoredPoint;              // drag-start node
+  p2: AnchoredPoint;              // drag-end node
+  showNegative?: boolean;          // show negative levels (< 0); default false
+  extendRight?: boolean;           // extend all level lines to the right chart edge; default false
+  negativeMasterColor?: string;    // master color applied to all negative levels
+  levels?: FibLevel[];             // undefined = DEFAULT_FIB_LEVELS
+}
+
+// ---------------------------------------------------------------------------
 // Union type
 // ---------------------------------------------------------------------------
-export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing | FRVPDrawing;
+export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing | FRVPDrawing | FibDrawing;
 
 // ---------------------------------------------------------------------------
 // Horizontal line template (saved style presets)
@@ -195,4 +216,23 @@ export const DEFAULT_RECT_COLOR = '#ff9800';
 export const DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)';
 export const DEFAULT_FREEDRAW_COLOR = '#ffffff';
 export const DEFAULT_FRVP_COLOR = COLOR_ACCENT;
+export const DEFAULT_FIB_COLOR = '#F7C948';
+export const DEFAULT_FIB_NEG_COLOR = '#EF5350';
+export const DEFAULT_FIB_LEVELS: FibLevel[] = [
+  // Positive levels (0 → base, 1 → top of selection, >1 → extensions above)
+  { ratio: 0,     color: '#9B9B9B' },
+  { ratio: 0.618, color: '#F7C948' },
+  { ratio: 1,     color: '#9B9B9B' },
+  { ratio: 1.618, color: '#F7931A' },
+  { ratio: 2.618, color: '#E8A838' },
+  { ratio: 3.618, color: '#F7C948' },
+  { ratio: 4.618, color: '#B8860B' },
+  // Negative levels (shown when showNegative = true)
+  { ratio: -0.618, color: '#EF5350' },
+  { ratio: -1,     color: '#C62828' },
+  { ratio: -1.618, color: '#C62828' },
+  { ratio: -2.618, color: '#B71C1C' },
+  { ratio: -3.618, color: '#EF5350' },
+  { ratio: -4.618, color: '#C62828' },
+];
 export const STROKE_WIDTH_OPTIONS = [1, 2, 3, 4] as const;

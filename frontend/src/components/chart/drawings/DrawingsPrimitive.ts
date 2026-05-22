@@ -12,7 +12,7 @@ import type {
 } from 'lightweight-charts';
 import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 import type { ISeriesPrimitive } from 'lightweight-charts';
-import type { Drawing, FRVPDrawing, RulerMetrics, RectExtendMode } from '../../../types/drawing';
+import type { Drawing, FRVPDrawing, FibDrawing, RulerMetrics, RectExtendMode } from '../../../types/drawing';
 import type { Bar } from '../../../services/marketDataService';
 import { COLOR_TEXT_MUTED, COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
@@ -31,6 +31,7 @@ import { applyLineDash } from './rendererUtils';
 import type { LineStyle } from '../../../types/drawing';
 import { MarkerPaneView } from './MarkerRenderer';
 import { FRVPPaneView } from './FRVPRenderer';
+import { FibPaneView, FibPreviewPaneView } from './FibRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -828,7 +829,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private _drawings: Drawing[] = [];
   private _selectedIds: string[] = [];
-  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | MarkerPaneView | FRVPPaneView)[] = [];
+  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | MarkerPaneView | FRVPPaneView | FibPaneView)[] = [];
 
   // Shared VP VolumeMap ref for all FRVP drawings (real trade ticks, session-scoped)
   private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
@@ -859,6 +860,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   // FRVP creation preview (range mode: horizontal drag)
   private _frvpRangePreview: FRVPRangePreviewPaneView | null = null;
+
+  // Fib creation preview (diagonal dashed line + dots)
+  private _fibPreview: FibPreviewPaneView | null = null;
 
   // Latest bar time — used to resolve t2Auto for range FRVPs
   private _lastBarTime = 0;
@@ -1015,6 +1019,18 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  /** Show a dashed diagonal line preview during Fibonacci drag creation */
+  setFibPreview(x1: number, y1: number, x2: number, y2: number, color: string): void {
+    this._fibPreview = new FibPreviewPaneView(x1, y1, x2, y2, color);
+    this._requestUpdate?.();
+  }
+
+  /** Clear the Fibonacci creation preview */
+  clearFibPreview(): void {
+    this._fibPreview = null;
+    this._requestUpdate?.();
+  }
+
   /** Track latest bar time for t2Auto resolution in range FRVPs */
   setLastBarTime(t: number): void {
     this._lastBarTime = t;
@@ -1162,6 +1178,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
           return new FRVPPaneView(effectiveFrvp, selected, this._series!, this._chart!, { current: rangeMap }, this._tickSize, this._requestUpdate);
         }
         return new FRVPPaneView(d as FRVPDrawing, selected, this._series!, this._chart!, this._sharedVolumeMap, this._tickSize, this._requestUpdate);
+      } else if (d.type === 'fib') {
+        return new FibPaneView(d as FibDrawing, selected, this._series!, this._chart!);
       } else {
         return new FreeDrawPaneView(d, selected, this._series!, this._chart!);
       }
@@ -1190,6 +1208,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     if (this._freeDrawPreview) extras.push(this._freeDrawPreview);
     if (this._frvpPreview) extras.push(this._frvpPreview);
     if (this._frvpRangePreview) extras.push(this._frvpRangePreview);
+    if (this._fibPreview) extras.push(this._fibPreview);
     if (this._selectionRect) extras.push(this._selectionRect);
     if (extras.length > 0) return [...this._paneViews, ...extras];
     return this._paneViews;
@@ -1312,6 +1331,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (view instanceof FRVPPaneView) {
         const handle = view.hitTestHandle(x, y);
         if (handle) return { drawingId: view.drawingId, handle };
+      } else if (view instanceof FibPaneView) {
+        const handle = view.hitTestHandle(x, y);
+        if (handle) return { drawingId: view.drawingId, handle };
       }
     }
     return null;
@@ -1367,6 +1389,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       } else if (view instanceof FreeDrawPaneView) {
         hit = view.hitTest(x, y);
       } else if (view instanceof FRVPPaneView) {
+        hit = view.hitTest(x, y);
+      } else if (view instanceof FibPaneView) {
         hit = view.hitTest(x, y);
       }
       if (hit) {

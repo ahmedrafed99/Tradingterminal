@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Architecture Review — Trading Terminal UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({ startOnLoad: true, theme: "neutral", securityLevel: "loose" });
+  </script>
+  <style>
+    .seam { stroke-dasharray: 4 4; }
+    .leak { stroke: #dc2626; }
+    .deep-box { background: linear-gradient(135deg, #0f172a, #1e293b); }
+    .band { display: flex; align-items: center; padding: 0 16px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+  </style>
+</head>
+<body class="bg-stone-50 text-slate-900 font-sans">
+<main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+
+  <!-- Header -->
+  <header class="border-b border-slate-200 pb-6">
+    <h1 class="text-2xl font-serif font-semibold text-slate-800">Architecture Review — UI Components</h1>
+    <p class="text-sm text-slate-400 mt-1">Trading Terminal · 2026-05-22</p>
+    <div class="mt-4 flex items-center gap-6 text-xs text-slate-500">
+      <span class="flex items-center gap-1.5"><span class="inline-block w-4 h-4 border-2 border-slate-400 rounded-sm"></span> module</span>
+      <span class="flex items-center gap-1.5"><svg width="32" height="12"><line x1="0" y1="6" x2="32" y2="6" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4 4"/></svg> seam</span>
+      <span class="flex items-center gap-1.5"><svg width="32" height="12"><line x1="0" y1="6" x2="28" y2="6" stroke="#dc2626" stroke-width="1.5"/><polygon points="28,3 32,6 28,9" fill="#dc2626"/></svg> leakage</span>
+      <span class="flex items-center gap-1.5"><span class="inline-block w-4 h-4 rounded-sm" style="background:linear-gradient(135deg,#0f172a,#1e293b)"></span> deep module</span>
+    </div>
+  </header>
+
+  <section id="candidates" class="space-y-12">
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- CANDIDATE 1: Inline style sprawl -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-4">
+        <h2 class="text-lg font-serif font-semibold text-slate-800">Collapse inline style objects into Tailwind + CSS classes</h2>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Strong</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">local-substitutable</span>
+        </div>
+      </div>
+
+      <div class="px-6 pb-2 font-mono text-xs text-slate-500 space-y-0.5">
+        <div>frontend/src/components/shared/Popover.tsx</div>
+        <div>frontend/src/components/shared/CustomSelect.tsx</div>
+        <div>frontend/src/components/shared/MenuItem.tsx</div>
+        <div>+ 75 other component files (~1,141 style={{}} occurrences)</div>
+      </div>
+
+      <!-- Before / After diagram: cross-section -->
+      <div class="px-6 pt-4 pb-6 grid grid-cols-2 gap-4">
+
+        <!-- Before -->
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before</p>
+          <div class="rounded-lg border border-slate-200 overflow-hidden text-white" style="font-size:10px;">
+            <div class="band bg-slate-700" style="height:48px;">Popover.tsx — header div</div>
+            <div class="band bg-slate-600 border-t border-slate-500" style="height:32px; color:#fca5a5;">style={{ display:'flex', gap:8, padding:'12px 16px'… }}</div>
+            <div class="band bg-slate-700 border-t border-slate-500" style="height:32px; color:#fca5a5;">style={{ width:22, height:22, borderRadius:RADIUS.MD… }}</div>
+            <div class="band bg-slate-600 border-t border-slate-500" style="height:32px; color:#fca5a5;">style={{ zIndex:Z.DROPDOWN, top:'50%', left:'50%'… }}</div>
+            <div class="band bg-slate-700 border-t border-slate-500" style="height:32px; color:#fca5a5;">style={{ background:'var(--color-surface)', border:'1px solid var(--color-border)'… }}</div>
+            <div class="band bg-slate-600 border-t border-slate-500" style="height:32px; color:#fca5a5;">onMouseEnter: e.style.background = 'var(--color-hover-toolbar)'</div>
+            <div class="band bg-slate-700 border-t border-slate-500" style="height:32px; color:#fca5a5;">onMouseLeave: e.style.background = 'var(--color-surface)'</div>
+            <div class="flex items-center justify-center bg-slate-800 border-t border-slate-500 px-3 py-2">
+              <span class="text-red-400 font-semibold" style="font-size:10px;">7 inline style objects · hover state split from layout state</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- After -->
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After</p>
+          <div class="rounded-lg border border-indigo-200 overflow-hidden text-white" style="font-size:10px;">
+            <div class="band bg-indigo-900" style="height:48px;">Popover.tsx — header div</div>
+            <div class="band bg-indigo-800 border-t border-indigo-700" style="height:32px; color:#a5f3fc;">className="flex items-center gap-2 px-4 py-3"</div>
+            <div class="band bg-indigo-700 border-t border-indigo-600" style="height:32px; color:#a5f3fc;">className="popover-close-btn"  ← one CSS class</div>
+            <div class="band bg-indigo-800 border-t border-indigo-700" style="height:32px; color:#a5f3fc;">className="fixed popover-shell"  ← z-index + position in CSS</div>
+            <div class="band bg-indigo-700 border-t border-indigo-600" style="height:32px; color:#a5f3fc;">className="btn-cancel"  ← token-using CSS class</div>
+            <div class="band bg-indigo-800 border-t border-indigo-700" style="height:32px; color:#a5f3fc; font-style:italic; opacity:0.6;">hover: CSS :hover selector</div>
+            <div class="band bg-indigo-700 border-t border-indigo-600" style="height:32px; color:#a5f3fc; font-style:italic; opacity:0.6;">hover: CSS :hover selector</div>
+            <div class="flex items-center justify-center bg-indigo-950 border-t border-indigo-700 px-3 py-2">
+              <span class="text-emerald-400 font-semibold" style="font-size:10px;">0 inline style objects · hover in CSS · token changes in one place</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 px-6 py-4 space-y-3">
+        <p class="text-sm text-slate-700"><strong>Problem.</strong> 1,141 <code class="bg-slate-100 px-1 rounded text-xs">style={{}}</code> objects encode design tokens (<code class="bg-slate-100 px-1 rounded text-xs">var(--color-*)</code>, <code class="bg-slate-100 px-1 rounded text-xs">RADIUS.*</code>) that already exist as CSS variables — and split hover state across <code class="bg-slate-100 px-1 rounded text-xs">onMouseEnter</code>/<code class="bg-slate-100 px-1 rounded text-xs">onMouseLeave</code> handlers instead of CSS <code class="bg-slate-100 px-1 rounded text-xs">:hover</code>.</p>
+        <p class="text-sm text-slate-700"><strong>Solution.</strong> Extract structural patterns into Tailwind utility classes and a thin CSS layer; replace <code class="bg-slate-100 px-1 rounded text-xs">onMouseEnter/Leave</code> handlers with <code class="bg-slate-100 px-1 rounded text-xs">:hover</code> rules; keep <code class="bg-slate-100 px-1 rounded text-xs">style={{}}</code> only for dynamic runtime values (drag position, computed widths).</p>
+        <ul class="text-sm text-slate-600 space-y-1 list-none">
+          <li>→ <strong>locality:</strong> token changes land in CSS, not scattered across 78 files</li>
+          <li>→ <strong>leverage:</strong> removing <code class="bg-slate-100 px-1 rounded text-xs">onMouseEnter/Leave</code> from every button shrinks call-site complexity</li>
+          <li>→ <strong>interface:</strong> component props stay the same — pure implementation change</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- CANDIDATE 2: Splintered button primitives -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-4">
+        <h2 class="text-lg font-serif font-semibold text-slate-800">Deepen the button module — absorb shadow primitives</h2>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">Strong</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">local-substitutable</span>
+        </div>
+      </div>
+
+      <div class="px-6 pb-2 font-mono text-xs text-slate-500 space-y-0.5">
+        <div>frontend/src/components/shared/Button.tsx  ← the real module</div>
+        <div>frontend/src/components/chart/toolbar/ToolbarPillButton.tsx  ← shadow</div>
+        <div>frontend/src/components/shared/DropdownButton.tsx  ← shadow</div>
+        <div>frontend/src/components/shared/TabButton.tsx  ← shallow wrapper</div>
+        <div>frontend/src/components/shared/MenuItem.tsx  ← context-specific shadow</div>
+      </div>
+
+      <!-- Before / After: mass diagram -->
+      <div class="px-6 pt-4 pb-6 grid grid-cols-2 gap-6">
+
+        <!-- Before: 5 shallow modules -->
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before — 5 shallow modules</p>
+          <div class="space-y-1.5">
+            <div class="relative rounded border border-slate-300 overflow-hidden" style="height:52px;">
+              <div class="absolute inset-0 bg-slate-100 flex items-center px-3">
+                <span class="text-xs font-mono font-semibold text-slate-600">Button.tsx</span>
+              </div>
+              <div class="absolute right-0 top-0 bottom-0 bg-indigo-200 flex items-center px-1" style="width:55%;">
+                <span class="text-xs text-indigo-700" style="font-size:9px;">variant · tone · size · disabled · icon · loading</span>
+              </div>
+            </div>
+            <div class="relative rounded border border-red-200 overflow-hidden" style="height:36px;">
+              <div class="absolute inset-0 bg-red-50 flex items-center px-3">
+                <span class="text-xs font-mono text-red-500">ToolbarPillButton.tsx</span>
+              </div>
+              <div class="absolute right-0 top-0 bottom-0 bg-red-100 flex items-center px-1" style="width:70%;">
+                <span class="text-xs text-red-400" style="font-size:9px;">duplicates padding · bg · border · hover</span>
+              </div>
+            </div>
+            <div class="relative rounded border border-red-200 overflow-hidden" style="height:36px;">
+              <div class="absolute inset-0 bg-red-50 flex items-center px-3">
+                <span class="text-xs font-mono text-red-500">DropdownButton.tsx</span>
+              </div>
+              <div class="absolute right-0 top-0 bottom-0 bg-red-100 flex items-center px-1" style="width:65%;">
+                <span class="text-xs text-red-400" style="font-size:9px;">duplicates border · padding · transition</span>
+              </div>
+            </div>
+            <div class="relative rounded border border-red-200 overflow-hidden" style="height:36px;">
+              <div class="absolute inset-0 bg-red-50 flex items-center px-3">
+                <span class="text-xs font-mono text-red-500">TabButton.tsx</span>
+              </div>
+              <div class="absolute right-0 top-0 bottom-0 bg-red-100 flex items-center px-1" style="width:75%;">
+                <span class="text-xs text-red-400" style="font-size:9px;">19 lines · trivially inlined</span>
+              </div>
+            </div>
+            <div class="relative rounded border border-red-200 overflow-hidden" style="height:36px;">
+              <div class="absolute inset-0 bg-red-50 flex items-center px-3">
+                <span class="text-xs font-mono text-red-500">MenuItem.tsx</span>
+              </div>
+              <div class="absolute right-0 top-0 bottom-0 bg-red-100 flex items-center px-1" style="width:60%;">
+                <span class="text-xs text-red-400" style="font-size:9px;">reimplements hover + layout</span>
+              </div>
+            </div>
+            <p class="text-xs text-red-500 mt-2">interface width ≈ implementation width — shallow</p>
+          </div>
+        </div>
+
+        <!-- After: one deep Button module -->
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After — one deep module</p>
+          <div class="relative rounded-lg overflow-hidden deep-box text-white" style="height:196px;">
+            <div class="absolute inset-x-0 top-0 flex items-center px-4 py-2 border-b border-slate-600" style="height:40px;">
+              <span class="text-xs font-mono font-semibold text-slate-100">Button.tsx</span>
+              <span class="ml-auto text-xs text-slate-400">variant · tone · size</span>
+            </div>
+            <div class="absolute inset-x-0 bottom-0 flex items-center px-4 py-3 border-t border-slate-700" style="height:36px;">
+              <span class="text-xs text-emerald-400">same 3-prop interface · callers unchanged</span>
+            </div>
+            <div class="absolute inset-x-4 opacity-30 space-y-1.5" style="top:50px; bottom:44px; display:flex; flex-direction:column; justify-content:center;">
+              <div class="h-6 rounded bg-slate-600 flex items-center px-2"><span style="font-size:9px;" class="text-slate-300">toolbar variant → pill sizing + bg token</span></div>
+              <div class="h-6 rounded bg-slate-600 flex items-center px-2"><span style="font-size:9px;" class="text-slate-300">tab variant → underline indicator</span></div>
+              <div class="h-6 rounded bg-slate-600 flex items-center px-2"><span style="font-size:9px;" class="text-slate-300">menu variant → full-width + submenu arrow</span></div>
+              <div class="h-6 rounded bg-slate-600 flex items-center px-2"><span style="font-size:9px;" class="text-slate-300">hover via CSS · no onMouseEnter/Leave</span></div>
+            </div>
+          </div>
+          <p class="text-xs text-emerald-600 mt-2">interface narrow · implementation absorbs 4 shadow modules</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 px-6 py-4 space-y-3">
+        <p class="text-sm text-slate-700"><strong>Problem.</strong> <code class="bg-slate-100 px-1 rounded text-xs">Button.tsx</code> is the only real module; four shadow button modules duplicate its padding, border, hover, and transition logic without routing through it.</p>
+        <p class="text-sm text-slate-700"><strong>Solution.</strong> Add <code class="bg-slate-100 px-1 rounded text-xs">variant="toolbar" | "tab" | "menu"</code> to <code class="bg-slate-100 px-1 rounded text-xs">Button.tsx</code>; delete <code class="bg-slate-100 px-1 rounded text-xs">ToolbarPillButton</code>, <code class="bg-slate-100 px-1 rounded text-xs">DropdownButton</code>, and <code class="bg-slate-100 px-1 rounded text-xs">TabButton</code>; absorb <code class="bg-slate-100 px-1 rounded text-xs">MenuItem</code>'s layout into a menu variant.</p>
+        <ul class="text-sm text-slate-600 space-y-1">
+          <li>→ <strong>locality:</strong> button hover/focus behaviour lives in one module</li>
+          <li>→ <strong>leverage:</strong> one fix to <code class="bg-slate-100 px-1 rounded text-xs">Button.tsx</code> reaches all variants</li>
+          <li>→ <strong>interface shrinks:</strong> callers drop to <code class="bg-slate-100 px-1 rounded text-xs">variant</code> instead of importing a different file</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- CANDIDATE 3: Modal shell missing chrome -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-4">
+        <h2 class="text-lg font-serif font-semibold text-slate-800">Deepen Modal — absorb header chrome that callers repeat</h2>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Worth exploring</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">local-substitutable</span>
+        </div>
+      </div>
+
+      <div class="px-6 pb-2 font-mono text-xs text-slate-500 space-y-0.5">
+        <div>frontend/src/components/shared/Modal.tsx</div>
+        <div>frontend/src/components/SettingsModal.tsx</div>
+        <div>frontend/src/components/chart/ChartSettingsModal.tsx</div>
+        <div>frontend/src/components/bottom-panel/ConditionModal.tsx</div>
+        <div>frontend/src/components/backtest/StrategyLabModal.tsx</div>
+        <div>frontend/src/components/chart/GoToModal.tsx</div>
+      </div>
+
+      <!-- Before / After: call-graph collapse -->
+      <div class="px-6 pt-4 pb-6 grid grid-cols-2 gap-6">
+
+        <!-- Before -->
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before — chrome re-implemented per caller</p>
+          <div class="relative" style="height:220px;">
+            <svg class="absolute inset-0 w-full h-full" style="pointer-events:none;">
+              <line x1="140" y1="40" x2="30" y2="85" stroke="#dc2626" stroke-width="1.5"/>
+              <line x1="140" y1="40" x2="30" y2="125" stroke="#dc2626" stroke-width="1.5"/>
+              <line x1="140" y1="40" x2="30" y2="165" stroke="#dc2626" stroke-width="1.5"/>
+              <line x1="140" y1="40" x2="30" y2="205" stroke="#dc2626" stroke-width="1.5"/>
+              <polygon points="33,83 27,88 35,91" fill="#dc2626"/>
+              <polygon points="33,123 27,128 35,131" fill="#dc2626"/>
+              <polygon points="33,163 27,168 35,171" fill="#dc2626"/>
+              <polygon points="33,203 27,208 35,211" fill="#dc2626"/>
+            </svg>
+            <div class="absolute right-0 rounded border-2 border-slate-300 bg-slate-50 flex items-center justify-center" style="width:140px;height:52px;top:14px;">
+              <span class="text-xs font-mono font-semibold text-slate-500">Modal.tsx<br/><span class="font-normal text-slate-400" style="font-size:9px;">backdrop only</span></span>
+            </div>
+            <div class="absolute left-0 rounded border border-red-200 bg-red-50 flex flex-col justify-center px-2" style="width:120px;height:30px;top:70px;">
+              <span class="text-xs font-mono text-red-500">SettingsModal</span>
+              <span class="text-slate-400" style="font-size:9px;">rebuilds header + close btn</span>
+            </div>
+            <div class="absolute left-0 rounded border border-red-200 bg-red-50 flex flex-col justify-center px-2" style="width:120px;height:30px;top:110px;">
+              <span class="text-xs font-mono text-red-500">ChartSettingsModal</span>
+              <span class="text-slate-400" style="font-size:9px;">rebuilds header + tabs</span>
+            </div>
+            <div class="absolute left-0 rounded border border-red-200 bg-red-50 flex flex-col justify-center px-2" style="width:120px;height:30px;top:150px;">
+              <span class="text-xs font-mono text-red-500">ConditionModal</span>
+              <span class="text-slate-400" style="font-size:9px;">rebuilds header + close btn</span>
+            </div>
+            <div class="absolute left-0 rounded border border-red-200 bg-red-50 flex flex-col justify-center px-2" style="width:120px;height:30px;top:190px;">
+              <span class="text-xs font-mono text-red-500">StrategyLabModal</span>
+              <span class="text-slate-400" style="font-size:9px;">rebuilds header + close btn</span>
+            </div>
+          </div>
+          <p class="text-xs text-red-500 mt-1">header chrome leaks across the seam into every caller</p>
+        </div>
+
+        <!-- After -->
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After — chrome inside Modal</p>
+          <div class="relative" style="height:220px;">
+            <svg class="absolute inset-0 w-full h-full" style="pointer-events:none;">
+              <line x1="140" y1="40" x2="30" y2="85" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 4"/>
+              <line x1="140" y1="40" x2="30" y2="125" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 4"/>
+              <line x1="140" y1="40" x2="30" y2="165" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 4"/>
+              <line x1="140" y1="40" x2="30" y2="205" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4 4"/>
+            </svg>
+            <div class="absolute right-0 rounded-lg overflow-hidden" style="width:140px;height:52px;top:14px;background:linear-gradient(135deg,#0f172a,#1e293b);">
+              <div class="flex items-center justify-center h-full">
+                <span class="text-xs font-mono text-slate-100">Modal.tsx<br/><span class="font-normal text-slate-400" style="font-size:9px;">backdrop + header + close</span></span>
+              </div>
+            </div>
+            <div class="absolute left-0 rounded border border-indigo-200 bg-indigo-50 flex items-center px-2" style="width:120px;height:30px;top:70px;">
+              <span class="text-xs font-mono text-indigo-600">SettingsModal</span>
+            </div>
+            <div class="absolute left-0 rounded border border-indigo-200 bg-indigo-50 flex items-center px-2" style="width:120px;height:30px;top:110px;">
+              <span class="text-xs font-mono text-indigo-600">ChartSettingsModal</span>
+            </div>
+            <div class="absolute left-0 rounded border border-indigo-200 bg-indigo-50 flex items-center px-2" style="width:120px;height:30px;top:150px;">
+              <span class="text-xs font-mono text-indigo-600">ConditionModal</span>
+            </div>
+            <div class="absolute left-0 rounded border border-indigo-200 bg-indigo-50 flex items-center px-2" style="width:120px;height:30px;top:190px;">
+              <span class="text-xs font-mono text-indigo-600">StrategyLabModal</span>
+            </div>
+          </div>
+          <p class="text-xs text-emerald-600 mt-1">callers pass <code class="bg-stone-100 px-1 rounded">title</code> + <code class="bg-stone-100 px-1 rounded">children</code> only</p>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 px-6 py-4 space-y-3">
+        <p class="text-sm text-slate-700"><strong>Problem.</strong> <code class="bg-slate-100 px-1 rounded text-xs">Modal.tsx</code> provides only a backdrop; every caller rebuilds the title bar and close button independently, scattering that chrome across 5+ modules.</p>
+        <p class="text-sm text-slate-700"><strong>Solution.</strong> Add optional <code class="bg-slate-100 px-1 rounded text-xs">title</code> and <code class="bg-slate-100 px-1 rounded text-xs">actions</code> props to <code class="bg-slate-100 px-1 rounded text-xs">Modal.tsx</code>; callers that need custom tab bars can still override via children, but the common case becomes one prop.</p>
+        <ul class="text-sm text-slate-600 space-y-1">
+          <li>→ <strong>locality:</strong> close-button styling and Escape handling already in Modal — header joins them</li>
+          <li>→ <strong>leverage:</strong> changing modal header design touches one module, not 5</li>
+          <li>→ backwards-compatible: existing callers still work if <code class="bg-slate-100 px-1 rounded text-xs">title</code> is omitted</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- CANDIDATE 4: No form input primitives -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-4">
+        <h2 class="text-lg font-serif font-semibold text-slate-800">Introduce form input primitives — Checkbox, Toggle, NumberInput</h2>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">Worth exploring</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">local-substitutable</span>
+        </div>
+      </div>
+
+      <div class="px-6 pb-2 font-mono text-xs text-slate-500 space-y-0.5">
+        <div>frontend/src/components/chart/ChartSettingsModal.tsx</div>
+        <div>frontend/src/components/order-panel/BracketSettingsModal.tsx</div>
+        <div>frontend/src/components/settings/SettingsModal.tsx</div>
+        <div>frontend/src/components/shared/  ← currently no Input/Toggle/Checkbox</div>
+      </div>
+
+      <!-- Before / After: Mermaid flow -->
+      <div class="px-6 pt-4 pb-6 grid grid-cols-2 gap-4">
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">Before — ad-hoc per form</p>
+          <div class="rounded-lg border border-slate-200 bg-white p-3">
+            <pre class="mermaid" style="font-size:11px;">
+flowchart TD
+  A[ChartSettingsModal] -->|builds inline| B["&lt;input type=checkbox&gt; + 8 style props"]
+  C[BracketSettingsModal] -->|builds inline| D["UnitToggle div + inline style active state"]
+  E[SettingsModal] -->|builds inline| F["&lt;input&gt; + INPUT_CLS constant"]
+  classDef dup fill:#fef2f2,stroke:#fca5a5,color:#991b1b
+  class B,D,F dup
+            </pre>
+          </div>
+        </div>
+        <div>
+          <p class="text-xs uppercase tracking-wider text-slate-400 mb-3 font-semibold">After — shared primitives</p>
+          <div class="rounded-lg border border-indigo-100 bg-white p-3">
+            <pre class="mermaid" style="font-size:11px;">
+flowchart TD
+  P["shared/Checkbox.tsx\nshared/Toggle.tsx\nshared/NumberInput.tsx"]
+  A[ChartSettingsModal] -->|imports| P
+  C[BracketSettingsModal] -->|imports| P
+  E[SettingsModal] -->|imports| P
+  classDef deep fill:#0f172a,stroke:#4f46e5,color:#e0e7ff
+  class P deep
+            </pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 px-6 py-4 space-y-3">
+        <p class="text-sm text-slate-700"><strong>Problem.</strong> Checkboxes, toggles, and number inputs are built inline inside each settings modal with duplicated style logic — there are no shared form primitives in <code class="bg-slate-100 px-1 rounded text-xs">components/shared/</code>.</p>
+        <p class="text-sm text-slate-700"><strong>Solution.</strong> Extract <code class="bg-slate-100 px-1 rounded text-xs">Checkbox</code>, <code class="bg-slate-100 px-1 rounded text-xs">Toggle</code>, and <code class="bg-slate-100 px-1 rounded text-xs">NumberInput</code> into <code class="bg-slate-100 px-1 rounded text-xs">shared/</code> using the token system; delete inline implementations.</p>
+        <ul class="text-sm text-slate-600 space-y-1">
+          <li>→ <strong>locality:</strong> checked/active visual state defined once</li>
+          <li>→ <strong>leverage:</strong> consistent keyboard/accessibility behaviour across all forms for free</li>
+          <li>→ <strong>interface:</strong> <code class="bg-slate-100 px-1 rounded text-xs">value + onChange</code> — callers stop caring about active-state colours</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <!-- CANDIDATE 5: Mixed icon system -->
+    <!-- ══════════════════════════════════════════════════════════ -->
+    <article class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-4">
+        <h2 class="text-lg font-serif font-semibold text-slate-800">Unify the icon system — eliminate inlined SVGs</h2>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">Speculative</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">local-substitutable</span>
+        </div>
+      </div>
+
+      <div class="px-6 pb-2 font-mono text-xs text-slate-500 space-y-0.5">
+        <div>frontend/src/components/shared/Popover.tsx  ← inline X close svg</div>
+        <div>frontend/src/components/shared/CustomSelect.tsx  ← inline chevron svg</div>
+        <div>frontend/src/components/shared/MenuItem.tsx  ← inline submenu chevron</div>
+        <div>frontend/src/components/icons/  ← shared icon components exist but underused</div>
+      </div>
+
+      <div class="px-6 pt-4 pb-6">
+        <div class="rounded-lg border border-slate-100 bg-slate-50 p-4 grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Current</p>
+            <div class="space-y-2">
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-red-400 font-mono mt-0.5">✕</span>
+                <span class="text-slate-600">Popover close: inline 10×10 SVG with hardcoded stroke</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-red-400 font-mono mt-0.5">✕</span>
+                <span class="text-slate-600">CustomSelect chevron: inline 8×5 SVG, non-reusable</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-red-400 font-mono mt-0.5">✕</span>
+                <span class="text-slate-600">MenuItem arrow: inline 12×12 SVG</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-emerald-500 font-mono mt-0.5">✓</span>
+                <span class="text-slate-600">VerticalSeparator: imports ChevronDown/Up from icons/</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wider text-slate-400 mb-2 font-semibold">Target</p>
+            <div class="space-y-2">
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-emerald-500 font-mono mt-0.5">✓</span>
+                <span class="text-slate-600">All icons imported from <code class="bg-white px-1 rounded border border-slate-200">components/icons/</code></span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-emerald-500 font-mono mt-0.5">✓</span>
+                <span class="text-slate-600">Size and colour via props — no hardcoded attributes</span>
+              </div>
+              <div class="flex items-start gap-2 text-xs">
+                <span class="text-emerald-500 font-mono mt-0.5">✓</span>
+                <span class="text-slate-600">Resize: one prop change, not hunting SVG attributes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-100 px-6 py-4 space-y-3">
+        <p class="text-sm text-slate-700"><strong>Problem.</strong> Shared icon components exist in <code class="bg-slate-100 px-1 rounded text-xs">components/icons/</code> but are not consistently used — several shared modules hardcode SVG markup inline, splitting icon maintenance between two approaches.</p>
+        <p class="text-sm text-slate-700"><strong>Solution.</strong> Route all inline SVGs through the existing icon system; add any missing icons (X close, select chevron) to <code class="bg-slate-100 px-1 rounded text-xs">components/icons/</code>.</p>
+        <ul class="text-sm text-slate-600 space-y-1">
+          <li>→ <strong>locality:</strong> icon sizes and strokes defined once per icon</li>
+          <li>→ low risk — mechanical substitution, behaviour unchanged</li>
+        </ul>
+      </div>
+    </article>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- TOP RECOMMENDATION -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="top-recommendation" class="rounded-xl border-2 border-indigo-200 bg-indigo-50 p-6">
+    <p class="text-xs uppercase tracking-wider text-indigo-400 font-semibold mb-2">Top recommendation</p>
+    <h2 class="text-lg font-serif font-semibold text-indigo-900">Start with the button module</h2>
+    <p class="text-sm text-indigo-800 mt-2">
+      Absorbing the four shadow button modules into <code class="bg-white px-1 rounded border border-indigo-200 text-xs">Button.tsx</code> is the highest-leverage single change: it deletes duplicated hover/border/transition logic in four files, concentrates all interactive-element behaviour in one module, and the seam already exists — callers just switch to a <code class="bg-white px-1 rounded border border-indigo-200 text-xs">variant</code> prop. The inline-style sprawl refactor is broader and best done incrementally on top of a stabilised button primitive.
+    </p>
+  </section>
+
+</main>
+</body>
+</html>

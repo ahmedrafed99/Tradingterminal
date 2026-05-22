@@ -50,6 +50,20 @@ function BrushIcon() {
   );
 }
 
+function FibIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="26" height="26">
+      <g fill="currentColor" fillRule="nonzero">
+        <path d="M3 5h22v-1h-22z" />
+        <path d="M3 17h22v-1h-22z" />
+        <path d="M3 11h19.5v-1h-19.5z" />
+        <path d="M5.5 23h19.5v-1h-19.5z" />
+        <path d="M3.5 24c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5zM24.5 12c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
+      </g>
+    </svg>
+  );
+}
+
 function FRVPIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="26" height="26" fill="none">
@@ -103,6 +117,7 @@ const TOOLS: { id: DrawingTool; icon: React.FC; label: string; hints?: TooltipHi
   { id: 'ruler',     icon: RulerIcon,   label: 'Ruler',    hints: [{ key: 'Shift', desc: 'hold' }] },
   { id: 'freedraw',  icon: BrushIcon,   label: 'Free Draw' },
   { id: 'frvp',      icon: FRVPIcon,    label: 'Fixed Range Volume Profile' },
+  { id: 'fib',       icon: FibIcon,     label: 'Fibonacci' },
 ];
 
 const KEY_BADGE_STYLE: React.CSSProperties = {

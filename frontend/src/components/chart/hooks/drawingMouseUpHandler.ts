@@ -1,6 +1,6 @@
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR } from '../../../types/drawing';
+import { DEFAULT_OVAL_COLOR, DEFAULT_OVAL_FILL, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_FIB_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
@@ -38,7 +38,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       if (state.drawingDrag.type === 'hline') {
         prev.price = state.drawingDrag.origPrice;
         prev.startTime = state.drawingDrag.origStartTime;
-      } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
+      } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler' || state.drawingDrag.type === 'fib') {
         prev.p1 = { ...state.drawingDrag.origP1 };
         prev.p2 = { ...state.drawingDrag.origP2 };
       } else if (state.drawingDrag.type === 'frvp') {
@@ -226,6 +226,61 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
       }
     }
     state.frvpCreation = null;
+    return;
+  }
+
+  // Fib creation: drag-to-create
+  if (state.fibCreation && e.button === 0) {
+    const { x, y } = getMousePos(e, container);
+    chart.applyOptions({ handleScroll: true, handleScale: true });
+    primitive.clearFibPreview();
+
+    const dx = Math.abs(x - state.fibCreation.startX);
+    const dy = Math.abs(y - state.fibCreation.startY);
+    if ((dx > 5 || dy > 5) && contract !== null) {
+      const rawEndPrice = series.coordinateToPrice(y);
+      if (rawEndPrice !== null) {
+        const endPrice = maybeSnap(e, rawEndPrice as number, x, chart, refs.bars.current);
+        const endTimeRaw = chart.timeScale().coordinateToTime(x);
+        if (endTimeRaw !== null) {
+          const endTime = endTimeRaw as number;
+          const endAnchorX = chart.timeScale().timeToCoordinate(endTimeRaw) ?? x;
+          const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+          const endBarOffset = (x - endAnchorX) / barSpacing;
+
+          const fibDef = useStore.getState().drawingDefaults['fib'];
+          const createdId = crypto.randomUUID();
+          useStore.getState().addDrawing({
+            id: createdId,
+            type: 'fib',
+            p1: {
+              time: state.fibCreation.startTime,
+              price: state.fibCreation.startPrice,
+              anchorTime: state.fibCreation.startAnchorTime ?? state.fibCreation.startTime,
+              barOffset: state.fibCreation.startBarOffset ?? 0,
+            },
+            p2: {
+              time: endTime,
+              price: endPrice,
+              anchorTime: endTime,
+              barOffset: endBarOffset,
+            },
+            color: fibDef?.color ?? DEFAULT_FIB_COLOR,
+            strokeWidth: fibDef?.strokeWidth ?? 1,
+            lineStyle: fibDef?.lineStyle ?? 'solid',
+            showNegative: fibDef?.showNegative ?? false,
+            extendRight: fibDef?.extendRight ?? false,
+            negativeMasterColor: fibDef?.negativeMasterColor,
+            levels: fibDef?.levels ?? DEFAULT_FIB_LEVELS.map((l) => ({ ...l })),
+            text: null,
+            contractId: String(contract.id),
+          });
+          useStore.getState().setActiveTool('select');
+          useStore.getState().setSelectedDrawingIds([createdId]);
+        }
+      }
+    }
+    state.fibCreation = null;
     return;
   }
 

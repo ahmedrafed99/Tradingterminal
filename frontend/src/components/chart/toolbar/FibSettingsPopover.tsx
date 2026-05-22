@@ -122,6 +122,9 @@ export function FibSettingsPopover({
     const current = resolvedFibLevels(fib);
     // Prevent duplicate ratios — skip the step if that value already exists on another row
     if (current.some((l) => l.ratio === newRatio && l.ratio !== oldRatio)) return;
+    // Prevent crossing zero — positive levels stay positive, negative levels stay negative
+    if (oldRatio >= 0 && newRatio < 0) return;
+    if (oldRatio < 0 && newRatio >= 0) return;
     const updated = current.map((l) => l.ratio === oldRatio ? { ...l, ratio: newRatio } : l);
     updateDrawing(drawingId, { levels: updated } as Partial<Drawing>);
   };
@@ -173,7 +176,7 @@ export function FibSettingsPopover({
 
   return (
     <Popover title="Fibonacci Settings" onClose={onClose} onCancel={handleCancel} width={500} persistKey="popover-fib">
-      <div style={{ flex: 1, padding: '16px 24px 20px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: '70vh' }}>
+      <div className="scrollbar-thin" style={{ flex: 1, padding: '16px 24px 20px', display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', maxHeight: '85vh' }}>
 
         {/* ── Positive Lines ─────────────────────── */}
         <SectionHeader label="Positive Lines" color={positiveMasterColor} onColorChange={applyPositiveMaster} />

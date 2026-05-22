@@ -36,9 +36,15 @@ export interface DrawingState {
     mode: 'anchor' | 'range';
   } | null;
 
+  fibCreation: {
+    startX: number; startY: number;
+    startTime: number; startPrice: number;
+    startAnchorTime?: number; startBarOffset?: number;
+  } | null;
+
   drawingDrag: {
     drawingId: string;
-    type: 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp';
+    type: 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp' | 'fib';
     startX: number;
     startY: number;
     origPrice: number;
@@ -118,6 +124,7 @@ export function createDrawingState(): DrawingState {
     rectCreation: null,
     freeDrawCreation: null,
     frvpCreation: null,
+    fibCreation: null,
     ctrlDragSelect: null,
     chartPanning: false,
     overlayHitCaptured: false,

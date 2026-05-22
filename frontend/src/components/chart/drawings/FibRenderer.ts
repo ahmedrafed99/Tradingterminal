@@ -1,0 +1,361 @@
+import type { IChartApiBase, ISeriesApi, SeriesType, Time } from 'lightweight-charts';
+import type { CanvasRenderingTarget2D } from 'fancy-canvas';
+import type { IPrimitivePaneView, IPrimitivePaneRenderer } from 'lightweight-charts';
+import type { FibDrawing, FibLevel } from '../../../types/drawing';
+import {
+  DEFAULT_FIB_LEVELS,
+  DEFAULT_FIB_COLOR,
+  DEFAULT_FIB_NEG_COLOR,
+} from '../../../types/drawing';
+import { COLOR_LABEL_TEXT, COLOR_HANDLE_STROKE } from '../../../constants/colors';
+import { FONT_FAMILY } from '../../../constants/layout';
+import { applyLineDash } from './rendererUtils';
+
+// ---------------------------------------------------------------------------
+// Helper: convert AnchoredPoint to CSS pixel X (sub-bar precision)
+// ---------------------------------------------------------------------------
+function ptX(
+  point: { time: number; anchorTime?: number; barOffset?: number },
+  chart: IChartApiBase<Time>,
+): number | null {
+  if (point.anchorTime !== undefined && point.barOffset !== undefined) {
+    const ax = chart.timeScale().timeToCoordinate(point.anchorTime as unknown as Time);
+    if (ax === null) return null;
+    const bs = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+    return ax + point.barOffset * bs;
+  }
+  return chart.timeScale().timeToCoordinate(point.time as unknown as Time);
+}
+
+// ---------------------------------------------------------------------------
+// Helper: resolve effective levels (merge stored overrides with defaults)
+// ---------------------------------------------------------------------------
+export function resolvedFibLevels(drawing: FibDrawing): FibLevel[] {
+  if (!drawing.levels || drawing.levels.length === 0) return DEFAULT_FIB_LEVELS;
+  // Use only the stored ratios — fill in default color for known ones but never
+  // re-add a ratio the user removed or changed.
+  const defaultMap = new Map(DEFAULT_FIB_LEVELS.map((l) => [l.ratio, l]));
+  return drawing.levels.map((l) => ({ ...(defaultMap.get(l.ratio) ?? { ratio: l.ratio }), ...l }));
+}
+
+// ---------------------------------------------------------------------------
+// Helper: format ratio as label string (no % sign)
+// ---------------------------------------------------------------------------
+function formatRatioLabel(ratio: number): string {
+  // Round to 3 decimal places to eliminate float artifacts, then strip trailing zeros
+  const rounded = Math.round(ratio * 1000) / 1000;
+  return rounded.toString();
+}
+
+// ---------------------------------------------------------------------------
+// Helper: resolve color for a level
+// ---------------------------------------------------------------------------
+function resolveColor(level: FibLevel, drawing: FibDrawing): string {
+  if (level.color) return level.color;
+  if (level.ratio < 0) return drawing.negativeMasterColor ?? DEFAULT_FIB_NEG_COLOR;
+  return drawing.color ?? DEFAULT_FIB_COLOR;
+}
+
+// ---------------------------------------------------------------------------
+// FibRendererImpl — main canvas renderer
+// ---------------------------------------------------------------------------
+class FibRendererImpl implements IPrimitivePaneRenderer {
+  private _drawing: FibDrawing;
+  private _selected: boolean;
+  private _series: ISeriesApi<SeriesType>;
+  private _chart: IChartApiBase<Time>;
+
+  constructor(
+    drawing: FibDrawing,
+    selected: boolean,
+    series: ISeriesApi<SeriesType>,
+    chart: IChartApiBase<Time>,
+  ) {
+    this._drawing = drawing;
+    this._selected = selected;
+    this._series = series;
+    this._chart = chart;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useBitmapCoordinateSpace(({ context: ctx, verticalPixelRatio: vpr, horizontalPixelRatio: hpr }) => {
+      const cssX1 = ptX(this._drawing.p1, this._chart);
+      const cssY1 = this._series.priceToCoordinate(this._drawing.p1.price);
+      const cssX2 = ptX(this._drawing.p2, this._chart);
+      const cssY2 = this._series.priceToCoordinate(this._drawing.p2.price);
+
+      if (cssX1 === null || cssY1 === null || cssX2 === null || cssY2 === null) return;
+
+      const x1 = cssX1 * hpr;
+      const y1 = cssY1 * vpr;
+      const x2 = cssX2 * hpr;
+      const y2 = cssY2 * vpr;
+
+      const left = Math.min(x1, x2);
+      const right = this._drawing.extendRight ? ctx.canvas.width : Math.max(x1, x2);
+
+      if (right - left < 1) return;
+
+      // Normalize: ratio 0 = lower price (bottom of chart), ratio 1 = higher price (top)
+      // This ensures positive extensions always appear above the rectangle
+      const basePrice = Math.min(this._drawing.p1.price, this._drawing.p2.price);
+      const priceSpan = Math.abs(this._drawing.p2.price - this._drawing.p1.price);
+
+      // Resolve levels
+      const allLevels = resolvedFibLevels(this._drawing);
+      const activeLevels = this._drawing.showNegative
+        ? allLevels
+        : allLevels.filter((l) => l.ratio >= 0);
+      const visibleLevels = activeLevels.filter((l) => l.visible !== false);
+
+      // Background fill: span [0, 1] = core rectangle between p1 and p2
+      const top = Math.min(y1, y2);
+      const bottom = Math.max(y1, y2);
+      const bgH = bottom - top;
+      if (bgH >= 1) {
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = this._drawing.color ?? DEFAULT_FIB_COLOR;
+        ctx.fillRect(left, top, right - left, bgH);
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Level lines + labels (labels OUTSIDE left boundary)
+      const sw = this._drawing.strokeWidth;
+      const pxr = Math.min(hpr, vpr);
+      const labelOffsetX = Math.round(6 * hpr);
+      ctx.save();
+      for (const level of visibleLevels) {
+        const price = basePrice + level.ratio * priceSpan;
+        const cssY = this._series.priceToCoordinate(price);
+        if (cssY === null) continue;
+        const ly = Math.round(cssY * vpr) + 0.5;
+
+        const color = resolveColor(level, this._drawing);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = sw;
+        applyLineDash(ctx, this._drawing.lineStyle, sw, pxr);
+        ctx.beginPath();
+        ctx.moveTo(left, ly);
+        ctx.lineTo(right, ly);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Label outside (to the left) of the drawing boundary, right-aligned
+        const fs = Math.round(11 * vpr);
+        ctx.font = `600 ${fs}px ${FONT_FAMILY}`;
+        ctx.fillStyle = color;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(formatRatioLabel(level.ratio), left - labelOffsetX, ly - Math.round(2 * vpr));
+      }
+      ctx.restore();
+
+      // Selection handles at p1 and p2
+      if (this._selected) {
+        const hr = Math.round(5 * vpr);
+        ctx.fillStyle = COLOR_LABEL_TEXT;
+        ctx.strokeStyle = COLOR_HANDLE_STROKE;
+        ctx.lineWidth = Math.round(1.5 * vpr);
+        for (const [hx, hy] of [[x1, y1], [x2, y2]] as [number, number][]) {
+          ctx.beginPath();
+          ctx.arc(hx, hy, hr, 0, 2 * Math.PI);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FibPaneView
+// ---------------------------------------------------------------------------
+export class FibPaneView implements IPrimitivePaneView {
+  private _drawing: FibDrawing;
+  private _selected: boolean;
+  private _series: ISeriesApi<SeriesType>;
+  private _chart: IChartApiBase<Time>;
+
+  constructor(
+    drawing: FibDrawing,
+    selected: boolean,
+    series: ISeriesApi<SeriesType>,
+    chart: IChartApiBase<Time>,
+  ) {
+    this._drawing = drawing;
+    this._selected = selected;
+    this._series = series;
+    this._chart = chart;
+  }
+
+  zOrder(): 'normal' {
+    return 'normal';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new FibRendererImpl(this._drawing, this._selected, this._series, this._chart);
+  }
+
+  hitTest(mouseX: number, mouseY: number): boolean {
+    const x1 = ptX(this._drawing.p1, this._chart);
+    const y1 = this._series.priceToCoordinate(this._drawing.p1.price);
+    const x2 = ptX(this._drawing.p2, this._chart);
+    const y2 = this._series.priceToCoordinate(this._drawing.p2.price);
+    if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
+
+    const left = Math.min(x1, x2);
+    const right = this._drawing.extendRight ? 1e6 : Math.max(x1, x2);
+
+    // Check against all visible level lines
+    const allLevels = resolvedFibLevels(this._drawing);
+    const activeLevels = this._drawing.showNegative
+      ? allLevels
+      : allLevels.filter((l) => l.ratio >= 0);
+    const visibleLevels = activeLevels.filter((l) => l.visible !== false);
+    const basePrice = Math.min(this._drawing.p1.price, this._drawing.p2.price);
+    const priceSpan = Math.abs(this._drawing.p2.price - this._drawing.p1.price);
+
+    for (const level of visibleLevels) {
+      const price = basePrice + level.ratio * priceSpan;
+      const cssY = this._series.priceToCoordinate(price);
+      if (cssY === null) continue;
+      if (mouseX >= left - 4 && mouseX <= right + 4 && Math.abs(mouseY - cssY) <= 4) return true;
+    }
+
+    // Also hit the border of the core rectangle (edges)
+    const top = Math.min(y1, y2);
+    const bottom = Math.max(y1, y2);
+    const TOL = 5;
+    if (mouseX >= left - TOL && mouseX <= right + TOL) {
+      if (Math.abs(mouseY - top) <= TOL || Math.abs(mouseY - bottom) <= TOL) return true;
+    }
+    if (mouseY >= top - TOL && mouseY <= bottom + TOL) {
+      if (Math.abs(mouseX - left) <= TOL || (!this._drawing.extendRight && Math.abs(mouseX - Math.max(x1, x2)) <= TOL)) return true;
+    }
+    return false;
+  }
+
+  hitTestHandle(mx: number, my: number): string | null {
+    if (!this._selected) return null;
+    const x1 = ptX(this._drawing.p1, this._chart);
+    const y1 = this._series.priceToCoordinate(this._drawing.p1.price);
+    const x2 = ptX(this._drawing.p2, this._chart);
+    const y2 = this._series.priceToCoordinate(this._drawing.p2.price);
+    if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
+
+    const tol = 7;
+    if (Math.abs(mx - x1) <= tol && Math.abs(my - y1) <= tol) return 'p1';
+    if (Math.abs(mx - x2) <= tol && Math.abs(my - y2) <= tol) return 'p2';
+    return null;
+  }
+
+  getBoundingBox(): { x1: number; y1: number; x2: number; y2: number } | null {
+    const x1 = ptX(this._drawing.p1, this._chart);
+    const x2 = ptX(this._drawing.p2, this._chart);
+    if (x1 === null || x2 === null) return null;
+
+    // Compute Y range across all visible levels
+    const allLevels = resolvedFibLevels(this._drawing);
+    const activeLevels = this._drawing.showNegative
+      ? allLevels
+      : allLevels.filter((l) => l.ratio >= 0);
+    const visibleLevels = activeLevels.filter((l) => l.visible !== false);
+    const priceSpan = this._drawing.p2.price - this._drawing.p1.price;
+
+    const basePrice2 = Math.min(this._drawing.p1.price, this._drawing.p2.price);
+    const priceSpan2 = Math.abs(this._drawing.p2.price - this._drawing.p1.price);
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const level of visibleLevels) {
+      const price = basePrice2 + level.ratio * priceSpan2;
+      const cssY = this._series.priceToCoordinate(price);
+      if (cssY === null) continue;
+      if (cssY < minY) minY = cssY;
+      if (cssY > maxY) maxY = cssY;
+    }
+    if (minY === Infinity) return null;
+
+    return {
+      x1: Math.min(x1, x2),
+      y1: minY,
+      x2: this._drawing.extendRight ? 1e6 : Math.max(x1, x2),
+      y2: maxY,
+    };
+  }
+
+  get drawingId(): string {
+    return this._drawing.id;
+  }
+
+  /** Expose p1/p2 for drag handler */
+  get drawingData(): { p1: { time: number; price: number; anchorTime?: number; barOffset?: number }; p2: { time: number; price: number; anchorTime?: number; barOffset?: number } } {
+    return { p1: this._drawing.p1, p2: this._drawing.p2 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FibPreviewPaneView — thin dashed diagonal + endpoint dots during drag creation
+// (same visual pattern as FRVPRangePreviewPaneView)
+// ---------------------------------------------------------------------------
+class FibPreviewRenderer implements IPrimitivePaneRenderer {
+  private _x1: number;
+  private _y1: number;
+  private _x2: number;
+  private _y2: number;
+  private _color: string;
+
+  constructor(x1: number, y1: number, x2: number, y2: number, color: string) {
+    this._x1 = x1;
+    this._y1 = y1;
+    this._x2 = x2;
+    this._y2 = y2;
+    this._color = color;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace(({ context: ctx }) => {
+      const { _x1: x1, _y1: y1, _x2: x2, _y2: y2 } = this;
+
+      ctx.strokeStyle = this._color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Endpoint dots
+      ctx.fillStyle = this._color;
+      for (const [x, y] of [[x1, y1], [x2, y2]] as [number, number][]) {
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
+  }
+}
+
+export class FibPreviewPaneView implements IPrimitivePaneView {
+  private _x1: number;
+  private _y1: number;
+  private _x2: number;
+  private _y2: number;
+  private _color: string;
+
+  constructor(x1: number, y1: number, x2: number, y2: number, color: string) {
+    this._x1 = x1;
+    this._y1 = y1;
+    this._x2 = x2;
+    this._y2 = y2;
+    this._color = color;
+  }
+
+  zOrder(): 'top' {
+    return 'top';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new FibPreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._color);
+  }
+}

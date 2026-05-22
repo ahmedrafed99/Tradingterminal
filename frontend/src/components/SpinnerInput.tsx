@@ -6,6 +6,7 @@ interface SpinnerInputProps {
   min?: number;
   max?: number;
   step?: number;
+  decimals?: number;
   inputWidth?: number;
   height?: number;
   fullWidth?: boolean;
@@ -27,24 +28,34 @@ export function SpinnerInput({
   min = 0,
   max = Infinity,
   step = 1,
+  decimals,
   inputWidth = 44,
   height = 26,
   fullWidth = false,
   textAlign = 'center',
   suffix,
 }: SpinnerInputProps) {
+  const fmt = (v: number) => decimals !== undefined ? v.toFixed(decimals) : String(v);
+
   const [hovered, setHovered] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [inputStr, setInputStr] = useState(String(value));
+  const [inputStr, setInputStr] = useState(fmt(value));
   const valueRef = useRef(value);
   const didDragRef = useRef(false);
 
   useEffect(() => {
     valueRef.current = value;
-    setInputStr(String(value));
+    setInputStr(fmt(value));
   }, [value]);
 
   const clamp = (v: number) => Math.max(min, Math.min(max, v));
+
+  // Round to avoid float precision artifacts (e.g. 0.618 + 0.001 = 0.6190000000000001)
+  const roundStep = (v: number) => {
+    if (decimals !== undefined) return parseFloat(v.toFixed(decimals));
+    const d = (step.toString().split('.')[1] ?? '').length;
+    return d > 0 ? parseFloat(v.toFixed(d)) : v;
+  };
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -64,7 +75,7 @@ export function SpinnerInput({
           document.body.style.userSelect = 'none';
         }
         const steps = Math.round(dy / PX_PER_STEP);
-        onChange(clamp(startValue + steps * step));
+        onChange(clamp(roundStep(startValue + steps * step)));
       }
     };
 
@@ -110,7 +121,7 @@ export function SpinnerInput({
           const numericValue = parseFloat(inputStr);
           const clamped = isNaN(numericValue) ? min : clamp(numericValue);
           onChange(clamped);
-          setInputStr(String(clamped));
+          setInputStr(fmt(clamped));
         }}
         onMouseDown={(e) => e.stopPropagation()}
         style={{
@@ -160,7 +171,7 @@ export function SpinnerInput({
         }}
       >
         <button
-          onClick={() => { if (!didDragRef.current) onChange(clamp(value + step)); }}
+          onClick={() => { if (!didDragRef.current) onChange(clamp(roundStep(value + step))); }}
           style={{
             flex: 1,
             border: 'none',
@@ -179,7 +190,7 @@ export function SpinnerInput({
           </svg>
         </button>
         <button
-          onClick={() => { if (!didDragRef.current) onChange(clamp(value - step)); }}
+          onClick={() => { if (!didDragRef.current) onChange(clamp(roundStep(value - step))); }}
           style={{
             flex: 1,
             border: 'none',

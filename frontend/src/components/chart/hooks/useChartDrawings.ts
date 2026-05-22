@@ -16,6 +16,7 @@ import {
   onOvalMouseDown,
   onFreeDrawMouseDown,
   onFRVPMouseDown,
+  onFibMouseDown,
   onMouseMove,
   onMouseUp,
 } from './drawingHandlers';
@@ -236,6 +237,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     const handleOvalDown = (e: MouseEvent) => onOvalMouseDown(e, ctx);
     const handleFreeDrawDown = (e: MouseEvent) => onFreeDrawMouseDown(e, ctx);
     const handleFRVPDown = (e: MouseEvent) => onFRVPMouseDown(e, ctx);
+    const handleFibDown = (e: MouseEvent) => onFibMouseDown(e, ctx);
 
     container.addEventListener('mousedown', handleCtrlSelect);
     container.addEventListener('mousedown', handleResize);
@@ -244,6 +246,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
     container.addEventListener('mousedown', handleOvalDown);
     container.addEventListener('mousedown', handleFreeDrawDown);
     container.addEventListener('mousedown', handleFRVPDown);
+    container.addEventListener('mousedown', handleFibDown);
 
     // ── Deselect on empty-space click (fallback for when subscribeClick doesn't fire) ──
     // Runs AFTER other handlers so stopImmediatePropagation from onOverlayHitTest still blocks it.
@@ -287,7 +290,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       queueMicrotask(() => {
         if (!state.drawingDrag && !state.ovalResize && !state.ovalDrag
             && !state.arrowPathNodeDrag && !state.arrowPathCreation
-            && !state.rectCreation && !state.rulerCreation && !state.freeDrawCreation && !state.frvpCreation && !state.overlayHitCaptured
+            && !state.rectCreation && !state.rulerCreation && !state.freeDrawCreation && !state.frvpCreation && !state.fibCreation && !state.overlayHitCaptured
             && !state.ctrlDragSelect) {
           state.chartPanning = true;
           container.style.cursor = 'grabbing';
@@ -329,6 +332,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       state.rectCreation = null;
       state.freeDrawCreation = null;
       state.frvpCreation = null;
+      state.fibCreation = null;
       state.rulerCreation = null;
       state.rulerDisplayActive = false;
       state.ctrlDragSelect = null;
@@ -349,6 +353,7 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
       container.removeEventListener('mousedown', handleOvalDown);
       container.removeEventListener('mousedown', handleFreeDrawDown);
       container.removeEventListener('mousedown', handleFRVPDown);
+      container.removeEventListener('mousedown', handleFibDown);
       container.removeEventListener('mousedown', handleDeselectOnEmptyClick);
       container.removeEventListener('dblclick', handleDbl);
       container.removeEventListener('contextmenu', handleCtx);

@@ -1,7 +1,7 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_OVAL_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL } from '../../../types/drawing';
+import { DEFAULT_OVAL_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FIB_COLOR } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
@@ -40,7 +40,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
       if (Object.keys(patch).length > 0) {
         useStore.getState().updateDrawing(state.drawingDrag.drawingId, patch, true);
       }
-    } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler') {
+    } else if (state.drawingDrag.type === 'rect' || state.drawingDrag.type === 'oval' || state.drawingDrag.type === 'ruler' || state.drawingDrag.type === 'fib') {
       const data = getDataPos(chart, series, x, y);
       if (data) {
         const dp = maybeSnap(e, data.price, x, chart, refs.bars.current) - state.drawingDrag.startPrice;
@@ -136,7 +136,20 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     const resizePrice = (rawPrice: number) => maybeSnap(e, rawPrice, x, chart, refs.bars.current);
 
     const resizingDrawing = useStore.getState().drawings.find((drawing) => drawing.id === state.ovalResize!.drawingId);
-    if (resizingDrawing?.type === 'frvp') {
+    if (resizingDrawing?.type === 'fib') {
+      // Fib: 'p1' or 'p2' handle moves that endpoint, other stays
+      const snappedPrice = resizePrice(data.price);
+      const newPt = { time: data.time, price: snappedPrice, anchorTime: data.anchorTime, barOffset: data.barOffset };
+      if (handle === 'p1') {
+        useStore.getState().updateDrawing(state.ovalResize.drawingId, {
+          p1: newPt, p2: state.ovalResize.fixedCorner,
+        }, true);
+      } else {
+        useStore.getState().updateDrawing(state.ovalResize.drawingId, {
+          p1: state.ovalResize.fixedCorner, p2: newPt,
+        }, true);
+      }
+    } else if (resizingDrawing?.type === 'frvp') {
       const frvp = resizingDrawing as FRVPDrawing;
       if (frvp.mode === 'range' && (handle === 'w' || handle === 'e')) {
         // Range mode: move t1 or t2, recompute pMin/pMax from bars
@@ -261,13 +274,25 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Fib creation drag preview
+  if (state.fibCreation) {
+    const { x, y } = getMousePos(e, container);
+    let previewY = y;
+    const rp = series.coordinateToPrice(y);
+    if (rp !== null) {
+      const snapped = maybeSnap(e, rp as number, state.fibCreation.startX, chart, refs.bars.current);
+      if (snapped !== (rp as number)) { const sy = series.priceToCoordinate(snapped); if (sy !== null) previewY = sy; }
+    }
+    primitive.setFibPreview(state.fibCreation.startX, state.fibCreation.startY, x, previewY, 'rgba(180,180,180,0.7)');
+    return;
+  }
+
   // FRVP creation drag preview
   if (state.frvpCreation) {
-    const frvpDef = useStore.getState().drawingDefaults['frvp'];
-    const color = frvpDef?.color ?? DEFAULT_FRVP_COLOR;
+    const PREVIEW_COLOR = 'rgba(180,180,180,0.7)';
     if (state.frvpCreation.mode === 'range') {
       const { x, y } = getMousePos(e, container);
-      primitive.setFRVPRangePreview(state.frvpCreation.startX, state.frvpCreation.startY, x, y, color);
+      primitive.setFRVPRangePreview(state.frvpCreation.startX, state.frvpCreation.startY, x, y, PREVIEW_COLOR);
     } else {
       // Anchor mode: Y moves, show vertical bar with endpoints
       const { y } = getMousePos(e, container);
@@ -277,7 +302,7 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
         const snapped = maybeSnap(e, rp as number, state.frvpCreation.startX, chart, refs.bars.current);
         if (snapped !== (rp as number)) { const sy = series.priceToCoordinate(snapped); if (sy !== null) previewY = sy; }
       }
-      primitive.setFRVPPreview(state.frvpCreation.startX, state.frvpCreation.startY, previewY, color);
+      primitive.setFRVPPreview(state.frvpCreation.startX, state.frvpCreation.startY, previewY, PREVIEW_COLOR);
     }
     return;
   }

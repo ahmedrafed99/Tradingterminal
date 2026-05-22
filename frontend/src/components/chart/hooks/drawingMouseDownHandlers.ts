@@ -1,6 +1,6 @@
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR } from '../../../types/drawing';
+import { DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_FIB_COLOR } from '../../../types/drawing';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
 import { getMousePos, getDataPos, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
@@ -59,7 +59,7 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const st = useStore.getState();
   if (st.activeTool !== 'select' || st.selectedDrawingIds.length !== 1) return;
   const drawing = st.drawings.find((d) => d.id === st.selectedDrawingIds[0]);
-  if (!drawing || (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler' && drawing.type !== 'frvp')) return;
+  if (!drawing || (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'arrowpath' && drawing.type !== 'ruler' && drawing.type !== 'frvp' && drawing.type !== 'fib')) return;
 
   const { x, y } = getMousePos(e, container);
   const hit = primitive.getHandleAt(x, y);
@@ -83,7 +83,27 @@ export function onResizeMouseDown(e: MouseEvent, ctx: DrawingContext): void {
     }
   }
 
-  if (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'ruler' && drawing.type !== 'frvp') return;
+  if (drawing.type !== 'rect' && drawing.type !== 'oval' && drawing.type !== 'ruler' && drawing.type !== 'frvp' && drawing.type !== 'fib') return;
+
+  // Fib: p1/p2 handle drag (reuse ovalResize state to move one endpoint)
+  if (drawing.type === 'fib') {
+    const handle = hit.handle; // 'p1' or 'p2'
+    if (handle !== 'p1' && handle !== 'p2') return;
+    const fib = drawing as import('../../../types/drawing').FibDrawing;
+    state.ovalResize = {
+      drawingId: drawing.id,
+      handle,
+      fixedCorner: handle === 'p1' ? { ...fib.p2 } : { ...fib.p1 },
+      movingCorner: handle === 'p1' ? { ...fib.p1 } : { ...fib.p2 },
+      origP1: { ...fib.p1 },
+      origP2: { ...fib.p2 },
+    };
+    container.style.cursor = 'grabbing';
+    chart.applyOptions({ handleScroll: false, handleScale: false });
+    e.stopPropagation();
+    e.preventDefault();
+    return;
+  }
 
   // FRVP uses anchorTime/pMin/pMax — handle separately before p1/p2 reading
   if (drawing.type === 'frvp') {
@@ -260,6 +280,16 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
       origP2: { time: origT2, price: drawing.pMax },
       startTime: data.time, startPrice: data.price, origStartTime: 0,
     };
+  } else if (drawing.type === 'fib') {
+    const data = getDataPos(chart, series, x, y);
+    if (!data) return;
+    const fib = drawing as import('../../../types/drawing').FibDrawing;
+    state.drawingDrag = {
+      drawingId: drawing.id, type: 'fib',
+      startX: x, startY: y, origPrice: 0,
+      origP1: { ...fib.p1 }, origP2: { ...fib.p2 },
+      startTime: data.time, startPrice: data.price, origStartTime: 0,
+    };
   }
 
   st.setSelectedDrawingIds([drawing.id]);
@@ -345,6 +375,43 @@ export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   e.preventDefault();
 }
 
+/** Mousedown: start Fibonacci drag-to-create. */
+export function onFibMouseDown(e: MouseEvent, ctx: DrawingContext): void {
+  const { state, chart, series, container, refs } = ctx;
+  if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation
+      || state.rectCreation || state.rulerCreation || state.freeDrawCreation || state.frvpCreation || state.fibCreation) return;
+  const tool = useStore.getState().activeTool;
+  if (tool !== 'fib') return;
+
+  const { x, y } = getMousePos(e, container);
+  const anchorTimeRaw = chart.timeScale().coordinateToTime(x);
+  if (!anchorTimeRaw) return;
+
+  const rawPrice = series.coordinateToPrice(y);
+  if (rawPrice === null) return;
+  const startPrice = maybeSnap(e, rawPrice as number, x, chart, refs.bars.current);
+  const startY = startPrice !== (rawPrice as number) ? (series.priceToCoordinate(startPrice) ?? y) : y;
+
+  // Sub-bar precision anchor
+  const snappedTime = anchorTimeRaw as number;
+  const anchorX = chart.timeScale().timeToCoordinate(anchorTimeRaw) ?? x;
+  const barSpacing = (chart.timeScale().options() as { barSpacing: number }).barSpacing;
+  const barOffset = (x - anchorX) / barSpacing;
+
+  state.fibCreation = {
+    startX: x, startY,
+    startTime: snappedTime, startPrice,
+    startAnchorTime: snappedTime, startBarOffset: barOffset,
+  };
+
+  const fibDef = useStore.getState().drawingDefaults['fib'];
+  ctx.primitive.setFibPreview(x, startY, x, startY, 'rgba(180,180,180,0.7)');
+
+  chart.applyOptions({ handleScroll: false, handleScale: false });
+  e.stopPropagation();
+  e.preventDefault();
+}
+
 /** Mousedown: start FRVP drag-to-create. */
 export function onFRVPMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, series, container, refs } = ctx;
@@ -365,7 +432,7 @@ export function onFRVPMouseDown(e: MouseEvent, ctx: DrawingContext): void {
       startTime: anchorTimeRaw as number, startPrice: 0,
       mode: 'range',
     };
-    ctx.primitive.setFRVPRangePreview(x, y, x, y, frvpDef?.color ?? DEFAULT_FRVP_COLOR);
+    ctx.primitive.setFRVPRangePreview(x, y, x, y, 'rgba(180,180,180,0.7)');
   } else {
     // Anchor mode: vertical drag sets the price range on a single time anchor
     const rawPrice = series.coordinateToPrice(y);
@@ -377,7 +444,7 @@ export function onFRVPMouseDown(e: MouseEvent, ctx: DrawingContext): void {
       startTime: anchorTimeRaw as number, startPrice,
       mode: 'anchor',
     };
-    ctx.primitive.setFRVPPreview(x, startY, startY, frvpDef?.color ?? DEFAULT_FRVP_COLOR);
+    ctx.primitive.setFRVPPreview(x, startY, startY, 'rgba(180,180,180,0.7)');
   }
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.stopPropagation();
