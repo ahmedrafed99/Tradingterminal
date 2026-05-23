@@ -2,7 +2,6 @@
   "components": [
     {
       "name": "FRVP",
-      "description": "Fixed Range Volume Profile drawing — renders horizontal volume bars anchored to a time/price range on the chart. Two modes: anchor (single time point + manual price range) and range (two time points + auto price range from candles).",
       "keywords": ["frvp", "rfvp", "volume profile", "fixed range", "poc", "anchor", "range", "placement", "offset", "volume bars"],
       "files": [
         "frontend/src/types/drawing.ts",
@@ -22,22 +21,17 @@
         "useChartBars (live volume map accumulation from trade ticks)",
         "DrawingsPrimitive (pane view registration, preview renderers, hover price relay)"
       ],
-      "notes": [
-        "rightEdge = t2BitmapX ?? (anchorX + maxBarW) — key formula for all placement/POC logic; t2BitmapX is null in anchor mode",
-        "Three bar-drawing modes inside _drawBars: price (rowSizeMode='price' + rowSizePrice), count (numBars buckets), raw (one bar per tick level when numBars=0)",
-        "Volume map is a live Map<price, volume> accumulated from trade ticks in useChartBars; range mode filters it via computeRangeBounds()",
-        "Preview renderers (FRVPPreviewRenderer, FRVPRangePreviewRenderer) only draw dashed lines — no bar rendering, no placement logic needed",
-        "STORE_VERSION is auto-bumped by pre-commit hook (.git/hooks/pre-commit) whenever any file in frontend/src/store/ is staged — never bump manually",
-        "barPlacement ('left'|'right'|'middle') and barOffset (CSS px gap) are style settings; 'middle' starts bars at centerX and grows right — not mirrored",
-        "barLength (1–100%) scales maxBarW before _drawBars — controls max bar width as % of rectangle width; applied after range-mode capping",
-        "extendPoc=true spans the POC line across the full rectangle (anchorX → rightEdge) regardless of placement or offset",
-        "volumeType field is reserved for future delta/up-down volume; only 'total' is wired up — greyed out in UI",
-        "Expand animation uses _expandMap (price → current expand px) with EXPAND_LERP=0.25 lerp per frame; _requestUpdate triggers redraws"
+      "events": [
+        { "event": "mousedown", "element": "chart container", "purpose": "start ctrl+drag selection, resize handle drag, drawing drag, or FRVP creation" },
+        { "event": "mousemove", "element": "chart container", "purpose": "cursor management for handles, drawing bodies, labels, and crosshair; throttled via requestAnimationFrame" },
+        { "event": "mouseup", "element": "chart container", "purpose": "finalize selection, drawing drag, FRVP/fib/free-draw/rect creation" },
+        { "event": "dblclick", "element": "chart canvas", "purpose": "open drawing settings modal or finalize arrow path" },
+        { "event": "contextmenu", "element": "chart container", "purpose": "cancel drawing creation or finalize arrow path" },
+        { "event": "keydown (document)", "element": "document", "purpose": "Escape = cancel drawing, Delete = delete drawing, Ctrl+Z = undo, toggle magnet" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "MarketDepthSettingsModal",
-      "description": "Settings modal for the Market Depth indicator. Two tabs: Input (Row Layout dropdown + Row Size spinner) and Style (Color swatch, Hover Expand toggle, Placement dropdown, Offset spinner, Length % spinner). Follows the same pattern as FRVPSettingsPopover — uses Popover shell with persistKey.",
       "keywords": ["market depth", "dom", "indicator", "settings", "modal", "row layout", "placement", "offset", "length"],
       "files": [
         "frontend/src/components/chart/toolbar/MarketDepthSettingsModal.tsx",
@@ -53,18 +47,15 @@
         "SpinnerInput",
         "layoutSlice (domRowLayout, domRowSize, domBarPlacement, domBarOffset, domBarLength + second* variants)"
       ],
-      "notes": [
-        "Row Layout: 'count' (N rows over price range) or 'price' (N ticks per row). Default 'price'/1 = original 1-tick-per-row behavior.",
-        "barLength (1–100) maps to % of chart width; default 30 matches old MAX_WIDTH_RATIO=0.30 hardcode.",
-        "Bucketing is done at render time in _buildBars — _volumeMap stays tick-level so FRVP can still read getVolumeMap().",
-        "Placement 'left'=bars from left+offset; 'right'=bars from right-offset growing left; 'middle'=bars from center+offset.",
-        "persistKey='popover-market-depth' so position survives re-opens.",
-        "Pencil button in IndicatorsDropdown closes the dropdown and opens this modal; cancel button reverts all settings via snapshot."
+      "events": [
+        { "event": "click", "element": "Input/Style tab buttons", "purpose": "switch between input and style tabs" },
+        { "event": "click", "element": "Row Layout / Placement dropdown buttons", "purpose": "toggle dropdown open/close" },
+        { "event": "click", "element": "dropdown menu items", "purpose": "select row layout or bar placement value" },
+        { "event": "click (useClickOutside)", "element": "dropdown refs", "purpose": "close dropdowns when clicking outside" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "DrawingEditToolbar",
-      "description": "Floating toolbar that appears when a drawing is selected. Shows type-specific controls: color, fill color, text, stroke width/style, hline extend/template, rect settings, FRVP input/style tabs. Multi-select shows count + delete only.",
       "keywords": ["toolbar", "drawing", "edit", "selected", "color", "stroke", "text", "template", "rect", "hline", "frvp", "delete", "draggable", "bounds"],
       "files": [
         "frontend/src/components/chart/DrawingEditToolbar.tsx",
@@ -83,18 +74,15 @@
         "DropdownButton (shared dropdown trigger button)",
         "useDraggable (drag logic with optional bounds clamping)"
       ],
-      "notes": [
-        "closeAll() resets every popover state — always call it before opening a new one",
-        "FRVP branch renders FRVPToolbarPanel (just a settings button); settings live in FRVPSettingsPopover modal",
-        "lineStyleDefs.ts is shared between StrokePopover and RectSettingsPopover — edit there, not inline",
-        "TextColorGrid was removed (was dead code — never rendered)",
-        "Draggable via useDraggable; bounds=containerRef keeps toolbar clamped inside chart container (incl. scale) — drag cannot exit chart area",
-        "initialPos prefers container-relative top-left; saved position re-clamped to container bounds on open"
+      "events": [
+        { "event": "mousedown", "element": "drag handle (GripIcon)", "purpose": "start toolbar drag via useDraggable" },
+        { "event": "click", "element": "color / fill / stroke / text / template popover toggle buttons", "purpose": "open or close the respective popover; calls closeAll() first" },
+        { "event": "click", "element": "delete button", "purpose": "remove selected drawing(s)" },
+        { "event": "mousedown", "element": "toolbar root div", "purpose": "stop propagation so chart mousedown doesn't deselect the drawing" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "ColorPopover",
-      "description": "Color picker popover with palette, custom colors, opacity slider. ColorSwatchButton renders a fixed portal anchored to the swatch button. Used by all drawing style controls.",
       "keywords": ["color", "picker", "swatch", "opacity", "palette", "custom colors", "popover"],
       "files": [
         "frontend/src/components/chart/ColorPopover.tsx"
@@ -103,16 +91,17 @@
         "useStore (customColors, addCustomColor, removeCustomColor)",
         "useClickOutside"
       ],
-      "notes": [
-        "ColorSwatchButton computes portal position synchronously in onClick (not useEffect) to avoid stale position on first open",
-        "Position clamped: left = Math.min(r.left, window.innerWidth - 290 - 8) so picker never overflows right edge",
-        "mousemove listener active while open to reposition when parent modal is dragged (useDraggable)",
-        "useClickOutside uses capture phase (addEventListener 3rd arg = true) so modal stopPropagation doesn't block it"
+      "events": [
+        { "event": "click", "element": "ColorSwatchButton", "purpose": "open picker; computes portal position synchronously" },
+        { "event": "click", "element": "palette / custom color swatches", "purpose": "select a color" },
+        { "event": "mousedown", "element": "opacity slider track", "purpose": "start opacity drag" },
+        { "event": "mousemove (window)", "element": "window", "purpose": "track opacity value during drag; also repositions picker when parent is dragged" },
+        { "event": "mouseup (window)", "element": "window", "purpose": "end opacity drag" },
+        { "event": "click (useClickOutside, capture phase)", "element": "document", "purpose": "close picker when clicking outside — capture phase bypasses stopPropagation in parent modals" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "Dropdown",
-      "description": "Shared dropdown panel shell. Handles absolute positioning + standard styling (surface bg, border, SHADOW.LG, rounded-lg, Z.DROPDOWN). Caller owns open state, wrapper ref, and useClickOutside. For option-list dropdowns use CustomSelect; for action rows use MenuItem inside Dropdown.",
       "keywords": ["dropdown", "menu", "panel", "shell", "hover", "selected", "active", "color-hover-row", "color-surface", "CustomSelect"],
       "files": [
         "frontend/src/components/shared/Dropdown.tsx",
@@ -122,19 +111,16 @@
       "dependencies": [
         "Z, SHADOW (constants/layout)"
       ],
-      "notes": [
-        "Props: align ('left'|'right', default 'left'), offset (px gap, default 4), minWidth, className, style",
-        "Caller must wrap trigger + Dropdown in a `position: relative` div and call useClickOutside on that wrapper ref",
-        "Item hover: hover:bg-(--color-hover-row); active/selected: bg var(--color-text), color var(--color-surface)",
-        "Toolbar buttons use hover:bg-(--color-border) — different from dropdown items, intentional",
-        "Camera screenshot dropdown (ChartToolbar) is intentionally different: uses inline div with rounded-xl + SHADOW.XXL + --color-panel bg — pass overrides via style/className when needed",
-        "CustomSelect manages its own fixed positioning and panel styling; don't wrap it in Dropdown",
-        "CustomSelect supports renderItemAction, renderItem, footer, dropdownMinWidth — used by Strategy Lab strategy dropdown"
+      "events": [
+        { "event": "hover (CSS)", "element": "menu items (Dropdown / MenuItem)", "purpose": "visual hover highlight via Tailwind hover:bg-(--color-hover-row)" },
+        { "event": "click", "element": "CustomSelect trigger button", "purpose": "open/close the fixed-position option panel" },
+        { "event": "click", "element": "CustomSelect option items", "purpose": "select option and close panel" },
+        { "event": "keydown (window)", "element": "window", "purpose": "Escape closes CustomSelect dropdown" },
+        { "event": "click (useClickOutside)", "element": "CustomSelect container", "purpose": "close panel on outside click" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "Popover",
-      "description": "Shared draggable modal popover shell. Handles drag (useDraggable), click-outside close (useClickOutside), stop propagation, fixed centered positioning, header with title + X button, and footer with Cancel/Ok buttons. Used by all settings modals.",
       "keywords": ["popover", "modal", "draggable", "settings", "header", "footer", "cancel", "ok"],
       "files": [
         "frontend/src/components/shared/Popover.tsx"
@@ -143,16 +129,17 @@
         "useDraggable",
         "useClickOutside"
       ],
-      "notes": [
-        "onCancel prop — cancel button handler; falls back to onClose if not provided",
-        "children render between the two hr dividers (after header, before footer) — bring your own body padding",
-        "onMouseDown stopPropagation on root div is required for drag to work without collapsing the popover",
-        "LockoutButton previously used Popover as a dropdown shell — now inlines its own div; Popover is modal-only"
+      "events": [
+        { "event": "mousedown", "element": "header (drag handle)", "purpose": "start popover drag via useDraggable" },
+        { "event": "mousedown", "element": "root div", "purpose": "stopPropagation to prevent parent chart from receiving the event" },
+        { "event": "click", "element": "X close button", "purpose": "close popover" },
+        { "event": "click", "element": "Cancel button", "purpose": "invoke onCancel (or onClose fallback)" },
+        { "event": "click", "element": "Ok button", "purpose": "invoke onOk callback" },
+        { "event": "click (useClickOutside)", "element": "popover container", "purpose": "dismiss popover when clicking outside" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "ChartSettingsModal",
-      "description": "Full-screen settings modal for chart configuration. Sidebar with 4 categories (Bars, Canvas, Trading, Events). Inline drag logic (not useDraggable) with grab/grabbing cursor. Cancel snapshots settings on open and reverts on cancel. Escape key triggers cancel.",
       "keywords": ["chart settings", "settings modal", "bars", "canvas", "trading", "events", "draggable", "modal"],
       "files": [
         "frontend/src/components/chart/ChartSettingsModal.tsx",
@@ -165,30 +152,35 @@
         "ColorSwatchButton (ColorPopover)",
         "CustomSelect"
       ],
-      "notes": [
-        "Uses inline drag (dragging ref + dragOffset ref) instead of useDraggable — sets document.body.style.cursor grabbing on mousedown, clears on mouseup",
-        "snapshotRef captures settings on mount; handleCancel restores snapshot then closes",
-        "Category sidebar: 'bars' | 'canvas' | 'trading' | 'events'"
+      "events": [
+        { "event": "mousedown", "element": "title bar", "purpose": "start modal drag; sets document.body cursor to 'grabbing'" },
+        { "event": "mousemove (window)", "element": "window", "purpose": "track modal position during drag" },
+        { "event": "mouseup (window)", "element": "window", "purpose": "end drag; restore document.body cursor" },
+        { "event": "keydown (window)", "element": "window", "purpose": "Escape triggers cancel (restores snapshot)" },
+        { "event": "click", "element": "sidebar category buttons", "purpose": "switch active settings category" },
+        { "event": "click", "element": "Checkbox / Toggle controls", "purpose": "toggle individual chart settings" },
+        { "event": "click", "element": "ColorSwatchButton", "purpose": "open color picker for color settings" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "SpinnerInput",
-      "description": "Compact numeric input with hover-reveal up/down chevron arrows. Supports click (±step) and click-hold-drag (scrub up/down at 2px/step). Used across all style toolbars.",
       "keywords": ["spinner", "numeric input", "scrub", "drag", "stepper", "arrows"],
       "files": [
         "frontend/src/components/SpinnerInput.tsx"
       ],
       "dependencies": [],
-      "notes": [
-        "Drag activates only after DRAG_THRESHOLD (3px) movement — quick clicks are never treated as drags",
-        "didDragRef suppresses onClick on the arrow buttons after a real drag to prevent double-step at release",
-        "ns-resize cursor and userSelect:none applied to document.body only while dragging; cleaned up on mouseup",
-        "valueRef tracks current value for drag start capture; avoids stale closure in mousemove handler"
+      "events": [
+        { "event": "mousedown", "element": "up/down arrow buttons", "purpose": "begin scrub drag or prepare single step" },
+        { "event": "mousemove (document)", "element": "document", "purpose": "scrub value up/down after DRAG_THRESHOLD exceeded" },
+        { "event": "mouseup (document)", "element": "document", "purpose": "end drag; restore body cursor and userSelect" },
+        { "event": "click", "element": "up/down arrow buttons", "purpose": "single step ±step (suppressed after a real drag via didDragRef)" },
+        { "event": "change", "element": "text input", "purpose": "update value as user types" },
+        { "event": "blur", "element": "text input", "purpose": "clamp value to min/max and reformat" },
+        { "event": "hover (CSS)", "element": "arrow container", "purpose": "reveal up/down arrows on hover via Tailwind group-hover" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "StrategyLab",
-      "description": "Full-screen backtesting workspace. Accessible via Strategy button in ChartToolbar. Shows a full CandlestickChart fed from extracted tick CSVs, a script editor, an equity curve (EquityCurveChart — LWC-based, shared with the stats dashboard), stats row, and trade log (BacktestTradesTable). Symbols categorized by exchange/symbol.",
       "keywords": ["backtest", "strategy", "equity curve", "strategy lab", "script", "tick data", "OHLCV", "trade log", "win rate", "symbol", "exchange"],
       "files": [
         "frontend/src/components/backtest/StrategyLabModal.tsx",
@@ -209,30 +201,19 @@
         "backtestDataService (CSV → OHLCV aggregation + disk cache)",
         "backtestRoutes (GET /backtest/symbols, GET /backtest/bars, GET /backtest/range, POST /backtest/run, GET/PUT/PATCH/DELETE /backtest/strategies/:name, GET/PUT /backtest/strategies/:name/result)"
       ],
-      "notes": [
-        "Data layout: backend/data/tick-data/{EXCHANGE}/{SYMBOL}/{YYYY}/{MM}.csv (+ {MM}.1m.json cache) — run 'npm run extract-ticks' in backend to populate",
-        "Extract script: backend/src/scripts/extractTickData.ts — reads Binance ZIPs/CSVs from TICK_DATA_PATH env var, extracts to tick-data dir",
-        "Cache dir: backend/data/backtest-cache/ — JSON files keyed by exchange_symbol_tf_fromDay_toDay.json",
-        "Strategy execution: vm.runInNewContext sandbox, onBar(ctx) called per bar, ctx.buy/sell/close/setStop/setTarget",
-        "SSE streaming: POST /backtest/run streams equity points as they build, then sends done event",
-        "CONTRACT_MAP in StrategyLabModal.tsx maps 'EXCHANGE:SYMBOL' → Contract; fallback uses generic 0.01 tick defaults",
-        "GET /backtest/symbols scans tick-data dir and returns available exchange/symbol pairs",
-        "backtestExchange + backtestSymbol in backtestSlice — selector dropdown in modal header",
-        "chartId='backtest' extends 'left'|'right'|'backtest' type — guard in setSelectedChart and drillIntoCandle",
-        "File persistence: strategies saved to backend/data/strategies/{name}/strategy.js; last result to result.json in same folder",
-        "On modal open: listStrategies() from disk seeds the store; empty disk → current store strategies seeded to disk",
-        "Strategy code auto-saves 800ms after last keystroke; result saves after each successful run",
-        "On strategy switch: equity chart clears immediately, then loadResult() from disk restores chart + stats via setData()",
-        "Vertical resize: chart vs results split is controlled by backtestBottomRatio (persisted, 0..0.85, default 0.3). VerticalSeparator drives drag; toggleBacktestBottom collapses/restores via backtestBottomPreviousRatio — mirrors App.tsx pattern",
-        "Bottom panel content fills via flex: stats + tabs are shrink-0; equity curve receives height='100%' (LWC autoSize handles repaint); trades table receives maxHeight='100%' (SortableTable virtualization re-measures via ResizeObserver)",
-        "Bars cache (backtestService.ts): LRU Map keyed by exchange:symbol:unit:unitNumber:from:to, MAX_BARS_CACHE=20. streamBars checks cache first and delivers the full array as one synthetic chunk via microtask; on miss it accumulates streamed chunks and writes to cache on the SSE 'done' event. Aborts mid-stream do not populate the cache",
-        "Windowed render (useChartBars backtest effect): only the most recent VIEWPORT_BARS=500 bars go to LWC initially; scrolling within 50 logical bars of the left edge expands the window backward by EXPAND_BARS=1000. refs.bars / refs.dataMap / refs.lastBar always hold the full array so drawings, FRVP and crosshair are unaffected by the window. Window expansion preserves the visible time range (getVisibleRange → setData → setVisibleRange) since logical indices shift",
-        "Streaming UX: chunks are accumulated silently and rendered once at end (avoids O(N²) setData on long streams). First load of an (exchange, symbol, range, tf) shows the chart only after streaming completes; subsequent timeframe switches with the same symbol+range are instant from cache"
+      "events": [
+        { "event": "click", "element": "Symbol selector button", "purpose": "open SymbolPickerModal" },
+        { "event": "click", "element": "Date range button", "purpose": "open DateRangePicker" },
+        { "event": "click", "element": "Run/Stop button", "purpose": "start or abort backtest SSE stream" },
+        { "event": "click", "element": "strategy name (rename input)", "purpose": "commit strategy rename" },
+        { "event": "click", "element": "Curve/Trades tab buttons", "purpose": "switch between equity curve and trades log view" },
+        { "event": "click", "element": "collapse/expand button", "purpose": "toggle bottom panel via toggleBacktestBottom" },
+        { "event": "change", "element": "code editor", "purpose": "update strategy code; debounced 800ms auto-save to disk" },
+        { "event": "change", "element": "TimeframePicker", "purpose": "change backtest timeframe" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "OHLCTooltip",
-      "description": "Inline OHLC tooltip rendered in the chart's top-left overlay. Shows O/H/L/C values and change for the hovered candle (falls back to last bar). Labels (O H L C) use --color-text; values use --color-text-medium (bullish) or teal (#0097a6) (bearish). DOM built once with pre-created spans for perf — no innerHTML per frame.",
       "keywords": ["ohlc", "tooltip", "crosshair", "hover", "candle", "open", "high", "low", "close", "change", "top-left"],
       "files": [
         "frontend/src/components/chart/hooks/useChartWidgets.ts",
@@ -244,15 +225,16 @@
         "refs.series / refs.chart (LightweightCharts instances)",
         "refs.lastBar (fallback candle data)"
       ],
-      "notes": [
-        "Label color (O H L C) = COLOR_TEXT = var(--color-text), matching symbol/timeframe text in the same overlay row",
-        "Value color switches only when bullish/bearish direction changes — avoids per-frame style recalc",
-        "Spans are created once in useEffect; effect reruns on contract/timeframe change (new decimal precision needed)"
+      "events": [
+        { "event": "subscribeCrosshairMove (LWC)", "element": "chart instance", "purpose": "update OHLC label values on every crosshair move" },
+        { "event": "mouseleave", "element": "chart wrapper div", "purpose": "clear OHLC label when mouse leaves chart" },
+        { "event": "mousemove", "element": "chart wrapper div", "purpose": "propagate crosshair position when hovering overlays" },
+        { "event": "subscribeVisibleLogicalRangeChange (LWC)", "element": "chart time scale", "purpose": "show/hide scroll-to-latest button" },
+        { "event": "ResizeObserver", "element": "chart container", "purpose": "recompute scroll-button position on resize" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "TimeframePicker",
-      "description": "Shared timeframe selector used by both ChartToolbar and StrategyLabModal. Renders pinned shortcut buttons + chevron trigger + grouped dropdown (Seconds/Minutes/Hours/Days). Pinning, custom timeframes, and trash buttons are all optional — omit those props for a simple picker.",
       "keywords": ["timeframe", "picker", "dropdown", "seconds", "minutes", "hours", "days", "pin", "bookmark", "custom", "shared"],
       "files": [
         "frontend/src/components/shared/TimeframePicker.tsx"
@@ -262,47 +244,50 @@
         "SpinnerInput (custom TF number input)",
         "useClickOutside"
       ],
-      "notes": [
-        "pinnedTimeframes + onPin + onUnpin all required together to enable pinning — omit all three for simple mode (StrategyLabModal)",
-        "onAddCustom + onRemoveCustom both required together to show custom input section",
-        "StarIcon is exported — reused by InstrumentSelectorPopover and similar components",
-        "Trigger button style differs: no border/bg when hasPinning (ChartToolbar inline style), bordered when standalone (StrategyLabModal)"
+      "events": [
+        { "event": "click", "element": "pinned shortcut buttons", "purpose": "select a pinned timeframe" },
+        { "event": "click", "element": "chevron trigger button", "purpose": "open/close timeframe dropdown" },
+        { "event": "click", "element": "timeframe option rows", "purpose": "select timeframe and close menu" },
+        { "event": "click", "element": "star (pin/unpin) icon", "purpose": "pin or unpin a timeframe" },
+        { "event": "click", "element": "trash icon on custom timeframes", "purpose": "remove custom timeframe" },
+        { "event": "click", "element": "Apply Custom button", "purpose": "add a new custom timeframe" },
+        { "event": "click (useClickOutside)", "element": "menu container", "purpose": "close dropdown when clicking outside" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "SymbolPickerModal",
-      "description": "Shared symbol search modal. Same visual as InstrumentSelectorPopover (header, search input, item list). Accepts generic SymbolItem[] so any data source can use it. Currently used by StrategyLabModal for backtest symbol selection.",
       "keywords": ["symbol", "picker", "search", "instrument", "modal", "shared"],
       "files": [
         "frontend/src/components/shared/SymbolPickerModal.tsx"
       ],
       "dependencies": [],
-      "notes": [
-        "SymbolItem: { key, name, exchange, description? } — key must be unique, used for selectedKey comparison",
-        "Client-side search filters by name and exchange",
-        "Active item highlighted with --color-warning text (matches InstrumentSelectorPopover active style)",
-        "InstrumentSelectorPopover has its own complex implementation (live search, bookmarks, categories) — SymbolPickerModal is for simpler static lists"
+      "events": [
+        { "event": "change", "element": "search input", "purpose": "filter symbol list client-side" },
+        { "event": "click", "element": "symbol list items", "purpose": "select symbol and close modal" },
+        { "event": "click", "element": "X close button", "purpose": "close modal" },
+        { "event": "mousedown", "element": "modal backdrop", "purpose": "close modal on backdrop click" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "DatePickerModal",
-      "description": "Shared calendar modal used by both GoToModal (single date + time) and DateRangePicker (from/to range). Handles modal shell, month nav, and calendar grid. mode='single' shows date/time inputs + today highlight + Cancel/Confirm footer. mode='range' shows From/To selector buttons + range highlight + Done footer.",
       "keywords": ["date picker", "calendar", "modal", "single", "range", "from", "to", "shared"],
       "files": [
         "frontend/src/components/shared/DatePickerModal.tsx"
       ],
       "dependencies": [],
-      "notes": [
-        "mode='single': pass today prop for timezone-aware today highlight (defaults to UTC today); GoToModal passes nyNow()",
-        "mode='single': time input is optional — omit time/onTimeChange props to hide it",
-        "mode='range': edge days (from/to) get accent fill + white text; in-range days get hover-row bg; hover previews the candidate range",
-        "Calendar syncs to anchorDate (date for single, from for range) whenever it changes — no manual calendar navigation reset needed",
-        "Width fixed at 380px; tab bar (single mode) is structural, reserved for future tabs like 'Bar number'"
+      "events": [
+        { "event": "click", "element": "prev/next month nav buttons", "purpose": "navigate calendar months" },
+        { "event": "click", "element": "calendar day cells", "purpose": "select date (single mode) or set from/to edge (range mode)" },
+        { "event": "click", "element": "From/To tab buttons (range mode)", "purpose": "switch which edge is being selected" },
+        { "event": "hover (CSS + mouseenter)", "element": "day cells (range mode)", "purpose": "preview candidate range by highlighting hovered day" },
+        { "event": "change", "element": "date text input", "purpose": "update selected date from typed value" },
+        { "event": "change", "element": "time text input", "purpose": "update selected time" },
+        { "event": "click", "element": "X / Cancel / Done buttons", "purpose": "close or confirm the modal" },
+        { "event": "mousedown", "element": "backdrop", "purpose": "close modal on outside click" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "SortableTable",
-      "description": "Generic sortable table primitive. Takes column defs (label, sortValue, render) + rows + gridCols template. Provides sticky clickable header with asc/desc arrow indicators, row striping (TABLE_ROW_STRIPE), row hover, and selection highlight (--color-warning). Currently used by BacktestTradesTable; designed so the live TradesTab can adopt it later.",
       "keywords": ["table", "sortable", "sort", "header", "columns", "stripe", "select", "shared", "trades"],
       "files": [
         "frontend/src/components/shared/SortableTable.tsx"
@@ -311,19 +296,16 @@
         "TABLE_ROW_STRIPE (constants/styles)",
         "Z.HEADER (constants/layout)"
       ],
-      "notes": [
-        "Column with no sortValue is rendered non-sortable (no pointer cursor, no hover)",
-        "sortedRows preserve originalIndex; getRowKey + selectedKey use stable IDs so selection survives re-sorts",
-        "Cell wrapper className defaults to 'px-2 text-center whitespace-nowrap' — override via column.cellClassName when needed (TradesTab uses 'px-3 text-center' historically)",
-        "Color/weight should live inside the rendered span, not the wrapper, because the wrapper class is static per column",
-        "maxHeight prop enables overflowY:auto only when set — list mode (no scroll) just omits it",
-        "When maxHeight is set, rows are virtualized: only rows in the visible window (+OVERSCAN=8) are mounted, with top/bottom spacer divs preserving scroll height. Row geometry constants ROW_HEIGHT=30 (h-7 inner + 1px outer borders) and HEADER_HEIGHT=33 (h-8 inner + 1px bottom border) MUST stay in sync with the row markup",
-        "Does NOT support row grouping/expansion — live TradesTab will need a row-override mechanism if it adopts this"
+      "events": [
+        { "event": "click", "element": "sortable column headers", "purpose": "toggle sort column or flip asc/desc direction" },
+        { "event": "click", "element": "data rows", "purpose": "fire onRowClick callback with the row data" },
+        { "event": "scroll", "element": "virtualized scroller container", "purpose": "update scroll offset to drive row virtualization window" },
+        { "event": "ResizeObserver", "element": "scroller container", "purpose": "remeasure visible viewport height when container resizes" },
+        { "event": "hover (CSS)", "element": "data rows", "purpose": "row hover highlight via Tailwind hover: classes" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "EquityCurveChart",
-      "description": "Lightweight-Charts BaselineSeries equity curve. Shared between Strategy Lab (live SSE point streaming) and the stats dashboard (StatsPnlChart equity mode + StatsDayDetail day-detail curve). Built-in crosshair tooltip shows Trade #N · time · value; optional per-trade markers via showMarkers.",
       "keywords": ["equity curve", "lwc", "lightweight-charts", "baseline series", "backtest", "stats", "trade markers", "shared"],
       "files": [
         "frontend/src/components/backtest/EquityCurveChart.tsx"
@@ -333,32 +315,24 @@
         "CHART_OPTIONS (chart/chartTheme)",
         "COLOR_BUY/COLOR_SELL/COLOR_TEXT_DIM/COLOR_BORDER (constants/colors)"
       ],
-      "notes": [
-        "Pass points as EquityPoint[] ({ t: ISO string, equity: number }) + initialEquity; tooltip and Y axis display value as (equity - initialEquity)",
-        "Stats callers pass initialEquity=0 with stats.equityCurve[i] as the equity field (cumulative P&L is already delta-based)",
-        "background prop must be a resolved color (canvas fill) — use COLOR_TABLE_STRIPE for stats panel, default '#000000' for backtest panel",
-        "showMarkers + markerThreshold (default 80) — markers hide automatically for dense series to avoid clutter",
-        "Tooltip is rendered as a fixed centered overlay inside the chart; no parent-level hover state needed",
-        "background changes are baked into the chart on mount — changing it remounts the chart (background is in the mount effect's deps)",
-        "Streaming optimization: when new points are the previously-rendered array with extra tail items appended, the sync effect calls series.update() per new point instead of series.setData() with the full array — avoids O(N²) churn (StrategyLabModal also rAF-batches its SSE equity callback). Sanity check compares the last-rendered point's time + value against the input; mismatches fall back to a full setData()."
+      "events": [
+        { "event": "subscribeCrosshairMove (LWC)", "element": "equity chart instance", "purpose": "show/update tooltip overlay with Trade #, time, and equity value on crosshair move" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "ToolbarPillButton",
-      "description": "Shared pill-shaped header button used across the Strategy Lab toolbar (Symbol picker, Date range, etc.). Consistent: bg --color-input, border --color-border, padding 5px 10px, hover:bg --color-border, rounded-md, text-xs. Children render free-form (icons + label + ChevronDown if needed).",
       "keywords": ["toolbar", "pill", "button", "header", "strategy lab", "shared"],
       "files": [
         "frontend/src/components/shared/ToolbarPillButton.tsx"
       ],
       "dependencies": [],
-      "notes": [
-        "Different from DropdownButton (bg --color-surface, RADIUS.XL, border-color hover) — keep both",
-        "No built-in chevron — caller renders ChevronDown explicitly when needed for flexibility"
+      "events": [
+        { "event": "click", "element": "button", "purpose": "fire onClick callback (caller-defined action)" },
+        { "event": "hover (CSS)", "element": "button", "purpose": "background shifts to --color-border via Tailwind hover:" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "VerticalSeparator",
-      "description": "Shared draggable horizontal divider for vertical pane splits. 1px tall, cursor-row-resize, accent on drag. Optional collapse toggle button (chevron) appears on hover or when collapsed. Used by App.tsx (chart/bottom panel split) and StrategyLabModal (backtest chart/results split).",
       "keywords": ["separator", "splitter", "divider", "resize", "drag", "row-resize", "vertical", "collapse", "toggle", "shared"],
       "files": [
         "frontend/src/components/shared/VerticalSeparator.tsx"
@@ -366,15 +340,16 @@
       "dependencies": [
         "ChevronDown / ChevronUp icons (only when onToggle is provided)"
       ],
-      "notes": [
-        "onDrag receives mouseRatio = (e.clientY - containerTop) / containerHeight — caller decides whether to invert (1 - r) for bottom-anchored panels",
-        "containerRef points to the SHARED parent containing all split children — its bounding rect is captured on mousedown, not on every mousemove (avoids re-layout cost)",
-        "Toggle button is omitted when onToggle is not provided — pass both `collapsed` and `onToggle` to enable it; pass neither for a pure resizer"
+      "events": [
+        { "event": "mousedown", "element": "separator bar", "purpose": "begin vertical drag; captures containerRef bounding rect once" },
+        { "event": "mousemove (window)", "element": "window", "purpose": "compute mouseRatio and call onDrag during drag" },
+        { "event": "mouseup (window)", "element": "window", "purpose": "end drag and clean up listeners" },
+        { "event": "click", "element": "collapse/expand toggle chevron button", "purpose": "call onToggle to collapse or restore the panel" },
+        { "event": "hover (CSS)", "element": "separator bar", "purpose": "show toggle button and accent separator color on hover" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "GoToModal",
-      "description": "Modal that lets the user jump the chart to a specific date and time (NY timezone). Has a date text input, time text input, month calendar grid with today highlight, and Cancel/Go to footer buttons. Converts NY local time to UTC seconds for the chart API.",
       "keywords": ["go to", "goto", "date picker", "calendar", "navigate", "timestamp", "ny timezone", "jump to date"],
       "files": [
         "frontend/src/components/chart/GoToModal.tsx",
@@ -385,15 +360,17 @@
         "CandlestickChart (renders GoToModal, calls chart.scrollToPosition on confirm)",
         "GoToMarkerPrimitive (draws the temporary marker line after navigation)"
       ],
-      "notes": [
-        "nyNow() and nyLocalToUtcSeconds() handle all timezone math — dates displayed and selected are always NY local",
-        "Tab bar (single 'Date' tab with accent underline) is structural, not decorative — reserved for a future 'Bar number' tab",
-        "Calendar width: 380px; selected day uses border-only style (no fill) to match GoToModal design"
+      "events": [
+        { "event": "click", "element": "calendar day cells", "purpose": "set selected date" },
+        { "event": "click", "element": "prev/next month buttons", "purpose": "navigate calendar months" },
+        { "event": "change", "element": "date text input", "purpose": "update date from typed value" },
+        { "event": "change", "element": "time text input", "purpose": "update time from typed value" },
+        { "event": "click", "element": "Go to button", "purpose": "convert NY local time to UTC and call chart.scrollToPosition" },
+        { "event": "click", "element": "Cancel button", "purpose": "close modal without navigating" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "PositionsTab",
-      "description": "Bottom-panel tab listing open positions with live unrealized P&L. Default view: current account + current chart symbol only. Filters (current/all account, current/all symbol) and Flatten-all action live in the header. Each row is clickable (switches account + chart contract); inline X flattens that position.",
       "keywords": ["positions", "open positions", "bottom panel", "flatten", "all accounts", "tp", "sl", "unrealized pnl", "pts taken", "filter"],
       "files": [
         "frontend/src/components/bottom-panel/PositionsTab.tsx",
@@ -410,22 +387,16 @@
         "CustomSelect (filter dropdowns)",
         "formatAccountName (shared from utils/formatters — same label as TopBar selector)"
       ],
-      "notes": [
-        "Lazy fetch: when positionsAccountFilter switches to 'all', positionService.searchOpenPositions is called once per non-active account; trades are fetched with getDateRange('all') to match TradesTab's window — anything shorter (e.g. 'week') silently breaks ptsTaken/openTime for older positions",
-        "findOpenSegment walks trades chronologically, resetting the segment whenever net size returns to 0. Requires Math.abs(net) === currentSize at the end; otherwise openTime/ptsTaken render as '—' (intentional safeguard against cache/realtime lag)",
-        "TP legs are sorted by distance from entry (ascending for long, descending for short) so the displayed TP price is the *closest* one — prevents flicker when the gateway reorders the legs",
-        "openOrders is only the active account's orders — for positions on other accounts the TP/SL cells always render '—' (gateway doesn't expose other accounts' bracket legs)",
-        "Quote subscriptions are not torn down (matches useAccountUpnl) — the adapter's subscribe set is not ref-counted; unsubscribing here would kill the chart's stream when both reference the same contract",
-        "Tab count badge in BottomPanel.tsx reflects ACTIVE account positions only, not the current filter scope",
-        "Row click sets contract on the currently selectedChart (left → setContract, right → setSecondContract) AND setOrderContract, then setActiveAccountId if cross-account",
-        "Flatten all closes every row in sortedRows (potentially across accounts when filter='all') — no confirm dialog; button label shows count to make scope visible",
-        "PnL cell: only the inner value span is clickable + hover-highlighted (not the whole cell) — keeps row click (focus chart) distinct from PnL mode toggle ($/pts)",
-        "Account name under symbol (all-accounts filter) is rendered via formatAccountName + last 2 digits of id — e.g. 'Practice - 45'"
+      "events": [
+        { "event": "click", "element": "position row", "purpose": "switch active account + chart contract to this position's instrument" },
+        { "event": "click", "element": "inline X (flatten) button", "purpose": "close (flatten) that individual position" },
+        { "event": "click", "element": "Flatten all button", "purpose": "close all visible positions in current filter scope" },
+        { "event": "click", "element": "PnL value span", "purpose": "toggle pnlMode between $/pts" },
+        { "event": "onQuote (realtimeService)", "element": "realtime quote stream", "purpose": "update live unrealized P&L for non-active-account contracts; batched via requestAnimationFrame" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "StrategiesTab",
-      "description": "Bottom-panel tab showing live strategy instances. Displays strategy name, status (with colored dot), signal direction, confidence, bar count, and start/stop action. Start opens a config modal (account, contractId, contractName, tickSize). SSE subscription keeps state live.",
       "keywords": ["strategy", "live strategy", "strategies", "signal", "confidence", "warming up", "running", "start", "stop", "sse"],
       "files": [
         "frontend/src/components/bottom-panel/StrategiesTab.tsx",
@@ -438,16 +409,17 @@
         "liveStrategySlice (LiveStrategyInfo, StrategyState, createLiveStrategySlice)",
         "shared/Modal (ConfigModal backdrop)"
       ],
-      "notes": [
-        "liveStrategies is NOT persisted — it is live-only state reset on each mount via the SSE snapshot",
-        "serverUrl comes from useStore(s => s.baseUrl) — same base URL as the main backend",
-        "IS_DEMO guard skips both initial fetch and SSE subscription",
-        "Config modal uses shared/Modal as backdrop shell; panel styled inline (FRVP-style label+control rows, inline footer buttons)"
+      "events": [
+        { "event": "click", "element": "strategy row", "purpose": "open start-config modal for that strategy" },
+        { "event": "click", "element": "start/stop button", "purpose": "start or stop the strategy via liveStrategyService" },
+        { "event": "click", "element": "delete button", "purpose": "delete strategy" },
+        { "event": "change", "element": "account select (config modal)", "purpose": "pick account for strategy run" },
+        { "event": "change", "element": "contractId / contractName / tickSize inputs (config modal)", "purpose": "configure contract details before starting" },
+        { "event": "hover (CSS)", "element": "action buttons", "purpose": "hover highlight via Tailwind hover: classes" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "shared/Modal",
-      "description": "Modal shell: backdrop overlay + centered panel. Handles Escape-to-close and backdrop-click-to-close. Optional title prop renders a standard header with XIcon close button. Minimal mode (no title) leaves callers in full control of children.",
       "keywords": ["modal", "backdrop", "overlay", "shell", "primitive", "escape", "title", "header"],
       "files": [
         "frontend/src/components/shared/Modal.tsx"
@@ -456,35 +428,26 @@
         "Z (constants/layout)",
         "XIcon (icons/XIcon)"
       ],
-      "notes": [
-        "Props: onClose, children, className, style, backdropClassName, backdropStyle, title?, headerActions?, headerStyle?",
-        "title: pass a string or ReactNode — Modal renders flex header row with X button. Omit for raw-shell mode.",
-        "headerActions: ReactNode rendered between title and X (e.g. UnitToggle in BracketSettingsModal)",
-        "headerStyle: overrides default header padding (default '12px 16px 10px')",
-        "Backdrop click only closes when the click target IS the backdrop div"
+      "events": [
+        { "event": "keydown (window)", "element": "window", "purpose": "Escape closes the modal via onClose" },
+        { "event": "mousedown", "element": "backdrop div", "purpose": "close modal when click target is exactly the backdrop (not a child)" },
+        { "event": "click", "element": "X close button", "purpose": "close modal via onClose" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "shared/Button",
-      "description": "Shared button primitive. variant × tone × size matrix, plus toolbar and tab variants. Use instead of raw <button> for all action buttons.",
       "keywords": ["button", "action", "ghost", "filled", "danger", "toolbar", "tab", "pill", "primitive"],
       "files": [
         "frontend/src/components/shared/Button.tsx"
       ],
       "dependencies": [],
-      "notes": [
-        "variant: 'ghost' | 'filled' | 'toolbar' | 'tab'",
-        "tone: 'default' | 'danger' (only applies to ghost/filled)",
-        "size: 'sm' (6px 12px) | 'md' (8px 16px). Font = var(--font-size-overlay)",
-        "toolbar: pill button — bg --color-input, border, hover bg --color-border, rounded-md, xs font",
-        "tab: transparent, text-muted → text on hover/active; active prop shows 2px bottom underline",
-        "fullWidth=true adds w-full; disabled=true → opacity-50 + cursor-not-allowed automatically",
-        "Replaced: ToolbarPillButton (→ variant='toolbar') and TabButton (→ variant='tab' active={bool})"
+      "events": [
+        { "event": "click", "element": "button", "purpose": "fire onClick callback; suppressed automatically when disabled=true" },
+        { "event": "hover (CSS)", "element": "button", "purpose": "variant-specific hover style via Tailwind hover: — no JS handler" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "shared/Checkbox",
-      "description": "Custom-styled checkbox primitive. White fill + black checkmark SVG when checked. Renders a bare box when no label, or a click-anywhere label row when label is provided.",
       "keywords": ["checkbox", "check", "form", "input", "primitive", "shared"],
       "files": [
         "frontend/src/components/shared/Checkbox.tsx"
@@ -492,24 +455,19 @@
       "dependencies": [
         "RADIUS (constants/layout)"
       ],
-      "notes": [
-        "Props: checked, onChange(checked), label?, disabled?, className?",
-        "Extracted from ChartSettingsModal local Checkbox — same visual: 16x16, border, white bg + black check",
-        "SettingsModal's native <input type='checkbox'> has been migrated to this component"
+      "events": [
+        { "event": "click", "element": "checkbox box or label row", "purpose": "toggle checked state; calls onChange(!checked)" }
       ]
-    }
-    ,{
+    },
+    {
       "name": "shared/Toggle",
-      "description": "On/off toggle switch primitive. Accent-colored track when on, --color-border when off. Renders a bare switch or a full label row (label on left, switch on right).",
       "keywords": ["toggle", "switch", "on off", "form", "primitive", "shared"],
       "files": [
         "frontend/src/components/shared/Toggle.tsx"
       ],
       "dependencies": [],
-      "notes": [
-        "Props: value, onChange(value), label?, disabled?, className?",
-        "Track: 32×18px, radius 9px. Thumb: 14×14px, transitions left 2px → 14px",
-        "With label: renders flex row justify-between (label left, switch right)"
+      "events": [
+        { "event": "click", "element": "toggle switch or label row", "purpose": "flip value; calls onChange(!value)" }
       ]
     }
   ]
