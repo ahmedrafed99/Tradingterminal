@@ -1,9 +1,9 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
 import { StrategyLabModal } from '../backtest/StrategyLabModal';
-import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
-import { ChevronDown } from '../icons/ChevronDown';
 import { TimeframePicker } from '../shared/TimeframePicker';
+import { Checkbox } from '../shared/Checkbox';
+import { Popover } from '../shared/Popover';
 import { InstrumentSelectorPopover } from '../InstrumentSelectorPopover';
 import { getChartEntry, type ChartEntry, type ScreenshotOptions } from './screenshot/chartRegistry';
 import { addTimeBanner } from './screenshot/addTimeBanner';
@@ -14,7 +14,6 @@ import { useRecording } from './recording/useRecording';
 import { RecordingIndicator } from './recording/RecordingIndicator';
 import { CHART_ICON_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 import { MarketDepthSettingsModal } from './toolbar/MarketDepthSettingsModal';
-import { Dropdown } from '../shared/Dropdown';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -41,7 +40,7 @@ function useNYClock(marketType: MarketType = 'futures') {
   return { time, marketOpen, is24h: marketType === 'crypto' };
 }
 
-function IndicatorsDropdown() {
+function IndicatorsPopover() {
   const domEnabled = useStore((s) =>
     s.selectedChart === 'left' ? s.domEnabled : s.secondDomEnabled);
   const setDomEnabled = useStore((s) =>
@@ -52,21 +51,41 @@ function IndicatorsDropdown() {
     s.selectedChart === 'left' ? s.bidAskEnabled : s.secondBidAskEnabled);
   const setBidAskEnabled = useStore((s) =>
     s.selectedChart === 'left' ? s.setBidAskEnabled : s.setSecondBidAskEnabled);
+
   const [open, setOpen] = useState(false);
   const [domSettingsOpen, setDomSettingsOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const closeIndicatorMenu = useCallback(() => { setOpen(false); }, []);
-  useClickOutside(ref, open, closeIndicatorMenu);
+  // Focus search when popover opens; clear on close
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setQuery('');
+    }
+  }, [open]);
 
+  // Allow other parts of the app to open DOM settings directly
   useEffect(() => {
     const handler = () => setDomSettingsOpen(true);
     window.addEventListener('open-dom-settings', handler);
     return () => window.removeEventListener('open-dom-settings', handler);
   }, []);
 
+  // All indicators — easy to extend later
+  const ALL_INDICATORS = [
+    { id: 'market-depth',    label: 'Market Depth',      checked: domEnabled,    onChange: setDomEnabled,    color: domColor, hasSettings: true },
+    { id: 'bid-ask',         label: 'Bid/Ask Footprint',  checked: bidAskEnabled, onChange: setBidAskEnabled, color: null,     hasSettings: false },
+  ];
+
+  const filtered = query.trim()
+    ? ALL_INDICATORS.filter((ind) => ind.label.toLowerCase().includes(query.toLowerCase()))
+    : ALL_INDICATORS;
+
   return (
-    <div ref={ref} className="relative self-stretch flex items-center">
+    <div className="relative self-stretch flex items-center">
+      {/* Trigger */}
       <button
         onClick={() => setOpen((o) => !o)}
         className="h-full flex items-center gap-1 text-xs font-medium rounded text-(--color-text) hover:bg-(--color-border) transition-colors"
@@ -78,97 +97,70 @@ function IndicatorsDropdown() {
           <path d="M7 16l4-8 4 4 5-10" />
         </svg>
         Indicators
-        <ChevronDown />
       </button>
 
       {open && (
-        <Dropdown minWidth={220}>
-          <div style={{ padding: 6 }}>
-            {/* Market Depth row */}
+        <Popover title="Indicators" onClose={() => setOpen(false)} width={460}>
+          {/* Search input */}
+          <div style={{ padding: '12px 16px 8px' }}>
             <div
-              className="flex items-center hover:bg-(--color-hover-row) transition-colors rounded-lg"
-              style={{ padding: '8px 10px' }}
+              className="flex items-center gap-2 bg-(--color-input) border border-(--color-border) transition-colors focus-within:border-(--color-text-dim)"
+              style={{ padding: '8px 12px', borderRadius: RADIUS.XL }}
             >
-              {/* Checkbox */}
-              <button
-                onClick={() => setDomEnabled(!domEnabled)}
-                style={{
-                  width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
-                  border: domEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
-                  background: domEnabled ? 'var(--color-accent)' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                {domEnabled && (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
-                    <path d="M2 5l2.5 2.5L8 3" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Label */}
-              <span
-                className="flex-1 text-xs text-(--color-text) cursor-pointer select-none"
-                style={{ marginLeft: 10 }}
-                onClick={() => setDomEnabled(!domEnabled)}
-              >
-                Market Depth
-              </span>
-
-              {/* Color preview swatch */}
-              <div
-                style={{
-                  width: 12, height: 12, borderRadius: RADIUS.SM, flexShrink: 0,
-                  background: domColor, border: '1px solid var(--color-border)',
-                  marginRight: 8,
-                }}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search indicators..."
+                className="bg-transparent border-none text-sm text-(--color-text) flex-1 focus:outline-none placeholder-(--color-text-muted)"
               />
-
-              {/* Edit (pencil) button — opens settings modal */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setOpen(false); setDomSettingsOpen(true); }}
-                className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
-                title="Settings"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Bid/Ask Footprint row */}
-            <div
-              className="flex items-center hover:bg-(--color-hover-row) transition-colors rounded-lg"
-              style={{ padding: '8px 10px' }}
-            >
-              <button
-                onClick={() => setBidAskEnabled(!bidAskEnabled)}
-                style={{
-                  width: 14, height: 14, borderRadius: RADIUS.MD, flexShrink: 0,
-                  border: bidAskEnabled ? 'none' : '1.5px solid var(--color-text-muted)',
-                  background: bidAskEnabled ? 'var(--color-accent)' : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                {bidAskEnabled && (
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5">
-                    <path d="M2 5l2.5 2.5L8 3" />
-                  </svg>
-                )}
-              </button>
-              <span
-                className="flex-1 text-xs text-(--color-text) cursor-pointer select-none"
-                style={{ marginLeft: 10 }}
-                onClick={() => setBidAskEnabled(!bidAskEnabled)}
-              >
-                Bid/Ask Footprint
-              </span>
             </div>
           </div>
-        </Dropdown>
+
+          {/* Indicator list */}
+          <div className="overflow-y-auto" style={{ padding: '4px 8px 8px', minHeight: 80 }}>
+            {filtered.length === 0 && (
+              <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">No results</div>
+            )}
+            {filtered.map((ind) => (
+              <div
+                key={ind.id}
+                className="flex items-center hover:bg-(--color-hover-row) transition-colors rounded-lg"
+                style={{ padding: '10px 12px' }}
+              >
+                <Checkbox checked={ind.checked} onChange={ind.onChange} />
+                <span
+                  className="flex-1 text-sm text-(--color-text) cursor-pointer select-none"
+                  style={{ marginLeft: 10 }}
+                  onClick={() => ind.onChange(!ind.checked)}
+                >
+                  {ind.label}
+                </span>
+
+                {ind.color && (
+                  <div style={{ width: 12, height: 12, borderRadius: RADIUS.SM, flexShrink: 0, background: ind.color, border: '1px solid var(--color-border)', marginRight: 8 }} />
+                )}
+
+                {ind.hasSettings && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setOpen(false); setDomSettingsOpen(true); }}
+                    className="text-(--color-text-muted) hover:text-(--color-text) transition-colors"
+                    title="Settings"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </Popover>
       )}
 
       {domSettingsOpen && (
@@ -361,7 +353,7 @@ export function ChartToolbar() {
 
 
       {/* Indicators */}
-      <IndicatorsDropdown />
+      <IndicatorsPopover />
 
       {/* Strategy */}
       <StrategyButton />

@@ -32,7 +32,7 @@
     },
     {
       "name": "MarketDepthSettingsModal",
-      "keywords": ["market depth", "dom", "indicator", "settings", "modal", "row layout", "placement", "offset", "length"],
+      "keywords": ["market depth", "dom", "indicator", "settings", "modal", "row layout", "placement", "offset", "length", "indicators popover", "IndicatorsPopover"],
       "files": [
         "frontend/src/components/chart/toolbar/MarketDepthSettingsModal.tsx",
         "frontend/src/store/slices/layoutSlice.ts",
