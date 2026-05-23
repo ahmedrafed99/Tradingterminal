@@ -59,6 +59,12 @@ function IndicatorsDropdown() {
   const closeIndicatorMenu = useCallback(() => { setOpen(false); }, []);
   useClickOutside(ref, open, closeIndicatorMenu);
 
+  useEffect(() => {
+    const handler = () => setDomSettingsOpen(true);
+    window.addEventListener('open-dom-settings', handler);
+    return () => window.removeEventListener('open-dom-settings', handler);
+  }, []);
+
   return (
     <div ref={ref} className="relative self-stretch flex items-center">
       <button
