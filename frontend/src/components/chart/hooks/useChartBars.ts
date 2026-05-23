@@ -18,6 +18,7 @@ import type { ChartRefs } from './types';
 import type { BacktestConfig } from '../CandlestickChart';
 import { backtestService } from '../../../services/backtestService';
 import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec } from '../../../utils/marketHours';
+import { CROSSHAIR_CURSOR } from './drawingInteraction';
 
 /**
  * Handles historical bar loading, real-time quote subscription, and volume profile.
@@ -915,7 +916,7 @@ export function useChartBars(
         cancelAnimationFrame(rafId);
         rafId = 0;
         vp.setHoverPrice(null);
-        if (refs.container.current) refs.container.current.style.cursor = '';
+        if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
         return;
       }
       const x = param.point.x;
@@ -928,7 +929,7 @@ export function useChartBars(
           vp.setHoverPrice(price);
           if (refs.container.current) {
             const chartWidth = refs.container.current.clientWidth;
-            refs.container.current.style.cursor = vp.isHoveringBar(x, chartWidth) ? 'pointer' : '';
+            refs.container.current.style.cursor = vp.isHoveringBar(x, chartWidth) ? 'pointer' : CROSSHAIR_CURSOR;
           }
         });
       }
@@ -950,7 +951,7 @@ export function useChartBars(
       chart.unsubscribeCrosshairMove(onCrosshairMove);
       container?.removeEventListener('dblclick', onDblClick);
       vp.setHoverPrice(null);
-      if (refs.container.current) refs.container.current.style.cursor = '';
+      if (refs.container.current) refs.container.current.style.cursor = CROSSHAIR_CURSOR;
     };
   }, [domEnabled]);
 
