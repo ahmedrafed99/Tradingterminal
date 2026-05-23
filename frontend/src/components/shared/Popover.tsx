@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { RADIUS, Z } from '../../constants/layout';
 import { XIcon } from '../icons/XIcon';
 import { useDraggable } from '../../hooks/useDraggable';
@@ -12,10 +12,12 @@ export interface PopoverProps {
   width?: number;
   minHeight?: number;
   persistKey?: string;
+  /** Content rendered on the left side of the footer (e.g. a Reset button). */
+  footerLeft?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export function Popover({ title, onClose, onCancel, width = 440, minHeight, persistKey, children }: PopoverProps) {
+export function Popover({ title, onClose, onCancel, width = 440, minHeight, persistKey, footerLeft, children }: PopoverProps) {
   const rawSavedPos = useStore((s) => persistKey ? s.popoverPositions[persistKey] : undefined);
   const setPopoverPosition = useStore((s) => s.setPopoverPosition);
 
@@ -35,6 +37,12 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
     onDragEnd: persistKey ? onDragEnd : undefined,
   });
   useClickOutside(ref, true, onClose);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') (onCancel ?? onClose)(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel, onClose]);
 
   return (
     <div
@@ -72,25 +80,28 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
       <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
 
       {/* Footer */}
-      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
-        <button
-          onClick={onCancel ?? onClose}
-          className="text-(--color-text) rounded"
-          style={{ fontSize: 13, padding: '5px 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', transition: 'background var(--transition-fast)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-hover-toolbar)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface)')}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={onClose}
-          className="rounded"
-          style={{ fontSize: 13, padding: '5px 16px', background: 'var(--color-label-close)', color: 'var(--color-label-text)', border: 'none', cursor: 'pointer', transition: 'background var(--transition-fast)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-label-close-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-label-close)')}
-        >
-          Ok
-        </button>
+      <div style={{ padding: '8px 16px', display: 'flex', justifyContent: footerLeft ? 'space-between' : 'flex-end', alignItems: 'center', gap: 6 }}>
+        {footerLeft}
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={onCancel ?? onClose}
+            className="text-(--color-text) rounded"
+            style={{ fontSize: 13, padding: '5px 16px', background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer', transition: 'background var(--transition-fast)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-hover-toolbar)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface)')}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onClose}
+            className="rounded"
+            style={{ fontSize: 13, padding: '5px 16px', background: 'var(--color-label-close)', color: 'var(--color-label-text)', border: 'none', cursor: 'pointer', transition: 'background var(--transition-fast)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-label-close-hover)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-label-close)')}
+          >
+            Ok
+          </button>
+        </div>
       </div>
     </div>
   );

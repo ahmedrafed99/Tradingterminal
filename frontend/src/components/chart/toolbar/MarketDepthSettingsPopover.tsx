@@ -7,11 +7,11 @@ import { DropdownButton } from '../../shared/DropdownButton';
 import { SpinnerInput } from '../../SpinnerInput';
 import { Popover } from '../../shared/Popover';
 
-interface MarketDepthSettingsModalProps {
+interface MarketDepthSettingsPopoverProps {
   onClose: () => void;
 }
 
-export function MarketDepthSettingsModal({ onClose }: MarketDepthSettingsModalProps) {
+export function MarketDepthSettingsPopover({ onClose }: MarketDepthSettingsPopoverProps) {
   const isLeft = useStore((s) => s.selectedChart === 'left');
 
   // Read current values

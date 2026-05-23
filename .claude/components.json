@@ -31,10 +31,10 @@
       ]
     },
     {
-      "name": "MarketDepthSettingsModal",
-      "keywords": ["market depth", "dom", "indicator", "settings", "modal", "row layout", "placement", "offset", "length", "indicators popover", "IndicatorsPopover"],
+      "name": "MarketDepthSettingsPopover",
+      "keywords": ["market depth", "dom", "indicator", "settings", "popover", "row layout", "placement", "offset", "length", "indicators popover", "IndicatorsPopover"],
       "files": [
-        "frontend/src/components/chart/toolbar/MarketDepthSettingsModal.tsx",
+        "frontend/src/components/chart/toolbar/MarketDepthSettingsPopover.tsx",
         "frontend/src/store/slices/layoutSlice.ts",
         "frontend/src/components/chart/MarketDepthPrimitive.ts",
         "frontend/src/components/chart/hooks/useChartBars.ts",
@@ -139,10 +139,10 @@
       ]
     },
     {
-      "name": "ChartSettingsModal",
-      "keywords": ["chart settings", "settings modal", "bars", "canvas", "trading", "events", "draggable", "modal"],
+      "name": "ChartSettingsPopover",
+      "keywords": ["chart settings", "settings popover", "bars", "canvas", "trading", "events", "draggable", "popover"],
       "files": [
-        "frontend/src/components/chart/ChartSettingsModal.tsx",
+        "frontend/src/components/chart/ChartSettingsPopover.tsx",
         "frontend/src/components/chart/ChartSettingsButton.tsx",
         "frontend/src/store/slices/chartSettingsSlice.ts"
       ],
@@ -153,10 +153,8 @@
         "CustomSelect"
       ],
       "events": [
-        { "event": "mousedown", "element": "title bar", "purpose": "start modal drag; sets document.body cursor to 'grabbing'" },
-        { "event": "mousemove (window)", "element": "window", "purpose": "track modal position during drag" },
-        { "event": "mouseup (window)", "element": "window", "purpose": "end drag; restore document.body cursor" },
-        { "event": "keydown (window)", "element": "window", "purpose": "Escape triggers cancel (restores snapshot)" },
+        { "event": "mousedown (header)", "element": "Popover header", "purpose": "drag via useDraggable (Popover handles it)" },
+        { "event": "keydown (window)", "element": "window", "purpose": "Escape triggers onCancel — restores snapshot (Popover handles it)" },
         { "event": "click", "element": "sidebar category buttons", "purpose": "switch active settings category" },
         { "event": "click", "element": "Checkbox / Toggle controls", "purpose": "toggle individual chart settings" },
         { "event": "click", "element": "ColorSwatchButton", "purpose": "open color picker for color settings" }
@@ -183,7 +181,7 @@
       "name": "StrategyLab",
       "keywords": ["backtest", "strategy", "equity curve", "strategy lab", "script", "tick data", "OHLCV", "trade log", "win rate", "symbol", "exchange"],
       "files": [
-        "frontend/src/components/backtest/StrategyLabModal.tsx",
+        "frontend/src/components/backtest/StrategyLabView.tsx",
         "frontend/src/components/backtest/DateRangePicker.tsx",
         "frontend/src/components/backtest/BacktestTradesTable.tsx",
         "frontend/src/components/backtest/EquityCurveChart.tsx",

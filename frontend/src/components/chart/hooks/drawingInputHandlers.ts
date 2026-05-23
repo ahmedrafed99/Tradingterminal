@@ -478,6 +478,17 @@ export function onHandleHover(e: MouseEvent, ctx: DrawingContext): void {
 
     if (overLabel) return;
 
+    // Market depth bar hover → pointer (checked here so it doesn't conflict with drawing cursor)
+    const domPrimitive = refs.domPrimitive.current;
+    if (domPrimitive && domPrimitive.isEnabled()) {
+      const containerRect2 = container.getBoundingClientRect();
+      const localX2 = mx - containerRect2.left;
+      if (domPrimitive.isHoveringBar(localX2, container.clientWidth)) {
+        setCursor(container, 'pointer');
+        return;
+      }
+    }
+
     // Default: crosshair
     setCursor(container, CROSSHAIR_CURSOR);
   });

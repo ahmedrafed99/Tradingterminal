@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useStore } from '../../store/useStore';
 import { CHART_SETTINGS_DEFAULTS } from '../../store/slices/chartSettingsSlice';
 import { ColorSwatchButton } from './ColorPopover';
 import { CustomSelect } from '../shared/CustomSelect';
+import { Button } from '../shared/Button';
+import { Popover } from '../shared/Popover';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 import { Checkbox } from '../shared/Checkbox';
 
@@ -97,19 +99,12 @@ function ColorRow({
 }
 
 // ---------------------------------------------------------------------------
-// Main Modal
+// Main Popover
 // ---------------------------------------------------------------------------
-export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
+export function ChartSettingsPopover({ onClose }: { onClose: () => void }) {
   const [category, setCategory] = useState<Category>('bars');
   const chartSettings = useStore((s) => s.chartSettings);
   const setChartSettings = useStore((s) => s.setChartSettings);
-
-  const [pos, setPos] = useState<{ x: number; y: number }>(() => ({
-    x: Math.round(window.innerWidth / 2 - 260),
-    y: Math.round(window.innerHeight / 2 - 200),
-  }));
-  const dragging = useRef(false);
-  const dragOffset = useRef({ x: 0, y: 0 });
 
   // Snapshot on open for Cancel
   const snapshotRef = useRef({ ...chartSettings });
@@ -119,41 +114,9 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
     onClose();
   }, [setChartSettings, onClose]);
 
-  const handleOk = useCallback(() => {
-    onClose();
-  }, [onClose]);
-
   const handleReset = useCallback(() => {
     setChartSettings({ ...CHART_SETTINGS_DEFAULTS });
   }, [setChartSettings]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') handleCancel(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [handleCancel]);
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      setPos({ x: e.clientX - dragOffset.current.x, y: e.clientY - dragOffset.current.y });
-    };
-    const onUp = () => { dragging.current = false; document.body.style.cursor = ''; document.body.style.userSelect = ''; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, []);
-
-  const handleTitleMouseDown = (e: React.MouseEvent) => {
-    dragging.current = true;
-    dragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
-    document.body.style.cursor = 'grabbing';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  };
 
   const categories: { id: Category; label: string; icon: React.ReactNode }[] = [
     { id: 'bars', label: 'Bars', icon: <BarsIcon /> },
@@ -163,77 +126,44 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        left: pos.x,
-        top: pos.y,
-        zIndex: Z.MODAL,
-        width: 520,
-        maxHeight: '80vh',
-        fontFamily: FONT_FAMILY,
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: RADIUS.LG,
-        boxShadow: SHADOW.LG,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Title bar — drag handle */}
-      <div
-        onMouseDown={handleTitleMouseDown}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 20px', borderBottom: '1px solid var(--color-border)',
-          cursor: 'grab', userSelect: 'none', flexShrink: 0,
-        }}
-      >
-        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-bright)' }}>Settings</span>
-        <button
-          onClick={handleCancel}
-          onMouseDown={(e) => e.stopPropagation()}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 24, height: 24, borderRadius: RADIUS.MD,
-            background: 'transparent', border: 'none',
-            color: 'var(--color-text-muted)', cursor: 'pointer',
-            transition: 'background var(--transition-fast), color var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-hover-row)'; e.currentTarget.style.color = 'var(--color-text)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+    <Popover
+      title="Settings"
+      onClose={onClose}
+      onCancel={handleCancel}
+      width={520}
+      persistKey="popover-chart-settings"
+      footerLeft={
+        <Button
+          variant="ghost"
+          style={{ border: 'none', fontSize: 12 }}
+          onClick={handleReset}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
+          Reset defaults
+        </Button>
+      }
+    >
       {/* Body: sidebar + content */}
       <div style={{ display: 'flex', flex: 1, minHeight: 380 }}>
         {/* Sidebar */}
         <div style={{ width: 160, borderRight: '1px solid var(--color-border)', padding: '8px 0', flexShrink: 0 }}>
           {categories.map((cat) => (
-            <button
+            <Button
               key={cat.id}
-              onClick={() => setCategory(cat.id)}
+              variant="ghost"
+              fullWidth
+              className="justify-start rounded-none gap-2.5 hover:bg-(--color-hover-row)"
               style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                width: '100%', padding: '10px 18px',
-                background: category === cat.id ? 'var(--color-border)' : 'transparent',
                 border: 'none',
-                color: category === cat.id ? 'var(--color-text-bright)' : 'var(--color-text-muted)',
-                fontSize: 14, fontFamily: FONT_FAMILY, cursor: 'pointer',
-                transition: 'background var(--transition-fast), color var(--transition-fast)',
-                textAlign: 'left',
+                padding: '10px 18px',
+                fontSize: 14,
+                background: category === cat.id ? 'var(--color-border)' : undefined,
+                color: category === cat.id ? 'var(--color-text-bright)' : undefined,
               }}
-              onMouseEnter={(e) => { if (category !== cat.id) e.currentTarget.style.color = 'var(--color-text)'; }}
-              onMouseLeave={(e) => { if (category !== cat.id) e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+              onClick={() => setCategory(cat.id)}
             >
               {cat.icon}
               {cat.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -245,54 +175,7 @@ export function ChartSettingsModal({ onClose }: { onClose: () => void }) {
           {category === 'events' && <EventsPanel />}
         </div>
       </div>
-
-      {/* Footer */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--color-border)', flexShrink: 0 }}>
-        <button
-          onClick={handleReset}
-          style={{
-            background: 'transparent', border: 'none',
-            color: 'var(--color-text-muted)', fontSize: 12,
-            fontFamily: FONT_FAMILY, cursor: 'pointer',
-            transition: 'color var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
-        >
-          Reset defaults
-        </button>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={handleCancel}
-            style={{
-              background: 'transparent', border: 'none',
-              color: 'var(--color-text-muted)', fontSize: 13,
-              fontFamily: FONT_FAMILY, cursor: 'pointer',
-              padding: '6px 16px', borderRadius: RADIUS.LG,
-              transition: 'color var(--transition-fast)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text-bright)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleOk}
-            style={{
-              background: 'var(--color-label-close)', border: 'none',
-              color: 'var(--color-label-text)', fontSize: 13,
-              fontFamily: FONT_FAMILY, cursor: 'pointer',
-              padding: '6px 20px', borderRadius: RADIUS.LG,
-              fontWeight: 500, transition: 'background var(--transition-fast)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-label-close-hover)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-label-close)'; }}
-          >
-            Ok
-          </button>
-        </div>
-      </div>
-    </div>
+    </Popover>
   );
 }
 
@@ -347,7 +230,7 @@ function BarsPanel({ settings, onChange }: { settings: Settings; onChange: OnCha
 }
 
 // ---------------------------------------------------------------------------
-// Canvas Panel
+// Trading Panel
 // ---------------------------------------------------------------------------
 function TradingPanel({ settings, onChange }: { settings: Settings; onChange: OnChange }) {
   return (
@@ -371,7 +254,6 @@ function TradingPanel({ settings, onChange }: { settings: Settings; onChange: On
       >
         Extend the trade zone rectangle to the right edge of the chart
       </div>
-
     </>
   );
 }
@@ -462,16 +344,13 @@ function EventsPanel() {
         <div ref={dropdownRef} style={{ position: 'relative', flex: 1 }}>
           <button
             onClick={() => setDropdownOpen((v) => !v)}
-            className="focus:outline-none focus:ring-0"
+            className="focus:outline-none focus:ring-0 hover:border-(--color-text-dim) transition-colors"
             style={{
               width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: 'var(--color-surface)', color: 'var(--color-text)',
               border: '1px solid var(--color-border)', borderRadius: RADIUS.XL,
               padding: '4px 10px', fontSize: 13, cursor: 'pointer', fontFamily: FONT_FAMILY,
-              transition: 'border-color var(--transition-fast)',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-text-dim)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
           >
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dropdownSummary}</span>
             <svg width="8" height="5" viewBox="0 0 8 5" fill="currentColor" style={{ opacity: 0.5, flexShrink: 0, marginLeft: 6, transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform var(--transition-fast)' }}>
@@ -491,10 +370,9 @@ function EventsPanel() {
               {IMPACT_LEVELS.map(({ key, label }) => (
                 <div
                   key={key}
+                  className="hover:bg-(--color-hover-row)"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', cursor: 'pointer', borderRadius: RADIUS.MD }}
                   onClick={() => toggle(key)}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 >
                   <span style={checkboxStyle(newsImpactFilter[key])}>
                     {newsImpactFilter[key] && (
@@ -514,6 +392,9 @@ function EventsPanel() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Canvas Panel
+// ---------------------------------------------------------------------------
 function CanvasPanel({ settings, onChange }: { settings: Settings; onChange: OnChange }) {
   return (
     <>

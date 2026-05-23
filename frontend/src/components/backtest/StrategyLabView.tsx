@@ -85,7 +85,7 @@ function MetricTile({ label, value, sub, valueColor, subColor }: {
   );
 }
 
-export function StrategyLabModal() {
+export function StrategyLabView() {
   const open                = useStore((s) => s.backtestOpen);
   const setOpen             = useStore((s) => s.setBacktestOpen);
   const exchange            = useStore((s) => s.backtestExchange);

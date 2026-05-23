@@ -61,7 +61,7 @@ export function Modal({
     <div
       ref={backdropRef}
       className={`fixed inset-0 flex items-center justify-center bg-black/60 ${backdropClassName}`}
-      style={{ zIndex: Z.DROPDOWN, ...backdropStyle }}
+      style={{ zIndex: Z.MODAL, ...backdropStyle }}
       onMouseDown={(e) => {
         if (e.target === backdropRef.current) onClose();
       }}

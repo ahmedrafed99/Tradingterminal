@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { IChartApi } from 'lightweight-charts';
-import { ChartSettingsModal } from './ChartSettingsModal';
+import { ChartSettingsPopover } from './ChartSettingsPopover';
 import { useStore } from '../../store/useStore';
 import { CHART_ICON_SIZE, FONT_FAMILY, FONT_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
 
@@ -344,7 +344,7 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
         </div>
       )}
 
-      {modalOpen && <ChartSettingsModal onClose={() => setModalOpen(false)} />}
+      {modalOpen && <ChartSettingsPopover onClose={() => setModalOpen(false)} />}
 
       <style>{`
         @keyframes chartSettingsFadeIn {
