@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useClickOutside } from '../../../hooks/useClickOutside';
-import { Z } from '../../../constants/layout';
+import { Dropdown } from '../../shared/Dropdown';
 import type { LineStyle } from '../../../types/drawing';
 import { STROKE_WIDTH_OPTIONS } from '../../../types/drawing';
 import { LINE_STYLE_DEFS } from './lineStyleDefs';
@@ -20,10 +20,9 @@ export function StrokePopover({
   useClickOutside(ref, true, onClose);
 
   return (
-    <div
+    <Dropdown
       ref={ref}
-      className="absolute top-full left-1/2 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, transform: 'translateX(-50%)', padding: '4px 5px', width: 140 }}
+      style={{ left: '50%', transform: 'translateX(-50%)', padding: '4px 5px', width: 140 }}
       onClick={(e) => e.stopPropagation()}
     >
       {STROKE_WIDTH_OPTIONS.map((w) => {
@@ -38,7 +37,7 @@ export function StrokePopover({
             <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
               <line x1="0" y1="5" x2="50" y2="5" stroke="currentColor" strokeWidth={w} />
             </svg>
-            <span style={{ fontSize: 13, flexShrink: 0, width: 42, textAlign: 'center' }}>{w}px</span>
+            <span style={{ flexShrink: 0, width: 42, textAlign: 'center' }}>{w}px</span>
           </button>
         );
       })}
@@ -63,10 +62,10 @@ export function StrokePopover({
                 strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap'] ?? 'butt'}
               />
             </svg>
-            <span style={{ fontSize: 13, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
+            <span style={{ flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
           </button>
         );
       })}
-    </div>
+    </Dropdown>
   );
 }
