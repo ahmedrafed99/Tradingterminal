@@ -52,8 +52,8 @@ export interface DrawingsState {
   magnetEnabled: boolean;
   magnetHeld: boolean;
   lastBarTime: number | null;
-  frvpSettingsOpen: boolean;
-  setFrvpSettingsOpen: (v: boolean) => void;
+  pendingDrawingSettingsOpen: boolean;
+  setPendingDrawingSettingsOpen: (v: boolean) => void;
   setLastBarTime: (t: number | null) => void;
   setMagnetHeld: (held: boolean) => void;
   setActiveTool: (tool: DrawingTool) => void;
@@ -105,8 +105,8 @@ export const createDrawingsSlice = (set: Set): DrawingsSlice => ({
   magnetEnabled: false,
   magnetHeld: false,
   lastBarTime: null,
-  frvpSettingsOpen: false,
-  setFrvpSettingsOpen: (frvpSettingsOpen) => set({ frvpSettingsOpen }),
+  pendingDrawingSettingsOpen: false,
+  setPendingDrawingSettingsOpen: (pendingDrawingSettingsOpen) => set({ pendingDrawingSettingsOpen }),
   setLastBarTime: (lastBarTime) => set({ lastBarTime }),
   setMagnetHeld: (magnetHeld) => set({ magnetHeld }),
   setActiveTool: (activeTool) => set({ activeTool, selectedDrawingIds: [] }),

@@ -98,8 +98,8 @@ function DrawingEditToolbarInner({
   const [showFrvpSettings, setShowFrvpSettings] = useState(false);
   const [showFibSettings, setShowFibSettings] = useState(false);
 
-  const frvpSettingsOpen = useStore((s) => s.frvpSettingsOpen);
-  const setFrvpSettingsOpen = useStore((s) => s.setFrvpSettingsOpen);
+  const pendingDrawingSettingsOpen = useStore((s) => s.pendingDrawingSettingsOpen);
+  const setPendingDrawingSettingsOpen = useStore((s) => s.setPendingDrawingSettingsOpen);
 
   const savedPos = useStore((s) => s.popoverPositions['toolbar-drawing-edit']);
   const setPopoverPosition = useStore((s) => s.setPopoverPosition);
@@ -140,11 +140,16 @@ function DrawingEditToolbarInner({
   const multiDrawings = isMulti ? drawings.filter((item) => selectedIds.includes(item.id) && item.contractId === contractId) : [];
 
   useEffect(() => {
-    if (frvpSettingsOpen && drawing?.type === 'frvp') {
+    if (!pendingDrawingSettingsOpen) return;
+    setPendingDrawingSettingsOpen(false);
+    if (drawing?.type === 'frvp') {
       setShowFrvpSettings(true);
-      setFrvpSettingsOpen(false);
+    } else if (drawing?.type === 'fib') {
+      setShowFibSettings(true);
+    } else if (drawing?.type === 'rect') {
+      setShowRectSettings(true);
     }
-  }, [frvpSettingsOpen, drawing?.type, setFrvpSettingsOpen]);
+  }, [pendingDrawingSettingsOpen, drawing?.type, setPendingDrawingSettingsOpen]);
 
   const closeAll = useCallback(() => {
     setShowColor(false);

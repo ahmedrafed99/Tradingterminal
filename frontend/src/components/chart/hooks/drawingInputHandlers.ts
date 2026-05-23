@@ -169,12 +169,12 @@ export function onDblClick(e: MouseEvent, ctx: DrawingContext): void {
   const { state, chart, primitive, contract } = ctx;
 
   if (!state.arrowPathCreation) {
-    const { activeTool, selectedDrawingIds, drawings, setFrvpSettingsOpen } = useStore.getState();
+    const { activeTool, selectedDrawingIds, drawings, setPendingDrawingSettingsOpen } = useStore.getState();
     if (activeTool === 'select' && selectedDrawingIds.length === 1) {
       const sel = drawings.find((d) => d.id === selectedDrawingIds[0]);
-      if (sel?.type === 'frvp') {
+      if (sel?.type === 'frvp' || sel?.type === 'fib' || sel?.type === 'rect') {
         e.stopPropagation();
-        setFrvpSettingsOpen(true);
+        setPendingDrawingSettingsOpen(true);
       }
     }
     return;
