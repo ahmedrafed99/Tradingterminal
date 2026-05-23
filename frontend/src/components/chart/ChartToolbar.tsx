@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useRef, useEffect, useCallback } from 'react';
-import { StrategyLabModal } from '../backtest/StrategyLabModal';
+import { StrategyLabView } from '../backtest/StrategyLabView';
 import { useStore } from '../../store/useStore';
 import { TimeframePicker } from '../shared/TimeframePicker';
 import { Checkbox } from '../shared/Checkbox';
@@ -13,7 +13,7 @@ import { paintOverlays } from './screenshot/paintOverlays';
 import { useRecording } from './recording/useRecording';
 import { RecordingIndicator } from './recording/RecordingIndicator';
 import { CHART_ICON_SIZE, RADIUS, SHADOW, Z } from '../../constants/layout';
-import { MarketDepthSettingsModal } from './toolbar/MarketDepthSettingsModal';
+import { MarketDepthSettingsPopover } from './toolbar/MarketDepthSettingsPopover';
 
 const SnapshotPreview = lazy(() => import('./screenshot/SnapshotPreview').then(m => ({ default: m.SnapshotPreview })));
 
@@ -164,7 +164,7 @@ function IndicatorsPopover() {
       )}
 
       {domSettingsOpen && (
-        <MarketDepthSettingsModal onClose={() => setDomSettingsOpen(false)} />
+        <MarketDepthSettingsPopover onClose={() => setDomSettingsOpen(false)} />
       )}
     </div>
   );
@@ -459,20 +459,8 @@ export function ChartToolbar() {
 
       </div>{/* end right icon group */}
 
-      {/* NY clock + market status */}
-      <div className="flex items-center gap-1.5" style={{ marginRight: '8px' }}>
-        {!is24h && (
-          <span
-            title={marketOpen ? 'Market open' : 'Market closed'}
-            style={{
-              display: 'inline-block',
-              width: 6, height: 6,
-              borderRadius: RADIUS.CIRCLE,
-              background: marketOpen ? 'var(--color-buy)' : 'var(--color-sell)',
-              flexShrink: 0,
-            }}
-          />
-        )}
+      {/* NY clock */}
+      <div className="flex items-center" style={{ marginRight: '8px' }}>
         <span className="text-xs text-(--color-text)" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {nyClock}
         </span>
@@ -486,7 +474,7 @@ export function ChartToolbar() {
           />
         </Suspense>
       )}
-      <StrategyLabModal />
+      <StrategyLabView />
     </div>
   );
 }
