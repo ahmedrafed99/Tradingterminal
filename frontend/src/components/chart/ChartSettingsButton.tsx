@@ -182,6 +182,13 @@ export function ChartSettingsButton({ chartRef, containerRef }: Props) {
     return () => cancelAnimationFrame(id);
   }, [chartRef]);
 
+  // Double-click on any candle opens the settings modal directly
+  useEffect(() => {
+    const handler = () => setModalOpen(true);
+    window.addEventListener('open-chart-settings', handler);
+    return () => window.removeEventListener('open-chart-settings', handler);
+  }, []);
+
   if (!rect) return null;
 
   return (

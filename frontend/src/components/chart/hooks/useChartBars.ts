@@ -37,6 +37,9 @@ export function useChartBars(
   // Accumulated trade volume map for anchor-mode FRVP drawings (price → contracts traded)
   const tradeAnchorMapRef = useRef(new Map<number, number>());
   const prevContractIdRef = useRef<string | null>(null);
+  // Tracks which contract the depth primitive currently holds data for.
+  // Used to distinguish a contract switch (must clear) from a reconnect (keep stale data).
+  const domContractIdRef = useRef<string | null>(null);
 
   // Tick bar live state: how many more ticks until the current bar closes.
   // Initialised from the partial bar's tv field on load; decremented by handleMarketTick.
@@ -793,14 +796,34 @@ export function useChartBars(
     if (backtestConfig) return;
     const vp = refs.domPrimitive.current;
     if (!vp || !connected || !contract) {
-      refs.domPrimitive.current?.clear();
+      // Don't clear — stale depth data persists while disconnected so bars
+      // don't vanish during a backend restart. The Reset entry on reconnect
+      // will wipe and refill the map with fresh data.
       return;
     }
 
     const contractId = contract.id;
     const tickSize = contract.tickSize;
     vp.setTickSize(tickSize);
-    vp.clear();
+
+    // Clear only when the contract actually changes, not on mere reconnects.
+    // On first load or contract switch: restore persisted depth from localStorage
+    // so bars appear immediately even before the gateway sends its first update.
+    if (domContractIdRef.current !== contractId) {
+      const storageKey = `dom-depth-${contractId}`;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const entries: [number, number][] = JSON.parse(saved);
+          vp.setVolumeMap(new Map(entries));
+        } catch {
+          vp.clear();
+        }
+      } else {
+        vp.clear();
+      }
+      domContractIdRef.current = contractId;
+    }
 
     function handleDepth(depthContractId: string, entries: DepthEntry[]) {
       if (depthContractId !== contractId || !vp) return;
@@ -816,13 +839,24 @@ export function useChartBars(
       }
     }
 
+    // Save depth map to localStorage so it survives page refresh and backend restarts.
+    function saveDepth() {
+      const map = vp.getVolumeMap();
+      if (map.size > 0) {
+        localStorage.setItem(`dom-depth-${contractId}`, JSON.stringify([...map.entries()]));
+      }
+    }
+    window.addEventListener('beforeunload', saveDepth);
+
     realtimeService.onDepth(handleDepth);
     realtimeService.subscribeDepth(contractId);
 
     return () => {
       realtimeService.offDepth(handleDepth);
       realtimeService.unsubscribeDepth(contractId);
-      vp.clear();
+      window.removeEventListener('beforeunload', saveDepth);
+      // Save on disconnect too (backend restart case — no page unload fires).
+      saveDepth();
     };
   }, [connected, contract]);
 
@@ -873,6 +907,7 @@ export function useChartBars(
     if (!chart || !vp || !domEnabled) return;
 
     let rafId = 0;
+    let lastMouseX = 0;
 
     function onCrosshairMove(param: import('lightweight-charts').MouseEventParams) {
       if (!vp) return;
@@ -885,6 +920,7 @@ export function useChartBars(
       }
       const x = param.point.x;
       const y = param.point.y;
+      lastMouseX = x;
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           rafId = 0;
@@ -898,14 +934,51 @@ export function useChartBars(
       }
     }
 
+    function onDblClick() {
+      if (!vp || !refs.container.current) return;
+      const chartWidth = refs.container.current.clientWidth;
+      if (vp.isHoveringBar(lastMouseX, chartWidth)) {
+        window.dispatchEvent(new CustomEvent('open-dom-settings'));
+      }
+    }
+
+    const container = refs.container.current;
     chart.subscribeCrosshairMove(onCrosshairMove);
+    container?.addEventListener('dblclick', onDblClick);
     return () => {
       cancelAnimationFrame(rafId);
       chart.unsubscribeCrosshairMove(onCrosshairMove);
+      container?.removeEventListener('dblclick', onDblClick);
       vp.setHoverPrice(null);
       if (refs.container.current) refs.container.current.style.cursor = '';
     };
   }, [domEnabled]);
+
+  // -- Candlestick double-click: open chart settings popover --
+  useEffect(() => {
+    const container = refs.container.current;
+    if (!container) return;
+
+    function onDblClick(e: MouseEvent) {
+      const chart = refs.chart.current;
+      if (!chart) return;
+
+      // If hovering a market depth bar, let that handler take priority
+      const vp = refs.domPrimitive.current;
+      if (vp && vp.isHoveringBar(e.offsetX, container.clientWidth)) return;
+
+      // Skip clicks on the price scale (right side)
+      let priceScaleWidth = 56;
+      try { priceScaleWidth = chart.priceScale('right').width(); } catch { /* noop */ }
+      if (e.offsetX >= container.clientWidth - priceScaleWidth) return;
+
+      window.dispatchEvent(new CustomEvent('open-chart-settings'));
+    }
+
+    container.addEventListener('dblclick', onDblClick);
+    return () => container.removeEventListener('dblclick', onDblClick);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return { loading, error };
 }
