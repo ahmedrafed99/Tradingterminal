@@ -102,7 +102,7 @@ function LevelRow({ level, masterColor, onToggle, onColorChange, onRatioChange }
           border: '1px solid var(--color-border)',
           borderRadius: 6,
           color: 'var(--color-text)',
-          fontSize: 12,
+          fontSize: 13,
           padding: '0 6px',
           height: 26,
           outline: 'none',

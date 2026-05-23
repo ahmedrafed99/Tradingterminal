@@ -86,7 +86,7 @@ export function OpacitySlider({
   return (
     <div style={{ marginTop: 8 }}>
       <div className="flex items-center" style={{ gap: 8 }}>
-        <span style={{ color: 'var(--color-text-muted)', fontSize: 11, flexShrink: 0, width: 44 }}>
+        <span style={{ color: 'var(--color-text-muted)', fontSize: 13, flexShrink: 0, width: 44 }}>
           Opacity
         </span>
         {/* Track */}

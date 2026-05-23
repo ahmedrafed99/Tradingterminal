@@ -111,7 +111,7 @@ export function TemplatePopover({
             width: 16, height: t.strokeWidth, background: t.color,
             borderRadius: t.strokeWidth / 2, flexShrink: 0,
           }} />
-          <span className="text-(--color-text) text-xs truncate" style={{ flex: 1 }}>{t.name}</span>
+          <span className="text-(--color-text) text-[13px] truncate" style={{ flex: 1 }}>{t.name}</span>
           <button
             onClick={(e) => { e.stopPropagation(); removeTemplate(t.id); }}
             className="text-(--color-text-muted) hover:text-(--color-error) opacity-0 group-hover:opacity-100 transition-colors"
@@ -143,7 +143,7 @@ export function TemplatePopover({
               }}
               onFocus={() => setShowSuggestions(true)}
               placeholder="Template name"
-              className="bg-(--color-bg) text-white text-xs rounded outline-none"
+              className="bg-(--color-bg) text-white text-[13px] rounded outline-none"
               style={{
                 flex: 1, minWidth: 0, padding: '4px 8px',
                 border: '1px solid var(--color-border)',
@@ -151,7 +151,7 @@ export function TemplatePopover({
             />
             <button
               onClick={handleSave}
-              className="text-xs rounded"
+              className="text-[13px] rounded"
               style={{ padding: '4px 10px', border: 'none', cursor: 'pointer', flexShrink: 0, background: 'var(--color-label-close)', color: 'var(--color-label-text)', transition: 'background var(--transition-fast)' }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-label-close-hover)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-label-close)')}
@@ -168,7 +168,7 @@ export function TemplatePopover({
                 <button
                   key={t.id}
                   onClick={() => { setName(t.name); setShowSuggestions(false); nameRef.current?.focus(); }}
-                  className="flex items-center gap-2 w-full text-left text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) transition-colors"
+                  className="flex items-center gap-2 w-full text-left text-[13px] text-(--color-text) bg-transparent hover:bg-(--color-hover-row) transition-colors"
                   style={{ padding: '5px 8px', border: 'none', cursor: 'pointer', borderRadius: RADIUS.LG }}
                 >
                   <div style={{
@@ -185,7 +185,7 @@ export function TemplatePopover({
       ) : (
         <button
           onClick={() => setSaving(true)}
-          className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs bg-transparent hover:bg-(--color-hover-row) transition-colors"
+          className="flex items-center gap-2 w-full text-left text-(--color-text) text-[13px] bg-transparent hover:bg-(--color-hover-row) transition-colors"
           style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: RADIUS.LG }}
         >
           Save as...
@@ -195,7 +195,7 @@ export function TemplatePopover({
       {/* Apply defaults */}
       <button
         onClick={handleApplyDefaults}
-        className="flex items-center gap-2 w-full text-left text-(--color-text) text-xs bg-transparent hover:bg-(--color-hover-row) transition-colors"
+        className="flex items-center gap-2 w-full text-left text-(--color-text) text-[13px] bg-transparent hover:bg-(--color-hover-row) transition-colors"
         style={{ padding: '6px 10px', border: 'none', cursor: 'pointer', borderRadius: RADIUS.LG }}
       >
         Apply defaults
@@ -208,7 +208,7 @@ export function TemplatePopover({
         <button
           onClick={handleExport}
           disabled={templates.length === 0}
-          className="flex items-center justify-center gap-1.5 text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) rounded transition-colors"
+          className="flex items-center justify-center gap-1.5 text-[13px] text-(--color-text) bg-transparent hover:bg-(--color-hover-row) rounded transition-colors"
           style={{
             flex: 1, padding: '4px 0', border: 'none', cursor: 'pointer',
             opacity: templates.length === 0 ? 0.4 : 1,
@@ -223,7 +223,7 @@ export function TemplatePopover({
         </button>
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex items-center justify-center gap-1.5 text-xs text-(--color-text) bg-transparent hover:bg-(--color-hover-row) rounded transition-colors"
+          className="flex items-center justify-center gap-1.5 text-[13px] text-(--color-text) bg-transparent hover:bg-(--color-hover-row) rounded transition-colors"
           style={{ flex: 1, padding: '4px 0', border: 'none', cursor: 'pointer' }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

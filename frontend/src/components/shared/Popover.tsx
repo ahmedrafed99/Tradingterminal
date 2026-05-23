@@ -41,7 +41,7 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
       ref={ref}
       data-ignore-click-outside=""
       className="fixed bg-(--color-surface) border border-(--color-border) rounded-xl shadow-lg"
-      style={{ zIndex: Z.DROPDOWN, width, minHeight, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', ...dragStyle }}
+      style={{ zIndex: Z.DROPDOWN, width, minHeight, top: '50%', left: '50%', transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', fontSize: 13, ...dragStyle }}
       onClick={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.stopPropagation()}
     >

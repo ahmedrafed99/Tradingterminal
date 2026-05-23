@@ -38,7 +38,7 @@ export function StrokePopover({
             <svg width="50" height="10" viewBox="0 0 50 10" preserveAspectRatio="none" shapeRendering="crispEdges" style={{ flex: 1 }}>
               <line x1="0" y1="5" x2="50" y2="5" stroke="currentColor" strokeWidth={w} />
             </svg>
-            <span style={{ fontSize: 11, flexShrink: 0, width: 42, textAlign: 'center' }}>{w}px</span>
+            <span style={{ fontSize: 13, flexShrink: 0, width: 42, textAlign: 'center' }}>{w}px</span>
           </button>
         );
       })}
@@ -63,7 +63,7 @@ export function StrokePopover({
                 strokeLinecap={linecap as React.SVGAttributes<SVGLineElement>['strokeLinecap'] ?? 'butt'}
               />
             </svg>
-            <span style={{ fontSize: 11, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
+            <span style={{ fontSize: 13, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
           </button>
         );
       })}

@@ -116,7 +116,7 @@ function IndicatorsPopover() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search indicators..."
-                className="bg-transparent border-none text-sm text-(--color-text) flex-1 focus:outline-none placeholder-(--color-text-muted)"
+                className="bg-transparent border-none text-[13px] text-(--color-text) flex-1 focus:outline-none placeholder-(--color-text-muted)"
               />
             </div>
           </div>
@@ -124,7 +124,7 @@ function IndicatorsPopover() {
           {/* Indicator list */}
           <div className="overflow-y-auto" style={{ padding: '4px 8px 8px', minHeight: 80 }}>
             {filtered.length === 0 && (
-              <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">No results</div>
+              <div className="px-3 py-6 text-[13px] text-(--color-text-muted) text-center">No results</div>
             )}
             {filtered.map((ind) => (
               <div
@@ -134,7 +134,7 @@ function IndicatorsPopover() {
               >
                 <Checkbox checked={ind.checked} onChange={ind.onChange} />
                 <span
-                  className="flex-1 text-sm text-(--color-text) cursor-pointer select-none"
+                  className="flex-1 text-[13px] text-(--color-text) cursor-pointer select-none"
                   style={{ marginLeft: 10 }}
                   onClick={() => ind.onChange(!ind.checked)}
                 >

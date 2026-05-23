@@ -191,7 +191,7 @@ export function RectSettingsPopover({
                           strokeLinecap={(linecap ?? 'butt') as React.SVGAttributes<SVGLineElement>['strokeLinecap']}
                         />
                       </svg>
-                      <span style={{ fontSize: 12, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
+                      <span style={{ fontSize: 13, flexShrink: 0, width: 42, textAlign: 'center' }}>{label}</span>
                     </button>
                   );
                 })}
