@@ -385,6 +385,8 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
   private _hoverColor = 'rgba(128, 128, 128, 0.40)';
   private _refLineColor = 'rgba(128, 128, 128, 0.25)';
 
+  private _lastBars: BarData[] = [];
+
   private _barsView = new MarketDepthBarsPaneView();
   private _tooltipView = new MarketDepthTooltipPaneView(this._barsView._expandMap);
   private _paneViewsArr: readonly IPrimitivePaneView[] = [this._barsView, this._tooltipView];
@@ -493,6 +495,25 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
     return this._enabled;
   }
 
+  /** Returns true when the crosshair is exactly on a histogram bar (checks both Y price and X pixel) */
+  isHoveringBar(mouseX: number, chartWidth: number): boolean {
+    const idx = this._findHoverIdx(this._lastBars);
+    if (idx < 0) return false;
+    const bar = this._lastBars[idx];
+    const maxBarWidth = chartWidth * (this._barLength / 100);
+    const barWidth = bar.volumeRatio * maxBarWidth;
+    const offset = this._barOffset;
+    let barX: number;
+    if (this._barPlacement === 'right') {
+      barX = chartWidth - offset - barWidth;
+    } else if (this._barPlacement === 'middle') {
+      barX = chartWidth / 2 + offset;
+    } else {
+      barX = offset;
+    }
+    return mouseX >= barX && mouseX <= barX + barWidth;
+  }
+
   // -- ISeriesPrimitive rendering --
 
   paneViews(): readonly IPrimitivePaneView[] {
@@ -501,6 +522,7 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
     }
 
     const bars = this._buildBars();
+    this._lastBars = bars;
     const hoverIdx = this._findHoverIdx(bars);
     this._barsView.update(
       bars, hoverIdx, this._barColor, this._hoverColor, this._refLineColor,

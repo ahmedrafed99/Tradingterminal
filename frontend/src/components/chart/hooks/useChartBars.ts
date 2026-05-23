@@ -880,14 +880,20 @@ export function useChartBars(
         cancelAnimationFrame(rafId);
         rafId = 0;
         vp.setHoverPrice(null);
+        if (refs.container.current) refs.container.current.style.cursor = '';
         return;
       }
+      const x = param.point.x;
       const y = param.point.y;
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           rafId = 0;
           const price = refs.series.current?.coordinateToPrice(y) ?? null;
           vp.setHoverPrice(price);
+          if (refs.container.current) {
+            const chartWidth = refs.container.current.clientWidth;
+            refs.container.current.style.cursor = vp.isHoveringBar(x, chartWidth) ? 'pointer' : '';
+          }
         });
       }
     }
@@ -897,6 +903,7 @@ export function useChartBars(
       cancelAnimationFrame(rafId);
       chart.unsubscribeCrosshairMove(onCrosshairMove);
       vp.setHoverPrice(null);
+      if (refs.container.current) refs.container.current.style.cursor = '';
     };
   }, [domEnabled]);
 
