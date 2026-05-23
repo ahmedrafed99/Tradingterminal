@@ -44,7 +44,7 @@ export function Checkbox({ checked, onChange, label, disabled = false, className
 
   return (
     <label
-      className={`flex items-center gap-2 cursor-pointer select-none text-sm text-(--color-text)${disabled ? ' opacity-50 cursor-not-allowed' : ''}${className ? ` ${className}` : ''}`}
+      className={`flex items-center gap-2 cursor-pointer select-none text-[13px] text-(--color-text)${disabled ? ' opacity-50 cursor-not-allowed' : ''}${className ? ` ${className}` : ''}`}
       onClick={(e) => {
         e.preventDefault();
         if (!disabled) onChange(!checked);

@@ -133,7 +133,7 @@ export function SpinnerInput({
           border: 'none',
           background: 'transparent',
           color: 'var(--color-text)',
-          fontSize: 12,
+          fontSize: 13,
           textAlign,
           padding: textAlign === 'left' ? '0 4px 0 10px' : textAlign === 'right' ? '0 10px 0 4px' : '0 4px',
           outline: 'none',
@@ -148,7 +148,7 @@ export function SpinnerInput({
               paddingLeft: 2,
               paddingRight: 6,
               color: 'var(--color-text)',
-              fontSize: 12,
+              fontSize: 13,
               pointerEvents: 'none',
               whiteSpace: 'nowrap',
             }}

@@ -22,7 +22,6 @@ export function DropdownButton({ open, onClick, children, width, minWidth, title
         borderRadius: RADIUS.XL,
         padding: '4px 10px',
         fontSize: 13,
-        fontWeight: 600,
         width,
         minWidth,
       }}
