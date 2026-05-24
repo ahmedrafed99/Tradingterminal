@@ -91,6 +91,17 @@ function barsCacheSet(key: string, bars: BacktestBar[]): void {
   barsCache.set(key, bars);
 }
 
+// FNV-1a 32-bit hash — deterministic run key from all params that affect output
+function makeRunKey(p: { exchange: string; symbol: string; from: string; to: string; timeframe: string; strategyCode: string }): string {
+  const str = `${p.exchange}|${p.symbol}|${p.from}|${p.to}|${p.timeframe}|${p.strategyCode}`;
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36);
+}
+
 export const backtestService = {
   async getSymbols(): Promise<SymbolEntry[]> {
     try {
@@ -234,12 +245,20 @@ export const backtestService = {
     result: BacktestResult,
     meta: BacktestResultMeta,
   ): Promise<void> {
-    await api.put(`/backtest/strategies/${encodeURIComponent(name)}/result`, { result, meta });
+    const runKey = makeRunKey(meta);
+    await api.put(`/backtest/strategies/${encodeURIComponent(name)}/result`, { result, meta, runKey });
   },
 
-  async loadResult(name: string): Promise<{ result: BacktestResult; meta: BacktestResultMeta } | null> {
+  async loadResult(
+    name: string,
+    params?: Pick<BacktestResultMeta, 'exchange' | 'symbol' | 'from' | 'to' | 'timeframe' | 'strategyCode'>,
+  ): Promise<{ result: BacktestResult; meta: BacktestResultMeta } | null> {
     try {
-      const res = await api.get<{ success: boolean; result?: BacktestResult; meta?: BacktestResultMeta }>(`/backtest/strategies/${encodeURIComponent(name)}/result`);
+      const runKey = params ? makeRunKey(params) : undefined;
+      const res = await api.get<{ success: boolean; result?: BacktestResult; meta?: BacktestResultMeta }>(
+        `/backtest/strategies/${encodeURIComponent(name)}/result`,
+        runKey ? { params: { runKey } } : undefined,
+      );
       if (!res.data.success || !res.data.result) return null;
       return { result: res.data.result, meta: res.data.meta ?? { exchange: '', symbol: '', from: '', to: '', timeframe: '', initialEquity: 0, strategyCode: '' } };
     } catch {

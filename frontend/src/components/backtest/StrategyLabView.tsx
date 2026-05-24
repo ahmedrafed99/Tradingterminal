@@ -171,15 +171,17 @@ export function StrategyLabView() {
     });
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load saved result whenever the active strategy changes
+  // Load cached result for the current param combination (strategy + instrument + dates + timeframe).
+  // strategyCode is intentionally excluded from deps — code edits don't trigger a reload,
+  // the comparison in handleRun catches stale code at run time.
   useEffect(() => {
     if (!open || !strategyName) return;
-    backtestService.loadResult(strategyName).then((saved) => {
+    backtestService.loadResult(strategyName, { exchange, symbol, from, to, timeframe: timeframe.label, strategyCode }).then((saved) => {
       setResult(saved?.result ?? null);
       setEquityPoints(saved?.result?.equityCurve ?? []);
       setResultMeta(saved?.meta ?? null);
     });
-  }, [open, strategyName]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, strategyName, exchange, symbol, from, to, timeframe.label]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced save of strategy code to disk
   useEffect(() => {

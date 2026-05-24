@@ -747,9 +747,22 @@ router.put('/strategies/:name/result', (req, res) => {
       longestLossStreak,
     };
 
-    fs.writeFileSync(path.join(dir, 'summary.json'),  JSON.stringify(summary,    null, 2), 'utf8');
+    // Write root files (latest run — human-readable / backward compat)
+    fs.writeFileSync(path.join(dir, 'summary.json'),  JSON.stringify(summary,     null, 2), 'utf8');
     fs.writeFileSync(path.join(dir, 'equity.json'),   JSON.stringify(equityCurve, null, 2), 'utf8');
-    fs.writeFileSync(path.join(dir, 'trades.json'),   JSON.stringify(trades,     null, 2), 'utf8');
+    fs.writeFileSync(path.join(dir, 'trades.json'),   JSON.stringify(trades,      null, 2), 'utf8');
+
+    // Write per-run-key slot so we can serve cached results per param combination
+    const runKey = typeof (req.body as { runKey?: unknown }).runKey === 'string'
+      ? (req.body as { runKey: string }).runKey.replace(/[^a-z0-9]/gi, '').slice(0, 20)
+      : null;
+    if (runKey) {
+      const runDir = path.join(dir, 'results', runKey);
+      fs.mkdirSync(runDir, { recursive: true });
+      fs.writeFileSync(path.join(runDir, 'summary.json'),  JSON.stringify(summary,     null, 2), 'utf8');
+      fs.writeFileSync(path.join(runDir, 'equity.json'),   JSON.stringify(equityCurve, null, 2), 'utf8');
+      fs.writeFileSync(path.join(runDir, 'trades.json'),   JSON.stringify(trades,      null, 2), 'utf8');
+    }
 
     // Remove old monolithic result.json if it exists
     const legacy = path.join(dir, 'result.json');
@@ -768,14 +781,23 @@ router.put('/strategies/:name/result', (req, res) => {
 router.get('/strategies/:name/result', (req, res) => {
   try {
     const dir = strategyDir(req.params.name);
-    const summaryPath = path.join(dir, 'summary.json');
+
+    // Prefer the per-run-key slot when a runKey is provided
+    const runKey = typeof req.query.runKey === 'string'
+      ? req.query.runKey.replace(/[^a-z0-9]/gi, '').slice(0, 20)
+      : null;
+    const lookupDir = runKey && fs.existsSync(path.join(dir, 'results', runKey))
+      ? path.join(dir, 'results', runKey)
+      : dir;
+
+    const summaryPath = path.join(lookupDir, 'summary.json');
     if (!fs.existsSync(summaryPath)) {
       res.json({ success: false, error: 'No result' });
       return;
     }
     const summary    = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-    const equityPath = path.join(dir, 'equity.json');
-    const tradesPath = path.join(dir, 'trades.json');
+    const equityPath = path.join(lookupDir, 'equity.json');
+    const tradesPath = path.join(lookupDir, 'trades.json');
     const equityCurve = fs.existsSync(equityPath) ? JSON.parse(fs.readFileSync(equityPath, 'utf8')) : [];
     const trades      = fs.existsSync(tradesPath) ? JSON.parse(fs.readFileSync(tradesPath, 'utf8')) : [];
 
