@@ -10,16 +10,19 @@ function utcToNY(utcSeconds: number): Date {
   return new Date(utcSeconds * 1000);
 }
 
+// Cached once at module load — creating Intl.DateTimeFormat is expensive (ICU locale+tz load).
+// Reusing the same instance is safe; formatToParts() is stateless.
+const NY_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: NY_TZ,
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit',
+  hour12: false,
+});
+
 function nyParts(utcSeconds: number) {
   const nyDate = utcToNY(utcSeconds);
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: NY_TZ,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  });
   const parts = Object.fromEntries(
-    fmt.formatToParts(nyDate).map((part) => [part.type, part.value]),
+    NY_FMT.formatToParts(nyDate).map((part) => [part.type, part.value]),
   );
   return parts;
 }

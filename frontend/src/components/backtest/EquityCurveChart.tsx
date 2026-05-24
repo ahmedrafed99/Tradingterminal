@@ -50,6 +50,61 @@ function deduplicateByTime(data: SingleValueData<UTCTimestamp>[]): SingleValueDa
   return out;
 }
 
+// Maximum number of data points sent to the LWC series. Dense backtests can
+// produce 100k+ points (one per bar), which makes canvas redraws during
+// price-scale drag extremely slow. We downsample to this limit while keeping
+// the full array in pointsRef for accurate crosshair tooltip lookups.
+const MAX_CHART_POINTS = 2_000;
+
+/**
+ * LTTB (Largest Triangle Three Buckets) downsampling.
+ * Preserves peaks and troughs — better than uniform sampling for equity curves.
+ */
+function lttb(
+  data: SingleValueData<UTCTimestamp>[],
+  threshold: number,
+): SingleValueData<UTCTimestamp>[] {
+  const n = data.length;
+  if (n <= threshold) return data;
+
+  const out: SingleValueData<UTCTimestamp>[] = [data[0]];
+  const bucketSize = (n - 2) / (threshold - 2);
+  let a = 0;
+
+  for (let i = 0; i < threshold - 2; i++) {
+    // Centroid of the next bucket (look-ahead for triangle area calculation)
+    const avgStart = Math.floor((i + 1) * bucketSize) + 1;
+    const avgEnd   = Math.min(Math.floor((i + 2) * bucketSize) + 1, n);
+    let avgX = 0, avgY = 0;
+    for (let j = avgStart; j < avgEnd; j++) {
+      avgX += data[j].time as number;
+      avgY += data[j].value;
+    }
+    const avgLen = avgEnd - avgStart;
+    avgX /= avgLen;
+    avgY /= avgLen;
+
+    // Pick the point in the current bucket that forms the largest triangle
+    const currStart = Math.floor(i * bucketSize) + 1;
+    const currEnd   = Math.min(Math.floor((i + 1) * bucketSize) + 1, n);
+    let maxArea = -1, maxIdx = currStart;
+    const ax = data[a].time as number;
+    const ay = data[a].value;
+    for (let j = currStart; j < currEnd; j++) {
+      const area = Math.abs(
+        (ax - avgX) * (data[j].value - ay) -
+        (ax - (data[j].time as number)) * (avgY - ay),
+      );
+      if (area > maxArea) { maxArea = area; maxIdx = j; }
+    }
+    out.push(data[maxIdx]);
+    a = maxIdx;
+  }
+
+  out.push(data[n - 1]);
+  return out;
+}
+
 
 export const EquityCurveChart = memo(function EquityCurveChart({
   points,
@@ -125,8 +180,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       lineWidth: 2,
       priceLineVisible: false,
       lastValueVisible: false,
-      crosshairMarkerVisible: true,
-      crosshairMarkerRadius: 5,
+      crosshairMarkerVisible: false,
       priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
     });
 
@@ -244,12 +298,15 @@ export const EquityCurveChart = memo(function EquityCurveChart({
 
     // Full rebuild
     const data = deduplicateByTime(points.map((p) => toPoint(p, initialEquity)));
+    // Keep the full-resolution array for tooltip binary search; pass a
+    // downsampled copy to LWC so canvas redraws stay fast even with 100k+ bars.
     pointsRef.current = data;
-    series.setData(data);
+    const chartData = lttb(data, MAX_CHART_POINTS);
+    series.setData(chartData);
     if (markersRef.current) {
-      const showDots = showMarkers && data.length > 0 && (markerThreshold === 0 || data.length <= markerThreshold);
+      const showDots = showMarkers && chartData.length > 0 && (markerThreshold === 0 || chartData.length <= markerThreshold);
       const markers: SeriesMarker<Time>[] = showDots
-        ? data.map((d) => ({
+        ? chartData.map((d) => ({
             time: d.time,
             position: 'inBar',
             shape: 'circle',
@@ -259,7 +316,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
         : [];
       markersRef.current.setMarkers(markers);
     }
-    if (data.length > 0) chartRef.current?.timeScale().fitContent();
+    if (chartData.length > 0) chartRef.current?.timeScale().fitContent();
 
     renderedCountRef.current       = data.length;
     renderedInitialRef.current     = initialEquity;
