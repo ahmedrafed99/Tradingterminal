@@ -680,6 +680,7 @@ interface SaveResultBody {
     to:            string;
     timeframe:     string;
     initialEquity: number;
+    strategyCode:  string;
   };
 }
 
@@ -727,6 +728,7 @@ router.put('/strategies/:name/result', (req, res) => {
       to:           meta.to,
       timeframe:    meta.timeframe,
       initialEquity: meta.initialEquity,
+      strategyCode: meta.strategyCode,
       finalEquity:  Math.round(finalEquity * 100) / 100,
       netPnl:       Math.round((finalEquity - meta.initialEquity) * 100) / 100,
       totalReturn:  Math.round(totalReturn * 100) / 100,
@@ -788,6 +790,15 @@ router.get('/strategies/:name/result', (req, res) => {
         totalTrades:  summary.totalTrades,
         maxDrawdown:  summary.maxDrawdown,
         sharpe:       summary.sharpe,
+      },
+      meta: {
+        exchange:      summary.exchange,
+        symbol:        summary.symbol,
+        from:          summary.from,
+        to:            summary.to,
+        timeframe:     summary.timeframe,
+        initialEquity: summary.initialEquity,
+        strategyCode:  summary.strategyCode ?? '',
       },
     });
   } catch (err) {

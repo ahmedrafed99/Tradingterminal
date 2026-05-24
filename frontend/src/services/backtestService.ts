@@ -39,6 +39,16 @@ export interface BacktestResult {
   sharpe:       number;
 }
 
+export interface BacktestResultMeta {
+  exchange:      string;
+  symbol:        string;
+  from:          string;
+  to:            string;
+  timeframe:     string;
+  initialEquity: number;
+  strategyCode:  string;
+}
+
 export interface BacktestRunParams {
   exchange:      string;
   symbol:        string;
@@ -222,15 +232,16 @@ export const backtestService = {
   async saveResult(
     name: string,
     result: BacktestResult,
-    meta: { exchange: string; symbol: string; from: string; to: string; timeframe: string; initialEquity: number },
+    meta: BacktestResultMeta,
   ): Promise<void> {
     await api.put(`/backtest/strategies/${encodeURIComponent(name)}/result`, { result, meta });
   },
 
-  async loadResult(name: string): Promise<BacktestResult | null> {
+  async loadResult(name: string): Promise<{ result: BacktestResult; meta: BacktestResultMeta } | null> {
     try {
-      const res = await api.get<{ success: boolean; result?: BacktestResult }>(`/backtest/strategies/${encodeURIComponent(name)}/result`);
-      return res.data.success ? (res.data.result ?? null) : null;
+      const res = await api.get<{ success: boolean; result?: BacktestResult; meta?: BacktestResultMeta }>(`/backtest/strategies/${encodeURIComponent(name)}/result`);
+      if (!res.data.success || !res.data.result) return null;
+      return { result: res.data.result, meta: res.data.meta ?? { exchange: '', symbol: '', from: '', to: '', timeframe: '', initialEquity: 0, strategyCode: '' } };
     } catch {
       return null;
     }

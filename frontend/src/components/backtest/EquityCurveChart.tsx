@@ -61,13 +61,15 @@ export const EquityCurveChart = memo(function EquityCurveChart({
   markerThreshold = 80,
   background = '#000000',
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const tooltipRef   = useRef<HTMLDivElement>(null);
-  const chartRef     = useRef<IChartApi | null>(null);
-  const seriesRef    = useRef<ISeriesApi<'Baseline'> | null>(null);
-  const markersRef   = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
-  const disposedRef  = useRef(false);
-  const pointsRef    = useRef<SingleValueData<UTCTimestamp>[]>([]);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const tooltipRef    = useRef<HTMLDivElement>(null);
+  const tooltipSpan   = useRef<HTMLSpanElement | null>(null);
+  const chartRef      = useRef<IChartApi | null>(null);
+  const seriesRef     = useRef<ISeriesApi<'Baseline'> | null>(null);
+  const markersRef    = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const disposedRef   = useRef(false);
+  const pointsRef     = useRef<SingleValueData<UTCTimestamp>[]>([]);
+  const rafRef        = useRef<number | null>(null);
 
   // Tracks what is currently rendered into the LWC series so the data-sync
   // effect can append incrementally (series.update) instead of rebuilding the
@@ -148,29 +150,33 @@ export const EquityCurveChart = memo(function EquityCurveChart({
     pointsRef.current              = [];
 
     chart.subscribeCrosshairMove((param) => {
-      const tooltip = tooltipRef.current;
-      if (!tooltip) return;
+      if (rafRef.current !== null) return; // already queued
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const tooltip = tooltipRef.current;
+        const span    = tooltipSpan.current;
+        if (!tooltip || !span) return;
 
-      if (!param.time || !param.point) {
-        tooltip.style.opacity = '0';
-        return;
-      }
+        if (!param.time || !param.point) {
+          tooltip.style.opacity = '0';
+          return;
+        }
 
-      const arr = pointsRef.current;
-      const t = param.time as UTCTimestamp;
-      // binary search for closest index with time <= t
-      let lo = 0, hi = arr.length - 1, best = -1;
-      while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if ((arr[mid].time as number) <= (t as number)) { best = mid; lo = mid + 1; }
-        else hi = mid - 1;
-      }
-      if (best < 0) { tooltip.style.opacity = '0'; return; }
+        const arr = pointsRef.current;
+        const t = param.time as UTCTimestamp;
+        let lo = 0, hi = arr.length - 1, best = -1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if ((arr[mid].time as number) <= (t as number)) { best = mid; lo = mid + 1; }
+          else hi = mid - 1;
+        }
+        if (best < 0) { tooltip.style.opacity = '0'; return; }
 
-      const value = arr[best].value;
-      tooltip.innerHTML =
-        `<span style="color:${value >= 0 ? COLOR_BUY : COLOR_SELL};font-weight:600">${value < 0 ? '-' : ''}$${Math.abs(value).toFixed(2)}</span>`;
-      tooltip.style.opacity = '1';
+        const value = arr[best].value;
+        span.style.color = value >= 0 ? COLOR_BUY : COLOR_SELL;
+        span.textContent = `${value < 0 ? '-' : ''}$${Math.abs(value).toFixed(2)}`;
+        tooltip.style.opacity = '1';
+      });
     });
 
     return () => {
@@ -178,6 +184,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       chartRef.current     = null;
       seriesRef.current    = null;
       markersRef.current   = null;
+      if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
       try { chart.remove(); } catch { /* disposed */ }
     };
   }, [background]);
@@ -273,16 +280,16 @@ export const EquityCurveChart = memo(function EquityCurveChart({
           fontSize: 12,
           fontFamily: FONT_FAMILY,
           opacity: 0,
-          transition: 'opacity 0.1s',
           fontFeatureSettings: '"tnum"',
           whiteSpace: 'nowrap',
           padding: '3px 10px',
           borderRadius: 4,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(2px)',
+          background: 'rgba(0,0,0,0.75)',
           zIndex: 10,
         }}
-      />
+      >
+        <span ref={tooltipSpan} style={{ fontWeight: 600 }} />
+      </div>
       {isEmpty && (
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none"

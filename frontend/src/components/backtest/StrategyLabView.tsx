@@ -11,7 +11,7 @@ import { Button } from '../shared/Button';
 import { CustomSelect } from '../shared/CustomSelect';
 import { VerticalSeparator } from '../shared/VerticalSeparator';
 import { ChevronDown } from '../icons/ChevronDown';
-import { backtestService, type EquityPoint, type SymbolEntry } from '../../services/backtestService';
+import { backtestService, type EquityPoint, type SymbolEntry, type BacktestResultMeta } from '../../services/backtestService';
 import { Z, RADIUS, FONT_FAMILY } from '../../constants/layout';
 
 // ---------------------------------------------------------------------------
@@ -131,6 +131,7 @@ export function StrategyLabView() {
   const [availableRange, setAvailableRange]         = useState<{ from: string; to: string } | null>(null);
   const [renamingStrategy, setRenamingStrategy]     = useState<string | null>(null);
   const [renameValue, setRenameValue]               = useState('');
+  const [resultMeta, setResultMeta]                 = useState<BacktestResultMeta | null>(null);
 
   const commitRename = useCallback((oldName: string) => {
     const trimmed = renameValue.trim();
@@ -174,8 +175,9 @@ export function StrategyLabView() {
   useEffect(() => {
     if (!open || !strategyName) return;
     backtestService.loadResult(strategyName).then((saved) => {
-      setResult(saved);
-      setEquityPoints(saved?.equityCurve ?? []);
+      setResult(saved?.result ?? null);
+      setEquityPoints(saved?.result?.equityCurve ?? []);
+      setResultMeta(saved?.meta ?? null);
     });
   }, [open, strategyName]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -203,8 +205,22 @@ export function StrategyLabView() {
       return;
     }
 
+    // Skip re-run if params + code are identical to the saved result
+    if (result && resultMeta &&
+        resultMeta.exchange      === exchange &&
+        resultMeta.symbol        === symbol &&
+        resultMeta.from          === from &&
+        resultMeta.to            === to &&
+        resultMeta.timeframe     === timeframe.label &&
+        resultMeta.initialEquity === INITIAL_EQUITY &&
+        resultMeta.strategyCode  === strategyCode) {
+      setStatus('Results are up to date');
+      return;
+    }
+
     setEquityPoints([]);
     setResult(null);
+    setResultMeta(null);
     setSelectedTradeIndex(null);
     setRunning(true);
     setStatus('Starting...');
@@ -229,17 +245,20 @@ export function StrategyLabView() {
 
     try {
       const res = await promise;
-      setEquityPoints(res.equityCurve);
-      setResult(res);
-      setStatus(`Done — ${res.totalTrades} trades`);
-      backtestService.saveResult(strategyName, res, {
+      const meta: BacktestResultMeta = {
         exchange,
         symbol,
         from,
         to,
         timeframe: timeframe.label,
         initialEquity: INITIAL_EQUITY,
-      });
+        strategyCode,
+      };
+      setEquityPoints(res.equityCurve);
+      setResult(res);
+      setResultMeta(meta);
+      setStatus(`Done — ${res.totalTrades} trades`);
+      backtestService.saveResult(strategyName, res, meta);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'Error');
     } finally {
@@ -471,7 +490,7 @@ export function StrategyLabView() {
               <CustomSelect
                 value={strategyName}
                 options={strategies.map((s) => ({ value: s.name, label: s.name }))}
-                onChange={(name) => { switchStrategy(name); setResult(null); setEquityPoints([]); setSelectedTradeIndex(null); }}
+                onChange={(name) => { switchStrategy(name); setResult(null); setEquityPoints([]); setResultMeta(null); setSelectedTradeIndex(null); }}
                 fontSize={12}
                 padding="5px 10px"
                 dropdownMinWidth={200}
