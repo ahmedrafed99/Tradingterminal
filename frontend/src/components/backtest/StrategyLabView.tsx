@@ -267,7 +267,7 @@ export function StrategyLabView() {
       setRunning(false);
       abortRef.current = null;
     }
-  }, [running, exchange, symbol, timeframe, from, to, strategyCode, setRunning, setStatus, setResult]);
+  }, [running, exchange, symbol, timeframe, from, to, strategyCode, result, resultMeta, setRunning, setStatus, setResult]);
 
   const contract = useMemo(() => getContract(exchange, symbol), [exchange, symbol]);
 
