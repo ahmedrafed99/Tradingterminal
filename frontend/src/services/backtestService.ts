@@ -66,6 +66,10 @@ export interface SymbolEntry {
   symbol:   string;
 }
 
+// In-memory result cache — keyed by "strategyName:runKey".
+// Avoids re-reading equity.json + trades.json from disk on every strategy switch.
+const resultCache = new Map<string, { result: BacktestResult; meta: BacktestResultMeta }>();
+
 // In-memory cache for bars — avoid re-fetching same range/timeframe.
 // Shared by getBars (limit-suffixed keys) and streamBars (no suffix).
 // LRU eviction: bumped to end on read, oldest removed when MAX exceeded.
@@ -246,6 +250,8 @@ export const backtestService = {
     meta: BacktestResultMeta,
   ): Promise<void> {
     const runKey = makeRunKey(meta);
+    // Populate cache immediately so the next switch is instant
+    resultCache.set(`${name}:${runKey}`, { result, meta });
     await api.put(`/backtest/strategies/${encodeURIComponent(name)}/result`, { result, meta, runKey });
   },
 
@@ -255,12 +261,18 @@ export const backtestService = {
   ): Promise<{ result: BacktestResult; meta: BacktestResultMeta } | null> {
     try {
       const runKey = params ? makeRunKey(params) : undefined;
+      const cacheKey = `${name}:${runKey ?? '__latest'}`;
+      const cached = resultCache.get(cacheKey);
+      if (cached) return cached;
+
       const res = await api.get<{ success: boolean; result?: BacktestResult; meta?: BacktestResultMeta }>(
         `/backtest/strategies/${encodeURIComponent(name)}/result`,
         runKey ? { params: { runKey } } : undefined,
       );
       if (!res.data.success || !res.data.result) return null;
-      return { result: res.data.result, meta: res.data.meta ?? { exchange: '', symbol: '', from: '', to: '', timeframe: '', initialEquity: 0, strategyCode: '' } };
+      const entry = { result: res.data.result, meta: res.data.meta ?? { exchange: '', symbol: '', from: '', to: '', timeframe: '', initialEquity: 0, strategyCode: '' } };
+      resultCache.set(cacheKey, entry);
+      return entry;
     } catch {
       return null;
     }
