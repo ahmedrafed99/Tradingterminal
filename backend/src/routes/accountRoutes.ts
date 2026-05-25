@@ -11,7 +11,7 @@ router.get('/', withConnection(async (req, res) => {
 
 router.get('/eligibility', withConnection(async (req, res) => {
   const accts = resolveAdapter(req).accounts;
-  if (!accts.eligibility) return res.json([]);
+  if (!accts.eligibility) { res.json([]); return; }
   const data = await accts.eligibility();
   res.json(data);
 }));
