@@ -1,13 +1,75 @@
 #!/bin/bash
-# Claude trading helper functions
-# Usage: source claude-tools.sh
+# ═══════════════════════════════════════════════════════════════════════════════
+# claude-tools.sh — Trading terminal helper functions
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# SETUP
+#   source backend/claude-tools.sh
+#
+# ACCOUNTS
+#   Default account is PRACTICE. Switch with:
+#     usepractice       — switch to practice account
+#     usechallenge      — switch to challenge account
+#     ACCT=12345 ...    — one-off override for a single command
+#
+# CONTRACT
+#   DEFAULT_CONTRACT is the active MNQ front-month. Override per-command by
+#   passing the contract ID as the last argument to most functions.
+#
+# ── MARKET DATA ──────────────────────────────────────────────────────────────
+#   price                         current price (H/L/V of last bar)
+#   bars [count] [unit] [n]       raw OHLCV bars (unit: 1=sec 2=min 3=hr 4=day)
+#   status                        price + position + orders + balance
+#
+# ── ORDERS ───────────────────────────────────────────────────────────────────
+#   market buy|sell [size]                    market order
+#   marketb buy|sell slTicks tpTicks [size]   market + native SL/TP bracket
+#                                             (ticks: 1 pt = 4 ticks for MNQ)
+#                                             long: slTicks<0, tpTicks>0
+#                                             short: slTicks>0, tpTicks<0
+#   marketmulti buy|sell size sl_pts tp:sz... [trail] [contractId]
+#                                             market + manual multi-TP bracket
+#                                             tp format: points:contracts (e.g. 30:1)
+#                                             trail → trailing stop instead of hard stop
+#                                             Examples:
+#                                               marketmulti buy 3 20 30:1 60:1 90:1
+#                                               marketmulti buy 3 20 30:1 60:2 trail
+#   limit  buy|sell price [size]              limit order
+#   limitb buy|sell price slTicks tpTicks     limit + native SL/TP bracket
+#   stop   buy|sell price [size]              stop order
+#   cancel <orderId>                          cancel one order
+#   cancelall                                 cancel all open orders
+#   flatten                                   close open position at market
+#
+# ── DRAWINGS ─────────────────────────────────────────────────────────────────
+#   hline price [color] [label] [strokeWidth] horizontal line
+#   support price [label]                     green support line
+#   resist  price [label]                     red resistance line
+#   entry_line price [label]                  blue entry line
+#   sl_line    price [label]                  red SL line
+#   tp_line    price [label]                  green TP line
+#   or_range   high low                       opening range (two yellow lines)
+#   cleardrawings                             clear pending drawing queue
+#
+# ── MONITORING ───────────────────────────────────────────────────────────────
+#   pos                           open positions
+#   orders                        open orders
+#   bal                           account balance
+#   trades [accountId] [since]    recent fills
+#   watch_snapshot                save state snapshot for watch_check
+#   watch_check                   diff current state vs snapshot (fills/closes)
+#   alert_price <price> above|below   background price alert (run as: alert_price ... &)
+#   alert_fill  [accountId]           background fill alert
+#
+# ═══════════════════════════════════════════════════════════════════════════════
 
 BASE="http://localhost:3001"
 
 # Default accounts — override with ACCT env var
-PRACTICE=20130833
-CHALLENGE=20292418
+PRACTICE=23310630
+CHALLENGE=23212177
 ACCT="${ACCT:-$PRACTICE}"
+DEFAULT_CONTRACT="CON.F.US.MNQ.M26"
 
 # Fetch recent bars
 # bars [count] [unit] [unitNumber] [contractId]
@@ -17,7 +79,7 @@ bars() {
   local count="${1:-10}"
   local unit="${2:-2}"
   local unitNum="${3:-1}"
-  local contract="${4:-CON.F.US.MNQ.H26}"
+  local contract="${4:-$DEFAULT_CONTRACT}"
   local now=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
   curl -s -X POST "$BASE/market/bars" -H "Content-Type: application/json" \
     -d "{\"contractId\":\"$contract\",\"live\":false,\"unit\":$unit,\"unitNumber\":$unitNum,\"startTime\":\"2026-03-13T00:00:00.000Z\",\"endTime\":\"$now\",\"limit\":$count,\"includePartialBar\":true}"
@@ -48,9 +110,85 @@ market() {
   local side=0
   [[ "$1" == "sell" ]] && side=1
   local size="${2:-1}"
-  local contract="${3:-CON.F.US.MNQ.H26}"
+  local contract="${3:-$DEFAULT_CONTRACT}"
   curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
     -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":2,\"side\":$side,\"size\":$size}"
+}
+
+# Place market order with multiple TPs: marketmulti buy|sell total_size sl_pts tp1_pts:size1 [tp2_pts:size2 ...] [trail] [contractId]
+# Example: marketmulti buy 2 20 40:1 80:1
+# Example: marketmulti buy 2 20 40:1 80:1 trail
+# Example: marketmulti sell 3 25 30:1 60:1 90:1 CON.F.US.ES.H26
+# SL type: pass "trail" anywhere after sl_pts to use trailing stop (type 5) instead of stop (type 4)
+marketmulti() {
+  local direction="$1"
+  local total_size="${2:-1}"
+  local sl_pts="${3:-20}"
+  shift 3
+
+  local side=0
+  [[ "$direction" == "sell" ]] && side=1
+  local opp_side=1
+  [[ "$side" == "1" ]] && opp_side=0
+
+  # Collect TP specs (tp_pts:size) — "trail" sets SL type, anything else without a colon is the contract
+  local -a tp_specs=()
+  local contract="$DEFAULT_CONTRACT"
+  local sl_type=4  # 4=Stop, 5=TrailingStop
+  for arg in "$@"; do
+    if [[ "$arg" == *:* ]]; then tp_specs+=("$arg")
+    elif [[ "$arg" == "trail" ]]; then sl_type=5
+    else contract="$arg"; fi
+  done
+
+  local sl_label="Stop"
+  [[ "$sl_type" == "5" ]] && sl_label="TrailingStop"
+
+  # Get current price
+  local cur_price=$(curl -s -X POST "$BASE/market/bars" -H "Content-Type: application/json" \
+    -d "{\"contractId\":\"$contract\",\"live\":false,\"unit\":2,\"unitNumber\":1,\"startTime\":\"2020-01-01T00:00:00Z\",\"endTime\":\"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",\"limit\":1,\"includePartialBar\":true}" \
+    | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).bars?.[0]?.c||0))")
+  echo "Current price: $cur_price"
+
+  # Place entry
+  local entry_resp=$(curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
+    -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":2,\"side\":$side,\"size\":$total_size}")
+  echo "Entry: $entry_resp"
+
+  # Wait for fill, then get actual fill price from position
+  sleep 0.5
+  local fill_price=$(curl -s "$BASE/positions/open?accountId=$ACCT" \
+    | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+        const p=(JSON.parse(d).positions||[]).find(x=>String(x.contractId).includes('$contract'.split('.').pop())||String(x.contractId)==='$contract');
+        console.log(p?.averagePrice||$cur_price);
+      })")
+  echo "Fill price: $fill_price"
+
+  # Place SL — Stop uses stopPrice (absolute), TrailingStop uses trailPrice (distance in ticks, 1pt=4ticks for MNQ)
+  local sl_resp
+  if [[ "$sl_type" == "5" ]]; then
+    local sl_price=$(node -e "const p=$fill_price,s=$sl_pts,d=$side===0?-1:1;console.log(Math.round((p+d*s)*100)/100)")
+    sl_resp=$(curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
+      -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":5,\"side\":$opp_side,\"size\":$total_size,\"trailPrice\":$sl_price}")
+    echo "SL trail @ $sl_price (${sl_pts}pts, $sl_label): $sl_resp"
+  else
+    local sl_price=$(node -e "const p=$fill_price,s=$sl_pts,d=$side===0?-1:1;console.log(Math.round((p+d*s)*100)/100)")
+    sl_resp=$(curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
+      -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":4,\"side\":$opp_side,\"size\":$total_size,\"stopPrice\":$sl_price}")
+    echo "SL @ $sl_price (${sl_pts}pts, $sl_label): $sl_resp"
+  fi
+
+  # Place each TP
+  local i=1
+  for spec in "${tp_specs[@]}"; do
+    local tp_pts="${spec%%:*}"
+    local tp_size="${spec##*:}"
+    local tp_price=$(node -e "const p=$fill_price,t=$tp_pts,d=$side===0?1:-1;console.log(Math.round((p+d*t)*100)/100)")
+    local tp_resp=$(curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
+      -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":1,\"side\":$opp_side,\"size\":$tp_size,\"limitPrice\":$tp_price}")
+    echo "TP$i @ $tp_price (${tp_pts}pts, ${tp_size}ct): $tp_resp"
+    (( i++ ))
+  done
 }
 
 # Place market order with bracket: marketb buy|sell slTicks tpTicks [size] [contractId]
@@ -62,7 +200,7 @@ marketb() {
   local slTicks="$2"
   local tpTicks="$3"
   local size="${4:-1}"
-  local contract="${5:-CON.F.US.MNQ.H26}"
+  local contract="${5:-$DEFAULT_CONTRACT}"
   curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
     -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":2,\"side\":$side,\"size\":$size,\"stopLossBracket\":{\"ticks\":$slTicks,\"type\":4},\"takeProfitBracket\":{\"ticks\":$tpTicks,\"type\":1}}"
 }
@@ -73,7 +211,7 @@ stop() {
   [[ "$1" == "sell" ]] && side=1
   local stopPrice="$2"
   local size="${3:-1}"
-  local contract="${4:-CON.F.US.MNQ.H26}"
+  local contract="${4:-$DEFAULT_CONTRACT}"
   curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
     -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":4,\"side\":$side,\"size\":$size,\"stopPrice\":$stopPrice}"
 }
@@ -84,7 +222,7 @@ limit() {
   [[ "$1" == "sell" ]] && side=1
   local limitPrice="$2"
   local size="${3:-1}"
-  local contract="${4:-CON.F.US.MNQ.H26}"
+  local contract="${4:-$DEFAULT_CONTRACT}"
   curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
     -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":1,\"side\":$side,\"size\":$size,\"limitPrice\":$limitPrice}"
 }
@@ -97,7 +235,7 @@ limitb() {
   local slTicks="$3"
   local tpTicks="$4"
   local size="${5:-1}"
-  local contract="${6:-CON.F.US.MNQ.H26}"
+  local contract="${6:-$DEFAULT_CONTRACT}"
   curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
     -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":1,\"side\":$side,\"size\":$size,\"limitPrice\":$limitPrice,\"stopLossBracket\":{\"ticks\":$slTicks,\"type\":4},\"takeProfitBracket\":{\"ticks\":$tpTicks,\"type\":1}}"
 }
@@ -162,7 +300,7 @@ hline() {
   local color="${2:-#787b86}"
   local label="${3:-}"
   local sw="${4:-1}"
-  local contract="${5:-CON.F.US.MNQ.H26}"
+  local contract="${5:-$DEFAULT_CONTRACT}"
   local text="null"
   if [[ -n "$label" ]]; then
     text="{\"content\":\"$label\",\"color\":\"$color\",\"fontSize\":12,\"bold\":false,\"italic\":false,\"hAlign\":\"left\",\"vAlign\":\"bottom\"}"
@@ -277,7 +415,7 @@ SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts"
 # Price alert (background): alert_price <target> <above|below>
 # Exits when price crosses target. Run in background.
 alert_price() {
-  bash "$SCRIPTS_DIR/price-alert.sh" "$1" "$2" "${3:-CON.F.US.MNQ.H26}"
+  bash "$SCRIPTS_DIR/price-alert.sh" "$1" "$2" "${3:-$DEFAULT_CONTRACT}"
 }
 
 # Order fill alert (background): alert_fill [accountId]

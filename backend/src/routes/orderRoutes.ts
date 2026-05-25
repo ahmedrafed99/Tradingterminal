@@ -95,6 +95,7 @@ const PlaceOrderSchema = z.object({
   size: z.number().positive(),
   limitPrice: z.number().optional(),
   stopPrice: z.number().optional(),
+  trailPrice: z.number().positive().optional(),
   stopLossBracket: BracketSchema.optional(),
   takeProfitBrackets: z.array(BracketSchema).optional(),
 });
