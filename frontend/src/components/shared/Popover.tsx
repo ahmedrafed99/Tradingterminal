@@ -58,16 +58,14 @@ export function Popover({ title, onClose, onCancel, width = 440, minHeight, pers
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', flex: 1 }}>{title}</span>
         <button
           onClick={onClose}
-          className="focus:outline-none focus:ring-0"
+          className="focus:outline-none focus:ring-0 hover:bg-(--color-hover-row) hover:text-(--color-text) transition-colors"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             width: 22, height: 22, borderRadius: RADIUS.MD,
             border: 'none', background: 'transparent', cursor: 'pointer',
             color: 'var(--color-text-muted)',
-            transition: 'background var(--transition-fast), color var(--transition-fast)',
             flexShrink: 0,
           }}
-          className="hover:bg-(--color-hover-row) hover:text-(--color-text) transition-colors"
         >
           <XIcon size={10} />
         </button>
