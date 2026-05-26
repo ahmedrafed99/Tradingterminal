@@ -461,7 +461,7 @@ export function ChartToolbar() {
 
       {/* NY clock */}
       <div className="flex items-center" style={{ marginRight: '8px' }}>
-        <span className="text-xs text-(--color-text)" style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <span data-ny-clock className="text-xs text-(--color-text)" style={{ fontVariantNumeric: 'tabular-nums' }}>
           {nyClock}
         </span>
       </div>

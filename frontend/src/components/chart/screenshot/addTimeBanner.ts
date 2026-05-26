@@ -1,11 +1,19 @@
-import { COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_LABEL_TEXT } from '../../../constants/colors';
+import { COLOR_TEXT, COLOR_BORDER, COLOR_LABEL_TEXT } from '../../../constants/colors';
 import { FONT_FAMILY } from '../../../constants/layout';
 
 /**
  * Composites a time-banner strip above the chart canvas.
  * The banner is only added to the copied PNG — the preview stays unchanged.
+ *
+ * Font and color are read from the live [data-ny-clock] span so the banner
+ * always matches the toolbar clock automatically.
+ *
+ * All sizes are scaled by DPR because chartCanvas is at physical pixel resolution
+ * (from LWC's takeScreenshot(true)), while getComputedStyle returns CSS pixels.
  */
 export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement {
+  const dpr = window.devicePixelRatio || 1;
+
   const now = new Date();
   const dateFmt = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York',
@@ -22,8 +30,23 @@ export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement
   });
   const timeText = `${dateFmt.format(now)}  ${timeFmt.format(now)} New York`;
 
-  const bannerHeight = 30;
-  const separatorHeight = 1;
+  // Read font + color from the live clock element — getComputedStyle returns CSS px
+  const clockEl = document.querySelector('[data-ny-clock]') as HTMLElement | null;
+  let cssFontSize = 12;
+  let fontWeight = '400';
+  let fontFamily = FONT_FAMILY;
+  let color = COLOR_TEXT;
+  if (clockEl) {
+    const cs = getComputedStyle(clockEl);
+    cssFontSize = parseFloat(cs.fontSize) || 12;
+    fontWeight = cs.fontWeight;
+    fontFamily = cs.fontFamily;
+    color = cs.color;
+  }
+
+  // Scale CSS px → physical px for the bitmap canvas
+  const bannerHeight = Math.round(30 * dpr);
+  const separatorHeight = Math.round(1 * dpr);
   const canvasWidth = chartCanvas.width;
   const canvasHeight = bannerHeight + separatorHeight + chartCanvas.height;
 
@@ -36,11 +59,11 @@ export function addTimeBanner(chartCanvas: HTMLCanvasElement): HTMLCanvasElement
   ctx.fillStyle = COLOR_LABEL_TEXT;
   ctx.fillRect(0, 0, canvasWidth, bannerHeight);
 
-  // Time text — top-left
-  ctx.font = `12px ${FONT_FAMILY}`;
-  ctx.fillStyle = COLOR_TEXT_MUTED;
+  // Time text — top-left, font scaled to physical pixels
+  ctx.font = `${fontWeight} ${cssFontSize * dpr}px ${fontFamily}`;
+  ctx.fillStyle = color;
   ctx.textBaseline = 'middle';
-  ctx.fillText(timeText, 10, bannerHeight / 2);
+  ctx.fillText(timeText, Math.round(10 * dpr), bannerHeight / 2);
 
   // Separator line
   ctx.fillStyle = COLOR_BORDER;
