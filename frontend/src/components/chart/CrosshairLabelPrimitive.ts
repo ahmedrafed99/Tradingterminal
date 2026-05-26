@@ -15,7 +15,7 @@ import { FONT_FAMILY } from '../../constants/layout';
 const BG_COLOR = COLOR_BORDER;
 const TEXT_COLOR = COLOR_TEXT;
 const LABEL_H = 20;
-const FONT = `bold 12px ${FONT_FAMILY}`;
+const LABEL_FONT_PX = 12;
 
 class CrosshairAxisRenderer implements IPrimitivePaneRenderer {
   private _y: number;
@@ -32,7 +32,7 @@ class CrosshairAxisRenderer implements IPrimitivePaneRenderer {
       ctx.fillStyle = BG_COLOR;
       ctx.fillRect(0, top, mediaSize.width, LABEL_H);
       ctx.fillStyle = TEXT_COLOR;
-      ctx.font = FONT;
+      ctx.font = `${LABEL_FONT_PX}px ${FONT_FAMILY}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(this._text, mediaSize.width / 2, this._y);
