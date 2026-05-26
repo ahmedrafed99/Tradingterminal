@@ -8,13 +8,15 @@ export interface Account {
   canTrade: boolean;
   isVisible: boolean;
   ineligible?: boolean;
+  /** Maximum Loss Limit floor (ProjectX/TopstepX only). Account is blown when balance <= maximumLoss. Updates once per day at session close. */
+  maximumLoss?: number;
 }
 
 export const accountService = {
   searchAccounts: dedup(async (): Promise<Account[]> => {
     const [accountsRes, eligibilityRes] = await Promise.allSettled([
       api.get<{ accounts: Account[]; success: boolean }>('/accounts'),
-      api.get<{ accountId: string; ineligible: boolean }[]>('/accounts/eligibility'),
+      api.get<{ accountId: string; ineligible: boolean; maximumLoss?: number }[]>('/accounts/eligibility'),
     ]);
 
     if (accountsRes.status === 'rejected') throw accountsRes.reason;
@@ -24,8 +26,11 @@ export const accountService = {
       .map((a) => ({ ...a, id: String(a.id) }));
 
     if (eligibilityRes.status === 'fulfilled') {
-      const eligMap = new Map(eligibilityRes.value.data.map((e) => [e.accountId, e.ineligible]));
-      return accounts.map((a) => ({ ...a, ineligible: eligMap.get(a.id) ?? false }));
+      const eligMap = new Map(eligibilityRes.value.data.map((e) => [e.accountId, e]));
+      return accounts.map((a) => {
+        const e = eligMap.get(a.id);
+        return { ...a, ineligible: e?.ineligible ?? false, maximumLoss: e?.maximumLoss };
+      });
     }
 
     return accounts;

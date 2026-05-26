@@ -17,7 +17,11 @@ export const projectXAccounts: ExchangeAccounts = {
       `${getUserApiBaseUrl()}/TradingAccount`,
       { headers: authHeaders() },
     );
-    const data: { accountId: number; ineligible: boolean }[] = response.data ?? [];
-    return data.map((a) => ({ accountId: String(a.accountId), ineligible: a.ineligible }));
+    const data: { accountId: number; ineligible: boolean; maximumLoss: number }[] = response.data ?? [];
+    return data.map((a) => ({
+      accountId: String(a.accountId),
+      ineligible: a.ineligible,
+      maximumLoss: a.maximumLoss,
+    }));
   },
 };

@@ -41,7 +41,7 @@ export type { ToastItem } from './slices/toastSlice';
 // ---------------------------------------------------------------------------
 
 // AUTO-BUMPED by pre-commit hook when store slices change. Do not edit manually.
-const STORE_VERSION = 16;
+const STORE_VERSION = 17;
 
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
   & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice & LiveStrategySlice;
@@ -137,6 +137,7 @@ export const useStore = create<Store>()(
         hideBalance: s.hideBalance,
         hideRpnl: s.hideRpnl,
         hideUpnl: s.hideUpnl,
+        mllShowDistance: s.mllShowDistance,
         copyEnabled: s.copyEnabled,
         copyMasterAccountId: s.copyMasterAccountId,
         copyFollowerIds: s.copyFollowerIds,

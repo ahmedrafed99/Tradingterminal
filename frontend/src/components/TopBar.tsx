@@ -80,10 +80,12 @@ export function TopBar() {
     hideBalance,
     hideRpnl,
     hideUpnl,
+    mllShowDistance,
     setHideAccountName,
     setHideBalance,
     setHideRpnl,
     setHideUpnl,
+    setMllShowDistance,
     copyEnabled,
     copyMasterAccountId,
     copyFollowerIds,
@@ -102,10 +104,12 @@ export function TopBar() {
     hideBalance: s.hideBalance,
     hideRpnl: s.hideRpnl,
     hideUpnl: s.hideUpnl,
+    mllShowDistance: s.mllShowDistance,
     setHideAccountName: s.setHideAccountName,
     setHideBalance: s.setHideBalance,
     setHideRpnl: s.setHideRpnl,
     setHideUpnl: s.setHideUpnl,
+    setMllShowDistance: s.setMllShowDistance,
     copyEnabled: s.copyEnabled,
     copyMasterAccountId: s.copyMasterAccountId,
     copyFollowerIds: s.copyFollowerIds,
@@ -306,6 +310,27 @@ export function TopBar() {
               ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </span>
+          {activeAccount.maximumLoss != null && (() => {
+            const mll = activeAccount.maximumLoss;
+            const liveEquity = (activeAccount.balance ?? 0) + unrealizedPnl;
+            const distance = liveEquity - mll;
+            const value = mllShowDistance ? distance : mll;
+            const danger = mllShowDistance && distance <= 0;
+            return (
+              <span
+                className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
+                onClick={() => setMllShowDistance(!mllShowDistance)}
+                title={mllShowDistance ? `MLL floor: $${mll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — click to show floor` : `Distance to MLL: $${distance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — click to show distance`}
+              >
+                MLL: <span
+                  className={danger ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}
+                  style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}
+                >
+                  {value < 0 ? '-' : ''}${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </span>
+            );
+          })()}
           <span
             className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
             onClick={() => setHideRpnl(!hideRpnl)}

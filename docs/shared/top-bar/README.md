@@ -9,10 +9,10 @@ A top bar (`h-10`) rendered above the chart when connected. Contains account sel
 ## UI Layout
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ [Eval-A #▼] 👁  │  Balance: $50,123.45  RP&L: +85.00 $  UP&L: +12.50 $  │ ● ⚙ │
-└──────────────────────────────────────────────────────────────────────────────────┘
-  Left                              Centre                               Right
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [Eval-A #▼] 👁  │  Balance: $50,123.45  MLL: $48,662.38  RP&L: +85.00 $  UP&L: +12.50 $  │ ● ⚙ │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
+  Left                              Centre                                              Right
 ```
 
 - **Background**: `bg-black`, border bottom `border-(--color-border)`
@@ -70,6 +70,21 @@ unrealizedPnl += calcPnl(diff, orderContract, pos.size);
 - Positive: `text-[#26a69a]` (green), prefixed with `+`
 - Negative: `text-[#ef5350]` (red)
 - Zero: `text-[#d1d4dc]` (neutral white), no prefix
+
+### Centre — MLL (Maximum Loss Limit / Drawdown)
+
+```
+MLL: $48,662.38       ← default (absolute floor)
+MLL: $2,439.80        ← after click (distance to floor: liveEquity − MLL)
+```
+
+**ProjectX/TopstepX only.** Pulled from the `maximumLoss` field of `GET userapi.topstepx.com/TradingAccount` — fetched **once** alongside the eligibility flag inside `accountService.searchAccounts()` (no second network call; the endpoint is documented in [`docs/exchange-adapters/projectx.md`](../../exchange-adapters/projectx.md)). MLL only updates at end-of-day session close, so a single fetch on connect / page-load is sufficient. The pill auto-hides on exchanges that don't expose `maximumLoss` (e.g. Hyperliquid, Demo).
+
+- **Default display**: absolute MLL floor (e.g. `$48,662.38`) — the balance below which the account is blown.
+- **Click**: toggles to **distance to MLL** = `(account.balance + unrealizedPnl) − maximumLoss`. Uses live equity so it matches the "Balance" figure shown to its left.
+- **Color**: muted gray by default; switches to `var(--color-sell)` when in distance mode AND distance ≤ 0 (account at or past the floor).
+- **Persistence**: `mllShowDistance` in `layoutSlice` — survives page refresh.
+- **Privacy**: blurs with the same `hideBalance` toggle (since MLL also reveals account size).
 
 ### Centre — Realized P&L
 

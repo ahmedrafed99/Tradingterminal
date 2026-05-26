@@ -20,11 +20,14 @@ export interface UiState {
   hideBalance: boolean;
   hideRpnl: boolean;
   hideUpnl: boolean;
+  /** When true, MLL pill shows distance-to-MLL (`balance - maximumLoss`) instead of the absolute floor. */
+  mllShowDistance: boolean;
   pnlMode: '$' | 'points';
   setHideAccountName: (v: boolean) => void;
   setHideBalance: (v: boolean) => void;
   setHideRpnl: (v: boolean) => void;
   setHideUpnl: (v: boolean) => void;
+  setMllShowDistance: (v: boolean) => void;
   setPnlMode: (v: '$' | 'points') => void;
   copyEnabled: boolean;
   copyMasterAccountId: string | null;
@@ -184,11 +187,13 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
   hideBalance: false,
   hideRpnl: false,
   hideUpnl: false,
+  mllShowDistance: false,
   pnlMode: '$' as '$' | 'points',
   setHideAccountName: (hideAccountName) => set({ hideAccountName }),
   setHideBalance: (hideBalance) => set({ hideBalance }),
   setHideRpnl: (hideRpnl) => set({ hideRpnl }),
   setHideUpnl: (hideUpnl) => set({ hideUpnl }),
+  setMllShowDistance: (mllShowDistance) => set({ mllShowDistance }),
   setPnlMode: (pnlMode) => set({ pnlMode }),
   copyEnabled: false,
   copyMasterAccountId: null as string | null,
