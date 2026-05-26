@@ -229,15 +229,20 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
-  // Fib creation: drag-to-create
+  // Fib creation: click-move-click (first click starts, second click finalizes)
   if (state.fibCreation && e.button === 0) {
     const { x, y } = getMousePos(e, container);
+    const dx = Math.abs(x - state.fibCreation.startX);
+    const dy = Math.abs(y - state.fibCreation.startY);
+
+    // First click released without dragging → keep creation alive (wait for second click)
+    if (dx <= 5 && dy <= 5) return;
+
+    // Moved enough → finalize (drag-release or second click)
     chart.applyOptions({ handleScroll: true, handleScale: true });
     primitive.clearFibPreview();
 
-    const dx = Math.abs(x - state.fibCreation.startX);
-    const dy = Math.abs(y - state.fibCreation.startY);
-    if ((dx > 5 || dy > 5) && contract !== null) {
+    if (contract !== null) {
       const rawEndPrice = series.coordinateToPrice(y);
       if (rawEndPrice !== null) {
         const endPrice = maybeSnap(e, rawEndPrice as number, x, chart, refs.bars.current);
@@ -283,6 +288,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     state.fibCreation = null;
     return;
   }
+
 
   // Arrow path creation: left-click adds nodes
   if (useStore.getState().activeTool === 'arrowpath' && e.button === 0) {

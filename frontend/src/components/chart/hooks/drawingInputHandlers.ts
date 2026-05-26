@@ -111,6 +111,16 @@ export function onContextMenu(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
+  // Fib in progress: cancel
+  if (state.fibCreation) {
+    e.stopImmediatePropagation();
+    state.fibCreation = null;
+    primitive.clearFibPreview();
+    resetChartInteraction(ctx);
+    setActiveTool('select');
+    return;
+  }
+
   // Free draw in progress: cancel
   if (state.freeDrawCreation) {
     e.stopImmediatePropagation();
@@ -239,6 +249,13 @@ export function onKeyDown(e: KeyboardEvent, ctx: DrawingContext): void {
     if (state.rectCreation) {
       state.rectCreation = null;
       primitive.clearRectPreview();
+      resetChartInteraction(ctx);
+      useStore.getState().setActiveTool('select');
+      return;
+    }
+    if (state.fibCreation) {
+      state.fibCreation = null;
+      primitive.clearFibPreview();
       resetChartInteraction(ctx);
       useStore.getState().setActiveTool('select');
       return;
