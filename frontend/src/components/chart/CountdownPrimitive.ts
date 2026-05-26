@@ -39,7 +39,6 @@ class PriceLabelAxisView implements ISeriesPrimitiveAxisView {
 // Canvas renderer — draws the price + optional countdown badge on the price
 // axis pane canvas at zOrder 'normal' (crosshair label paints over it at 'top')
 // ---------------------------------------------------------------------------
-const FONT_BOLD = `bold 12px ${FONT_FAMILY}`;
 const FONT_NORMAL = `12px ${FONT_FAMILY}`;
 const PRICE_ROW_H = 20;
 const TIMER_ROW_H = 16;
@@ -75,7 +74,7 @@ class CountdownAxisRenderer implements IPrimitivePaneRenderer {
       ctx.textBaseline = 'middle';
       const cx = mediaSize.width / 2;
 
-      ctx.font = FONT_BOLD;
+      ctx.font = FONT_NORMAL;
       ctx.fillText(this._priceText, cx, top + PRICE_ROW_H / 2);
 
       if (hasTimer) {
