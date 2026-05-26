@@ -1,6 +1,6 @@
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_FIB_COLOR } from '../../../types/drawing';
+import { DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_FIB_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
 import { getMousePos, getDataPos, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
@@ -375,9 +375,9 @@ export function onFreeDrawMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   e.preventDefault();
 }
 
-/** Mousedown: start Fibonacci drag-to-create. */
+/** Mousedown: start Fibonacci click-move-click creation. */
 export function onFibMouseDown(e: MouseEvent, ctx: DrawingContext): void {
-  const { state, chart, series, container, refs } = ctx;
+  const { state, chart, series, container, refs, contract } = ctx;
   if (state.ovalResize || state.drawingDrag || state.arrowPathNodeDrag || state.arrowPathCreation
       || state.rectCreation || state.rulerCreation || state.freeDrawCreation || state.frvpCreation || state.fibCreation) return;
   const tool = useStore.getState().activeTool;
@@ -405,7 +405,16 @@ export function onFibMouseDown(e: MouseEvent, ctx: DrawingContext): void {
   };
 
   const fibDef = useStore.getState().drawingDefaults['fib'];
-  ctx.primitive.setFibPreview(x, startY, x, startY, 'rgba(180,180,180,0.7)');
+  const dec = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
+  ctx.primitive.setFibPreview({
+    x1: x, y1: startY, x2: x, y2: startY,
+    startPrice, endPrice: startPrice,
+    levels: fibDef?.levels ?? DEFAULT_FIB_LEVELS.map((l) => ({ ...l })),
+    color: fibDef?.color ?? DEFAULT_FIB_COLOR,
+    strokeWidth: fibDef?.strokeWidth ?? 1,
+    showNegative: fibDef?.showNegative ?? false,
+    decimals: dec,
+  });
 
   chart.applyOptions({ handleScroll: false, handleScale: false });
   e.stopPropagation();

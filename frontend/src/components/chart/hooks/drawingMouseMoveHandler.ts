@@ -1,7 +1,7 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_OVAL_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FIB_COLOR } from '../../../types/drawing';
+import { DEFAULT_OVAL_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FIB_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
@@ -274,16 +274,34 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     return;
   }
 
-  // Fib creation drag preview
+  // Fib creation preview (click-move-click)
   if (state.fibCreation) {
     const { x, y } = getMousePos(e, container);
     let previewY = y;
+    let endPrice = state.fibCreation.startPrice;
     const rp = series.coordinateToPrice(y);
     if (rp !== null) {
       const snapped = maybeSnap(e, rp as number, state.fibCreation.startX, chart, refs.bars.current);
-      if (snapped !== (rp as number)) { const sy = series.priceToCoordinate(snapped); if (sy !== null) previewY = sy; }
+      if (snapped !== (rp as number)) {
+        const sy = series.priceToCoordinate(snapped);
+        if (sy !== null) previewY = sy;
+        endPrice = snapped;
+      } else {
+        endPrice = rp as number;
+      }
     }
-    primitive.setFibPreview(state.fibCreation.startX, state.fibCreation.startY, x, previewY, 'rgba(180,180,180,0.7)');
+    const fibDef = useStore.getState().drawingDefaults['fib'];
+    const dec = contract ? (contract.tickSize.toString().split('.')[1]?.length ?? 0) : 2;
+    primitive.setFibPreview({
+      x1: state.fibCreation.startX, y1: state.fibCreation.startY,
+      x2: x, y2: previewY,
+      startPrice: state.fibCreation.startPrice, endPrice,
+      levels: fibDef?.levels ?? DEFAULT_FIB_LEVELS.map((l) => ({ ...l })),
+      color: fibDef?.color ?? DEFAULT_FIB_COLOR,
+      strokeWidth: fibDef?.strokeWidth ?? 1,
+      showNegative: fibDef?.showNegative ?? false,
+      decimals: dec,
+    });
     return;
   }
 

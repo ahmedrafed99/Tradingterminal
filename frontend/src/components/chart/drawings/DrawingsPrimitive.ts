@@ -31,7 +31,7 @@ import { applyLineDash } from './rendererUtils';
 import type { LineStyle } from '../../../types/drawing';
 import { MarkerPaneView } from './MarkerRenderer';
 import { FRVPPaneView } from './FRVPRenderer';
-import { FibPaneView, FibPreviewPaneView } from './FibRenderer';
+import { FibPaneView, FibPreviewPaneView, type FibPreviewOptions } from './FibRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -1019,9 +1019,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
-  /** Show a dashed diagonal line preview during Fibonacci drag creation */
-  setFibPreview(x1: number, y1: number, x2: number, y2: number, color: string): void {
-    this._fibPreview = new FibPreviewPaneView(x1, y1, x2, y2, color);
+  /** Show a live fib-level preview during Fibonacci click-move-click creation */
+  setFibPreview(opts: FibPreviewOptions): void {
+    this._fibPreview = new FibPreviewPaneView(opts);
     this._requestUpdate?.();
   }
 

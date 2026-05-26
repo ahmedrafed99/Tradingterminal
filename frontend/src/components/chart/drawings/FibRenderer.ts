@@ -311,30 +311,85 @@ export class FibPaneView implements IPrimitivePaneView {
 }
 
 // ---------------------------------------------------------------------------
-// FibPreviewPaneView — thin dashed diagonal + endpoint dots during drag creation
-// (same visual pattern as FRVPRangePreviewPaneView)
+// FibPreviewPaneView — full fib-level preview during click-move-click creation
 // ---------------------------------------------------------------------------
-class FibPreviewRenderer implements IPrimitivePaneRenderer {
-  private _x1: number;
-  private _y1: number;
-  private _x2: number;
-  private _y2: number;
-  private _color: string;
+export interface FibPreviewOptions {
+  x1: number; y1: number;   // CSS pixel coords (first click / p1)
+  x2: number; y2: number;   // CSS pixel coords (current mouse / p2)
+  startPrice: number;        // price at p1 — used for label text
+  endPrice: number;          // price at p2 — used for label text
+  levels: FibLevel[];
+  color: string;
+  strokeWidth: number;
+  showNegative: boolean;
+  decimals: number;
+}
 
-  constructor(x1: number, y1: number, x2: number, y2: number, color: string) {
-    this._x1 = x1;
-    this._y1 = y1;
-    this._x2 = x2;
-    this._y2 = y2;
-    this._color = color;
-  }
+class FibPreviewRenderer implements IPrimitivePaneRenderer {
+  private _opts: FibPreviewOptions;
+  constructor(opts: FibPreviewOptions) { this._opts = opts; }
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const { _x1: x1, _y1: y1, _x2: x2, _y2: y2 } = this;
+      const { x1, y1, x2, y2, startPrice, endPrice, levels, color, strokeWidth, showNegative, decimals } = this._opts;
 
-      ctx.strokeStyle = this._color;
-      ctx.lineWidth = 1;
+      const xLeft  = Math.min(x1, x2);
+      const xRight = Math.max(x1, x2);
+      const yTop   = Math.min(y1, y2);
+      const yBottom = Math.max(y1, y2);
+      const heightPx = yBottom - yTop;
+      const widthPx  = xRight - xLeft;
+
+      // Background fill (core rectangle, ratios 0–1)
+      if (heightPx >= 1) {
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = color;
+        ctx.fillRect(xLeft, yTop, widthPx || 1, heightPx);
+        ctx.globalAlpha = 1.0;
+      }
+
+      // Levels + labels
+      const basePrice  = Math.min(startPrice, endPrice);
+      const priceSpan  = Math.abs(endPrice - startPrice);
+      const allLevels  = levels.length > 0 ? levels : DEFAULT_FIB_LEVELS;
+      const active     = showNegative ? allLevels : allLevels.filter((l) => l.ratio >= 0);
+      const visible    = active.filter((l) => l.visible !== false);
+      const labelOffX  = 6;
+
+      ctx.save();
+      for (const level of visible) {
+        // Higher price = smaller Y in canvas coords → invert ratio
+        const ly = yBottom - level.ratio * heightPx;
+        const lc = level.color ?? color;
+
+        ctx.strokeStyle = lc;
+        ctx.lineWidth   = strokeWidth;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(xLeft, ly);
+        ctx.lineTo(xRight, ly);
+        ctx.stroke();
+
+        // Labels to the left of xLeft (only when we have a real price span)
+        if (priceSpan > 0) {
+          const lp = basePrice + level.ratio * priceSpan;
+          const priceLabel = `(${lp.toFixed(decimals)})`;
+          const ratioLabel = formatRatioLabel(level.ratio);
+          ctx.font         = `${PRICE_SCALE_FONT_SIZE}px ${FONT_FAMILY}`;
+          ctx.fillStyle    = lc;
+          ctx.textAlign    = 'right';
+          ctx.textBaseline = 'bottom';
+          const labelY = ly - 2;
+          ctx.fillText(priceLabel, xLeft - labelOffX, labelY);
+          const pw = ctx.measureText(priceLabel).width;
+          ctx.fillText(ratioLabel, xLeft - labelOffX - pw - 4, labelY);
+        }
+      }
+      ctx.restore();
+
+      // Dashed diagonal connecting the two anchor points
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 1;
       ctx.setLineDash([5, 4]);
       ctx.beginPath();
       ctx.moveTo(x1, y1);
@@ -343,10 +398,10 @@ class FibPreviewRenderer implements IPrimitivePaneRenderer {
       ctx.setLineDash([]);
 
       // Endpoint dots
-      ctx.fillStyle = this._color;
-      for (const [x, y] of [[x1, y1], [x2, y2]] as [number, number][]) {
+      ctx.fillStyle = color;
+      for (const [px, py] of [[x1, y1], [x2, y2]] as [number, number][]) {
         ctx.beginPath();
-        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.arc(px, py, 4, 0, 2 * Math.PI);
         ctx.fill();
       }
     });
@@ -354,25 +409,12 @@ class FibPreviewRenderer implements IPrimitivePaneRenderer {
 }
 
 export class FibPreviewPaneView implements IPrimitivePaneView {
-  private _x1: number;
-  private _y1: number;
-  private _x2: number;
-  private _y2: number;
-  private _color: string;
+  private _opts: FibPreviewOptions;
+  constructor(opts: FibPreviewOptions) { this._opts = opts; }
 
-  constructor(x1: number, y1: number, x2: number, y2: number, color: string) {
-    this._x1 = x1;
-    this._y1 = y1;
-    this._x2 = x2;
-    this._y2 = y2;
-    this._color = color;
-  }
-
-  zOrder(): 'top' {
-    return 'top';
-  }
+  zOrder(): 'top' { return 'top'; }
 
   renderer(): IPrimitivePaneRenderer | null {
-    return new FibPreviewRenderer(this._x1, this._y1, this._x2, this._y2, this._color);
+    return new FibPreviewRenderer(this._opts);
   }
 }
