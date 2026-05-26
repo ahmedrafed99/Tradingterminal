@@ -1,7 +1,7 @@
 import type { Time } from 'lightweight-charts';
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_OVAL_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FIB_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
+import { DEFAULT_OVAL_FILL, DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_RECT_COLOR, DEFAULT_RECT_FILL, DEFAULT_FIB_COLOR, DEFAULT_FIB_NEG_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
 import { computeRulerMetrics } from '../drawings/rulerMetrics';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
@@ -298,8 +298,10 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
       startPrice: state.fibCreation.startPrice, endPrice,
       levels: fibDef?.levels ?? DEFAULT_FIB_LEVELS.map((l) => ({ ...l })),
       color: fibDef?.color ?? DEFAULT_FIB_COLOR,
+      negativeMasterColor: fibDef?.negativeMasterColor ?? DEFAULT_FIB_NEG_COLOR,
       strokeWidth: fibDef?.strokeWidth ?? 1,
       showNegative: fibDef?.showNegative ?? false,
+      extendRight: fibDef?.extendRight ?? false,
       decimals: dec,
     });
     return;

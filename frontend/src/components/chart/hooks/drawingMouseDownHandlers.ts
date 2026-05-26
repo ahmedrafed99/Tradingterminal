@@ -1,6 +1,6 @@
 import { useStore } from '../../../store/useStore';
 import type { FRVPDrawing } from '../../../types/drawing';
-import { DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_FIB_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
+import { DEFAULT_FREEDRAW_COLOR, DEFAULT_FRVP_COLOR, DEFAULT_FIB_COLOR, DEFAULT_FIB_NEG_COLOR, DEFAULT_FIB_LEVELS } from '../../../types/drawing';
 import { maybeSnap } from '../drawings/magnetSnap';
 import type { DrawingContext } from './drawingInteraction';
 import { getMousePos, getDataPos, pixelToAnchoredPoint, pointToPixelX } from './drawingInteraction';
@@ -411,8 +411,10 @@ export function onFibMouseDown(e: MouseEvent, ctx: DrawingContext): void {
     startPrice, endPrice: startPrice,
     levels: fibDef?.levels ?? DEFAULT_FIB_LEVELS.map((l) => ({ ...l })),
     color: fibDef?.color ?? DEFAULT_FIB_COLOR,
+    negativeMasterColor: fibDef?.negativeMasterColor ?? DEFAULT_FIB_NEG_COLOR,
     strokeWidth: fibDef?.strokeWidth ?? 1,
     showNegative: fibDef?.showNegative ?? false,
+    extendRight: fibDef?.extendRight ?? false,
     decimals: dec,
   });
 

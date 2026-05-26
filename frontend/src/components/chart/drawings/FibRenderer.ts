@@ -320,9 +320,12 @@ export interface FibPreviewOptions {
   endPrice: number;          // price at p2 — used for label text
   levels: FibLevel[];
   color: string;
+  negativeMasterColor?: string;
   strokeWidth: number;
   showNegative: boolean;
+  extendRight?: boolean;
   decimals: number;
+  canvasWidth?: number;      // supplied by renderer to support extendRight
 }
 
 class FibPreviewRenderer implements IPrimitivePaneRenderer {
@@ -330,11 +333,11 @@ class FibPreviewRenderer implements IPrimitivePaneRenderer {
   constructor(opts: FibPreviewOptions) { this._opts = opts; }
 
   draw(target: CanvasRenderingTarget2D): void {
-    target.useMediaCoordinateSpace(({ context: ctx }) => {
-      const { x1, y1, x2, y2, startPrice, endPrice, levels, color, strokeWidth, showNegative, decimals } = this._opts;
+    target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
+      const { x1, y1, x2, y2, startPrice, endPrice, levels, color, negativeMasterColor, strokeWidth, showNegative, extendRight, decimals } = this._opts;
 
       const xLeft  = Math.min(x1, x2);
-      const xRight = Math.max(x1, x2);
+      const xRight = extendRight ? mediaSize.width : Math.max(x1, x2);
       const yTop   = Math.min(y1, y2);
       const yBottom = Math.max(y1, y2);
       const heightPx = yBottom - yTop;
@@ -360,7 +363,8 @@ class FibPreviewRenderer implements IPrimitivePaneRenderer {
       for (const level of visible) {
         // Higher price = smaller Y in canvas coords → invert ratio
         const ly = yBottom - level.ratio * heightPx;
-        const lc = level.color ?? color;
+        const fallbackColor = level.ratio < 0 ? (negativeMasterColor ?? DEFAULT_FIB_NEG_COLOR) : color;
+        const lc = level.color ?? fallbackColor;
 
         ctx.strokeStyle = lc;
         ctx.lineWidth   = strokeWidth;
