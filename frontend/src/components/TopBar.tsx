@@ -217,7 +217,7 @@ export function TopBar() {
           <div ref={acctRef} className="relative">
             <button
               onClick={() => setAcctOpen((o) => !o)}
-              className="flex items-center gap-1.5 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
+              className="group/acct flex items-center gap-1.5 rounded-md text-xs text-(--color-text) font-medium hover:bg-(--color-surface) transition-colors cursor-pointer"
               style={{ padding: '6px 10px' }}
             >
               <span style={{ display: 'inline-flex', gap: 4, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -225,6 +225,16 @@ export function TopBar() {
                   <span>{label}</span>
                   {id && <span style={{ transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: privacyOn ? 0.4 : 1, filter: privacyOn ? 'blur(5px)' : 'none', userSelect: privacyOn ? 'none' : 'auto' }}>- {id}</span>}
                 </>); })()}
+              </span>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => { e.stopPropagation(); setHideAccountName(!hideAccountName); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setHideAccountName(!hideAccountName); } }}
+                className="text-(--color-text-muted) hover:text-white transition-opacity p-0.5 rounded opacity-0 group-hover/acct:opacity-100 focus:opacity-100 inline-flex items-center"
+                title={privacyOn ? 'Show full account info' : 'Hide account info'}
+              >
+                {privacyOn ? <EyeOffIcon /> : <EyeIcon />}
               </span>
               {activeAccount?.ineligible && (
                 <span className="text-xs font-semibold" style={{ color: 'var(--color-sell)', marginLeft: 8 }}>Blown</span>
@@ -289,48 +299,46 @@ export function TopBar() {
         ) : (
           <span className="text-xs text-(--color-text-dim)">No accounts</span>
         )}
-        <button
-          onClick={() => setHideAccountName(!hideAccountName)}
-          className="text-(--color-text-muted) hover:text-white transition-colors p-0.5 rounded"
-          title={privacyOn ? 'Show full account info' : 'Hide account info'}
-        >
-          {privacyOn ? <EyeOffIcon /> : <EyeIcon />}
-        </button>
+        {activeAccount && (
+          <>
+            <span
+              className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
+              onClick={() => setHideBalance(!hideBalance)}
+              title={hideBalance ? 'Show balance' : 'Hide balance'}
+              style={{ marginLeft: 64 }}
+            >
+              Balance: <span className="text-(--color-text-muted)" style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
+                ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </span>
+            {activeAccount.maximumLoss != null && (() => {
+              const mll = activeAccount.maximumLoss;
+              const liveEquity = (activeAccount.balance ?? 0) + unrealizedPnl;
+              const distance = liveEquity - mll;
+              const value = mllShowDistance ? distance : mll;
+              const danger = mllShowDistance && distance <= 0;
+              return (
+                <span
+                  className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
+                  onClick={() => setMllShowDistance(!mllShowDistance)}
+                  title={mllShowDistance ? `MLL floor: $${mll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — click to show floor` : `Distance to MLL: $${distance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — click to show distance`}
+                >
+                  MLL: <span
+                    className={danger ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}
+                    style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}
+                  >
+                    {value < 0 ? '-' : ''}${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </span>
+              );
+            })()}
+          </>
+        )}
       </div>
 
-      {/* Centre — balance + PnL (no LockoutButton — keeps metrics pinned to center) */}
+      {/* Centre — RP&L / UP&L (no LockoutButton — keeps metrics pinned to center) */}
       {activeAccount ? (
         <div className="flex items-center gap-3 justify-center">
-          <span
-            className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
-            onClick={() => setHideBalance(!hideBalance)}
-            title={hideBalance ? 'Show balance' : 'Hide balance'}
-          >
-            Balance: <span className="text-(--color-text-muted)" style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}>
-              ${((activeAccount.balance ?? 0) + unrealizedPnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </span>
-          {activeAccount.maximumLoss != null && (() => {
-            const mll = activeAccount.maximumLoss;
-            const liveEquity = (activeAccount.balance ?? 0) + unrealizedPnl;
-            const distance = liveEquity - mll;
-            const value = mllShowDistance ? distance : mll;
-            const danger = mllShowDistance && distance <= 0;
-            return (
-              <span
-                className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
-                onClick={() => setMllShowDistance(!mllShowDistance)}
-                title={mllShowDistance ? `MLL floor: $${mll.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — click to show floor` : `Distance to MLL: $${distance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} — click to show distance`}
-              >
-                MLL: <span
-                  className={danger ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}
-                  style={{ display: 'inline-block', transition: 'opacity var(--transition-normal) ease, filter var(--transition-normal) ease', opacity: hideBalance ? 0.4 : 1, filter: hideBalance ? 'blur(5px)' : 'none', userSelect: hideBalance ? 'none' : 'auto' }}
-                >
-                  {value < 0 ? '-' : ''}${Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </span>
-            );
-          })()}
           <span
             className="text-xs text-(--color-text) cursor-pointer select-none transition-colors hover:text-(--color-text-bright)"
             onClick={() => setHideRpnl(!hideRpnl)}
