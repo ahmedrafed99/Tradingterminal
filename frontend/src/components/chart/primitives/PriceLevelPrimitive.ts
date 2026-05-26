@@ -89,6 +89,7 @@ const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
 const FONT = `bold ${FONT_PX}px ${FONT_FAMILY}`;
+const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
 const ICON_SLOT = 11; // px reserved for arrow icon + gap
 
 // Cursor override (single style tag, shared across all primitive instances)
@@ -149,7 +150,6 @@ function brighten(color: string, factor = 1.25): string {
 }
 
 // ── Renderer ─────────────────────────────────────────────────────────
-const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
 
 interface CellAnimation {
   startMs: number;
@@ -249,13 +249,13 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
       ctx.textAlign = 'center';
       const now = performance.now();
       for (let i = 0; i < this._cellRects.length; i++) {
-        const cellRect = this._cellRects[i];
-        const cell = this._cells[cellRect.key];
-        const isHover = cellRect.key === this._hoveredKey;
+        const cr = this._cellRects[i];
+        const cell = this._cells[cr.key];
+        const isHover = cr.key === this._hoveredKey;
         const bg = isHover ? (cell.hoverBg ?? brighten(cell.bg, 1.25)) : cell.bg;
 
         // Animation state for this cell
-        const anim = this._cellAnimations.get(cellRect.key);
+        const anim = this._cellAnimations.get(cr.key);
         let animEased = 1;
         if (anim) {
           const animationT = Math.min(1, (now - anim.startMs) / anim.duration);
@@ -263,37 +263,37 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
         }
 
         ctx.fillStyle = bg;
-        ctx.fillRect(cellRect.x, cellRect.y, cellRect.w, cellRect.h);
+        ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
 
         // Flash overlay: fades from flashColor → transparent as animation progresses
         if (anim && animEased < 1) {
           ctx.globalAlpha = (1 - animEased) * 0.55;
           ctx.fillStyle = anim.flashColor;
-          ctx.fillRect(cellRect.x, cellRect.y, cellRect.w, cellRect.h);
+          ctx.fillRect(cr.x, cr.y, cr.w, cr.h);
           ctx.globalAlpha = 1;
         }
 
         if (i > 0) {
           ctx.fillStyle = COLOR_LABEL_TEXT;
-          ctx.fillRect(cellRect.x, cellRect.y, 1, cellRect.h);
+          ctx.fillRect(cr.x, cr.y, 1, cr.h); // 1px separator
         }
 
         // Left zone
-        if (cellRect.leftZoneW > 0) {
+        if (cr.leftZoneW > 0) {
           const zoneHot = isHover && this._hoveredZone === 'left';
           if (zoneHot) {
             ctx.fillStyle = brighten(bg, 1.3);
-            ctx.fillRect(cellRect.x, cellRect.y, cellRect.leftZoneW, cellRect.h);
+            ctx.fillRect(cr.x, cr.y, cr.leftZoneW, cr.h);
             ctx.font = FONT_ZONE_HOVER;
           }
           ctx.fillStyle = cell.leftColor ?? cell.color;
-          ctx.fillText(cell.leftText!, cellRect.x + cellRect.leftZoneW / 2, cellRect.y + cellRect.h / 2 + 0.5);
+          ctx.fillText(cell.leftText!, cr.x + cr.leftZoneW / 2, cr.y + cr.h / 2);
           if (zoneHot) ctx.font = FONT;
         }
 
         // Main text (+ optional icon) centered between zones
-        const mainLeft = cellRect.x + cellRect.leftZoneW;
-        const mainW = cellRect.w - cellRect.leftZoneW - cellRect.rightZoneW;
+        const mainLeft = cr.x + cr.leftZoneW;
+        const mainW = cr.w - cr.leftZoneW - cr.rightZoneW;
         const displayText = isHover && cell.hoverText != null ? cell.hoverText : cell.text;
         const displayColor = isHover && cell.hoverColor != null ? cell.hoverColor : cell.color;
         const showIcon = cell.icon != null && !(isHover && cell.hoverText != null);
@@ -304,25 +304,25 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
           const textW = ctx.measureText(displayText).width;
           const contentW = ICON_SLOT + textW;
           const contentStart = mainLeft + (mainW - contentW) / 2;
-          drawCellIcon(ctx, cell.icon!, contentStart + ICON_SLOT / 2 - 1, cellRect.y + cellRect.h / 2, displayColor, arrowScale);
+          drawCellIcon(ctx, cell.icon!, contentStart + ICON_SLOT / 2 - 1, cr.y + cr.h / 2, displayColor, arrowScale);
           ctx.textAlign = 'left';
-          ctx.fillText(displayText, contentStart + ICON_SLOT, cellRect.y + cellRect.h / 2 + 0.5);
+          ctx.fillText(displayText, contentStart + ICON_SLOT, cr.y + cr.h / 2);
           ctx.textAlign = 'center';
         } else {
-          ctx.fillText(displayText, mainLeft + mainW / 2, cellRect.y + cellRect.h / 2 + 0.5);
+          ctx.fillText(displayText, mainLeft + mainW / 2, cr.y + cr.h / 2);
         }
         if (cell.fontSize) ctx.font = FONT;
 
         // Right zone
-        if (cellRect.rightZoneW > 0) {
+        if (cr.rightZoneW > 0) {
           const zoneHot = isHover && this._hoveredZone === 'right';
           if (zoneHot) {
             ctx.fillStyle = brighten(bg, 1.3);
-            ctx.fillRect(cellRect.x + cellRect.w - cellRect.rightZoneW, cellRect.y, cellRect.rightZoneW, cellRect.h);
+            ctx.fillRect(cr.x + cr.w - cr.rightZoneW, cr.y, cr.rightZoneW, cr.h);
             ctx.font = FONT_ZONE_HOVER;
           }
           ctx.fillStyle = cell.rightColor ?? cell.color;
-          ctx.fillText(cell.rightText!, cellRect.x + cellRect.w - cellRect.rightZoneW / 2, cellRect.y + cellRect.h / 2 + 0.5);
+          ctx.fillText(cell.rightText!, cr.x + cr.w - cr.rightZoneW / 2, cr.y + cr.h / 2);
           if (zoneHot) ctx.font = FONT;
         }
       }
