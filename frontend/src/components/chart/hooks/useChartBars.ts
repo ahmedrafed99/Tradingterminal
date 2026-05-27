@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CandlestickData, UTCTimestamp, LogicalRange } from 'lightweight-charts';
-import type { Contract } from '../../../services/marketDataService';
+import type { Bar, Contract } from '../../../services/marketDataService';
 import type { Timeframe } from '../../../store/useStore';
 import { useStore } from '../../../store/useStore';
 import { marketDataService } from '../../../services/marketDataService';
 import { realtimeService, type GatewayQuote, type DepthEntry, type MarketTick } from '../../../services/realtimeService';
 import { DepthType } from '../../../types/enums';
 import {
+  aggregateBars,
   barToCandle,
   sortBarsAscending,
   computeStartTime,
@@ -45,6 +46,10 @@ export function useChartBars(
   // Tick bar live state: how many more ticks until the current bar closes.
   // Initialised from the partial bar's tv field on load; decremented by handleMarketTick.
   const ticksRemainingRef = useRef<number>(0);
+
+  // TF of the bars currently in refs.bars.current — used to derive a coarser TF
+  // via client-side aggregation on switch (skips the network round-trip entirely).
+  const previousTimeframeRef = useRef<Timeframe | null>(null);
 
   // Historical load-more state
   const earliestLoadedTimeRef = useRef<string | null>(null);
@@ -206,6 +211,27 @@ export function useChartBars(
     // Save horizontal scroll position so same-instrument timeframe changes can restore it
     const savedScrollPos = !isNewContract ? (refs.chart.current?.timeScale().scrollPosition() ?? null) : null;
 
+    // Snapshot bars + TF from the previous load so loadBars can derive the new
+    // (coarser) TF locally — no network call when the target is an integer
+    // multiple of the source and both have uniform periods (sec/min/hr/day/week).
+    const aggregationSource = ((): { bars: Bar[]; sourcePeriodSec: number; targetPeriodSec: number } | null => {
+      if (isNewContract) return null;
+      const sourceTf = previousTimeframeRef.current;
+      if (!sourceTf) return null;
+      if (sourceTf.unit < 1 || sourceTf.unit > 5) return null;
+      if (timeframe.unit < 1 || timeframe.unit > 5) return null;
+      const sourcePeriodSec = getCandlePeriodSeconds(sourceTf);
+      const targetPeriodSec = getCandlePeriodSeconds(timeframe);
+      if (sourcePeriodSec <= 0 || targetPeriodSec <= 0) return null;
+      if (targetPeriodSec <= sourcePeriodSec) return null;
+      if (targetPeriodSec % sourcePeriodSec !== 0) return null;
+      const ratio = targetPeriodSec / sourcePeriodSec;
+      // Require enough source bars for at least ~50 aggregated bars — below that,
+      // a fresh fetch gives a more useful range.
+      if (refs.bars.current.length < 50 * ratio) return null;
+      return { bars: refs.bars.current, sourcePeriodSec, targetPeriodSec };
+    })();
+
     let rangeUnsub: (() => void) | null = null;
 
     async function loadOlder() {
@@ -287,20 +313,33 @@ export function useChartBars(
       setError(null);
       refs.lastBar.current = null;
       try {
-        const startTime = computeStartTime(timeframe);
-        const endTime = new Date().toISOString();
-        // Tick bars: cap at 500 bars (chartapi uses Countback; 20000 ticks would be days of data)
-        const initialLimit = timeframe.unit === 7 ? 500 : 20000;
-        const bars = await marketDataService.retrieveBars({
-          contractId: contract!.id,
-          live: false,
-          unit: timeframe.unit,
-          unitNumber: timeframe.unitNumber,
-          startTime,
-          endTime,
-          limit: initialLimit,
-          includePartialBar: true,
-        });
+        let bars: Bar[];
+        if (aggregationSource) {
+          // Fast path: derive bars from the previous (finer) TF — instant, no network.
+          // Source bars are live-updated by real-time ticks, so the trailing aggregated
+          // bar reflects current price. If the source happens to be stale (e.g. tab was
+          // backgrounded), the existing partial-bar topup below catches it.
+          bars = aggregateBars(
+            aggregationSource.bars,
+            aggregationSource.sourcePeriodSec,
+            aggregationSource.targetPeriodSec,
+          );
+        } else {
+          const startTime = computeStartTime(timeframe);
+          const endTime = new Date().toISOString();
+          // Tick bars: cap at 500 bars (chartapi uses Countback; 20000 ticks would be days of data)
+          const initialLimit = timeframe.unit === 7 ? 500 : 20000;
+          bars = await marketDataService.retrieveBars({
+            contractId: contract!.id,
+            live: false,
+            unit: timeframe.unit,
+            unitNumber: timeframe.unitNumber,
+            startTime,
+            endTime,
+            limit: initialLimit,
+            includePartialBar: true,
+          });
+        }
 
         if (cancelled) return;
 
@@ -327,6 +366,7 @@ export function useChartBars(
         }
 
         refs.bars.current = sorted;
+        previousTimeframeRef.current = timeframe;
         const candles = sorted.map(barToCandle);
 
         const periodSec = getCandlePeriodSeconds(timeframe);

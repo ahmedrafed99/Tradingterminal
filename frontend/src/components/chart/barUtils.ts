@@ -88,3 +88,44 @@ export function floorToCandlePeriod(
 ): UTCTimestamp {
   return (Math.floor(timestampSec / periodSec) * periodSec) as UTCTimestamp;
 }
+
+/** Aggregate ascending-sorted time-based bars into a coarser timeframe.
+ *  Buckets align to clock boundaries (`floor(t / targetPeriodSec) * targetPeriodSec`).
+ *  Returns `[]` if `targetPeriodSec` is not a positive integer multiple of `sourcePeriodSec`.
+ *  Caller must restrict to uniform-period units (seconds/minutes/hours/days/weeks) — months
+ *  and quarters are not safe to aggregate this way. */
+export function aggregateBars(
+  sourceBars: Bar[],
+  sourcePeriodSec: number,
+  targetPeriodSec: number,
+): Bar[] {
+  if (sourceBars.length === 0) return [];
+  if (sourcePeriodSec <= 0 || targetPeriodSec <= 0) return [];
+  if (targetPeriodSec <= sourcePeriodSec) return [];
+  if (targetPeriodSec % sourcePeriodSec !== 0) return [];
+
+  const result: Bar[] = [];
+  let bucketStart = -1;
+  let o = 0, h = -Infinity, l = Infinity, c = 0, v = 0;
+
+  for (const bar of sourceBars) {
+    const t = Math.floor(new Date(bar.t).getTime() / 1000);
+    const periodStart = Math.floor(t / targetPeriodSec) * targetPeriodSec;
+    if (periodStart !== bucketStart) {
+      if (bucketStart !== -1) {
+        result.push({ t: new Date(bucketStart * 1000).toISOString(), o, h, l, c, v });
+      }
+      bucketStart = periodStart;
+      o = bar.o; h = bar.h; l = bar.l; c = bar.c; v = bar.v;
+    } else {
+      if (bar.h > h) h = bar.h;
+      if (bar.l < l) l = bar.l;
+      c = bar.c;
+      v += bar.v;
+    }
+  }
+  if (bucketStart !== -1) {
+    result.push({ t: new Date(bucketStart * 1000).toISOString(), o, h, l, c, v });
+  }
+  return result;
+}
