@@ -165,7 +165,7 @@ export function BuySellButtons() {
           onClick={() => handlePlace(OrderSide.Sell)}
           disabled={!canPlaceSell || placing !== null}
           style={{ paddingLeft: 16 }}
-          className="flex-1 flex flex-col items-start py-3 rounded transition-colors
+          className="flex-1 flex flex-col items-start py-2 rounded transition-colors
                      bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'sell' ? (
@@ -195,7 +195,7 @@ export function BuySellButtons() {
           onClick={() => handlePlace(OrderSide.Buy)}
           disabled={!canPlaceBuy || placing !== null}
           style={{ paddingRight: 16 }}
-          className="flex-1 flex flex-col items-end py-3 rounded transition-colors
+          className="flex-1 flex flex-col items-end py-2 rounded transition-colors
                      bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'buy' ? (
