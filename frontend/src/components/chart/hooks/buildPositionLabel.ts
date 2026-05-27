@@ -84,7 +84,7 @@ export function buildPositionLabel(
   }
 
   posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: contrastText(initBg), onClick: togglePnlMode });
-  posPrimitive.setCell('size', { text: String(pos.size), bg: sideBg, color: LABEL_TEXT });
+  posPrimitive.setCell('size', { text: String(pos.size), bg: sideBg, color: contrastText(sideBg) });
   posPrimitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleClose });
   posPrimitive.setCellOrder(['pnl', 'size', 'close']);
 

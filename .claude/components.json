@@ -338,6 +338,7 @@
       "dependencies": [
         "ChevronDown / ChevronUp icons (only when onToggle is provided)"
       ],
+      "notes": "Order panel collapse separator is inlined in App.tsx (not a separate component) — uses ChevronLeft/ChevronRight. State lives in layoutSlice: orderPanelOpen + toggleOrderPanel.",
       "events": [
         { "event": "mousedown", "element": "separator bar", "purpose": "begin vertical drag; captures containerRef bounding rect once" },
         { "event": "mousemove (window)", "element": "window", "purpose": "compute mouseRatio and call onDrag during drag" },
@@ -410,6 +411,8 @@
       "events": [
         { "event": "click", "element": "strategy row", "purpose": "open start-config modal for that strategy" },
         { "event": "click", "element": "start/stop button", "purpose": "start or stop the strategy via liveStrategyService" },
+        { "event": "click", "element": "flask test button (running only, after first poll)", "purpose": "open TestSignalModal to preview orders for current trade config" },
+        { "event": "click", "element": "Long/Short toggle in TestSignalModal", "purpose": "switch preview direction; computes entry/SL/TP absolute prices from lastPrice + cached tradeConfig" },
         { "event": "click", "element": "delete button", "purpose": "delete strategy" },
         { "event": "change", "element": "account select (config modal)", "purpose": "pick account for strategy run" },
         { "event": "change", "element": "contractId / contractName / tickSize inputs (config modal)", "purpose": "configure contract details before starting" },

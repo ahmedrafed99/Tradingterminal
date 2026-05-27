@@ -11,17 +11,29 @@
       "exitPrice": 29514.5,
       "pnl": 25,
       "outcome": "win"
+    },
+    {
+      "date": "2026-05-25",
+      "entryTime": "2026-05-25T13:08:17.863Z",
+      "exitTime": "2026-05-25T17:02:38.878Z",
+      "signal": "long",
+      "contracts": 5,
+      "orderId": "3024194757",
+      "entryPrice": 29955,
+      "exitPrice": 29970.96875,
+      "pnl": 79.84375,
+      "outcome": "win"
     }
   ],
   "stats": {
-    "total": 1,
-    "wins": 1,
+    "total": 2,
+    "wins": 2,
     "losses": 0,
     "unknown": 0,
     "winRate": 100,
-    "totalPnl": 25,
-    "avgWin": 25,
+    "totalPnl": 104.84,
+    "avgWin": 52.42,
     "avgLoss": null,
-    "lastUpdated": "2026-05-22T09:21:04.101Z"
+    "lastUpdated": "2026-05-25T17:02:38.978Z"
   }
 }

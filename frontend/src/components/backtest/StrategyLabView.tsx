@@ -29,7 +29,10 @@ const CONTRACT_MAP: Record<string, Contract> = {
     activeContract: true, marketType: 'crypto',
     ticksPerPoint: 100, quantityStep: 0.001,
     pricePrecision: 2, quantityPrecision: 3,
-    takerFee: WORST_CASE_TAKER_FEE,
+    // Blended per-side rate: limit entries fill maker (~0.02%), exits split between
+    // taker stops (~0.045%) and maker targets (~0.02%). Closer to reality for
+    // limit-based strategies than the WORST_CASE_TAKER_FEE constant.
+    takerFee: 0.0003,
   },
   'BINANCE:ETHUSDT': {
     id: 'ETHUSDT', name: 'ETHUSDT',

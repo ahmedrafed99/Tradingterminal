@@ -1,6 +1,6 @@
 # Drawing Tools Feature
 
-Chart annotation system with horizontal line, rectangle, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, magnet snap (OHLC), hline templates (save/load/export/import), and localStorage persistence.
+Chart annotation system with horizontal line, vertical line, rectangle, oval, arrow path, free draw, and ruler tools, floating edit toolbar, text labels, drag-to-move, magnet snap (OHLC), hline templates (save/load/export/import), and localStorage persistence. News event markers on the chart can also be clicked to toggle a dashed vertical line at that event's time.
 
 ---
 
@@ -20,6 +20,7 @@ State Layer     Zustand DrawingsState slice (persisted to localStorage)
 
 Render Layer    DrawingsPrimitive (ISeriesPrimitive orchestrator)
                     ├── HLinePaneView → HLineRendererImpl
+                    ├── VLinePaneView → VLineRendererImpl
                     ├── RectPaneView → RectRendererImpl
                     ├── OvalPaneView → OvalRendererImpl
                     ├── ArrowPathPaneView → ArrowPathRendererImpl
@@ -47,7 +48,7 @@ Hit Testing     hitTesting.ts (geometry utilities)
 | `frontend/src/types/drawing.ts` | Drawing, DrawingTool, DrawingText, HLineTemplate types + constants |
 
 ```ts
-type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
+type DrawingTool = 'select' | 'hline' | 'vline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw';
 
 interface DrawingText {
   content: string;
@@ -76,6 +77,11 @@ interface HLineDrawing extends DrawingBase {
   price: number;
   startTime: number;      // timestamp where the line was placed
   extendLeft: boolean;    // true = full width, false = starts at startTime going right
+}
+
+interface VLineDrawing extends DrawingBase {
+  type: 'vline';
+  time: number;           // unix seconds
 }
 
 interface AnchoredPoint {
@@ -111,7 +117,7 @@ interface FreeDrawDrawing extends DrawingBase {
   points: { barOffset: number; price: number }[];  // continuous brush stroke
 }
 
-type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
+type Drawing = HLineDrawing | VLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing;
 
 interface HLineTemplate {
   id: string;
@@ -123,13 +129,13 @@ interface HLineTemplate {
 }
 ```
 
-Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_ARROWPATH_COLOR = '#f7c948'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `LINE_STYLE_OPTIONS = ['solid', 'dashed', 'dotted']`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
+Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_VLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, `DEFAULT_RECT_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_OVAL_COLOR = '#ff9800'`, `DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)'`, `DEFAULT_ARROWPATH_COLOR = '#f7c948'`, `DEFAULT_RULER_COLOR = '#2962ff'`, `DEFAULT_FREEDRAW_COLOR = '#ffffff'`, `STROKE_WIDTH_OPTIONS = [1, 2, 3, 4]`, `LINE_STYLE_OPTIONS = ['solid', 'dashed', 'dotted']`, `FONT_SIZE_OPTIONS = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32]`
 
 ### UI Components
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `frontend/src/components/chart/DrawingToolbar.tsx` | ~180 | Collapsible left-edge sidebar (hline, rect, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
+| `frontend/src/components/chart/DrawingToolbar.tsx` | ~180 | Collapsible left-edge sidebar (hline, vline, rect, oval, arrowpath, ruler, freedraw) — rendered once in `ChartArea`, not per chart |
 | `frontend/src/components/chart/DrawingEditToolbar.tsx` | ~680 | Floating edit popup with color, text, stroke, template, delete — scoped per chart via `contractId` prop |
 
 ### Primitive Renderers
@@ -138,6 +144,7 @@ Constants: `DEFAULT_HLINE_COLOR = '#787b86'`, `DEFAULT_RECT_COLOR = '#ff9800'`, 
 |------|-------|---------|
 | `frontend/src/components/chart/drawings/DrawingsPrimitive.ts` | ~930 | ISeriesPrimitive orchestrator — manages all drawing views + previews |
 | `frontend/src/components/chart/drawings/HLineRenderer.ts` | ~187 | Horizontal line renderer + hit test |
+| `frontend/src/components/chart/drawings/VLineRenderer.ts` | ~124 | Vertical line renderer + hit test |
 | `frontend/src/components/chart/drawings/RectRenderer.ts` | ~180 | Rectangle renderer with fill + stroke, 4 corner handles, edge hit test |
 | `frontend/src/components/chart/drawings/OvalRenderer.ts` | ~197 | Oval/ellipse renderer + 4-handle resize + hit test |
 | `frontend/src/components/chart/drawings/ArrowPathRenderer.ts` | ~200 | Arrow path polyline renderer + node drag + hit test |
@@ -219,6 +226,7 @@ All icons are TradingView-style filled SVGs (28×28 viewBox scaled to 22×22) wi
 | Tool | Icon | Tooltip |
 |------|------|---------|
 | Horizontal Line | Ray with endpoint handle | "Horizontal Line" |
+| Vertical Line | Vertical line with top circle handle | "Vertical Line" |
 | Rectangle | Rect outline with 4 corner handles | "Rectangle" |
 | Oval | Dashed ellipse with 4 cardinal handles | "Oval" |
 | Arrow Path | Zigzag trend line with node dots and arrowhead | "Arrow Path" |
@@ -285,6 +293,24 @@ Draws a full-width horizontal line at the drawing's price level.
 - Text label: positioned by `hAlign` (left=8px, center=mid, right=width-8) and `vAlign` (top/middle/bottom relative to line). When `vAlign` is `middle`, the line is split into two segments with a gap around the text (4px padding each side) so the line does not cut through the letters.
 - Font: `system-ui, -apple-system, sans-serif` with configurable size/bold/italic
 - Hit test: `|mouseY - lineY| <= 5px`, excludes price scale area (`mouseX >= timeScale.width()`)
+
+### VLineRenderer
+
+Draws a full-height vertical line at the drawing's time position.
+
+- X coordinate: `chart.timeScale().timeToCoordinate(drawing.time)` — handles both in-range and out-of-range times
+- Stroke: `drawing.color`, `drawing.strokeWidth`, `drawing.lineStyle` (via `applyLineDash()`)
+- Selected: single circular handle at the top of the line (5px radius, white fill + stroke)
+- Text label: positioned by `hAlign` (left = 6px right of line, right = 6px left of line) and `vAlign` (top/middle/bottom of pane height)
+- Hit test: `|mouseX - lineX| <= 5px` (vertical strip, ignores Y)
+- Bounding box: `{ x1: x-5, y1: 0, x2: x+5, y2: 10_000 }`
+
+**News event integration:** Clicking a news event marker (⚡ icon at the bottom of the chart) toggles a dashed purple vline at that event's time:
+- Color: `COLOR_NEWS_EVENT` (`#9b59b6`) — purple, matching the marker icon
+- Line style: `dashed`, strokeWidth `1`
+- Toggle: second click on the same marker removes the vline; clicking anywhere outside any marker also removes all news vlines for that contract
+- Implemented via `NewsEventsPrimitive.setOnMarkerClick(cb)` callback wired in `useNewsEvents.ts`
+- `MarkerData` stores a `time: number` field (representative unix timestamp) averaged across events when nearby markers merge — ensures the vline lands exactly on the marker center even when multiple events group together
 
 ### RectRenderer
 
