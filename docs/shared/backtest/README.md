@@ -78,12 +78,32 @@ All routes mounted at `/backtest`.
 
 **`/run`**
 
+Request body (JSON):
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `exchange` | string | `"BINANCE"` | Exchange identifier (must match extracted data) |
+| `symbol` | string | `"BTCUSDT"` | Symbol (must match extracted data) |
+| `unit` | int 1–4 | — | Timeframe unit: `1`=sec, `2`=min, `3`=hour, `4`=day |
+| `unitNumber` | int ≥1 | — | Multiplier (e.g. `unit=2, unitNumber=15` → 15-minute bars) |
+| `from` | ISO string | — | Range start (inclusive) |
+| `to` | ISO string | — | Range end (inclusive, extended to end-of-day server-side) |
+| `initialEquity` | number >0 | `10000` | Starting equity in quote currency |
+| `strategyCode` | string | — | Strategy JS source (executed per bar in a sandboxed VM) |
+| `takerFee` | number 0–0.01 | `0.00055` | Per-side taker fee fraction (e.g. `0.00055` = 0.055%) |
+
+SSE events streamed back:
+
 | Event | Payload |
 |---|---|
 | `status` | `{ message: string }` — e.g. "Processing 2025-06..." |
-| `equity` | `{ t: string, equity: number }` — mark-to-market equity after each closed bar |
-| `done` | Full `StrategyResult` object |
+| `equity` | `EquityPoint[]` — batched mark-to-market points (up to 200 per flush) |
+| `done` | Summary stats (excludes `equityCurve` — already delivered via `equity` events) |
 | `error` | `{ message: string }` |
+
+`EquityPoint`: `{ t: string (ISO), equity: number }`
+
+`done` payload fields: `finalEquity`, `totalReturn`, `winRate`, `totalTrades`, `maxDrawdown`, `sharpe`, `trades[]`
 
 ---
 
