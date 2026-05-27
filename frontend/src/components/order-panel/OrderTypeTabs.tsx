@@ -40,7 +40,7 @@ export function OrderTypeTabs() {
           onClick={() => setOrderType('market')}
           className={`flex-1 relative text-xs py-2 transition-colors cursor-pointer ${
             orderType === 'market'
-              ? 'text-(--color-text) font-medium'
+              ? 'text-(--color-text)'
               : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >
@@ -53,7 +53,7 @@ export function OrderTypeTabs() {
           onClick={handleSwitchToLimit}
           className={`flex-1 relative text-xs py-2 transition-colors cursor-pointer ${
             orderType === 'limit'
-              ? 'text-(--color-text) font-medium'
+              ? 'text-(--color-text)'
               : 'text-(--color-text-muted) hover:text-(--color-text)'
           }`}
         >

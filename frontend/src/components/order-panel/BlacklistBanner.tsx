@@ -24,7 +24,7 @@ export function BlacklistBanner() {
         borderLeft: '2px solid var(--color-warning)',
       }}
     >
-      <span className="text-xs font-medium text-(--color-warning)">
+      <span className="text-xs text-(--color-warning)">
         ⊘ {sym} blocked
       </span>
       <button

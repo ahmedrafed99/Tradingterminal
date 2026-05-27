@@ -76,7 +76,7 @@ export function PositionDisplay() {
           <div className="flex items-center justify-center">
             <div className="flex items-center" style={{ gap: 6 }}>
               <span
-                className="text-xs font-bold uppercase"
+                className="text-xs uppercase"
                 style={{
                   color: dirColor,
                   letterSpacing: '0.04em',
@@ -84,7 +84,7 @@ export function PositionDisplay() {
               >
                 {isLong ? 'Long' : 'Short'}
               </span>
-              <span className="text-xs font-semibold text-(--color-text)">
+              <span className="text-xs text-(--color-text)">
                 {sign}{pos.size} @ {formatPrice(pos.averagePrice)}
               </span>
             </div>
@@ -99,7 +99,7 @@ export function PositionDisplay() {
           title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
         >
           <div
-            className="font-bold tabular-nums"
+            className="tabular-nums"
             style={{ color: pnlColor, fontSize: 18, lineHeight: 1.1, letterSpacing: '-0.02em' }}
           >
             {pnlMode === '$'
@@ -195,15 +195,10 @@ function MoveToBEButton({
     <button
       onClick={handleClick}
       disabled={busy || disabled}
-      className="flex-1 py-2.5 rounded text-xs font-bold transition-colors
-                 bg-transparent border border-(--color-warning)/40 text-(--color-warning) hover:border-(--color-warning) hover:bg-(--color-warning)/10 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex-1 py-2.5 rounded text-xs transition-colors
+                 bg-(--color-input) border border-(--color-border) text-(--color-text-bright) cursor-pointer disabled:text-(--color-text-muted) disabled:cursor-not-allowed"
     >
-      <span className="inline-flex items-center gap-1">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-        {busy ? '...' : 'SL to BE'}
-      </span>
+      {busy ? '...' : 'SL to BE'}
     </button>
   );
 }
@@ -234,16 +229,10 @@ function ClosePositionButton({
     <button
       onClick={handleClick}
       disabled={busy}
-      className="flex-1 py-2.5 rounded text-xs font-bold text-(--color-text-bright) transition-colors
+      className="flex-1 py-2.5 rounded text-xs text-(--color-text-bright) transition-colors
                  bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <span className="inline-flex items-center gap-1">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-        {busy ? 'Closing...' : 'Close'}
-      </span>
+      {busy ? 'Closing...' : 'Close'}
     </button>
   );
 }

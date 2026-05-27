@@ -74,7 +74,7 @@ function UnitToggle({ value, onChange, canUsePct }: {
             onClick={() => !isDisabled && onChange(id)}
             title={isDisabled ? 'No price data available' : undefined}
             className={[
-              'text-[11px] font-medium rounded-md transition-all',
+              'text-[11px] rounded-md transition-all',
               isActive
                 ? 'text-white'
                 : isDisabled
@@ -206,7 +206,7 @@ export function BracketSettingsModal() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             {/* Preset Name */}
             <div>
-              <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: '8px' }}>Preset Name</div>
+              <div className="text-[11px] text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: '8px' }}>Preset Name</div>
               <input
                 type="text"
                 value={name}
@@ -220,7 +220,7 @@ export function BracketSettingsModal() {
 
             {/* Stop Loss */}
             <section>
-              <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: '12px' }}>Stop Loss</div>
+              <div className="text-[11px] text-(--color-text-muted) uppercase tracking-wider" style={{ marginBottom: '12px' }}>Stop Loss</div>
               <StopLossSection
                 sl={draft.stopLoss}
                 onChange={(sl) => setDraft((d) => ({ ...d, stopLoss: sl }))}
@@ -233,14 +233,14 @@ export function BracketSettingsModal() {
             {/* Take Profits */}
             <section>
               <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
-                <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider">Take Profits</div>
+                <div className="text-[11px] text-(--color-text-muted) uppercase tracking-wider">Take Profits</div>
                 {draft.takeProfits.length < MAX_TP_LEVELS && (
                   <button
                     onClick={() => setDraft((d) => ({
                       ...d,
                       takeProfits: [...d.takeProfits, { id: crypto.randomUUID(), points: 10, size: 1 }],
                     }))}
-                    className="text-[11px] font-medium text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider"
+                    className="text-[11px] text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider"
                   >
                     + Add Target
                   </button>
@@ -258,7 +258,7 @@ export function BracketSettingsModal() {
             {/* Automation */}
             <section>
               <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
-                <div className="text-[11px] font-medium text-(--color-text-muted) uppercase tracking-wider">Automation</div>
+                <div className="text-[11px] text-(--color-text-muted) uppercase tracking-wider">Automation</div>
                 <button
                   onClick={() => setDraft((d) => ({
                     ...d,
@@ -273,7 +273,7 @@ export function BracketSettingsModal() {
                       },
                     ],
                   }))}
-                  className="text-[11px] font-medium text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider"
+                  className="text-[11px] text-(--color-text-muted) hover:text-white transition-colors uppercase tracking-wider"
                 >
                   + New Rule
                 </button>
@@ -332,7 +332,7 @@ export function BracketSettingsModal() {
             <button
               onClick={handleSave}
               disabled={errors.length > 0}
-              className="text-xs font-medium rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
+              className="text-xs rounded-lg bg-(--color-accent)/20 text-(--color-accent-text) hover:bg-(--color-accent)/30 transition-all disabled:opacity-50"
               style={{ padding: '8px 24px' }}
             >
               Save Preset
@@ -643,7 +643,7 @@ function ConditionRow({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {/* When — trigger kind selector + sub-input */}
       <div className="flex items-center" style={{ gap: '10px' }}>
-        <span className="text-xs text-(--color-text) font-medium shrink-0" style={{ width: '36px' }}>When</span>
+        <span className="text-xs text-(--color-text) shrink-0" style={{ width: '36px' }}>When</span>
         <div className="flex-1 flex items-center" style={{ gap: '8px' }}>
           {/* Trigger type dropdown */}
           <CustomSelect
@@ -706,7 +706,7 @@ function ConditionRow({
 
       {/* Then */}
       <div className="flex items-center" style={{ gap: '10px' }}>
-        <span className="text-xs text-(--color-text) font-medium shrink-0" style={{ width: '36px' }}>Then</span>
+        <span className="text-xs text-(--color-text) shrink-0" style={{ width: '36px' }}>Then</span>
         <CustomSelect
           value={encodeAction()}
           options={actionOptions.map((o) => ({ value: o.value, label: o.label }))}

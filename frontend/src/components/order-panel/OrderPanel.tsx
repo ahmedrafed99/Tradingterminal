@@ -200,7 +200,7 @@ async function hydratePositionsAndOrders(
   }
 }
 
-export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
+export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left' | 'right'; collapsed?: boolean }) {
   const {
     orderContract, activeAccountId, setLastPrice, upsertPosition, upsertOrder, removeOrder,
     suspendPreset, restorePreset, editingPresetId,
@@ -774,10 +774,10 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
 
   return (
     <div
-      className={`flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-y-auto`}
-      style={{ width: 240, minWidth: 240, padding: 12 }}
+      className={`flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-hidden`}
+      style={{ width: collapsed ? 0 : 240, minWidth: 0, transition: 'width 200ms ease', flexShrink: 0 }}
     >
-      <div className="flex flex-col" style={{ gap: 20 }}>
+      <div className="flex flex-col overflow-y-auto" style={{ gap: 20, padding: 12, width: 240, flexShrink: 0, flex: 1, minHeight: 0 }}>
         {/* Instrument */}
         <div className="bg-(--color-input) rounded flex items-center">
           <button
@@ -795,7 +795,7 @@ export function OrderPanel({ side = 'left' }: { side?: 'left' | 'right' }) {
               <line x1="3" y1="12" x2="21" y2="12" />
             </svg>
           </button>
-          <div className="flex-1 text-xs text-center text-(--color-text) font-medium" style={{ paddingRight: 24 }}>
+          <div className="flex-1 text-xs text-center text-(--color-text)" style={{ paddingRight: 24 }}>
             {orderContract?.name ?? '—'}
           </div>
         </div>
