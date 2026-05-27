@@ -31,6 +31,7 @@ const IMPACT_COLORS: Record<string, string> = {
 
 interface MarkerData {
   x: number;
+  time: number;  // representative unix timestamp (averaged when markers merge)
   events: NewsEvent[];
 }
 
@@ -154,6 +155,8 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
   private _cachedPaneHeight = 400;
   private _resizeObserver: ResizeObserver | null = null;
 
+  private _onMarkerClick: ((timeUnixSec: number | null) => void) | null = null;
+
   // -- Lifecycle --
 
   attached(param: SeriesAttachedParameter<Time, SeriesType>): void {
@@ -223,6 +226,10 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     return this._enabled;
   }
 
+  setOnMarkerClick(cb: ((timeUnixSec: number | null) => void) | null): void {
+    this._onMarkerClick = cb;
+  }
+
   /** Call from mousemove — hover highlight + cursor only, no tooltip */
   handleMouseMove(x: number, y: number): void {
     if (!this._enabled || !this._chartEl) return;
@@ -247,6 +254,9 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     const hitIdx = this._hitTest(x, y);
 
     if (hitIdx >= 0) {
+      const hitMarker = this._cachedMarkers[hitIdx];
+      this._onMarkerClick?.(hitMarker.time);
+
       if (this._pinnedIdx === hitIdx) {
         // Click same marker again — dismiss
         this._pinnedIdx = -1;
@@ -254,10 +264,11 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       } else {
         // Pin new marker
         this._pinnedIdx = hitIdx;
-        this._showTooltip(this._cachedMarkers[hitIdx], x);
+        this._showTooltip(hitMarker, x);
       }
     } else {
-      // Click outside any marker — dismiss
+      // Click outside any marker — dismiss tooltip + signal for vline removal
+      this._onMarkerClick?.(null);
       if (this._pinnedIdx !== -1) {
         this._pinnedIdx = -1;
         this._hideTooltip();
@@ -334,7 +345,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     } catch { /* ignore */ }
 
     // Group events by their time-axis coordinate (rounded to nearest px)
-    const byX = new Map<number, NewsEvent[]>();
+    const byX = new Map<number, { time: number; events: NewsEvent[] }>();
 
     for (const event of this._events) {
       const eventSec = Math.floor(new Date(event.date).getTime() / 1000);
@@ -350,11 +361,12 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       if (x === null) continue;
 
       const rx = Math.round(x);
-      const group = byX.get(rx);
-      if (group) {
-        group.push(event);
+      const entry = byX.get(rx);
+      if (entry) {
+        entry.time = Math.round((entry.time + eventSec) / 2);
+        entry.events.push(event);
       } else {
-        byX.set(rx, [event]);
+        byX.set(rx, { time: eventSec, events: [event] });
       }
     }
 
@@ -362,16 +374,17 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     const sorted = [...byX.entries()].sort((a, b) => a[0] - b[0]);
     const merged: MarkerData[] = [];
 
-    for (const [x, events] of sorted) {
+    for (const [x, { time, events }] of sorted) {
       if (merged.length > 0) {
         const last = merged[merged.length - 1];
         if (Math.abs(x - last.x) < MARKER_RADIUS * 2) {
           last.events.push(...events);
+          last.time = Math.round((last.time + time) / 2);
           last.x = Math.round((last.x + x) / 2);
           continue;
         }
       }
-      merged.push({ x, events });
+      merged.push({ x, time, events });
     }
 
     return merged;

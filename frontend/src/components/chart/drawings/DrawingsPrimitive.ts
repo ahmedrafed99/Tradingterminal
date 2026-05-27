@@ -32,6 +32,7 @@ import type { LineStyle } from '../../../types/drawing';
 import { MarkerPaneView } from './MarkerRenderer';
 import { FRVPPaneView } from './FRVPRenderer';
 import { FibPaneView, FibPreviewPaneView, type FibPreviewOptions } from './FibRenderer';
+import { VLinePaneView } from './VLineRenderer';
 import { formatVolume } from './rulerMetrics';
 
 // ---------------------------------------------------------------------------
@@ -829,7 +830,7 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
 
   private _drawings: Drawing[] = [];
   private _selectedIds: string[] = [];
-  private _paneViews: (HLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | MarkerPaneView | FRVPPaneView | FibPaneView)[] = [];
+  private _paneViews: (HLinePaneView | VLinePaneView | RectPaneView | OvalPaneView | ArrowPathPaneView | RulerPaneView | FreeDrawPaneView | MarkerPaneView | FRVPPaneView | FibPaneView)[] = [];
 
   // Shared VP VolumeMap ref for all FRVP drawings (real trade ticks, session-scoped)
   private _sharedVolumeMap: { current: Map<number, number> } = { current: new Map() };
@@ -1140,6 +1141,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       const selected = this._selectedIds.includes(d.id);
       if (d.type === 'hline') {
         return new HLinePaneView(d, selected, this._series!, this._chart!);
+      } else if (d.type === 'vline') {
+        return new VLinePaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'rect') {
         return new RectPaneView(d, selected, this._series!, this._chart!);
       } else if (d.type === 'oval') {
@@ -1377,6 +1380,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       if (view instanceof MarkerPaneView) continue; // markers don't participate in hit testing
       let hit = false;
       if (view instanceof HLinePaneView) {
+        hit = view.hitTest(x, y);
+      } else if (view instanceof VLinePaneView) {
         hit = view.hitTest(x, y);
       } else if (view instanceof RectPaneView) {
         hit = view.hitTest(x, y);

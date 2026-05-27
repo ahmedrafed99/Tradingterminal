@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { CrosshairMode } from 'lightweight-charts';
 import type { Contract } from '../../../services/marketDataService';
 import { useStore } from '../../../store/useStore';
-import { DEFAULT_HLINE_COLOR } from '../../../types/drawing';
+import { DEFAULT_HLINE_COLOR, DEFAULT_VLINE_COLOR } from '../../../types/drawing';
 import { snapPriceToOHLC, snapPriceToOHLCByTime } from '../drawings/magnetSnap';
 import type { ChartRefs } from './types';
 import { CROSSHAIR_CURSOR, createDrawingState, getMousePos } from './drawingInteraction';
@@ -127,6 +127,26 @@ export function useChartDrawings(refs: ChartRefs, contract: Contract | null): vo
           contractId: String(contract.id),
           startTime: clickTime ? (clickTime as number) : 0,
           extendLeft: false,
+        });
+        setActiveTool('select');
+        setSelectedDrawingIds([id]);
+        return;
+      }
+
+      if (activeTool === 'vline') {
+        const clickTime = chart.timeScale().coordinateToTime(param.point.x);
+        if (clickTime === null || contract === null) return;
+        const def = drawingDefaults['vline'];
+        const id = crypto.randomUUID();
+        addDrawing({
+          id,
+          type: 'vline',
+          time: clickTime as unknown as number,
+          color: def?.color ?? DEFAULT_VLINE_COLOR,
+          strokeWidth: def?.strokeWidth ?? 1,
+          lineStyle: def?.lineStyle ?? 'solid',
+          text: null,
+          contractId: String(contract.id),
         });
         setActiveTool('select');
         setSelectedDrawingIds([id]);

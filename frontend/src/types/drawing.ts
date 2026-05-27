@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Drawing tool identifiers
 // ---------------------------------------------------------------------------
-export type DrawingTool = 'select' | 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp' | 'fib';
+export type DrawingTool = 'select' | 'hline' | 'vline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp' | 'fib';
 
 // ---------------------------------------------------------------------------
 // Text configuration for drawings
@@ -47,6 +47,14 @@ export interface HLineDrawing extends DrawingBase {
   price: number;
   startTime: number;      // timestamp where the line was placed
   extendLeft: boolean;    // true = full width, false = starts at startTime going right
+}
+
+// ---------------------------------------------------------------------------
+// Vertical Line drawing
+// ---------------------------------------------------------------------------
+export interface VLineDrawing extends DrawingBase {
+  type: 'vline';
+  time: number;  // unix seconds
 }
 
 // ---------------------------------------------------------------------------
@@ -188,7 +196,7 @@ export interface FibDrawing extends DrawingBase {
 // ---------------------------------------------------------------------------
 // Union type
 // ---------------------------------------------------------------------------
-export type Drawing = HLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing | FRVPDrawing | FibDrawing;
+export type Drawing = HLineDrawing | VLineDrawing | RectDrawing | OvalDrawing | ArrowPathDrawing | RulerDrawing | FreeDrawDrawing | MarkerDrawing | FRVPDrawing | FibDrawing;
 
 // ---------------------------------------------------------------------------
 // Horizontal line template (saved style presets)
@@ -208,6 +216,7 @@ export interface HLineTemplate {
 import { COLOR_TEXT_MUTED, COLOR_ACCENT } from '../constants/colors';
 
 export const DEFAULT_HLINE_COLOR = COLOR_TEXT_MUTED;
+export const DEFAULT_VLINE_COLOR = COLOR_TEXT_MUTED;
 export const DEFAULT_OVAL_COLOR = '#ff9800';
 export const DEFAULT_OVAL_FILL = 'rgba(255, 152, 0, 0.15)';
 export const DEFAULT_ARROWPATH_COLOR = '#f7c948';

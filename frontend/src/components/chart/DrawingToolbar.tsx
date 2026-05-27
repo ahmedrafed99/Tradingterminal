@@ -12,6 +12,15 @@ function HLineIcon() {
   );
 }
 
+function VLineIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor" fillRule="nonzero">
+      <path d="M15 8.5v16.5h-1v-16.5z" />
+      <path d="M14.5 8c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5zm0 1c-1.381 0-2.5-1.119-2.5-2.5s1.119-2.5 2.5-2.5 2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5z" />
+    </svg>
+  );
+}
+
 function RectIcon() {
   return (
     <svg width="26" height="26" viewBox="0 0 28 28" shapeRendering="geometricPrecision" fill="currentColor" fillRule="nonzero">
@@ -111,6 +120,7 @@ type TooltipHint = { key: string; desc: string };
 
 const TOOLS: { id: DrawingTool; icon: React.FC; label: string; hints?: TooltipHint[] }[] = [
   { id: 'hline',     icon: HLineIcon,   label: 'Horizontal Line' },
+  { id: 'vline',     icon: VLineIcon,   label: 'Vertical Line' },
   { id: 'rect',      icon: RectIcon,    label: 'Rectangle' },
   { id: 'oval',      icon: OvalIcon,    label: 'Oval' },
   { id: 'arrowpath', icon: ArrowPathIcon, label: 'Arrow Path' },
