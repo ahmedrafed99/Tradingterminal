@@ -51,6 +51,12 @@ export function useChartBars(
   // via client-side aggregation on switch (skips the network round-trip entirely).
   const previousTimeframeRef = useRef<Timeframe | null>(null);
 
+  // Per-(contract, TF) bar cache — persists across TF switches so revisiting a TF
+  // only needs a small incremental fetch instead of re-requesting all 20 k bars.
+  // Keyed as `${contractId}:${unit}:${unitNumber}`. Updated (via snapshot) whenever
+  // we leave a TF so the stored array is always live at time of departure.
+  const barsCacheRef = useRef<Map<string, Bar[]>>(new Map());
+
   // Historical load-more state
   const earliestLoadedTimeRef = useRef<string | null>(null);
   const isLoadingMoreRef = useRef(false);
@@ -211,6 +217,16 @@ export function useChartBars(
     // Save horizontal scroll position so same-instrument timeframe changes can restore it
     const savedScrollPos = !isNewContract ? (refs.chart.current?.timeScale().scrollPosition() ?? null) : null;
 
+    // Persist the outgoing TF's live bars into the cache so switch-back only needs
+    // a tiny incremental fetch instead of a full 20 k-bar request.
+    if (!isNewContract && previousTimeframeRef.current && refs.bars.current.length > 0) {
+      const prevTf = previousTimeframeRef.current;
+      barsCacheRef.current.set(
+        `${contract.id}:${prevTf.unit}:${prevTf.unitNumber}`,
+        refs.bars.current,
+      );
+    }
+
     // Snapshot bars + TF from the previous load so loadBars can derive the new
     // (coarser) TF locally — no network call when the target is an integer
     // multiple of the source and both have uniform periods (sec/min/hr/day/week).
@@ -325,20 +341,68 @@ export function useChartBars(
             aggregationSource.targetPeriodSec,
           );
         } else {
-          const startTime = computeStartTime(timeframe);
-          const endTime = new Date().toISOString();
-          // Tick bars: cap at 500 bars (chartapi uses Countback; 20000 ticks would be days of data)
-          const initialLimit = timeframe.unit === 7 ? 500 : 20000;
-          bars = await marketDataService.retrieveBars({
-            contractId: contract!.id,
-            live: false,
-            unit: timeframe.unit,
-            unitNumber: timeframe.unitNumber,
-            startTime,
-            endTime,
-            limit: initialLimit,
-            includePartialBar: true,
-          });
+          const periodSec = getCandlePeriodSeconds(timeframe);
+          const tfKey = `${contract!.id}:${timeframe.unit}:${timeframe.unitNumber}`;
+          const cachedBars = barsCacheRef.current.get(tfKey);
+          const lastCached = cachedBars && cachedBars.length > 0
+            ? cachedBars[cachedBars.length - 1]
+            : null;
+          // Use incremental fetch when: bars are cached, TF is time-based, and
+          // the cache is less than 12 h stale (older gaps exceed the limit:500 delta).
+          const cacheAgeMs = lastCached
+            ? Date.now() - new Date(lastCached.t).getTime()
+            : Infinity;
+
+          if (lastCached && periodSec > 0 && cacheAgeMs < 12 * 3_600_000) {
+            // Fetch only the bars we missed since leaving this TF.
+            // Go back 2 periods so the previously-partial bar is refreshed with its
+            // final closed OHLC rather than the stale snapshot we left with.
+            const fromMs = new Date(lastCached.t).getTime() - 2 * periodSec * 1000;
+            const deltaBars = await marketDataService.retrieveBars({
+              contractId: contract!.id,
+              live: false,
+              unit: timeframe.unit,
+              unitNumber: timeframe.unitNumber,
+              startTime: new Date(fromMs).toISOString(),
+              endTime: new Date().toISOString(),
+              limit: 500,
+              includePartialBar: true,
+            });
+            if (cancelled) return;
+            const sortedDelta = sortBarsAscending(deltaBars);
+            // Merge: keep cached bars that pre-date the delta window, then append delta.
+            // Deduplicate by second-level timestamp (ISO format can vary: .000Z vs Z),
+            // keeping the delta bar when there's a clash (it has the freshest OHLC).
+            const deltaStartSec = sortedDelta.length > 0
+              ? Math.floor(new Date(sortedDelta[0].t).getTime() / 1000)
+              : Infinity;
+            const merged = [
+              ...cachedBars!.filter(b => Math.floor(new Date(b.t).getTime() / 1000) < deltaStartSec),
+              ...sortedDelta,
+            ];
+            const bySecond = new Map<number, Bar>();
+            for (const bar of merged) {
+              bySecond.set(Math.floor(new Date(bar.t).getTime() / 1000), bar);
+            }
+            bars = Array.from(bySecond.values())
+              .sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
+          } else {
+            // No usable cache — full fetch.
+            const startTime = computeStartTime(timeframe);
+            const endTime = new Date().toISOString();
+            // Tick bars: cap at 500 bars (chartapi uses Countback; 20000 ticks would be days of data)
+            const initialLimit = timeframe.unit === 7 ? 500 : 20000;
+            bars = await marketDataService.retrieveBars({
+              contractId: contract!.id,
+              live: false,
+              unit: timeframe.unit,
+              unitNumber: timeframe.unitNumber,
+              startTime,
+              endTime,
+              limit: initialLimit,
+              includePartialBar: true,
+            });
+          }
         }
 
         if (cancelled) return;
