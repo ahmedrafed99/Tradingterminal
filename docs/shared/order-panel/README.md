@@ -4,7 +4,7 @@ Sidebar panel for manually entering orders.
 Controls instrument selection, order type, size, bracket configuration,
 and the preview toggle that overlays ghost lines on the chart.
 
-- **Position**: Left or right side — toggled via the ↔ swap icon next to the Instrument label. Persisted as `orderPanelSide` (`'left' | 'right'`) in `layoutSlice`, saved to localStorage.
+- **Position**: Left or right side — repositioned by dragging the grid icon (⠿) in the panel's top corner. Dragging shows a full-screen split overlay; releasing snaps the panel to whichever half the cursor is on. Persisted as `orderPanelSide` (`'left' | 'right'`) in `layoutSlice`, saved to localStorage.
 - **Background**: `bg-black`, border toward chart (`border-r` when left, `border-l` when right), width 240px
 - All section titles use `SECTION_LABEL` constant from `constants/styles.ts` (`text-[10px] uppercase tracking-wider text-[#787b86]`), centred (`text-center`), with `marginTop: 6` gap between label and content
 - All input fields use `bg-[#111] border-[#2a2e39]`, focus: `border-[#1a3a6e]`

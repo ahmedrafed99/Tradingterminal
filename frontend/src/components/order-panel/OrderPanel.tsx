@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../store/useStore';
 import { realtimeService } from '../../services/realtimeService';
@@ -23,6 +24,8 @@ import { BracketSummary } from './BracketSummary';
 import { BuySellButtons } from './BuySellButtons';
 import { BlacklistBanner } from './BlacklistBanner';
 import { PositionDisplay } from './PositionDisplay';
+import { Button } from '../shared/Button';
+import { GridIcon } from '../icons/GridIcon';
 
 const BracketSettingsModal = lazy(() => import('./BracketSettingsModal').then(m => ({ default: m.BracketSettingsModal })));
 
@@ -774,32 +777,16 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
 
   return (
     <div
-      className={`flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-hidden`}
+      className={`relative flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-hidden`}
       style={{ width: collapsed ? 0 : 240, minWidth: 0, transition: 'width 200ms ease', flexShrink: 0 }}
     >
       {!collapsed && (
         <>
+          <DragHandle />
           <div className="flex flex-col overflow-y-auto scrollbar-thin" style={{ gap: 20, padding: 12, width: 240, flex: 1, minHeight: 0 }}>
             {/* Instrument */}
-            <div className="bg-(--color-input) rounded flex items-center">
-              <button
-                onClick={() => {
-                  const store = useStore.getState();
-                  store.setOrderPanelSide(store.orderPanelSide === 'left' ? 'right' : 'left');
-                }}
-                className="text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer shrink-0"
-                title={`Move panel to ${side === 'left' ? 'right' : 'left'}`}
-                style={{ padding: '6px 6px' }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 16L3 12l4-4" />
-                  <path d="M17 8l4 4-4 4" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                </svg>
-              </button>
-              <div className="flex-1 text-xs text-center text-(--color-text)" style={{ paddingRight: 24 }}>
-                {orderContract?.name ?? '—'}
-              </div>
+            <div className="text-xs text-center text-(--color-text)">
+              {orderContract?.name ?? '—'}
             </div>
 
             {/* Order Type */}
@@ -851,5 +838,103 @@ function PreviewToggle() {
       />
       <span className="text-xs text-(--color-text-muted)">Preview</span>
     </label>
+  );
+}
+
+function DragHandle() {
+  const { setOrderPanelSide, orderPanelSide } = useStore(useShallow((s) => ({
+    setOrderPanelSide: s.setOrderPanelSide,
+    orderPanelSide: s.orderPanelSide,
+  })));
+  const [isDragging, setIsDragging] = useState(false);
+  const [dropSide, setDropSide] = useState<'left' | 'right' | null>(null);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => { cleanupRef.current?.(); };
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (me: MouseEvent) => {
+      setDropSide(me.clientX < window.innerWidth / 2 ? 'left' : 'right');
+    };
+
+    const cleanup = () => {
+      setIsDragging(false);
+      setDropSide(null);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      cleanupRef.current = null;
+    };
+
+    const onMouseUp = (me: MouseEvent) => {
+      const side = me.clientX < window.innerWidth / 2 ? 'left' : 'right';
+      setOrderPanelSide(side);
+      cleanup();
+    };
+
+    cleanupRef.current = cleanup;
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  }, [setOrderPanelSide]);
+
+  const cornerClass = orderPanelSide === 'left' ? 'top-0 left-0' : 'top-0 right-0';
+
+  return (
+    <>
+      <div className={`absolute ${cornerClass} z-10`}>
+        <Button
+          variant="ghost"
+          onMouseDown={handleMouseDown}
+          className="cursor-grab"
+          title="Drag to reposition panel"
+          style={{ border: 'none', padding: '6px', background: 'transparent' }}
+        >
+          <GridIcon size={12} />
+        </Button>
+      </div>
+      {isDragging && createPortal(
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 9999 }}>
+          <div
+            className="absolute top-0 left-0 bottom-0 flex items-center justify-center"
+            style={{
+              width: 240,
+              background: dropSide === 'left' ? 'rgba(41,98,255,0.18)' : 'rgba(0,0,0,0.25)',
+              borderRight: '1px solid var(--color-border)',
+            }}
+          >
+            <span
+              className="text-sm font-medium select-none"
+              style={{ color: dropSide === 'left' ? 'var(--color-text)' : 'var(--color-text-dim)' }}
+            >
+              ← Left
+            </span>
+          </div>
+          <div
+            className="absolute top-0 right-0 bottom-0 flex items-center justify-center"
+            style={{
+              width: 240,
+              background: dropSide === 'right' ? 'rgba(41,98,255,0.18)' : 'rgba(0,0,0,0.25)',
+              borderLeft: '1px solid var(--color-border)',
+            }}
+          >
+            <span
+              className="text-sm font-medium select-none"
+              style={{ color: dropSide === 'right' ? 'var(--color-text)' : 'var(--color-text-dim)' }}
+            >
+              Right →
+            </span>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
