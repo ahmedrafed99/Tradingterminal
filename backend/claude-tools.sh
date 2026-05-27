@@ -23,10 +23,12 @@
 #
 # ── ORDERS ───────────────────────────────────────────────────────────────────
 #   market buy|sell [size]                    market order
-#   marketb buy|sell slTicks tpTicks [size]   market + native SL/TP bracket
+#   marketb  buy|sell slTicks tpTicks [size]  market + native SL/TP bracket
 #                                             (ticks: 1 pt = 4 ticks for MNQ)
 #                                             long: slTicks<0, tpTicks>0
 #                                             short: slTicks>0, tpTicks<0
+#   marketbt buy|sell slTicks tpTicks [size]  market + trailing-stop bracket
+#                                             same tick convention as marketb
 #   marketmulti buy|sell size sl_pts tp:sz... [trail] [contractId]
 #                                             market + manual multi-TP bracket
 #                                             tp format: points:contracts (e.g. 30:1)
@@ -167,10 +169,11 @@ marketmulti() {
   # Place SL — Stop uses stopPrice (absolute), TrailingStop uses trailPrice (distance in ticks, 1pt=4ticks for MNQ)
   local sl_resp
   if [[ "$sl_type" == "5" ]]; then
-    local sl_price=$(node -e "const p=$fill_price,s=$sl_pts,d=$side===0?-1:1;console.log(Math.round((p+d*s)*100)/100)")
+    # trailPrice = trail distance in ticks (NOT an absolute price). MNQ tick=0.25 → 1pt=4tks.
+    local sl_ticks=$(node -e "console.log(Math.round($sl_pts * 4))")
     sl_resp=$(curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
-      -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":5,\"side\":$opp_side,\"size\":$total_size,\"trailPrice\":$sl_price}")
-    echo "SL trail @ $sl_price (${sl_pts}pts, $sl_label): $sl_resp"
+      -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":5,\"side\":$opp_side,\"size\":$total_size,\"trailPrice\":$sl_ticks}")
+    echo "SL trail ${sl_pts}pts (${sl_ticks}tks, TrailingStop): $sl_resp"
   else
     local sl_price=$(node -e "const p=$fill_price,s=$sl_pts,d=$side===0?-1:1;console.log(Math.round((p+d*s)*100)/100)")
     sl_resp=$(curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
@@ -203,6 +206,20 @@ marketb() {
   local contract="${5:-$DEFAULT_CONTRACT}"
   curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
     -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":2,\"side\":$side,\"size\":$size,\"stopLossBracket\":{\"ticks\":$slTicks,\"type\":4},\"takeProfitBracket\":{\"ticks\":$tpTicks,\"type\":1}}"
+}
+
+# Place market order with trailing-stop bracket: marketbt buy|sell slTicks tpTicks [size] [contractId]
+# Like marketb but SL is a trailing stop (type 5) instead of a fixed stop.
+# Tick math: points / 0.25 = ticks (e.g., 20pts = 80 ticks)
+marketbt() {
+  local side=0
+  [[ "$1" == "sell" ]] && side=1
+  local slTicks="$2"
+  local tpTicks="$3"
+  local size="${4:-1}"
+  local contract="${5:-$DEFAULT_CONTRACT}"
+  curl -s -X POST "$BASE/orders/place" -H "Content-Type: application/json" \
+    -d "{\"accountId\":\"$ACCT\",\"contractId\":\"$contract\",\"type\":2,\"side\":$side,\"size\":$size,\"stopLossBracket\":{\"ticks\":$slTicks,\"type\":5},\"takeProfitBracket\":{\"ticks\":$tpTicks,\"type\":1}}"
 }
 
 # Place stop order: stop buy|sell price [size]
