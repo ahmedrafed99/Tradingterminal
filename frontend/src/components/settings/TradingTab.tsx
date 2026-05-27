@@ -139,7 +139,7 @@ export function TradingTab() {
 
             {dropdownOpen && (showingSearch || searching) && (
               <div
-                className="absolute left-0 right-0 top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg py-1 overflow-y-auto animate-dropdown-in"
+                className="absolute left-0 right-0 top-full mt-1 bg-(--color-panel) border border-(--color-border) rounded-lg py-1 overflow-y-auto animate-dropdown-in scrollbar-thin"
                 style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.XL, maxHeight: 180 }}
               >
                 {searching && (

@@ -193,7 +193,7 @@ export function InstrumentSelectorPopover() {
           <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
 
           {/* Results list */}
-          <div className="overflow-y-auto" style={{ flex: 1, padding: '6px 12px 10px' }}>
+          <div className="overflow-y-auto scrollbar-thin" style={{ flex: 1, padding: '6px 12px 10px' }}>
             {searching && results.length === 0 && (
               <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">Searching...</div>
             )}

@@ -149,7 +149,7 @@ export function SettingsModal() {
 
         {/* Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="overflow-y-auto flex-1">
+          <div className="overflow-y-auto flex-1 scrollbar-thin">
 
             {tab === 'datafeed' && (
               <div style={{ padding: '24px 32px', maxWidth: 720 }}>

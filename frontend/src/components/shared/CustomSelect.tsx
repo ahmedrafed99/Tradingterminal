@@ -120,7 +120,7 @@ export function CustomSelect({
       </button>
       {open && dropPos && (
         <div
-          className="border border-(--color-border) shadow-lg animate-dropdown-in"
+          className="border border-(--color-border) shadow-lg animate-dropdown-in scrollbar-thin"
           style={{
             zIndex: Z.DROPDOWN,
             position: 'fixed',

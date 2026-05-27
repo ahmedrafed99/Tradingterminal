@@ -78,7 +78,7 @@ export function BracketSummary() {
         </button>
 
         {open && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg overflow-hidden max-h-48 overflow-y-auto" style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, padding: '2px 0' }}>
+          <div className="absolute top-full left-0 right-0 mt-1 bg-(--color-surface) border border-(--color-border) rounded-lg overflow-hidden max-h-48 overflow-y-auto scrollbar-thin" style={{ zIndex: Z.DROPDOWN, boxShadow: SHADOW.LG, padding: '2px 0' }}>
             {/* None option */}
             <button
               onClick={() => { setActivePresetId(null); setOpen(false); }}

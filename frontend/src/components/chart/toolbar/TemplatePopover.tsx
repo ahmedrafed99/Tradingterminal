@@ -91,6 +91,7 @@ export function TemplatePopover({
   return (
     <Dropdown
       ref={ref}
+      className="scrollbar-thin"
       style={{ padding: '4px 0', width: 220, maxHeight: 300, overflowY: 'auto', overflowX: 'hidden' }}
       onClick={(e) => e.stopPropagation()}
     >

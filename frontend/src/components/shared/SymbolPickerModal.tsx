@@ -70,7 +70,7 @@ export function SymbolPickerModal({ items, selectedKey, onSelect, onClose, empty
       <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '0 5%' }} />
 
       {/* List */}
-      <div className="overflow-y-auto" style={{ flex: 1, padding: '6px 12px 10px' }}>
+      <div className="overflow-y-auto scrollbar-thin" style={{ flex: 1, padding: '6px 12px 10px' }}>
         {filtered.length === 0 && (
           <div className="px-3 py-6 text-sm text-(--color-text-muted) text-center">
             {query ? 'No results' : (emptyMessage ?? 'No symbols available')}

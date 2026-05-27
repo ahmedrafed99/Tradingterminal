@@ -199,6 +199,7 @@ export function ConsolePanel({ onClose, activeTab, onTabChange }: Props) {
       <div
         ref={scrollRef}
         onScroll={onScroll}
+        className="scrollbar-thin"
         style={{
           height: 220,
           overflowY: 'auto',

@@ -779,7 +779,7 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
     >
       {!collapsed && (
         <>
-          <div className="flex flex-col overflow-y-auto" style={{ gap: 20, padding: 12, width: 240, flex: 1, minHeight: 0 }}>
+          <div className="flex flex-col overflow-y-auto scrollbar-thin" style={{ gap: 20, padding: 12, width: 240, flex: 1, minHeight: 0 }}>
             {/* Instrument */}
             <div className="bg-(--color-input) rounded flex items-center">
               <button

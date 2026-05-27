@@ -45,7 +45,7 @@ export function BottomPanel() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-h-0 overflow-auto border-t border-(--color-border)">
+      <div className="flex-1 min-h-0 overflow-auto border-t border-(--color-border) scrollbar-thin">
         {tab === 'orders' && <OrdersTab />}
         {tab === 'positions' && <PositionsTab />}
         {(tab === 'trades' || tab === 'stats') && <TradesTab />}

@@ -84,7 +84,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
       }}
     >
       <div
-        className="absolute left-0 right-0 bottom-0 overflow-y-auto"
+        className="absolute left-0 right-0 bottom-0 overflow-y-auto scrollbar-thin"
         style={{
           top: visible ? '4%' : '100%',
           opacity: visible ? 1 : 0,

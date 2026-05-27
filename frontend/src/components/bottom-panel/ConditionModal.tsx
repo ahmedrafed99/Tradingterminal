@@ -212,7 +212,7 @@ export function ConditionModal() {
     >
 
         {/* ── Body ── */}
-        <div className="overflow-auto flex-1" style={{ padding: '0 28px 20px' }}>
+        <div className="overflow-auto flex-1 scrollbar-thin" style={{ padding: '0 28px 20px' }}>
 
           {/* ─── TRIGGER PARAMETERS ─── */}
           <div className="border-t border-(--color-border)" style={{ paddingTop: 20, marginBottom: 16 }}>

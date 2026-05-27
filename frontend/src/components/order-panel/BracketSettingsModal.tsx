@@ -202,7 +202,7 @@ export function BracketSettingsModal() {
     >
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1" style={{ padding: '20px 24px' }}>
+        <div className="overflow-y-auto flex-1 scrollbar-thin" style={{ padding: '20px 24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
             {/* Preset Name */}
             <div>

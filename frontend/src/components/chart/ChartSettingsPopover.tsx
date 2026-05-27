@@ -168,7 +168,7 @@ export function ChartSettingsPopover({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '16px 24px', overflowY: 'auto' }}>
+        <div className="scrollbar-thin" style={{ flex: 1, padding: '16px 24px', overflowY: 'auto' }}>
           {category === 'bars' && <BarsPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'canvas' && <CanvasPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'trading' && <TradingPanel settings={chartSettings} onChange={setChartSettings} />}

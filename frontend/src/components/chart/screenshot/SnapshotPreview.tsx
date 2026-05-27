@@ -104,7 +104,7 @@ export function SnapshotPreview({ captureChartCanvas, onClose }: SnapshotPreview
     >
 
         {/* Preview image */}
-        <div className="flex-1 overflow-auto" style={{ padding: '4px 20px 16px', minHeight: 180 }}>
+        <div className="flex-1 overflow-auto scrollbar-thin" style={{ padding: '4px 20px 16px', minHeight: 180 }}>
           {previewUrl ? (
             <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--color-border)' }}>
               <img

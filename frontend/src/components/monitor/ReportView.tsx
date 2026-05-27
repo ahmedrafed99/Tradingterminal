@@ -158,7 +158,7 @@ export function ReportView({ onClose }: Props) {
           </div>
 
           {/* Content */}
-          <div style={{ flex: 1, overflow: 'auto', padding: '14px 16px' }}>
+          <div className="scrollbar-thin" style={{ flex: 1, overflow: 'auto', padding: '14px 16px' }}>
             {loading ? (
               <div style={{ fontSize: FONT_SIZE.SM, color: 'var(--color-text-muted)' }}>Loading…</div>
             ) : content ? (

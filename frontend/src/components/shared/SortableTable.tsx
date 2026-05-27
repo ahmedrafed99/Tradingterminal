@@ -117,13 +117,11 @@ export function SortableTable<T>({
     <div
       ref={scrollerRef}
       onScroll={virtualize ? onScroll : undefined}
-      className="text-xs"
+      className="text-xs scrollbar-thin"
       style={{
         maxHeight,
         overflowY: maxHeight !== undefined ? 'auto' : undefined,
         fontFeatureSettings: '"tnum"',
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'var(--color-border) transparent',
       }}
     >
       {/* Sticky header */}
