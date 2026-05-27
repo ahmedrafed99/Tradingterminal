@@ -49,8 +49,8 @@ function ctToET(ct: string): { hour: number; minute: number } {
 
 // ---------------------------------------------------------------------------
 
-/** Extract ET day-of-week, hour, and minute from the current time. */
-function getETComponents(): { day: number; hour: number; minute: number } {
+/** Extract ET day-of-week, hour, minute, and second from the current time. */
+function getETComponents(): { day: number; hour: number; minute: number; second: number } {
   const parts = fmtNYWithMin.formatToParts(new Date());
   const get = (t: string) => Number(parts.find(p => p.type === t)!.value);
   const month = get('month');
@@ -58,9 +58,10 @@ function getETComponents(): { day: number; hour: number; minute: number } {
   const year = get('year');
   const hour = get('hour') % 24; // hour12:false can return 24 for midnight in some engines
   const minute = get('minute');
+  const second = get('second');
   // Build a UTC date from ET date components just to get day-of-week
   const day = new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay();
-  return { day, hour, minute };
+  return { day, hour, minute, second };
 }
 
 /**
@@ -273,17 +274,21 @@ interface MarketSchedule {
 
 const DAY_NAMES = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'] as const;
 
-function formatCountdown(totalMin: number, verb: 'close' | 'reopen'): string {
-  const hrs = Math.floor(totalMin / 60);
-  const mins = totalMin % 60;
-  if (hrs === 0) return `It'll ${verb} in ${mins} minute${mins !== 1 ? 's' : ''}.`;
-  if (mins === 0) return `It'll ${verb} in ${hrs} hour${hrs !== 1 ? 's' : ''}.`;
-  return `It'll ${verb} in ${hrs} hour${hrs !== 1 ? 's' : ''} and ${mins} minute${mins !== 1 ? 's' : ''}.`;
+function formatCountdown(totalSec: number, verb: 'close' | 'reopen'): string {
+  if (totalSec <= 0) return `It'll ${verb} now.`;
+  const hrs = Math.floor(totalSec / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  const parts: string[] = [];
+  if (hrs > 0) parts.push(`${hrs}h`);
+  if (mins > 0 || hrs > 0) parts.push(`${mins}m`);
+  parts.push(`${secs}s`);
+  return `It'll ${verb} in ${parts.join(' ')}.`;
 }
 
 /** Session progress info for CME futures. */
 function getCmeSessionInfo(): SessionInfo {
-  const { day, hour, minute } = getETComponents();
+  const { day, hour, minute, second } = getETComponents();
   const isOpen = isFuturesMarketOpen();
 
   if (isOpen) {
@@ -292,25 +297,29 @@ function getCmeSessionInfo(): SessionInfo {
     if (holidayCheck.holiday && !holidayCheck.fullClose) {
       const closeET = ctToET(holidayCheck.closesAt);
       const closeMin = closeET.hour * 60 + closeET.minute;
-      const SESSION_LEN = (24 * 60 - 18 * 60) + closeMin; // overnight + morning
-      const minSinceOpen = hour >= 18 ? (hour - 18) * 60 + minute : (hour + 6) * 60 + minute;
+      const SESSION_LEN_SEC = ((24 * 60 - 18 * 60) + closeMin) * 60;
+      const secSinceOpen = hour >= 18
+        ? (hour - 18) * 3600 + minute * 60 + second
+        : (hour + 6) * 3600 + minute * 60 + second;
       return {
-        progress: Math.min(1, minSinceOpen / SESSION_LEN),
+        progress: Math.min(1, secSinceOpen / SESSION_LEN_SEC),
         dayLabel: DAY_NAMES[day],
         startLabel: '18:00',
         endLabel: `${holidayCheck.closesAt} CT`,
-        countdown: formatCountdown(SESSION_LEN - minSinceOpen, 'close'),
+        countdown: formatCountdown(SESSION_LEN_SEC - secSinceOpen, 'close'),
       };
     }
-    // Normal open session: 18:00 → 17:00 next day = 23 hours = 1380 min
-    const SESSION_LEN = 1380;
-    const minSinceOpen = hour >= 18 ? (hour - 18) * 60 + minute : (hour + 6) * 60 + minute;
+    // Normal open session: 18:00 → 17:00 next day = 23 hours = 82800 sec
+    const SESSION_LEN_SEC = 82800;
+    const secSinceOpen = hour >= 18
+      ? (hour - 18) * 3600 + minute * 60 + second
+      : (hour + 6) * 3600 + minute * 60 + second;
     return {
-      progress: Math.min(1, minSinceOpen / SESSION_LEN),
+      progress: Math.min(1, secSinceOpen / SESSION_LEN_SEC),
       dayLabel: DAY_NAMES[day],
       startLabel: '18:00',
       endLabel: '17:00',
-      countdown: formatCountdown(SESSION_LEN - minSinceOpen, 'close'),
+      countdown: formatCountdown(SESSION_LEN_SEC - secSinceOpen, 'close'),
     };
   }
 
@@ -319,50 +328,43 @@ function getCmeSessionInfo(): SessionInfo {
   if (holidayCheck.holiday) {
     const closeLabel = holidayCheck.fullClose ? 'Closed all day' : `Closed ${holidayCheck.closesAt} CT`;
     const reopenLabel = day === 5 ? 'Sun 18:00' : '18:00';
-    const minUntilReopen = day === 5
-      ? (24 - hour) * 60 - minute + 24 * 60 + 18 * 60
-      : (18 - hour) * 60 - minute;
+    const secUntilReopen = day === 5
+      ? (24 - hour) * 3600 - minute * 60 - second + (24 + 18) * 3600
+      : (18 - hour) * 3600 - minute * 60 - second;
     return {
-      progress: Math.min(1, (hour * 60 + minute) / (24 * 60)),
+      progress: Math.min(1, (hour * 3600 + minute * 60 + second) / (24 * 3600)),
       dayLabel: DAY_NAMES[day],
       startLabel: closeLabel,
       endLabel: reopenLabel,
-      countdown: formatCountdown(Math.max(0, minUntilReopen), 'reopen'),
+      countdown: formatCountdown(Math.max(0, secUntilReopen), 'reopen'),
     };
   }
 
-  // Weekend: Fri 17:00 → Sun 18:00 = 49 hours = 2940 min
+  // Weekend: Fri 17:00 → Sun 18:00 = 49 hours = 176400 sec
   if (day === 5 || day === 6 || (day === 0 && hour < 18)) {
-    const WEEKEND_LEN = 2940;
-    let minSinceClosed: number;
-    if (day === 5) minSinceClosed = (hour - 17) * 60 + minute;
-    else if (day === 6) minSinceClosed = (24 + 7) * 60 + hour * 60 + minute; // 7h (Fri 17→24) + Sat hours
-    else minSinceClosed = (24 + 7 + 24) * 60 + hour * 60 + minute; // Fri 7h + Sat 24h + Sun hours
-    // Simpler: count from Fri 17:00
-    // Fri: (hour-17)*60+minute, Sat: 7*60 + hour*60+minute ... use day offsets
-    const dayOffset = day === 5 ? 0 : day === 6 ? 1 : 2;
-    minSinceClosed = dayOffset * 24 * 60 + (day === 5 ? (hour - 17) * 60 + minute : hour * 60 + minute);
-    if (day === 5) minSinceClosed = (hour - 17) * 60 + minute;
-    else if (day === 6) minSinceClosed = 7 * 60 + hour * 60 + minute; // 7h remaining Fri + all of Sat so far
-    else minSinceClosed = 7 * 60 + 24 * 60 + hour * 60 + minute; // 7h Fri + 24h Sat + Sun so far
+    const WEEKEND_LEN_SEC = 176400;
+    let secSinceClosed: number;
+    if (day === 5) secSinceClosed = (hour - 17) * 3600 + minute * 60 + second;
+    else if (day === 6) secSinceClosed = 7 * 3600 + hour * 3600 + minute * 60 + second;
+    else secSinceClosed = (7 + 24) * 3600 + hour * 3600 + minute * 60 + second;
     return {
-      progress: Math.min(1, minSinceClosed / WEEKEND_LEN),
+      progress: Math.min(1, secSinceClosed / WEEKEND_LEN_SEC),
       dayLabel: DAY_NAMES[day],
       startLabel: 'Fri 17:00',
       endLabel: 'Sun 18:00',
-      countdown: formatCountdown(WEEKEND_LEN - minSinceClosed, 'reopen'),
+      countdown: formatCountdown(WEEKEND_LEN_SEC - secSinceClosed, 'reopen'),
     };
   }
 
-  // Daily maintenance: 17:00 → 18:00 = 60 min
-  const MAINT_LEN = 60;
-  const minSinceClosed = minute;
+  // Daily maintenance: 17:00 → 18:00 = 3600 sec
+  const MAINT_LEN_SEC = 3600;
+  const secSinceClosed = minute * 60 + second;
   return {
-    progress: Math.min(1, minSinceClosed / MAINT_LEN),
+    progress: Math.min(1, secSinceClosed / MAINT_LEN_SEC),
     dayLabel: DAY_NAMES[day],
     startLabel: '17:00',
     endLabel: '18:00',
-    countdown: formatCountdown(MAINT_LEN - minSinceClosed, 'reopen'),
+    countdown: formatCountdown(MAINT_LEN_SEC - secSinceClosed, 'reopen'),
   };
 }
 
