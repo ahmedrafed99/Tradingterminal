@@ -37,6 +37,22 @@ export async function stopStrategy(
   return res.json() as Promise<LiveStrategyInfo>;
 }
 
+export async function testStrategySignal(
+  serverUrl: string,
+  strategyId: string,
+  direction: 'long' | 'short',
+): Promise<void> {
+  const res = await fetch(`${serverUrl}/strategies/${strategyId}/test-signal`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ direction }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error ?? 'Failed to execute test signal');
+  }
+}
+
 export interface StrategySSEHandlers {
   onSnapshot: (strategies: LiveStrategyInfo[]) => void;
   onUpdate: (strategy: LiveStrategyInfo) => void;

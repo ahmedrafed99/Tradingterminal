@@ -47,6 +47,13 @@ export async function stopStrategy(id: string): Promise<void> {
   await strategy.stop();
 }
 
+export async function testSignalStrategy(id: string, direction: 'long' | 'short'): Promise<void> {
+  const strategy = REGISTRY.find((s) => s.id === id);
+  if (!strategy) throw new Error(`Unknown strategy: ${id}`);
+  if (!('testSignal' in strategy)) throw new Error('Strategy does not support test signals');
+  await (strategy as { testSignal(d: 'long' | 'short'): Promise<void> }).testSignal(direction);
+}
+
 export function init(): void {
   // strategies are started by user action; nothing to auto-start
 }

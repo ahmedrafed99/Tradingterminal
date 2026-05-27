@@ -60,4 +60,22 @@ router.post('/:id/stop', async (req, res) => {
   }
 });
 
+const TestSignalSchema = z.object({
+  direction: z.enum(['long', 'short']),
+});
+
+router.post('/:id/test-signal', async (req, res) => {
+  const parsed = TestSignalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'direction must be "long" or "short"' });
+    return;
+  }
+  try {
+    await manager.testSignalStrategy(req.params.id, parsed.data.direction);
+    res.json({ ok: true });
+  } catch (err: unknown) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 export default router;

@@ -18,6 +18,17 @@ export interface LiveStrategyInfo {
     confidence?: number;
     barCount?: number;
     warmedUp?: boolean;
+    /** Cached trade config from the last ML poll — used for signal preview. */
+    tradeConfig?: {
+      sl_pts: number;
+      tp_pts?: number;
+      targets: Array<{ tp_pts: number; contracts: number }> | null;
+      total_contracts: number;
+      trailing_stop: boolean;
+      trailing_dist_pts: number;
+    };
+    /** ISO timestamp of the last completed poll. */
+    lastPollAt?: string;
   };
 }
 
