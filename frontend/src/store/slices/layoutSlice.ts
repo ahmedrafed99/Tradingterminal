@@ -156,7 +156,9 @@ export interface NewsState {
 // ---------------------------------------------------------------------------
 export interface OrderPanelPositionState {
   orderPanelSide: 'left' | 'right';
+  orderPanelOpen: boolean;
   setOrderPanelSide: (side: 'left' | 'right') => void;
+  toggleOrderPanel: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -309,7 +311,9 @@ export const createLayoutSlice = (set: Set): LayoutSlice => ({
 
   // Order Panel Position
   orderPanelSide: 'left' as 'left' | 'right',
+  orderPanelOpen: true,
   setOrderPanelSide: (orderPanelSide) => set({ orderPanelSide }),
+  toggleOrderPanel: () => set((s) => ({ orderPanelOpen: !s.orderPanelOpen })),
 
   // News
   newsEvents: [] as NewsEvent[],

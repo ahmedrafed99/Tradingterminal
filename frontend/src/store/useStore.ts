@@ -41,7 +41,7 @@ export type { ToastItem } from './slices/toastSlice';
 // ---------------------------------------------------------------------------
 
 // AUTO-BUMPED by pre-commit hook when store slices change. Do not edit manually.
-const STORE_VERSION = 18;
+const STORE_VERSION = 19;
 
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
   & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice & LiveStrategySlice;
