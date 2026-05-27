@@ -777,55 +777,59 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
       className={`flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-hidden`}
       style={{ width: collapsed ? 0 : 240, minWidth: 0, transition: 'width 200ms ease', flexShrink: 0 }}
     >
-      <div className="flex flex-col overflow-y-auto" style={{ gap: 20, padding: 12, width: 240, flexShrink: 0, flex: 1, minHeight: 0 }}>
-        {/* Instrument */}
-        <div className="bg-(--color-input) rounded flex items-center">
-          <button
-            onClick={() => {
-              const store = useStore.getState();
-              store.setOrderPanelSide(store.orderPanelSide === 'left' ? 'right' : 'left');
-            }}
-            className="text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer shrink-0"
-            title={`Move panel to ${side === 'left' ? 'right' : 'left'}`}
-            style={{ padding: '6px 6px' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M7 16L3 12l4-4" />
-              <path d="M17 8l4 4-4 4" />
-              <line x1="3" y1="12" x2="21" y2="12" />
-            </svg>
-          </button>
-          <div className="flex-1 text-xs text-center text-(--color-text)" style={{ paddingRight: 24 }}>
-            {orderContract?.name ?? '—'}
+      {!collapsed && (
+        <>
+          <div className="flex flex-col overflow-y-auto" style={{ gap: 20, padding: 12, width: 240, flex: 1, minHeight: 0 }}>
+            {/* Instrument */}
+            <div className="bg-(--color-input) rounded flex items-center">
+              <button
+                onClick={() => {
+                  const store = useStore.getState();
+                  store.setOrderPanelSide(store.orderPanelSide === 'left' ? 'right' : 'left');
+                }}
+                className="text-(--color-text-muted) hover:text-(--color-text) transition-colors cursor-pointer shrink-0"
+                title={`Move panel to ${side === 'left' ? 'right' : 'left'}`}
+                style={{ padding: '6px 6px' }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 16L3 12l4-4" />
+                  <path d="M17 8l4 4-4 4" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                </svg>
+              </button>
+              <div className="flex-1 text-xs text-center text-(--color-text)" style={{ paddingRight: 24 }}>
+                {orderContract?.name ?? '—'}
+              </div>
+            </div>
+
+            {/* Order Type */}
+            <OrderTypeTabs />
+
+            {/* Contracts */}
+            <ContractsSpinner />
+
+            {/* Bracket Settings */}
+            <BracketSummary />
+
+            {/* Preview toggle */}
+            <PreviewToggle />
+
+            {/* Blacklist warning */}
+            <BlacklistBanner />
+
+            {/* Buy / Sell */}
+            <BuySellButtons />
+
+            {/* Position */}
+            <PositionDisplay />
           </div>
-        </div>
 
-        {/* Order Type */}
-        <OrderTypeTabs />
-
-        {/* Contracts */}
-        <ContractsSpinner />
-
-        {/* Bracket Settings */}
-        <BracketSummary />
-
-        {/* Preview toggle */}
-        <PreviewToggle />
-
-        {/* Blacklist warning */}
-        <BlacklistBanner />
-
-        {/* Buy / Sell */}
-        <BuySellButtons />
-
-        {/* Position */}
-        <PositionDisplay />
-      </div>
-
-      {editingPresetId !== null && (
-        <Suspense fallback={null}>
-          <BracketSettingsModal />
-        </Suspense>
+          {editingPresetId !== null && (
+            <Suspense fallback={null}>
+              <BracketSettingsModal />
+            </Suspense>
+          )}
+        </>
       )}
     </div>
   );

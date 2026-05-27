@@ -13,6 +13,10 @@
   }
 }
 
+html, body {
+  overflow: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
   background-color: var(--color-bg);
