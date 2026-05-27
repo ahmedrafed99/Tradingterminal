@@ -169,11 +169,11 @@ export function BuySellButtons() {
                      bg-(--color-btn-sell) hover:bg-(--color-btn-sell-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'sell' ? (
-            <span className="text-sm font-normal text-(--color-text-bright)">...</span>
+            <span className="text-sm font-light text-(--color-text-bright)">...</span>
           ) : (
             <>
-              <span className="text-sm font-normal text-(--color-text-bright)">Sell {orderSize}</span>
-              <span className="text-sm font-normal text-(--color-text-bright) mt-0.5">
+              <span className="text-sm font-light text-(--color-text-bright)">Sell {orderSize}</span>
+              <span className="text-sm font-light text-(--color-text-bright) mt-0.5">
                 {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : bid != null ? fmtP(bid) : '-'}
               </span>
             </>
@@ -199,11 +199,11 @@ export function BuySellButtons() {
                      bg-(--color-btn-buy) hover:bg-(--color-btn-buy-hover) cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {placing === 'buy' ? (
-            <span className="text-sm font-normal text-(--color-text-bright)">...</span>
+            <span className="text-sm font-light text-(--color-text-bright)">...</span>
           ) : (
             <>
-              <span className="text-sm font-normal text-(--color-text-bright)">Buy {orderSize}</span>
-              <span className="text-sm font-normal text-(--color-text-bright) mt-0.5">
+              <span className="text-sm font-light text-(--color-text-bright)">Buy {orderSize}</span>
+              <span className="text-sm font-light text-(--color-text-bright) mt-0.5">
                 {orderType === 'limit' && limitPrice != null ? fmtP(limitPrice) : ask != null ? fmtP(ask) : '-'}
               </span>
             </>
