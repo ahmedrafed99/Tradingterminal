@@ -52,9 +52,16 @@ class VLineRendererImpl implements IPrimitivePaneRenderer {
           textBaseline = 'bottom';
         }
 
-        if (text.hAlign === 'right') {
+        if (text.hAlign === 'left') {
           textX = x - Math.round(6 * hpr);
           textAlign = 'right';
+        } else if (text.hAlign === 'right') {
+          textX = x + Math.round(6 * hpr);
+          textAlign = 'left';
+        } else {
+          // center: text sits on the line
+          textX = x;
+          textAlign = 'center';
         }
       }
 
