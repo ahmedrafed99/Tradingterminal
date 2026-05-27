@@ -95,18 +95,26 @@ function barsCacheKey(p: RetrieveBarsParams): string {
 export const marketDataService = {
   async retrieveBars(params: RetrieveBarsParams): Promise<Bar[]> {
     const key = barsCacheKey(params);
+    // Responses that include the partial (currently-forming) bar are stale the
+    // moment the next tick fires — and any later cache hit can return a once-partial
+    // bar as if it were a closed historical bar, freezing its incomplete OHLC.
+    // Skip persistent cache for those; keep in-flight dedup so concurrent identical
+    // fetches still share one network call.
+    const skipCache = !!params.includePartialBar;
 
-    // 1. In-memory cache (fastest)
-    const cached = barsCache.get(key);
-    if (cached && Date.now() - cached.ts < BARS_CACHE_TTL) {
-      return cached.bars;
-    }
+    if (!skipCache) {
+      // 1. In-memory cache (fastest)
+      const cached = barsCache.get(key);
+      if (cached && Date.now() - cached.ts < BARS_CACHE_TTL) {
+        return cached.bars;
+      }
 
-    // 2. sessionStorage cache (survives refresh)
-    const ssCached = ssGet(key);
-    if (ssCached) {
-      barsCache.set(key, { bars: ssCached, ts: Date.now() });
-      return ssCached;
+      // 2. sessionStorage cache (survives refresh)
+      const ssCached = ssGet(key);
+      if (ssCached) {
+        barsCache.set(key, { bars: ssCached, ts: Date.now() });
+        return ssCached;
+      }
     }
 
     // 3. In-flight dedup
@@ -120,8 +128,10 @@ export const marketDataService = {
       .then((res) => {
         metricCollector.onApiCall('POST', '/market/bars', performance.now() - fetchStart, true);
         const bars = res.data.bars ?? [];
-        barsCache.set(key, { bars, ts: Date.now() });
-        ssSet(key, bars);
+        if (!skipCache) {
+          barsCache.set(key, { bars, ts: Date.now() });
+          ssSet(key, bars);
+        }
         return bars;
       })
       .catch((err) => {
