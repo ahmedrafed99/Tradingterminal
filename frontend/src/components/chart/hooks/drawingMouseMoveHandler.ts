@@ -26,7 +26,13 @@ export function onMouseMove(e: MouseEvent, ctx: DrawingContext): void {
     if (dx < 3 && dy < 3) return;
     state.drawingDragOccurred = true;
 
-    if (state.drawingDrag.type === 'hline') {
+    if (state.drawingDrag.type === 'vline') {
+      const currentTime = chart.timeScale().coordinateToTime(x);
+      if (currentTime !== null) {
+        const dt = (currentTime as number) - state.drawingDrag.startTime;
+        useStore.getState().updateDrawing(state.drawingDrag.drawingId, { time: state.drawingDrag.origP1.time + dt }, true);
+      }
+    } else if (state.drawingDrag.type === 'hline') {
       const rawPrice = series.coordinateToPrice(y);
       const currentTime = chart.timeScale().coordinateToTime(x);
       const patch: Record<string, unknown> = {};

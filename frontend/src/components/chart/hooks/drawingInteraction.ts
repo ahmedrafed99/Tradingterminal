@@ -44,7 +44,7 @@ export interface DrawingState {
 
   drawingDrag: {
     drawingId: string;
-    type: 'hline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp' | 'fib';
+    type: 'hline' | 'vline' | 'rect' | 'oval' | 'arrowpath' | 'ruler' | 'freedraw' | 'frvp' | 'fib';
     startX: number;
     startY: number;
     origPrice: number;

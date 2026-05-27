@@ -217,6 +217,17 @@ export function onDrawingDragMouseDown(e: MouseEvent, ctx: DrawingContext): void
     };
     refs.crosshairLabel.current?.suppress(true);
     chart.applyOptions({ crosshair: { horzLine: { labelVisible: false } } });
+  } else if (drawing.type === 'vline') {
+    const dragStartTime = chart.timeScale().coordinateToTime(x);
+    if (!dragStartTime) return;
+    state.drawingDrag = {
+      drawingId: drawing.id, type: 'vline',
+      startX: x, startY: y,
+      origPrice: 0,
+      origP1: { time: drawing.time, price: 0 }, origP2: { time: 0, price: 0 },
+      startTime: dragStartTime as number,
+      startPrice: 0, origStartTime: 0,
+    };
   } else if (drawing.type === 'rect') {
     const data = getDataPos(chart, series, x, y);
     if (!data) return;
