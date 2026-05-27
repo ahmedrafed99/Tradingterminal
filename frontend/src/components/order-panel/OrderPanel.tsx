@@ -777,7 +777,7 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
 
   return (
     <div
-      className={`relative flex flex-col bg-(--color-panel) ${side === 'left' ? 'border-r' : 'border-l'} border-(--color-border) overflow-hidden`}
+      className="relative flex flex-col bg-(--color-panel) overflow-hidden"
       style={{ width: collapsed ? 0 : 240, minWidth: 0, transition: 'width 200ms ease', flexShrink: 0 }}
     >
       {!collapsed && (

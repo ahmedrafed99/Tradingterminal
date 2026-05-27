@@ -18,6 +18,8 @@ import { getCmeSessionStart, getDateRange } from './utils/cmeSession';
 import { allTradesCache } from './components/bottom-panel/TradesTab';
 import { tradeService } from './services/tradeService';
 import { VerticalSeparator } from './components/shared/VerticalSeparator';
+import { ChevronLeft } from './components/icons/ChevronLeft';
+import { ChevronRight } from './components/icons/ChevronRight';
 import { IS_DEMO } from './adapters/demo/index';
 
 export default function App() {
@@ -29,8 +31,11 @@ export default function App() {
   const setBottomPanelRatio = useStore((s) => s.setBottomPanelRatio);
   const toggleBottomPanel = useStore((s) => s.toggleBottomPanel);
   const orderPanelSide = useStore((s) => s.orderPanelSide);
+  const orderPanelOpen = useStore((s) => s.orderPanelOpen);
+  const toggleOrderPanel = useStore((s) => s.toggleOrderPanel);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const [transitioning, setTransitioning] = useState(false);
+  const [bottomPanelHovered, setBottomPanelHovered] = useState(false);
 
   const handleToggle = useCallback(() => {
     setTransitioning(true);
@@ -151,7 +156,26 @@ export default function App() {
 
       {/* Main content area */}
       <main className="flex-1 flex flex-row min-h-0">
-        {orderPanelSide === 'left' && <OrderPanel side="left" />}
+        {orderPanelSide === 'left' && (
+          <>
+            <OrderPanel side="left" collapsed={!orderPanelOpen} />
+            <div className="group relative w-1 flex-shrink-0 bg-(--color-panel) transition-colors">
+              <div className="absolute right-0 top-0 bottom-0 w-px bg-(--color-border) group-hover:bg-(--color-text-dim) transition-colors pointer-events-none" />
+              <button
+                className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10
+                  flex items-center justify-center rounded-sm
+                  bg-(--color-surface) text-(--color-text-dim) border border-(--color-border)
+                  hover:bg-(--color-hover-toolbar) hover:text-(--color-text)
+                  transition-all cursor-pointer
+                  ${!orderPanelOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                style={{ width: 16, height: 24 }}
+                onClick={toggleOrderPanel}
+              >
+                {orderPanelOpen ? <ChevronLeft /> : <ChevronRight />}
+              </button>
+            </div>
+          </>
+        )}
         <div className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
           <ChartToolbar />
           <div ref={splitContainerRef} className="flex-1 flex flex-col min-h-0">
@@ -167,6 +191,7 @@ export default function App() {
             <VerticalSeparator
               containerRef={splitContainerRef}
               collapsed={bottomPanelRatio <= 0.05}
+              highlighted={bottomPanelHovered}
               onToggle={handleToggle}
               onDrag={(mouseRatio) => {
                 const newRatio = 1 - mouseRatio;
@@ -183,12 +208,33 @@ export default function App() {
                 transition: transitioning ? 'flex 200ms ease, min-height 200ms ease' : 'none',
               }}
               className="overflow-hidden"
+              onMouseEnter={() => setBottomPanelHovered(true)}
+              onMouseLeave={() => setBottomPanelHovered(false)}
             >
               <BottomPanel />
             </div>
           </div>
         </div>
-        {orderPanelSide === 'right' && <OrderPanel side="right" />}
+        {orderPanelSide === 'right' && (
+          <>
+            <div className="group relative w-1 flex-shrink-0 bg-(--color-panel) transition-colors">
+              <div className="absolute left-0 top-0 bottom-0 w-px bg-(--color-border) group-hover:bg-(--color-text-dim) transition-colors pointer-events-none" />
+              <button
+                className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10
+                  flex items-center justify-center rounded-sm
+                  bg-(--color-surface) text-(--color-text-dim) border border-(--color-border)
+                  hover:bg-(--color-hover-toolbar) hover:text-(--color-text)
+                  transition-all cursor-pointer
+                  ${!orderPanelOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+                style={{ width: 16, height: 24 }}
+                onClick={toggleOrderPanel}
+              >
+                {orderPanelOpen ? <ChevronRight /> : <ChevronLeft />}
+              </button>
+            </div>
+            <OrderPanel side="right" collapsed={!orderPanelOpen} />
+          </>
+        )}
       </main>
 
       {settingsOpen && <SettingsModal />}
