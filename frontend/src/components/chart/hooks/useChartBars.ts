@@ -668,6 +668,7 @@ export function useChartBars(
         if (last && lastTimeSec === barTimeSec) {
           if (pendingBar.high > last.h) last.h = pendingBar.high;
           if (pendingBar.low < last.l) last.l = pendingBar.low;
+          last.c = pendingBar.close;
           last.v = pendingBarVolume;
           refs.drawingsPrimitive.current?.setBarsRef(bars);
         } else if (lastTimeSec < barTimeSec) {
@@ -728,6 +729,18 @@ export function useChartBars(
         if (pendingBar && refs.series.current) {
           refs.series.current.update(pendingBar);
           refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
+          // Sync final OHLC to refs.bars.current: the queued RAF for this bar may fire
+          // after pendingBar is replaced by the new bar, leaving the cache with stale h/l/c.
+          const bars = refs.bars.current;
+          const last = bars.length > 0 ? bars[bars.length - 1] : null;
+          if (last) {
+            const lastSec = Math.floor(new Date(last.t).getTime() / 1000);
+            if (lastSec === (pendingBar.time as number)) {
+              if (pendingBar.high > last.h) last.h = pendingBar.high;
+              if (pendingBar.low  < last.l) last.l = pendingBar.low;
+              last.c = pendingBar.close;
+            }
+          }
         }
         pendingBarVolume = 0; // reset accumulator for the new bar
         const newBar: CandlestickData<UTCTimestamp> = {
