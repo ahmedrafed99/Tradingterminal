@@ -297,7 +297,7 @@ export const EquityCurveChart = memo(function EquityCurveChart({
     }
 
     // Full rebuild
-    const data = deduplicateByTime(points.map((p) => toPoint(p, initialEquity)));
+    const data = deduplicateByTime(points.map((p) => toPoint(p, initialEquity)).sort((a, b) => (a.time as number) - (b.time as number)));
     // Keep the full-resolution array for tooltip binary search; pass a
     // downsampled copy to LWC so canvas redraws stay fast even with 100k+ bars.
     pointsRef.current = data;
