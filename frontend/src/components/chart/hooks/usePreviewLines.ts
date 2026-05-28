@@ -57,8 +57,10 @@ export function usePreviewLines(
     const toPrice = (points: number) => pointsToPrice(points, contract);
 
     const snap = useStore.getState();
-    const entry = snap.orderType === 'limit' ? snap.limitPrice : snap.lastPrice;
-    const ep = entry ?? 0;
+    const entry = snap.orderType === 'limit'
+      ? snap.limitPrice
+      : snap.previewSide === OrderSide.Buy ? snap.bestAsk : snap.bestBid;
+    const ep = entry ?? snap.lastPrice ?? 0;
     const hideEntry = snap.previewHideEntry;
 
     // ── Entry line ────────────────────────────────────────────────────────────
@@ -136,7 +138,9 @@ export function usePreviewLines(
             slPrimitive.setPrice(snapped);
             refs.previewPrices.current[slIdx] = snapped;
             const st = useStore.getState();
-            const entryPrice = st.orderType === 'limit' ? st.limitPrice : st.lastPrice;
+            const entryPrice = st.orderType === 'limit'
+              ? st.limitPrice
+              : st.previewSide === OrderSide.Buy ? st.bestAsk : st.bestBid;
             if (entryPrice) {
               const pts = priceToPoints(Math.abs(entryPrice - snapped), contract);
               const tpp = getTicksPerPoint(contract);
@@ -209,7 +213,9 @@ export function usePreviewLines(
             tpPrimitive.setPrice(snapped);
             refs.previewPrices.current[tpIdx] = snapped;
             const st = useStore.getState();
-            const entryPrice = st.orderType === 'limit' ? st.limitPrice : st.lastPrice;
+            const entryPrice = st.orderType === 'limit'
+              ? st.limitPrice
+              : st.previewSide === OrderSide.Buy ? st.bestAsk : st.bestBid;
             if (entryPrice) {
               const pts = priceToPoints(Math.abs(entryPrice - snapped), contract);
               const tpp = getTicksPerPoint(contract);
@@ -287,7 +293,9 @@ export function usePreviewLines(
       if (refs.isDragging.current) return;
 
       const snap = useStore.getState();
-      const entryPrice = snap.orderType === 'limit' ? snap.limitPrice : snap.lastPrice;
+      const entryPrice = snap.orderType === 'limit'
+        ? snap.limitPrice
+        : snap.previewSide === OrderSide.Buy ? snap.bestAsk : snap.bestBid;
       if (!entryPrice) return;
 
       const cfg = resolvePreviewConfig();
@@ -333,9 +341,13 @@ export function usePreviewLines(
     doUpdate();
 
     let prevLp = useStore.getState().lastPrice;
+    let prevBid = useStore.getState().bestBid;
+    let prevAsk = useStore.getState().bestAsk;
     const unsub = useStore.subscribe((state) => {
-      if (state.lastPrice !== prevLp) {
+      if (state.lastPrice !== prevLp || state.bestBid !== prevBid || state.bestAsk !== prevAsk) {
         prevLp = state.lastPrice;
+        prevBid = state.bestBid;
+        prevAsk = state.bestAsk;
         doUpdate();
       }
     });

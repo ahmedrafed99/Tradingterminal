@@ -113,8 +113,9 @@ export function buildPreviewLabels(
       const entrySideBg = pvSide === OrderSide.Buy ? BUY_COLOR : SELL_COLOR;
       const entrySideText = pvSide === OrderSide.Buy ? BUY_TEXT : SELL_TEXT;
 
+      const orderTypeLabel = snap.orderType === 'market' ? 'Market' : 'Limit';
       primitive.setCell('pnl', {
-        text: pvSide === OrderSide.Buy ? 'Limit Buy' : 'Limit Sell',
+        text: pvSide === OrderSide.Buy ? `${orderTypeLabel} Buy` : `${orderTypeLabel} Sell`,
         bg: LABEL_BG,
         color: LABEL_TEXT,
         onClick: onExecute,

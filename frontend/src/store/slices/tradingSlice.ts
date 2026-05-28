@@ -44,6 +44,8 @@ export interface OrderPanelState {
   activePresetId: string | null;
   suspendedPresetId: string | null;
   lastPrice: number | null;
+  bestBid: number | null;
+  bestAsk: number | null;
   setOrderType: (t: 'market' | 'limit') => void;
   setLimitPrice: (p: number | null) => void;
   setOrderSize: (n: number) => void;
@@ -55,6 +57,7 @@ export interface OrderPanelState {
   savePreset: (preset: BracketPreset) => void;
   deletePreset: (id: string) => void;
   setLastPrice: (p: number | null) => void;
+  setBestBidAsk: (bid: number | null, ask: number | null) => void;
   draftSlPoints: number | null;
   draftTpPoints: (number | null)[];
   setDraftSlPoints: (p: number | null) => void;
@@ -187,6 +190,8 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
   activePresetId: null,
   suspendedPresetId: null,
   lastPrice: null,
+  bestBid: null,
+  bestAsk: null,
   setOrderType: (orderType) => set({ orderType }),
   setLimitPrice: (limitPrice) => set({ limitPrice }),
   setOrderSize: (orderSize) => set({ orderSize: Math.max(1, orderSize) }),
@@ -250,6 +255,7 @@ export const createTradingSlice = (set: Set): TradingSlice => ({
       activePresetId: s.activePresetId === id ? null : s.activePresetId,
     })),
   setLastPrice: (lastPrice) => set({ lastPrice }),
+  setBestBidAsk: (bestBid, bestAsk) => set({ bestBid, bestAsk }),
   draftSlPoints: null,
   draftTpPoints: [],
   setDraftSlPoints: (draftSlPoints) => set({ draftSlPoints }),

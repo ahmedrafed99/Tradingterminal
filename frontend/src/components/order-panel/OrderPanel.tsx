@@ -205,13 +205,14 @@ async function hydratePositionsAndOrders(
 
 export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left' | 'right'; collapsed?: boolean }) {
   const {
-    orderContract, activeAccountId, setLastPrice, upsertPosition, upsertOrder, removeOrder,
+    orderContract, activeAccountId, setLastPrice, setBestBidAsk, upsertPosition, upsertOrder, removeOrder,
     suspendPreset, restorePreset, editingPresetId,
     setOrderContract,
   } = useStore(useShallow((s) => ({
     orderContract: s.orderContract,
     activeAccountId: s.activeAccountId,
     setLastPrice: s.setLastPrice,
+    setBestBidAsk: s.setBestBidAsk,
     upsertPosition: s.upsertPosition,
     upsertOrder: s.upsertOrder,
     removeOrder: s.removeOrder,
@@ -753,18 +754,23 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
     });
   }, [connected, orderContract, chartContract, setLastPrice]);
 
-  // Update lastPrice from quote stream for P&L calculation (RAF-throttled)
+  // Update lastPrice / bid / ask from quote stream (RAF-throttled)
   useEffect(() => {
     if (!orderContract) return;
     let pendingPrice: number | null = null;
+    let pendingBid: number | null = null;
+    let pendingAsk: number | null = null;
     let rafId = 0;
     const handler = (contractId: string, data: GatewayQuote) => {
       if (contractId !== orderContract.id) return;
       pendingPrice = data.lastPrice;
+      if (data.bestBid != null) pendingBid = data.bestBid;
+      if (data.bestAsk != null) pendingAsk = data.bestAsk;
       if (!rafId) {
         rafId = requestAnimationFrame(() => {
           rafId = 0;
           if (pendingPrice != null) setLastPrice(pendingPrice);
+          setBestBidAsk(pendingBid, pendingAsk);
         });
       }
     };
@@ -773,7 +779,7 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
       cancelAnimationFrame(rafId);
       realtimeService.offQuote(handler);
     };
-  }, [orderContract, setLastPrice]);
+  }, [orderContract, setLastPrice, setBestBidAsk]);
 
   return (
     <div
