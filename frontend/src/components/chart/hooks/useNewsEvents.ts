@@ -6,6 +6,7 @@ import { setHolidays } from '../../../utils/marketHours';
 import type { ChartRefs } from './types';
 import { COLOR_NEWS_EVENT } from '../../../constants/colors';
 import type { VLineDrawing } from '../../../types/drawing';
+import { NEWS_MARKER_RADIUS, NEWS_BOTTOM_OFFSET } from '../primitives/NewsEventsPrimitive';
 
 export function useNewsEvents(refs: ChartRefs): void {
   // Fetch news events + holidays on mount
@@ -86,6 +87,7 @@ export function useNewsEvents(refs: ChartRefs): void {
           lineStyle: 'dashed',
           text: null,
           contractId,
+          bottomPad: NEWS_BOTTOM_OFFSET + NEWS_MARKER_RADIUS * 2,
         });
       }
     });

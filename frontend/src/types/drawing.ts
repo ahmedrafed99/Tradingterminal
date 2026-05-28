@@ -55,6 +55,7 @@ export interface HLineDrawing extends DrawingBase {
 export interface VLineDrawing extends DrawingBase {
   type: 'vline';
   time: number;  // unix seconds
+  bottomPad?: number;  // css px to leave undrawn at the bottom (e.g. news strip)
 }
 
 // ---------------------------------------------------------------------------

@@ -66,6 +66,9 @@ class VLineRendererImpl implements IPrimitivePaneRenderer {
       }
 
       // Draw the vertical line, with a gap where middle-aligned text sits
+      const lineBottom = this._drawing.bottomPad
+        ? bitmapSize.height - Math.round(this._drawing.bottomPad * vpr)
+        : bitmapSize.height;
       ctx.strokeStyle = this._drawing.color;
       ctx.lineWidth = this._drawing.strokeWidth;
       applyLineDash(ctx, this._drawing.lineStyle, this._drawing.strokeWidth, vpr);
@@ -76,12 +79,12 @@ class VLineRendererImpl implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.beginPath();
         ctx.moveTo(x, gapBottom);
-        ctx.lineTo(x, bitmapSize.height);
+        ctx.lineTo(x, lineBottom);
         ctx.stroke();
       } else {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, bitmapSize.height);
+        ctx.lineTo(x, lineBottom);
         ctx.stroke();
       }
       ctx.setLineDash([]);

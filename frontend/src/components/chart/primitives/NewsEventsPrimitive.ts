@@ -15,8 +15,11 @@ import type { NewsEvent } from '../../../types/news';
 
 import { FONT_FAMILY } from '../../../constants/layout';
 
-const MARKER_RADIUS = 10;
-const BOTTOM_OFFSET = 14;
+export const NEWS_MARKER_RADIUS = 10;
+export const NEWS_BOTTOM_OFFSET = 14;
+
+const MARKER_RADIUS = NEWS_MARKER_RADIUS;
+const BOTTOM_OFFSET = NEWS_BOTTOM_OFFSET;
 
 import { COLOR_SELL, COLOR_WARNING, COLOR_TEXT_MUTED, COLOR_BORDER, COLOR_NEWS_EVENT, COLOR_NEWS_EVENT_HOVER } from '../../../constants/colors';
 
@@ -255,14 +258,18 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
     if (hitIdx >= 0) {
       const hitMarker = this._cachedMarkers[hitIdx];
-      this._onMarkerClick?.(hitMarker.time);
 
       if (this._pinnedIdx === hitIdx) {
         // Click same marker again — dismiss
+        this._onMarkerClick?.(hitMarker.time);
         this._pinnedIdx = -1;
         this._hideTooltip();
       } else {
-        // Pin new marker
+        // Switching to a new marker — clear old vline first, then add new
+        if (this._pinnedIdx !== -1) {
+          this._onMarkerClick?.(null);
+        }
+        this._onMarkerClick?.(hitMarker.time);
         this._pinnedIdx = hitIdx;
         this._showTooltip(hitMarker, x);
       }
