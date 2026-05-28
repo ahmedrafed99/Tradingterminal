@@ -357,7 +357,11 @@ export function useChartBars(
             // Fetch only the bars we missed since leaving this TF.
             // Go back 2 periods so the previously-partial bar is refreshed with its
             // final closed OHLC rather than the stale snapshot we left with.
+            // Scale the limit to cover the full gap: API returns newest-first so a
+            // fixed 500 would truncate the oldest end and leave a hole in the merge.
             const fromMs = new Date(lastCached.t).getTime() - 2 * periodSec * 1000;
+            const requiredBars = Math.ceil(cacheAgeMs / 1000 / periodSec) + 50;
+            const fetchLimit = Math.min(Math.max(500, requiredBars), 20000);
             const deltaBars = await marketDataService.retrieveBars({
               contractId: contract!.id,
               live: false,
@@ -365,7 +369,7 @@ export function useChartBars(
               unitNumber: timeframe.unitNumber,
               startTime: new Date(fromMs).toISOString(),
               endTime: new Date().toISOString(),
-              limit: 500,
+              limit: fetchLimit,
               includePartialBar: true,
             });
             if (cancelled) return;
@@ -376,12 +380,18 @@ export function useChartBars(
             const deltaStartSec = sortedDelta.length > 0
               ? Math.floor(new Date(sortedDelta[0].t).getTime() / 1000)
               : Infinity;
-            const merged = [
-              ...cachedBars!.filter(b => Math.floor(new Date(b.t).getTime() / 1000) < deltaStartSec),
-              ...sortedDelta,
-            ];
+            const lastCachedSec = Math.floor(new Date(lastCached.t).getTime() / 1000);
+            const gapDetected = sortedDelta.length > 0 && deltaStartSec > lastCachedSec + 2 * periodSec;
+            // Defense-in-depth: if the limit was still exhausted (e.g. ultra-fine TF),
+            // the delta won't connect to the cache — use delta only to avoid a gap.
+            const baseArr = gapDetected
+              ? sortedDelta
+              : [
+                  ...cachedBars!.filter(b => Math.floor(new Date(b.t).getTime() / 1000) < deltaStartSec),
+                  ...sortedDelta,
+                ];
             const bySecond = new Map<number, Bar>();
-            for (const bar of merged) {
+            for (const bar of baseArr) {
               bySecond.set(Math.floor(new Date(bar.t).getTime() / 1000), bar);
             }
             bars = Array.from(bySecond.values())
