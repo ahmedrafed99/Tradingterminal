@@ -6,10 +6,6 @@ import { OrderType, OrderSide } from '../types/enums';
 import type { PlaceOrderParams } from '../adapters/types';
 import * as barAggregator from './barAggregator';
 
-// ---------------------------------------------------------------------------
-// SSE client registry
-// ---------------------------------------------------------------------------
-
 const sseClients = new Set<Response>();
 
 export function addSSEClient(res: Response): void {
@@ -25,10 +21,6 @@ function broadcast(event: string, data: unknown): void {
     client.write(payload);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Bar evaluation — called when a completed bar arrives
-// ---------------------------------------------------------------------------
 
 /**
  * Evaluate all armed conditions against a completed bar.
@@ -84,10 +76,6 @@ export async function evaluateBar(
   }
 }
 
-// ---------------------------------------------------------------------------
-// Order execution
-// ---------------------------------------------------------------------------
-
 async function executeCondition(condition: Condition): Promise<string | undefined> {
   if (!isConnected()) throw new Error('Not connected to exchange');
 
@@ -136,10 +124,6 @@ function pointsToTicks(points: number, tickSize: number): number {
   return Math.round(points / tickSize);
 }
 
-// ---------------------------------------------------------------------------
-// Expiry check — call periodically (e.g. every 60s)
-// ---------------------------------------------------------------------------
-
 export function checkExpired(): void {
   const now = Date.now();
   for (const c of store.getArmed()) {
@@ -149,10 +133,6 @@ export function checkExpired(): void {
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Lifecycle
-// ---------------------------------------------------------------------------
 
 let expiryInterval: ReturnType<typeof setInterval> | null = null;
 

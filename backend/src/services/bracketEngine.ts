@@ -37,10 +37,6 @@ const OrderStatus = {
   Suspended: 8,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Internal session types
-// ---------------------------------------------------------------------------
-
 interface NormalizedTP {
   id: string;
   ticks: number;
@@ -54,7 +50,7 @@ interface ActiveSession {
   accountId: string;
   contractId: string;
   entrySide: OrderSide;
-  entryPrice: number;          // set after fill detected
+  entryPrice: number;
   entrySize: number;
   config: BracketConfig;
   contract: BracketContract;
@@ -62,15 +58,15 @@ interface ActiveSession {
   entryOrderId: string;
   entryOrderPlacedAt: string;
   phase: SessionPhase;
-  entryWaitDeadline: number;   // Date.now() + maxEntryWaitMs
+  entryWaitDeadline: number;
   callbacks: BracketSessionCallbacks;
 
   // Order tracking
   slOrderId:  string | null;
-  tpOrderIds: Map<number, string>;   // tpIndex → orderId
+  tpOrderIds: Map<number, string>;
   filledTPs:  Set<number>;
-  firedConditions: Set<string>;      // condition.id — prevents re-firing
-  pendingActions: ConditionAction[]; // queued until slOrderId is known
+  firedConditions: Set<string>;
+  pendingActions: ConditionAction[];
 }
 
 // ---------------------------------------------------------------------------
@@ -81,8 +77,6 @@ class BracketEngine {
   private sessions = new Map<string, ActiveSession>();
   private orderHandler: ((order: RealtimeOrder, action: number) => void) | null = null;
 
-  // ── Public API ─────────────────────────────────────────────────────────────
-
   trackEntry(params: TrackEntryParams): string {
     const {
       sessionId, accountId, contractId, entryOrderId, entryOrderPlacedAt,
@@ -91,7 +85,6 @@ class BracketEngine {
       maxEntryWaitMs = 90_000,
     } = params;
 
-    // Cancel any existing session with this ID
     if (this.sessions.has(sessionId)) {
       this.cancelSession(sessionId).catch(() => {});
     }

@@ -14,10 +14,6 @@ import * as store from './conditionStore';
 import { evaluateBar } from './conditionEngine';
 import { hasLiveClients } from './tickAggregator';
 
-// ---------------------------------------------------------------------------
-// Timeframe → API unit mapping
-// ---------------------------------------------------------------------------
-
 interface TfConfig {
   unit: number;       // API unit (2=min, 3=hour, 4=day)
   unitNumber: number; // e.g. 15 for 15m
@@ -36,16 +32,10 @@ const TIMEFRAME_MAP: Record<string, TfConfig> = {
 // Buffer after candle close before polling (ms) — gives the API time to finalize
 const POLL_BUFFER_MS = 3_000;
 
-// Track which bars we've already evaluated (prevent double-trigger)
-// Key: `${contractId}|${timeframe}`, Value: candle start timestamp (ms)
 const lastEvaluated = new Map<string, number>();
 
 let scheduledTimer: ReturnType<typeof setTimeout> | null = null;
 let running = false;
-
-// ---------------------------------------------------------------------------
-// Candle boundary math
-// ---------------------------------------------------------------------------
 
 /** Next candle close time (ms) for a given period in seconds */
 function nextCandleCloseMs(periodSec: number): number {
@@ -54,10 +44,6 @@ function nextCandleCloseMs(periodSec: number): number {
   const nextClose = currentCandleStart + periodSec;
   return nextClose * 1000;
 }
-
-// ---------------------------------------------------------------------------
-// Polling logic — only polls timeframes whose candle just closed
-// ---------------------------------------------------------------------------
 
 async function pollTimeframes(timeframes: Set<string>): Promise<void> {
   if (!isConnected()) return;
@@ -71,7 +57,6 @@ async function pollTimeframes(timeframes: Set<string>): Promise<void> {
   const armed = store.getArmed();
   if (armed.length === 0) return;
 
-  // Deduplicate: group by contract+timeframe, only for the timeframes that just closed
   const pairs = new Map<string, { contractId: string; timeframe: string }>();
   for (const c of armed) {
     if (!timeframes.has(c.timeframe)) continue;

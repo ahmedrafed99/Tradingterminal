@@ -16,7 +16,6 @@ export interface TimeScaleMenuState {
   y: number;
 }
 
-/** Binary-search bars (sorted by time) for the one whose open time matches utcSeconds. */
 function findBarByTime(bars: Bar[], utcSeconds: number): Bar | null {
   let lo = 0, hi = bars.length - 1;
   while (lo <= hi) {
@@ -52,7 +51,6 @@ export function useChartContextMenu(
       container!.querySelectorAll('canvas').forEach((c) => { c.style.cursor = cursor; });
     }
 
-    /** Returns true if pointY (pane-local px) is within the candle's high–low range. */
     function isOverCandle(utcSeconds: number, pointY: number): boolean {
       const bar = findBarByTime(refs.bars.current, utcSeconds);
       if (!bar) return false;
@@ -70,7 +68,6 @@ export function useChartContextMenu(
       const chart = refs.chart.current;
       if (!chart) return;
 
-      // Check if click is on the time scale (last tr in the chart table)
       const timeScaleRow = chart.chartElement().querySelector('table tr:last-child');
       if (timeScaleRow && e.clientY >= timeScaleRow.getBoundingClientRect().top) {
         setMenuState(null);
@@ -78,7 +75,6 @@ export function useChartContextMenu(
         return;
       }
 
-      // Check if click is on the price scale (right column — last td when 2+ tds exist)
       const firstRow = chart.chartElement().querySelector('table tr:first-child');
       if (firstRow) {
         const cells = firstRow.querySelectorAll('td');
@@ -100,7 +96,6 @@ export function useChartContextMenu(
       const lastBar = refs.lastBar.current;
       if (lastBar && (time as number) > (lastBar.time as number)) return;
 
-      // Only show menu when clicking directly on a candle (within high–low range)
       if (!isOverCandle(time as number, localY)) return;
 
       setTimeScaleMenuState(null);
@@ -112,7 +107,6 @@ export function useChartContextMenu(
       });
     }
 
-    // Cursor hint via subscribeCrosshairMove (fires for every mouse move over the chart)
     const chart = refs.chart.current;
     let unsubCrosshair: (() => void) | null = null;
     if (chart) {

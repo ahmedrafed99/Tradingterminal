@@ -87,12 +87,8 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   const newsEventsPrimitiveRef = useRef<NewsEventsPrimitive | null>(null);
   const ohlcRef = useRef<HTMLDivElement>(null);
   const instrumentLabelRef = useRef<HTMLDivElement>(null);
-  // Shared flag: true while the quick-order (+) button is hovered so the
-  // crosshair label primitive doesn't clear itself during the transition.
   const qoHoveredRef = useRef(false);
   const labelHoveredRef = useRef(false);
-
-  // --- Refs declared here for all hooks (stable across renders) ---
 
   // Preview line refs
   const previewLinesRef = useRef<PriceLevelPrimitive[]>([]);

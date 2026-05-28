@@ -34,7 +34,6 @@ export function setDemoBracketPrices(entry: number, sl: number, tp: number): voi
   TP_PRICE    = tp;
 }
 
-// Shared mutable price — seeded from the last historical bar by bootstrapDemoMode()
 export let demoPrice = 21_543.25;
 export function setDemoPrice(p: number) { demoPrice = p; }
 const SESSION_OPEN   = 21_500;
@@ -45,9 +44,6 @@ function tick(pull = 0): number {
   return demoPrice;
 }
 
-// ---------------------------------------------------------------------------
-//  Handler registry helper
-// ---------------------------------------------------------------------------
 class HandlerSet<T extends (...args: never[]) => void> {
   private set = new Set<T>();
   add(h: T)     { this.set.add(h); }
@@ -55,9 +51,6 @@ class HandlerSet<T extends (...args: never[]) => void> {
   fire(...args: Parameters<T>) { this.set.forEach((h) => (h as unknown as (...a: Parameters<T>) => void)(...args)); }
 }
 
-// ---------------------------------------------------------------------------
-//  Adapter
-// ---------------------------------------------------------------------------
 export class DemoRealtimeAdapter implements RealtimeAdapter {
   private connected_       = false;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
@@ -77,8 +70,6 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
   private mHubH     = new HandlerSet<HubStateHandler>();
   private uHubH     = new HandlerSet<HubStateHandler>();
 
-  // ── Connection ────────────────────────────────────────────────────────────
-
   async connect(): Promise<void> {
     this.connected_ = true;
     // Signal hubs are "connected" immediately
@@ -95,8 +86,6 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
 
   isConnected(): boolean { return this.connected_; }
 
-  // ── Market subscriptions ──────────────────────────────────────────────────
-
   subscribeQuotes(contractId: string): void {
     if (contractId !== DEMO_CONTRACT_ID) return;
     this._startTicking();
@@ -106,10 +95,8 @@ export class DemoRealtimeAdapter implements RealtimeAdapter {
     if (contractId === DEMO_CONTRACT_ID) this._stopTicking();
   }
 
-  subscribeDepth(_contractId: string): void { /* no-op */ }
-  unsubscribeDepth(_contractId: string): void { /* no-op */ }
-
-  // ── User subscriptions ────────────────────────────────────────────────────
+  subscribeDepth(_contractId: string): void {}
+  unsubscribeDepth(_contractId: string): void {}
 
   subscribeUserEvents(_accountId: string): void {
     // Guard: only seed once — re-subscribing (reconnect, account switch) must

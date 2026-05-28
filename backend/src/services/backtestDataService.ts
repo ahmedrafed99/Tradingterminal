@@ -38,10 +38,6 @@ interface TimeframeSpec {
   unitNumber: number;
 }
 
-// ---------------------------------------------------------------------------
-// Paths
-// ---------------------------------------------------------------------------
-
 const TICK_DATA_DIR = path.resolve(
   process.env.TICK_DATA_DIR ?? path.join(__dirname, '../../data/tick-data'),
 );
@@ -49,10 +45,6 @@ const TICK_DATA_DIR = path.resolve(
 const CACHE_DIR = path.resolve(
   process.env.BACKTEST_CACHE_DIR ?? path.join(__dirname, '../../data/backtest-cache'),
 );
-
-// ---------------------------------------------------------------------------
-// Timeframe helpers
-// ---------------------------------------------------------------------------
 
 function periodSeconds(unit: number, unitNumber: number): number {
   const mul = [0, 1, 60, 3600, 86400];
@@ -66,10 +58,6 @@ function floorToBar(timestampSec: number, periodSec: number): number {
 function tfLabel(unit: number, unitNumber: number): string {
   return `${unitNumber}${ ['', 's', 'm', 'h', 'd'][unit] ?? 'm' }`;
 }
-
-// ---------------------------------------------------------------------------
-// Range query cache (exact date range + timeframe)
-// ---------------------------------------------------------------------------
 
 const memCache = new Map<string, OhlcvBar[]>();
 
@@ -95,10 +83,6 @@ async function diskWrite(key: string, bars: OhlcvBar[]): Promise<void> {
     console.error('[backtestData] cache write failed:', err);
   }
 }
-
-// ---------------------------------------------------------------------------
-// 1m monthly cache
-// ---------------------------------------------------------------------------
 
 function symbolDir(exchange: string, symbol: string): string {
   return path.join(TICK_DATA_DIR, exchange, symbol);

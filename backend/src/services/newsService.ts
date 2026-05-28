@@ -1,9 +1,5 @@
 import { getRawEvents } from './fxstreetCalendar';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface NewsEvent {
   id: string;
   title: string;
@@ -18,10 +14,6 @@ export interface NewsEvent {
   currency: string;
 }
 
-// ---------------------------------------------------------------------------
-// Categorisation
-// ---------------------------------------------------------------------------
-
 const FED_KEYWORDS = ['fomc', 'fed ', 'federal reserve', 'interest rate', 'monetary policy', 'fed chair'];
 const INFLATION_KEYWORDS = ['cpi', 'pce', 'inflation', 'consumer price', 'producer price', 'ppi'];
 const EMPLOYMENT_KEYWORDS = ['nonfarm', 'non-farm', 'payroll', 'unemployment', 'jobless', 'employment', 'jobs', 'labor'];
@@ -33,10 +25,6 @@ function categorise(name: string): NewsEvent['category'] {
   if (EMPLOYMENT_KEYWORDS.some(k => lower.includes(k))) return 'employment';
   return 'other';
 }
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 export async function getEconomicEvents(): Promise<NewsEvent[]> {
   const raw = await getRawEvents();
