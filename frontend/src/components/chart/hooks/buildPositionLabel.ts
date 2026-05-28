@@ -88,9 +88,9 @@ export function buildPositionLabel(
   posPrimitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleClose });
   posPrimitive.setCellOrder(['pnl', 'size', 'close']);
 
-  // P&L updater — skipped during drag to prevent blink
+  // P&L updater — skipped only when the position entry line itself is being dragged
   pnlUpdaters.push(() => {
-    if (refs.isDragging.current) return;
+    if (refs.draggingKey.current === 'pos') return;
     const curPrice = useStore.getState().lastPrice;
     if (curPrice == null) {
       if (refs.lastPnlCache.current.text) {
