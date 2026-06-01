@@ -152,35 +152,6 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
         ctx.fillRect(barX, bar.y - expand, barWidth, Math.max(bar.height, 1) + expand * 2);
       }
 
-      // Dotted reference line on hover
-      if (this._hoverIdx >= 0 && this._hoverIdx < bars.length) {
-        const hb = bars[this._hoverIdx];
-        const hbWidth = hb.volumeRatio * maxBarWidth;
-
-        ctx.strokeStyle = this._refLineColor;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 3]);
-        const lineY = hb.y + Math.max(hb.height, 1) / 2;
-
-        let refStart: number, refEnd: number;
-        if (placement === 'right') {
-          refStart = 0;
-          refEnd = mediaSize.width - offset - hbWidth;
-        } else if (placement === 'middle') {
-          refStart = mediaSize.width / 2 + offset + hbWidth;
-          refEnd = mediaSize.width;
-        } else {
-          refStart = offset + hbWidth;
-          refEnd = mediaSize.width;
-        }
-
-        ctx.beginPath();
-        ctx.moveTo(refStart, lineY);
-        ctx.lineTo(refEnd, lineY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
       if (needsAnim) this._requestUpdate?.();
     });
   }
