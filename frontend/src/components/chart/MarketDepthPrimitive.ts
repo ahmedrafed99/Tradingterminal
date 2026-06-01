@@ -85,6 +85,7 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
   private _barPlacement: 'left' | 'right' | 'middle';
   private _barOffset: number;
   private _barLength: number;
+  private _onCanvasWidth: (w: number) => void;
 
   constructor(
     bars: BarData[], hoverIdx: number,
@@ -94,6 +95,7 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
     barPlacement: 'left' | 'right' | 'middle',
     barOffset: number,
     barLength: number,
+    onCanvasWidth: (w: number) => void,
   ) {
     this._bars = bars;
     this._hoverIdx = hoverIdx;
@@ -106,11 +108,13 @@ class MarketDepthBarsRenderer implements IPrimitivePaneRenderer {
     this._barPlacement = barPlacement;
     this._barOffset = barOffset;
     this._barLength = barLength;
+    this._onCanvasWidth = onCanvasWidth;
   }
 
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
       const bars = this._bars;
+      this._onCanvasWidth(mediaSize.width);
       if (bars.length === 0) return;
 
       const maxBarWidth = mediaSize.width * (this._barLength / 100);
@@ -250,6 +254,7 @@ class MarketDepthBarsPaneView implements IPrimitivePaneView {
   _barPlacement: 'left' | 'right' | 'middle' = 'left';
   _barOffset = 0;
   _barLength = 30;
+  _lastCanvasWidth = 0;
 
   update(
     bars: BarData[], hoverIdx: number,
@@ -277,6 +282,7 @@ class MarketDepthBarsPaneView implements IPrimitivePaneView {
       this._barColor, this._hoverColor, this._refLineColor,
       this._expandMap, this._hoverExpand, this._requestUpdate,
       this._barPlacement, this._barOffset, this._barLength,
+      (w) => { this._lastCanvasWidth = w; },
     );
   }
 
@@ -467,18 +473,20 @@ export class MarketDepthPrimitive implements ISeriesPrimitive<Time> {
   }
 
   /** Returns true when the crosshair is exactly on a histogram bar (checks both Y price and X pixel) */
-  isHoveringBar(mouseX: number, chartWidth: number): boolean {
+  isHoveringBar(mouseX: number, _containerWidth: number): boolean {
+    const canvasWidth = this._barsView._lastCanvasWidth;
+    if (canvasWidth === 0) return false;
     const idx = this._findHoverIdx(this._lastBars);
     if (idx < 0) return false;
     const bar = this._lastBars[idx];
-    const maxBarWidth = chartWidth * (this._barLength / 100);
+    const maxBarWidth = canvasWidth * (this._barLength / 100);
     const barWidth = bar.volumeRatio * maxBarWidth;
     const offset = this._barOffset;
     let barX: number;
     if (this._barPlacement === 'right') {
-      barX = chartWidth - offset - barWidth;
+      barX = canvasWidth - offset - barWidth;
     } else if (this._barPlacement === 'middle') {
-      barX = chartWidth / 2 + offset;
+      barX = canvasWidth / 2 + offset;
     } else {
       barX = offset;
     }
