@@ -3,7 +3,7 @@ import type { Contract } from '../../../services/marketDataService';
 import { orderService } from '../../../services/orderService';
 import { useStore } from '../../../store/useStore';
 import { OrderType, OrderSide } from '../../../types/enums';
-import { calcPnl } from '../../../utils/instrument';
+import { calcPnl, roundToTick } from '../../../utils/instrument';
 import { snapToTickSize } from '../barUtils';
 import { showToast, errorMessage } from '../../../utils/toast';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
@@ -24,6 +24,7 @@ export function usePositionDrag(
   const positions = useStore((s) => s.positions);
   const openOrders = useStore((s) => s.openOrders);
   const activeAccountId = useStore((s) => s.activeAccountId);
+  const pnlMode = useStore((s) => s.pnlMode);
 
   useEffect(() => {
     if (!isOrderChart) return;
@@ -100,8 +101,8 @@ export function usePositionDrag(
       const orderSz = direction === 'sl' ? drag.posSize : 1;
       const pnl = calcPnl(diff, contract!, orderSz);
       const pnlText = direction === 'sl'
-        ? `-$${Math.abs(pnl).toFixed(2)}`
-        : `+$${Math.abs(pnl).toFixed(2)}`;
+        ? (pnlMode === 'points' ? `-${roundToTick(diff, tickSize).toFixed(2)} pts` : `-$${Math.abs(pnl).toFixed(2)}`)
+        : (pnlMode === 'points' ? `+${roundToTick(diff, tickSize).toFixed(2)} pts` : `+$${Math.abs(pnl).toFixed(2)}`);
       const labelText = direction === 'sl' ? 'SL' : 'TP';
       const textColor = color === BUY_COLOR ? LABEL_TEXT : '#fff';
 
@@ -250,5 +251,5 @@ export function usePositionDrag(
       unsubPositions();
       abortDrag();
     };
-  }, [isOrderChart, contract, positions, openOrders, activeAccountId]);
+  }, [isOrderChart, contract, positions, openOrders, activeAccountId, pnlMode]);
 }
