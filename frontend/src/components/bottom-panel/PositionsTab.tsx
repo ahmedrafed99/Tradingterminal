@@ -576,18 +576,18 @@ export function PositionsTab() {
                   {pnl == null || ptsLive == null ? (
                     EMPTY
                   ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); togglePnlMode(); }}
+                      title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
+                      className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) transition-all"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
                       <span>
                         {pnlMode === '$'
                           ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`
                           : `${ptsLive >= 0 ? '+' : ''}${ptsLive.toFixed(2)}`}
                       </span>
-                      <span
-                        onClick={(e) => { e.stopPropagation(); togglePnlMode(); }}
-                        title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
-                        className="cursor-pointer rounded opacity-60 hover:opacity-100 hover:bg-(--color-hover-row) hover:ring-1 hover:ring-(--color-border) transition-all"
-                        style={{ padding: '2px 6px' }}
-                      >
+                      <span className="font-normal text-(--color-text-muted)" style={{ opacity: 0.6 }}>
                         {pnlMode === '$' ? '$' : 'pt'}
                       </span>
                     </span>
