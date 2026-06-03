@@ -285,6 +285,28 @@
       ]
     },
     {
+      "name": "TradesTable",
+      "keywords": ["trades table", "trade list", "sortable", "expandable", "multi-exit", "exits", "sort", "shared", "bottom panel", "stats day detail"],
+      "files": [
+        "frontend/src/components/shared/TradesTable.tsx"
+      ],
+      "dependencies": [
+        "TABLE_ROW_STRIPE (constants/styles)",
+        "Z.HEADER (constants/layout)",
+        "shortSymbol, formatTime, formatDuration (utils/formatters)",
+        "tradingDurationMs (utils/marketHours)"
+      ],
+      "notes": "Used by TradesTab (contentWidth='70%', with onSingleClick/onGroupClick/selectedIds/headerExtra) and StatsDayDetail (contentWidth='100%', stickyHeader=false). Accepts TradeRowInput[] and re-derives all aggregate values from raw entry/exits Trade objects internally.",
+      "events": [
+        { "event": "click", "element": "sort column headers", "purpose": "toggle sort column or flip asc/desc direction" },
+        { "event": "click", "element": "single-exit row", "purpose": "call onSingleClick(trade.id) if provided" },
+        { "event": "click", "element": "multi-exit parent row", "purpose": "call onGroupClick(exitIds) if provided" },
+        { "event": "click", "element": "'N exits ▸' cell", "purpose": "expand/collapse individual exit sub-rows (stopPropagation)" },
+        { "event": "click", "element": "sub-row (expanded exit)", "purpose": "call onSingleClick(trade.id) if provided (stopPropagation)" },
+        { "event": "click", "element": "Show all N trades button", "purpose": "lift RENDER_LIMIT (50) to show all groups" }
+      ]
+    },
+    {
       "name": "SortableTable",
       "keywords": ["table", "sortable", "sort", "header", "columns", "stripe", "select", "shared", "trades"],
       "files": [

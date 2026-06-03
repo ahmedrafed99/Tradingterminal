@@ -30,9 +30,6 @@ export function TradesTab() {
   const presetCounts = useStore((s) => s.presetCounts);
   const setPresetCounts = useStore((s) => s.setPresetCounts);
   const bottomPanelTab = useStore((s) => s.bottomPanelTab);
-  const pnlMode = useStore((s) => s.pnlMode);
-  const setPnlMode = useStore((s) => s.setPnlMode);
-
   // Display trades in store so the chart can access them for trade zone markers
   const displayTradesRaw = useStore((s) => s.displayTrades);
   const displayTrades = useDeferredValue(displayTradesRaw);
@@ -165,8 +162,6 @@ export function TradesTab() {
     return result;
   }, [closingTrades, entryMap]);
 
-  const togglePnlMode = useCallback(() => setPnlMode(pnlMode === '$' ? 'points' : '$'), [pnlMode, setPnlMode]);
-
   const emptyLabels: Record<string, string> = {
     today: 'No trades today',
     week: 'No trades this week',
@@ -211,8 +206,6 @@ export function TradesTab() {
       onSingleClick={toggleTradeVisibility}
       onGroupClick={toggleTradeVisibilityBulk}
       selectedIds={visibleTradeIds}
-      pnlMode={pnlMode}
-      onPnlModeToggle={togglePnlMode}
       headerExtra={
         <>
           {visibleTradeIds.length > 0 && (

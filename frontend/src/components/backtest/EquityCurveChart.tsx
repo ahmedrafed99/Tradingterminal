@@ -182,6 +182,17 @@ export const EquityCurveChart = memo(function EquityCurveChart({
       lastValueVisible: false,
       crosshairMarkerVisible: false,
       priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+      autoscaleInfoProvider: (original) => {
+        const res = original();
+        if (!res) return null;
+        return {
+          ...res,
+          priceRange: {
+            minValue: Math.min(res.priceRange.minValue, 0),
+            maxValue: Math.max(res.priceRange.maxValue, 0),
+          },
+        };
+      },
     });
 
     series.createPriceLine({

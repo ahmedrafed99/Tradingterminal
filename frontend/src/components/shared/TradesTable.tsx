@@ -4,6 +4,7 @@ import { Z } from '../../constants/layout';
 import { TABLE_ROW_STRIPE } from '../../constants/styles';
 import { shortSymbol, formatTime, formatDuration } from '../../utils/formatters';
 import { tradingDurationMs } from '../../utils/marketHours';
+import { useStore } from '../../store/useStore';
 
 export interface TradeRowInput {
   entryId: string;
@@ -18,6 +19,7 @@ type SortDir = 'asc' | 'desc';
 interface AugGroup extends TradeRowInput {
   totalQty: number;
   totalPnl: number;
+  totalPts: number | null;
   totalFees: number;
   totalCommissions: number;
   totalNet: number;
@@ -35,8 +37,6 @@ interface Props {
   onGroupClick?: (exitIds: string[]) => void;
   selectedIds?: string[];
   headerExtra?: React.ReactNode;
-  pnlMode?: '$' | 'points';
-  onPnlModeToggle?: () => void;
 }
 
 const COLS = 'grid-cols-[1.2fr_0.7fr_1fr_0.5fr_1.2fr_1.2fr_0.9fr_1fr_0.7fr_0.7fr_1fr]';
@@ -44,14 +44,16 @@ const RENDER_LIMIT = 50;
 
 function augment(g: TradeRowInput): AugGroup {
   const { exits, entry } = g;
+  const dir = g.isLong ? 1 : -1;
   const totalQty = exits.reduce((s, t) => s + t.size, 0);
   const totalPnl = exits.reduce((s, t) => s + (t.profitAndLoss ?? 0), 0);
+  const totalPts = entry ? exits.reduce((s, t) => s + (t.price - entry.price) * dir * t.size, 0) : null;
   const totalFees = exits.reduce((s, t) => s + t.fees, 0) + (entry?.fees ?? 0);
   const totalCommissions = exits.reduce((s, t) => s + t.commissions, 0) + (entry?.commissions ?? 0);
   const totalNet = totalPnl - totalFees - totalCommissions;
   const earliestTime = exits[0]?.creationTimestamp ?? '';
   const latestTime = exits[exits.length - 1]?.creationTimestamp ?? '';
-  return { ...g, totalQty, totalPnl, totalFees, totalCommissions, totalNet, earliestTime, latestTime };
+  return { ...g, totalQty, totalPnl, totalPts, totalFees, totalCommissions, totalNet, earliestTime, latestTime };
 }
 
 export function TradesTable({
@@ -64,9 +66,10 @@ export function TradesTable({
   onGroupClick,
   selectedIds = [],
   headerExtra,
-  pnlMode = '$',
-  onPnlModeToggle,
 }: Props) {
+  const pnlMode = useStore((s) => s.pnlMode);
+  const setPnlMode = useStore((s) => s.setPnlMode);
+  const togglePnlMode = useCallback(() => setPnlMode(pnlMode === '$' ? 'points' : '$'), [pnlMode, setPnlMode]);
   const [sortCol, setSortCol] = useState<SortCol>('time');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -194,6 +197,8 @@ export function TradesTable({
           const isVisible = selectedIds.includes(trade.id);
           const stripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
           const selected = isVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
+          const pnlVal = pnlMode === 'points' ? group.totalPts : trade.profitAndLoss!;
+          const pnlColor = pnlVal == null ? 'text-(--color-text-muted)' : pnlVal > 0 ? 'text-(--color-buy)' : pnlVal < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)';
 
           return (
             <div
@@ -223,25 +228,19 @@ export function TradesTable({
                   {group.entry ? formatDuration(tradingDurationMs(group.entry.creationTimestamp, trade.creationTimestamp)) : '—'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  {onPnlModeToggle ? (
-                    <span
-                      onClick={(e) => { e.stopPropagation(); onPnlModeToggle(); }}
-                      title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
-                      className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) transition-all"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <span className={trade.profitAndLoss! > 0 ? 'text-(--color-buy)' : trade.profitAndLoss! < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
-                        {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
-                      </span>
-                      <span className="font-normal text-(--color-text-muted)" style={{ opacity: 0.6 }}>
-                        {pnlMode === '$' ? '$' : 'pt'}
-                      </span>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); togglePnlMode(); }}
+                    title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
+                    className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) transition-all"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <span className={pnlColor}>
+                      {pnlVal == null ? '—' : `${pnlVal > 0 ? '+' : ''}${pnlVal.toFixed(2)}`}
                     </span>
-                  ) : (
-                    <span className={trade.profitAndLoss! > 0 ? 'text-(--color-buy)' : trade.profitAndLoss! < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
-                      {trade.profitAndLoss! > 0 ? '+' : ''}{trade.profitAndLoss!.toFixed(2)}
+                    <span className="font-normal text-(--color-text-muted)" style={{ opacity: 0.6 }}>
+                      {pnlMode === '$' ? '$' : 'pt'}
                     </span>
-                  )}
+                  </span>
                 </div>
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.totalFees.toFixed(2)}
@@ -262,6 +261,8 @@ export function TradesTable({
         // Multi-exit group
         const parentStripe = rowIdx++ % 2 === 1 ? TABLE_ROW_STRIPE : '';
         const parentSelected = anyVisible ? 'bg-(--color-warning)/10 border border-(--color-warning)/60' : 'border border-transparent';
+        const groupPnlVal = pnlMode === 'points' ? group.totalPts : group.totalPnl;
+        const groupPnlColor = groupPnlVal == null ? 'text-(--color-text-muted)' : groupPnlVal > 0 ? 'text-(--color-buy)' : groupPnlVal < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)';
 
         return (
           <div key={`group-${group.entryId}`} style={{ contentVisibility: 'auto', containIntrinsicSize: '0 28px' }}>
@@ -296,25 +297,19 @@ export function TradesTable({
                   {group.entry ? formatDuration(tradingDurationMs(group.entry.creationTimestamp, group.latestTime)) : '—'}
                 </div>
                 <div className="px-3 text-center whitespace-nowrap">
-                  {onPnlModeToggle ? (
-                    <span
-                      onClick={(e) => { e.stopPropagation(); onPnlModeToggle(); }}
-                      title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
-                      className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) transition-all"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                    >
-                      <span className={group.totalPnl > 0 ? 'text-(--color-buy)' : group.totalPnl < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
-                        {group.totalPnl > 0 ? '+' : ''}{group.totalPnl.toFixed(2)}
-                      </span>
-                      <span className="font-normal text-(--color-text-muted)" style={{ opacity: 0.6 }}>
-                        {pnlMode === '$' ? '$' : 'pt'}
-                      </span>
+                  <span
+                    onClick={(e) => { e.stopPropagation(); togglePnlMode(); }}
+                    title={pnlMode === '$' ? 'Switch to points' : 'Switch to dollars'}
+                    className="cursor-pointer rounded px-1 hover:bg-(--color-hover-row) transition-all"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <span className={groupPnlColor}>
+                      {groupPnlVal == null ? '—' : `${groupPnlVal > 0 ? '+' : ''}${groupPnlVal.toFixed(2)}`}
                     </span>
-                  ) : (
-                    <span className={group.totalPnl > 0 ? 'text-(--color-buy)' : group.totalPnl < 0 ? 'text-(--color-sell)' : 'text-(--color-text-muted)'}>
-                      {group.totalPnl > 0 ? '+' : ''}{group.totalPnl.toFixed(2)}
+                    <span className="font-normal text-(--color-text-muted)" style={{ opacity: 0.6 }}>
+                      {pnlMode === '$' ? '$' : 'pt'}
                     </span>
-                  )}
+                  </span>
                 </div>
                 <div className="px-3 text-center text-(--color-text-muted) whitespace-nowrap">
                   {group.totalFees.toFixed(2)}

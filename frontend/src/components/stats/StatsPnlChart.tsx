@@ -20,7 +20,7 @@ interface HoverInfo {
 
 type HitPoint = HoverInfo;
 
-export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = false, onDayClick }: { stats: TradeStats; dailyData: DayPnl[]; exitTimes?: string[]; singleDay?: boolean; onDayClick?: (date: string) => void }) {
+export function StatsPnlChart({ stats, dailyData, exitTimes = [], entryTimes = [], singleDay = false, onDayClick }: { stats: TradeStats; dailyData: DayPnl[]; exitTimes?: string[]; entryTimes?: string[]; singleDay?: boolean; onDayClick?: (date: string) => void }) {
   const [modeChoice, setModeChoice] = useState<Mode>('equity');
   const mode: Mode = singleDay ? 'equity' : modeChoice;
 
@@ -31,12 +31,17 @@ export function StatsPnlChart({ stats, dailyData, exitTimes = [], singleDay = fa
     const curve = stats.equityCurve;
     const pairs = exitTimes.map((t, i) => ({
       t,
+      entryT: entryTimes[i] ?? t,
       net: curve[i] - (i > 0 ? curve[i - 1] : 0),
     }));
     pairs.sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime());
     let running = 0;
-    return pairs.map(p => { running += p.net; return { t: p.t, equity: running }; });
-  }, [exitTimes, stats.equityCurve]);
+    const points = pairs.map(p => { running += p.net; return { t: p.t, equity: running }; });
+    if (points.length > 0) {
+      points.unshift({ t: pairs[0].entryT, equity: 0 });
+    }
+    return points;
+  }, [exitTimes, entryTimes, stats.equityCurve]);
 
   return (
     <div
