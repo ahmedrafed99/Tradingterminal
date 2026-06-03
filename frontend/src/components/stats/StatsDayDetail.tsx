@@ -1,10 +1,9 @@
 import { useMemo } from 'react';
 import type { GroupedTrade } from '../../utils/tradeStats';
 import { computeStats } from '../../utils/tradeStats';
-import { formatDuration } from '../../utils/formatters';
-import { tradingDurationMs } from '../../utils/marketHours';
 import { pnlColor, fmtDollar } from './statsHelpers';
 import { EquityCurveChart } from '../backtest/EquityCurveChart';
+import { TradesTable } from '../shared/TradesTable';
 
 export function StatsDayDetail({ date, trades, onBack }: {
   date: string; // YYYY-MM-DD
@@ -13,26 +12,34 @@ export function StatsDayDetail({ date, trades, onBack }: {
 }) {
   const stats = useMemo(() => computeStats(trades), [trades]);
 
-  // Format date for display
   const displayDate = useMemo(() => {
     const midDayDate = new Date(date + 'T12:00:00');
     return midDayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   }, [date]);
 
+  // Prepend a zero-equity anchor at the first trade's entry so the chart has a
+  // proper horizontal range and fitContent() centers the data instead of
+  // parking a single point off to the right.
+  const chartPoints = useMemo(() => {
+    if (trades.length === 0) return [];
+    const anchor = { t: trades[0].entryTime, equity: 0 };
+    return [anchor, ...trades.map((tr, i) => ({ t: tr.exitTime, equity: stats.equityCurve[i] }))];
+  }, [trades, stats.equityCurve]);
+
+  // Map GroupedTrade → TradeRowInput for TradesTable
+  const tradeInputs = useMemo(
+    () => trades.map((t) => ({ entryId: t.entryId, entry: t.entry, exits: t.exits, isLong: t.isLong })),
+    [trades],
+  );
+
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
-      {/* Header with back button */}
+      {/* Header */}
       <div className="flex items-center" style={{ gap: 12 }}>
         <button
           onClick={onBack}
           className="cursor-pointer transition-colors text-(--color-text-muted) hover:text-(--color-text-bright)"
-          style={{
-            fontSize: 14,
-            background: 'none',
-            border: 'none',
-            padding: '4px 8px',
-            borderRadius: 4,
-          }}
+          style={{ fontSize: 14, background: 'none', border: 'none', padding: '4px 8px', borderRadius: 4 }}
         >
           ← Back
         </button>
@@ -53,89 +60,23 @@ export function StatsDayDetail({ date, trades, onBack }: {
           Day Equity Curve
         </div>
         <EquityCurveChart
-          points={trades.map((tr, i) => ({ t: tr.exitTime, equity: stats.equityCurve[i] }))}
+          points={chartPoints}
           initialEquity={0}
-          height={160}
+          height="clamp(220px, 40vh, 480px)"
           showMarkers
           background='var(--color-popover)'
         />
       </div>
 
       {/* Trade list */}
-      <div
-        style={{
-          background: 'var(--color-popover)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 10,
-          overflow: 'hidden',
-        }}
-      >
-        {/* Table header */}
-        <div
-          className="grid"
-          style={{
-            gridTemplateColumns: '1fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
-            padding: '12px 20px',
-            borderBottom: '1px solid var(--color-border)',
-            background: 'var(--color-popover)',
-          }}
-        >
-          {['Time', 'Side', 'Qty', 'Entry', 'Exit', 'Duration', 'Net P&L'].map((h) => (
-            <div
-              key={h}
-              className="text-center"
-              style={{ fontSize: 12, color: 'var(--color-text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-            >
-              {h}
-            </div>
-          ))}
-        </div>
-
-        {/* Trade rows */}
-        {trades.map((t, idx) => {
-          const isLast = idx === trades.length - 1;
-          const dur = t.entry
-            ? tradingDurationMs(t.entryTime, t.exitTime)
-            : 0;
-          const exitTime = new Date(t.exitTime).toLocaleTimeString('en-US', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'America/New_York',
-          });
-
-          return (
-            <div
-              key={t.entryId}
-              className="grid transition-colors"
-              style={{
-                gridTemplateColumns: '1fr 0.6fr 0.8fr 0.8fr 0.8fr 0.8fr 0.8fr',
-                padding: '10px 20px',
-                borderBottom: isLast ? 'none' : '1px solid var(--color-border)',
-                background: idx % 2 === 1 ? 'rgba(255,255,255,0.03)' : 'transparent',
-              }}
-            >
-              <div className="text-center" style={{ fontSize: 13, color: 'var(--color-text-muted)', fontFeatureSettings: '"tnum"' }}>
-                {exitTime}
-              </div>
-              <div className="text-center" style={{ fontSize: 13, color: t.isLong ? 'var(--color-buy)' : 'var(--color-sell)' }}>
-                {t.isLong ? 'Long' : 'Short'}
-              </div>
-              <div className="text-center" style={{ fontSize: 13, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
-                {t.totalQty}
-              </div>
-              <div className="text-center" style={{ fontSize: 13, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
-                {t.entryPrice != null ? t.entryPrice.toFixed(2) : '—'}
-              </div>
-              <div className="text-center" style={{ fontSize: 13, color: 'var(--color-text)', fontFeatureSettings: '"tnum"' }}>
-                {t.exitPrice.toFixed(2)}
-              </div>
-              <div className="text-center" style={{ fontSize: 13, color: 'var(--color-text-muted)', fontFeatureSettings: '"tnum"' }}>
-                {dur > 0 ? formatDuration(dur) : '—'}
-              </div>
-              <div className="text-center" style={{ fontSize: 13, fontWeight: 600, color: pnlColor(t.totalNet), fontFeatureSettings: '"tnum"' }}>
-                {fmtDollar(t.totalNet)}
-              </div>
-            </div>
-          );
-        })}
+      <div style={{ background: 'var(--color-popover)', border: '1px solid var(--color-border)', borderRadius: 10, overflow: 'hidden' }}>
+        <TradesTable
+          groups={tradeInputs}
+          showDate={false}
+          contentWidth="100%"
+          stickyBg="var(--color-popover)"
+          stickyHeader={false}
+        />
       </div>
     </div>
   );
