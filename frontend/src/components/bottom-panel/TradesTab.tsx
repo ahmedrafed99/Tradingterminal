@@ -165,6 +165,8 @@ export function TradesTab() {
     return result;
   }, [closingTrades, entryMap]);
 
+  const togglePnlMode = useCallback(() => setPnlMode(pnlMode === '$' ? 'points' : '$'), [pnlMode, setPnlMode]);
+
   const emptyLabels: Record<string, string> = {
     today: 'No trades today',
     week: 'No trades this week',
@@ -200,8 +202,6 @@ export function TradesTab() {
       </div>
     );
   }
-
-  const togglePnlMode = useCallback(() => setPnlMode(pnlMode === '$' ? 'points' : '$'), [pnlMode, setPnlMode]);
 
   return (
     <TradesTable
