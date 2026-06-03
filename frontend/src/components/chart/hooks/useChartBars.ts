@@ -16,6 +16,7 @@ import {
   generateWhitespace,
 } from '../barUtils';
 import type { ChartRefs } from './types';
+import { debugLog } from '../../../utils/debugLog';
 import type { BacktestConfig } from '../CandlestickChart';
 import { backtestService } from '../../../services/backtestService';
 import { getSchedule, isTimestampInCMETradingSession, getCurrentSessionStartSec } from '../../../utils/marketHours';
@@ -625,6 +626,8 @@ export function useChartBars(
     if (backtestConfig) return; // no live data in backtest mode
     if (!connected || !contract || !refs.series.current) return;
 
+    debugLog.enable();
+
     const contractId = contract.id;
     const periodSec = getCandlePeriodSeconds(timeframe);
     let cancelled = false;
@@ -649,10 +652,62 @@ export function useChartBars(
     let pendingBar: CandlestickData<UTCTimestamp> | null = null;
     let pendingPrice: number | null = null;
     let quoteRafId = 0;
+    let isBackfilling = false;
 
     // Per-bar volume for FRVP range mode — accumulated from trade ticks, not quote volume.
     // Quote volume fields are unreliable (may include historical backfill batches on subscribe).
     let pendingBarVolume = 0;
+
+    // Fetch closed bars from fromTimeSec to now and patch them into the series via setData.
+    // Used by both the visibility handler and the gap-detection path in handleQuote.
+    function triggerBackfill(fromTimeSec: number) {
+      if (isBackfilling || !refs.series.current || cancelled) return;
+      isBackfilling = true;
+
+      const startTime = new Date(fromTimeSec * 1000).toISOString();
+      const endTime = new Date().toISOString();
+      debugLog.log('gap-backfill', { fromTimeSec, startTime, endTime });
+
+      marketDataService.retrieveBars({
+        contractId,
+        live: false,
+        unit: timeframe.unit,
+        unitNumber: timeframe.unitNumber,
+        startTime,
+        endTime,
+        limit: 500,
+        includePartialBar: true,
+      }).then((bars) => {
+        isBackfilling = false;
+        if (cancelled || !refs.series.current) return;
+        const sorted = sortBarsAscending(bars);
+        if (sorted.length === 0) return;
+
+        const fetchStartSec = Math.floor(new Date(sorted[0].t).getTime() / 1000);
+        const existingBars = refs.bars.current.filter(
+          b => Math.floor(new Date(b.t).getTime() / 1000) < fetchStartSec,
+        );
+        const mergedBars = [...existingBars, ...sorted];
+        refs.bars.current = mergedBars;
+        const mergedCandles = mergedBars.map(barToCandle);
+        for (const c of mergedCandles) {
+          refs.dataMap.current.set(c.time as number, c.close);
+        }
+
+        const visibleRange = refs.chart.current?.timeScale().getVisibleRange() ?? null;
+        refs.series.current!.setData(mergedCandles);
+        if (visibleRange) refs.chart.current?.timeScale().setVisibleRange(visibleRange);
+
+        if (pendingBar) refs.series.current!.update(pendingBar);
+
+        const fetchedLast = mergedCandles[mergedCandles.length - 1];
+        if (!refs.lastBar.current || (fetchedLast.time as number) > (refs.lastBar.current.time as number)) {
+          refs.lastBar.current = fetchedLast;
+        }
+
+        debugLog.log('gap-backfill-done', { fetched: sorted.length, merged: mergedBars.length, newLastBarTime: refs.lastBar.current?.time });
+      }).catch(() => { isBackfilling = false; });
+    }
 
     function flushQuote() {
       quoteRafId = 0;
@@ -700,8 +755,9 @@ export function useChartBars(
 
       const quoteSec = new Date(data.lastUpdated).getTime() / 1000;
       const realCandleTime = floorToCandlePeriod(quoteSec, periodSec);
-
-      const candleTime = realCandleTime;
+      // Cap at current wall-clock minute: a server quote with a future timestamp
+      // must not prematurely open the next bar and strand the current one.
+      const candleTime = Math.min(realCandleTime, floorToCandlePeriod(Date.now() / 1000, periodSec)) as UTCTimestamp;
 
       // Skip quotes older than the current bar (lightweight-charts rejects these)
       if (candleTime < lastBar.time) return;
@@ -742,6 +798,21 @@ export function useChartBars(
             }
           }
         }
+        // Log every bar transition so we can spot gaps (skipped periods) and
+        // future-timestamp quotes that prematurely open the next bar.
+        const wallClockCandleTime = floorToCandlePeriod(Date.now() / 1000, periodSec);
+        const skipped = periodSec > 0 ? Math.round((candleTime - lastBar.time) / periodSec) - 1 : 0;
+        debugLog.log('bar-transition', {
+          from: lastBar.time,
+          to: candleTime,
+          skipped,
+          wallClock: wallClockCandleTime,
+          quoteFuture: candleTime > wallClockCandleTime,
+          quoteSec: Math.round(quoteSec),
+          tf: `${timeframe.unitNumber}${['','s','m','h','d','w','mo','tick'][timeframe.unit] ?? '?'}`,
+        });
+        // Bars were missed (reconnect, JS throttle, AFK) — backfill them from the server.
+        if (skipped > 0) triggerBackfill(lastBar.time as number);
         pendingBarVolume = 0; // reset accumulator for the new bar
         const newBar: CandlestickData<UTCTimestamp> = {
           time: candleTime,
@@ -758,8 +829,14 @@ export function useChartBars(
 
       pendingPrice = price;
 
-      // Schedule a single RAF flush (coalesces all ticks within one frame)
-      if (!quoteRafId) {
+      // When the tab is hidden, RAF is throttled/suspended by the browser, so
+      // series.update() never gets called. Flush immediately while hidden so
+      // LWC stays current — on tab focus there is nothing to backfill and no
+      // setData flash. When visible, keep the normal RAF coalescing for perf.
+      if (document.hidden) {
+        if (quoteRafId) { cancelAnimationFrame(quoteRafId); quoteRafId = 0; }
+        flushQuote();
+      } else if (!quoteRafId) {
         quoteRafId = requestAnimationFrame(flushQuote);
       }
     }
@@ -868,7 +945,6 @@ export function useChartBars(
       if (periodSec === 0) return;
       if (document.hidden || !refs.series.current || cancelled || !getSchedule(contract?.marketType).isOpen()) return;
 
-      // Flush any pending bar immediately
       if (pendingBar) {
         refs.series.current.update(pendingBar);
         refs.dataMap.current.set(pendingBar.time as number, pendingBar.close);
@@ -876,33 +952,16 @@ export function useChartBars(
         pendingPrice = null;
       }
 
-      // Fetch bars from the last known bar time to now and patch them in
       const lastBar = refs.lastBar.current;
       if (!lastBar) return;
-      const startTime = new Date((lastBar.time as number) * 1000).toISOString();
-      const endTime = new Date().toISOString();
 
-      marketDataService.retrieveBars({
-        contractId,
-        live: false,
-        unit: timeframe.unit,
-        unitNumber: timeframe.unitNumber,
-        startTime,
-        endTime,
-        limit: 500,
-        includePartialBar: true,
-      }).then((bars) => {
-        if (cancelled || !refs.series.current) return;
-        const sorted = sortBarsAscending(bars);
-        const candles = sorted.map(barToCandle);
-        for (const c of candles) {
-          refs.series.current!.update(c);
-          refs.dataMap.current.set(c.time as number, c.close);
-        }
-        if (candles.length > 0) {
-          refs.lastBar.current = candles[candles.length - 1];
-        }
-      }).catch(() => { /* silent — next tick will update anyway */ });
+      // If lastBar is within the current candle period, flushQuote() kept LWC
+      // in sync while the tab was hidden — no backfill or setData needed.
+      const currentPeriodStart = floorToCandlePeriod(Date.now() / 1000, periodSec);
+      if ((lastBar.time as number) >= currentPeriodStart - periodSec) return;
+
+      debugLog.log('visibility-backfill', { lastBarTime: lastBar.time });
+      triggerBackfill(lastBar.time as number);
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
