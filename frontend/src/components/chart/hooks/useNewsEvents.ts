@@ -97,6 +97,31 @@ export function useNewsEvents(refs: ChartRefs): void {
     };
   }, []);
 
+  // Hide crosshair while a news marker is pinned
+  useEffect(() => {
+    const primitive = refs.newsEventsPrimitive.current;
+    if (!primitive) return;
+
+    primitive.setOnPinnedChange((pinned: boolean) => {
+      const chart = refs.chart.current;
+      if (!chart) return;
+      if (pinned) {
+        chart.applyOptions({ crosshair: { vertLine: { visible: false }, horzLine: { visible: false } } });
+        refs.crosshairLabel.current?.suppress(true);
+      } else {
+        chart.applyOptions({ crosshair: { vertLine: { visible: true }, horzLine: { visible: true } } });
+        refs.crosshairLabel.current?.suppress(false);
+      }
+    });
+
+    return () => {
+      primitive.setOnPinnedChange(null);
+      // Restore crosshair on unmount in case it was hidden
+      refs.chart.current?.applyOptions({ crosshair: { vertLine: { visible: true }, horzLine: { visible: true } } });
+      refs.crosshairLabel.current?.suppress(false);
+    };
+  }, []);
+
   // Mouse move / leave for tooltip hit-testing
   useEffect(() => {
     const container = refs.container.current;

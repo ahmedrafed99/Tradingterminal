@@ -159,6 +159,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
   private _resizeObserver: ResizeObserver | null = null;
 
   private _onMarkerClick: ((timeUnixSec: number | null) => void) | null = null;
+  private _onPinnedChange: ((pinned: boolean) => void) | null = null;
 
   // -- Lifecycle --
 
@@ -201,7 +202,10 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
     this._rangeUnsub?.();
     this._rangeUnsub = (() => {
       const cb = () => {
-        this._pinnedIdx = -1;
+        if (this._pinnedIdx !== -1) {
+          this._pinnedIdx = -1;
+          this._onPinnedChange?.(false);
+        }
         this._hideTooltip();
         this._markersDirty = true;
       };
@@ -220,7 +224,11 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
   setEnabled(enabled: boolean): void {
     this._enabled = enabled;
-    if (!enabled) { this._pinnedIdx = -1; this._hideTooltip(); }
+    if (!enabled) {
+      if (this._pinnedIdx !== -1) { this._onPinnedChange?.(false); }
+      this._pinnedIdx = -1;
+      this._hideTooltip();
+    }
     this._markersDirty = true;
     this._requestUpdate?.();
   }
@@ -231,6 +239,10 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
 
   setOnMarkerClick(cb: ((timeUnixSec: number | null) => void) | null): void {
     this._onMarkerClick = cb;
+  }
+
+  setOnPinnedChange(cb: ((pinned: boolean) => void) | null): void {
+    this._onPinnedChange = cb;
   }
 
   /** Call from mousemove — hover highlight + cursor only, no tooltip */
@@ -264,14 +276,17 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
         this._onMarkerClick?.(hitMarker.time);
         this._pinnedIdx = -1;
         this._hideTooltip();
+        this._onPinnedChange?.(false);
       } else {
         // Switching to a new marker — clear old vline first, then add new
         if (this._pinnedIdx !== -1) {
           this._onMarkerClick?.(null);
         }
         this._onMarkerClick?.(hitMarker.time);
+        const wasUnpinned = this._pinnedIdx === -1;
         this._pinnedIdx = hitIdx;
         this._showTooltip(hitMarker, x);
+        if (wasUnpinned) this._onPinnedChange?.(true);
       }
     } else {
       // Click outside any marker — dismiss tooltip + signal for vline removal
@@ -279,6 +294,7 @@ export class NewsEventsPrimitive implements ISeriesPrimitive<Time> {
       if (this._pinnedIdx !== -1) {
         this._pinnedIdx = -1;
         this._hideTooltip();
+        this._onPinnedChange?.(false);
       }
     }
     this._requestUpdate?.();
