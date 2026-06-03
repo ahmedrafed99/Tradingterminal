@@ -136,6 +136,10 @@ export async function placeOrderWithBrackets(
       useStore.getState().setPendingEntryOrderId(orderId);
     }
 
+    if (contract.marketType === 'futures') {
+      useStore.getState().setOrderSize(1);
+    }
+
     // Activate preview lines for TP/SL display during drag so that
     // useOrderLines skips phantom bracket rendering (previewHideEntry guard).
     // Keep pendingBracketInfo alive — it's needed to restore bracket lines
