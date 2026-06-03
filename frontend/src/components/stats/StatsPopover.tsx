@@ -52,6 +52,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
   const dayOfWeekData = useMemo(() => buildDayOfWeekData(calendarData), [calendarData]);
   const durationData = useMemo(() => buildDurationComparison(grouped), [grouped]);
   const exitTimes = useMemo(() => grouped.map(t => t.exitTime), [grouped]);
+  const entryTimes = useMemo(() => grouped.map(t => t.entryTime), [grouped]);
 
   // Day drill-down
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -108,7 +109,8 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
             Stats Dashboard
           </div>
           <div className="flex items-center" style={{ gap: 14 }}>
-            <DatePresetSelector counts={presetCounts} />
+            {/* Date-range filter is meaningless once drilled into a single day */}
+            {!selectedDay && <DatePresetSelector counts={presetCounts} />}
             <button
               onClick={handleClose}
               className="transition-colors cursor-pointer text-(--color-text-dim) hover:text-(--color-text-bright)"
@@ -147,7 +149,7 @@ export function StatsPopover({ onClose }: { onClose: () => void }) {
                 <StatsKpiCards stats={stats} />
               </AnimateIn>
               <AnimateIn>
-                <StatsPnlChart stats={stats} dailyData={calendarData} exitTimes={exitTimes} singleDay={tradesDatePreset === 'today'} onDayClick={setSelectedDay} />
+                <StatsPnlChart stats={stats} dailyData={calendarData} exitTimes={exitTimes} entryTimes={entryTimes} singleDay={tradesDatePreset === 'today'} onDayClick={setSelectedDay} />
               </AnimateIn>
               <AnimateIn>
                 <StatsCalendarGrid dailyData={calendarData} onDayClick={setSelectedDay} />
