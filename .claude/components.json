@@ -140,7 +140,7 @@
     },
     {
       "name": "ChartSettingsPopover",
-      "keywords": ["chart settings", "settings popover", "bars", "canvas", "trading", "events", "draggable", "popover"],
+      "keywords": ["chart settings", "settings popover", "bars", "canvas", "trading", "market", "events", "draggable", "popover", "price limits"],
       "files": [
         "frontend/src/components/chart/ChartSettingsPopover.tsx",
         "frontend/src/components/chart/ChartSettingsButton.tsx",
@@ -492,6 +492,24 @@
       "events": [
         { "event": "click", "element": "toggle switch or label row", "purpose": "flip value; calls onChange(!value)" }
       ]
+    },
+    {
+      "name": "PriceLimitGuard",
+      "keywords": ["price limit", "cme limit", "topstep", "2%", "buffer", "equity index", "settlement", "trading disabled", "horizontal line", "guard"],
+      "files": [
+        "frontend/src/utils/priceLimits.ts",
+        "frontend/src/components/chart/hooks/usePriceLimitLines.ts",
+        "frontend/src/store/slices/chartSettingsSlice.ts"
+      ],
+      "dependencies": [
+        "useStore (showPriceLimits, priceLimitBlocked, setPriceLimitBlocked)",
+        "PriceLevelPrimitive (4 lines: 2 dashed outer limit, 2 solid inner threshold)",
+        "realtimeService.onQuote (live price check for block state)",
+        "getCurrentSessionStartSec (settlement price anchor)",
+        "BuySellButtons (reads priceLimitBlocked to disable buy/sell)",
+        "useQuickOrder (guards placeQuickOrder with priceLimitBlocked check)"
+      ],
+      "notes": "Applies only to CME equity index contracts (EP, ENQ, MES, MNQ, ERY, M2K, YM, MYM) with 7% daily limit. Settlement = close of last bar before current session start (18:00 ET). Fail-open: if settlement unavailable, draws nothing and never blocks. Toggled in Settings → Market tab."
     }
   ]
 }

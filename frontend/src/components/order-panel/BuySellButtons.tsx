@@ -62,6 +62,7 @@ export function BuySellButtons() {
 
   const isBlacklisted = useStore((s) => s.isBlacklisted);
   const isLockedOut = useStore((s) => s.isLockedOut);
+  const priceLimitBlocked = useStore((s) => s.priceLimitBlocked);
   const contractSym = orderContract?.name.replace(/[A-Z]\d+$/i, '') ?? null;
 
   const orderBaseSymbol = orderContract?.name.replace(/[A-Z]\d+$/i, '') ?? '';
@@ -79,6 +80,7 @@ export function BuySellButtons() {
     marketOpen &&
     !isBlacklisted(contractSym) &&
     !isLockedOut(activeAccountId) &&
+    !priceLimitBlocked &&
     (orderType === 'market' || (orderType === 'limit' && limitPrice != null));
   const canPlaceBuy = baseCanPlace && !buyHedgeConflict;
   const canPlaceSell = baseCanPlace && !sellHedgeConflict;

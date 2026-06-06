@@ -153,6 +153,11 @@ export function useQuickOrder(
         removePreviewLines();
         return;
       }
+      if (useStore.getState().priceLimitBlocked) {
+        showToast('warning', 'Price limit nearby', 'Trading is disabled within 2% of the CME price limit.');
+        removePreviewLines();
+        return;
+      }
       const st = useStore.getState();
       if (!st.activeAccountId) return;
 

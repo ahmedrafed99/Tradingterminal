@@ -25,11 +25,18 @@ export interface ChartSettingsState {
     extendTradeZoneRight: boolean;
     showQuickOrder: boolean;
 
+    // Market
+    showPriceLimits: boolean;
+
     // Performance
     showFpsCounter: boolean;
     fpsCounterColor: string;
   };
   setChartSettings: (patch: Partial<ChartSettingsState['chartSettings']>) => void;
+
+  // Runtime — not a user setting; updated by usePriceLimitLines when price enters the 2% buffer.
+  priceLimitBlocked: boolean;
+  setPriceLimitBlocked: (blocked: boolean) => void;
 }
 
 export type ChartSettingsSlice = ChartSettingsState;
@@ -58,6 +65,8 @@ export const CHART_SETTINGS_DEFAULTS: ChartSettingsState['chartSettings'] = {
   extendTradeZoneRight: false,
   showQuickOrder: true,
 
+  showPriceLimits: false,
+
   showFpsCounter: false,
   fpsCounterColor: '#808080',
 };
@@ -66,4 +75,6 @@ export const createChartSettingsSlice = (set: Set): ChartSettingsSlice => ({
   chartSettings: { ...CHART_SETTINGS_DEFAULTS },
   setChartSettings: (patch) =>
     set((s) => ({ chartSettings: { ...s.chartSettings, ...patch } })),
+  priceLimitBlocked: false,
+  setPriceLimitBlocked: (blocked) => set({ priceLimitBlocked: blocked }),
 });

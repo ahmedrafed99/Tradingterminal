@@ -9,7 +9,7 @@ import { Popover } from '../shared/Popover';
 import { FONT_FAMILY, RADIUS, SHADOW, Z } from '../../constants/layout';
 import { Checkbox } from '../shared/Checkbox';
 
-type Category = 'bars' | 'canvas' | 'trading' | 'events';
+type Category = 'bars' | 'canvas' | 'trading' | 'market' | 'events';
 
 // ---------------------------------------------------------------------------
 // Sidebar icons
@@ -42,6 +42,14 @@ function EventsIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
       <path fill="currentColor" d="M10 6h8V4h1v2h1.5A2.5 2.5 0 0 1 23 8.5v11a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 5 19.5v-11A2.5 2.5 0 0 1 7.5 6H9V4h1zM6 19.5A1.5 1.5 0 0 0 7.5 21h13a1.5 1.5 0 0 0 1.5-1.5V11H6zM7.5 7A1.5 1.5 0 0 0 6 8.5V10h16V8.5A1.5 1.5 0 0 0 20.5 7H19v1h-1V7h-8v1H9V7z" />
+    </svg>
+  );
+}
+
+function MarketIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none">
+      <path fill="currentColor" d="M5 21h18v1H5zM7 17h2v3H7zm4-5h2v8h-2zm4-4h2v12h-2zm4 7h2v5h-2zM6.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3M4 6.5a2.5 2.5 0 1 1 4.9.5H22v1H8.9A2.5 2.5 0 0 1 4 6.5" />
     </svg>
   );
 }
@@ -122,6 +130,7 @@ export function ChartSettingsPopover({ onClose }: { onClose: () => void }) {
     { id: 'bars', label: 'Bars', icon: <BarsIcon /> },
     { id: 'canvas', label: 'Canvas', icon: <CanvasIcon /> },
     { id: 'trading', label: 'Trading', icon: <TradingIcon /> },
+    { id: 'market', label: 'Market', icon: <MarketIcon /> },
     { id: 'events', label: 'Events', icon: <EventsIcon /> },
   ];
 
@@ -172,6 +181,7 @@ export function ChartSettingsPopover({ onClose }: { onClose: () => void }) {
           {category === 'bars' && <BarsPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'canvas' && <CanvasPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'trading' && <TradingPanel settings={chartSettings} onChange={setChartSettings} />}
+          {category === 'market' && <MarketPanel settings={chartSettings} onChange={setChartSettings} />}
           {category === 'events' && <EventsPanel />}
         </div>
       </div>
@@ -253,6 +263,36 @@ function TradingPanel({ settings, onChange }: { settings: Settings; onChange: On
         }}
       >
         Extend the trade zone rectangle to the right edge of the chart
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Market Panel
+// ---------------------------------------------------------------------------
+function MarketPanel({ settings, onChange }: { settings: Settings; onChange: OnChange }) {
+  return (
+    <>
+      <SectionHeader>Price Limits</SectionHeader>
+
+      <Checkbox
+        checked={settings.showPriceLimits}
+        onChange={(v) => onChange({ showPriceLimits: v })}
+        label="Show price limit lines"
+      />
+      <div
+        style={{
+          fontSize: 11,
+          color: 'var(--color-text-muted)',
+          marginTop: 6,
+          marginLeft: 24,
+          lineHeight: 1.4,
+          fontFamily: FONT_FAMILY,
+        }}
+      >
+        Draws CME upper/lower price limit bands for equity index futures.
+        Trading is automatically disabled within 2% of the limit.
       </div>
     </>
   );

@@ -33,6 +33,7 @@ import { useOverlayLabels } from './hooks/useOverlayLabels';
 import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
+import { usePriceLimitLines } from './hooks/usePriceLimitLines';
 import { MarketStatusBadge } from './MarketStatusBadge';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, PosDragState } from './hooks/types';
 
@@ -345,7 +346,9 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   useOrderLines(refs, contract, isOrderChart);
   useOverlayLabels(refs, contract, isOrderChart);
   useConditionLines(refs, contract, timeframe);
+  usePriceLimitLines(refs, contract, chartId);
 
+  const priceLimitBlocked = useStore((s) => s.priceLimitBlocked);
   const showFps = chartSettings.showFpsCounter;
   const fps = useFpsCounter(showFps);
 
@@ -426,6 +429,28 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
               ))}
             </span>
           )}
+        </div>
+      )}
+      {priceLimitBlocked && chartId !== 'backtest' && (
+        <div
+          className="absolute pointer-events-none select-none flex items-center gap-1.5"
+          style={{
+            zIndex: Z.HEADER,
+            top: 32,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(239,68,68,0.18)',
+            border: '1px solid rgba(239,68,68,0.55)',
+            borderRadius: RADIUS.LG,
+            padding: '3px 10px',
+            fontSize: 11,
+            fontFamily: FONT_FAMILY,
+            color: 'rgba(255,120,120,1)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{ fontSize: 13 }}>⚠</span>
+          Price near CME limit — trading disabled
         </div>
       )}
       {showFps && (
