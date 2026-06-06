@@ -115,6 +115,7 @@ docs/
 | Instrument selector (categories, exchanges) | `docs/shared/instrument-selector/` |
 | Symbol blacklist (block trading on symbols) | `docs/shared/order-panel/` → BlacklistBanner |
 | Hedge detection (prop firm cross-account guard) | `docs/shared/hedge-detection/` |
+| Max loss per trade safeguard (auto-flatten)     | `docs/shared/risk-guard/` |
 | Conditional orders (candle-close triggers)  | `docs/shared/conditional-orders/` |
 | Voice notifications on fills                | `docs/shared/voice-notifications/` |
 | Chart video recording                       | `docs/shared/video-recording/` |
