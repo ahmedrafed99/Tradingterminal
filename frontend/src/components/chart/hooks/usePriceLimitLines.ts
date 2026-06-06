@@ -98,7 +98,7 @@ export function usePriceLimitLines(
         lineColor: COLOR_DASHED,
         lineWidth: 1,
         lineStyle: 'dashed',
-        priceLabel: { visible: true, tickSize: contract!.tickSize },
+        priceLabel: { visible: false },
         labelPosition: 'right',
         ...makeLimitLabel(label, COLOR_DASHED),
       });
@@ -110,16 +110,16 @@ export function usePriceLimitLines(
         lineColor: COLOR_NORMAL,
         lineWidth: 1,
         lineStyle: 'solid',
-        priceLabel: { visible: true, tickSize: contract!.tickSize },
+        priceLabel: { visible: false },
         labelPosition: 'right',
         ...makeLimitLabel(label, COLOR_NORMAL),
       });
     }
 
     const upperLimit     = makeOuter(levels.upperLimit,     `+${cfg.limitPct}% limit  ${levels.upperLimit.toFixed(decimals)}`);
-    const upperThreshold = makeInner(levels.upperThreshold, `+${cfg.limitPct - cfg.bufferPct}% limit –2%`);
-    const lowerThreshold = makeInner(levels.lowerThreshold, `–${cfg.limitPct - cfg.bufferPct}% limit –2%`);
-    const lowerLimit     = makeOuter(levels.lowerLimit,     `–${cfg.limitPct}% limit  ${levels.lowerLimit.toFixed(decimals)}`);
+    const upperThreshold = makeInner(levels.upperThreshold, `+${cfg.limitPct - cfg.bufferPct}% limit  ${levels.upperThreshold.toFixed(decimals)}`);
+    const lowerThreshold = makeInner(levels.lowerThreshold, `-${cfg.limitPct - cfg.bufferPct}% limit  ${levels.lowerThreshold.toFixed(decimals)}`);
+    const lowerLimit     = makeOuter(levels.lowerLimit,     `-${cfg.limitPct}% limit  ${levels.lowerLimit.toFixed(decimals)}`);
 
     [upperLimit, upperThreshold, lowerThreshold, lowerLimit].forEach((p) => series.attachPrimitive(p));
     primitivesRef.current = [upperLimit, upperThreshold, lowerThreshold, lowerLimit];
