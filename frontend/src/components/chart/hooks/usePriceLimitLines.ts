@@ -47,6 +47,7 @@ export function usePriceLimitLines(
   refs: ChartRefs,
   contract: Contract | null,
   chartId: 'left' | 'right' | 'backtest',
+  barsLoading: boolean,
 ): void {
   const showPriceLimits  = useStore((s) => s.chartSettings.showPriceLimits);
   const setPriceLimitBlocked = useStore((s) => s.setPriceLimitBlocked);
@@ -158,5 +159,5 @@ export function usePriceLimitLines(
       detachAll();
       if (blockedRef.current) { blockedRef.current = false; setPriceLimitBlocked(false); }
     };
-  }, [showPriceLimits, contract, chartId, refs, setPriceLimitBlocked]);
+  }, [showPriceLimits, contract, chartId, refs, setPriceLimitBlocked, barsLoading]);
 }

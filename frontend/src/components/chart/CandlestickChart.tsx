@@ -346,7 +346,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   useOrderLines(refs, contract, isOrderChart);
   useOverlayLabels(refs, contract, isOrderChart);
   useConditionLines(refs, contract, timeframe);
-  usePriceLimitLines(refs, contract, chartId);
+  usePriceLimitLines(refs, contract, chartId, loading);
 
   const priceLimitBlocked = useStore((s) => s.priceLimitBlocked);
   const showFps = chartSettings.showFpsCounter;
