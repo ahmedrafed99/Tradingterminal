@@ -56,7 +56,9 @@ export function useChartBars(
   // only needs a small incremental fetch instead of re-requesting all 20 k bars.
   // Keyed as `${contractId}:${unit}:${unitNumber}`. Updated (via snapshot) whenever
   // we leave a TF so the stored array is always live at time of departure.
-  const barsCacheRef = useRef<Map<string, Bar[]>>(new Map());
+  // cachedAt is wall-clock time (ms) when the entry was written — used for freshness
+  // so weekends/overnight closures don't expire the cache (last bar time is stale then).
+  const barsCacheRef = useRef<Map<string, { bars: Bar[]; cachedAt: number }>>(new Map());
 
   // Historical load-more state
   const earliestLoadedTimeRef = useRef<string | null>(null);
@@ -224,7 +226,7 @@ export function useChartBars(
       const prevTf = previousTimeframeRef.current;
       barsCacheRef.current.set(
         `${contract.id}:${prevTf.unit}:${prevTf.unitNumber}`,
-        refs.bars.current,
+        { bars: refs.bars.current, cachedAt: Date.now() },
       );
     }
 
@@ -348,14 +350,16 @@ export function useChartBars(
         } else {
           const periodSec = getCandlePeriodSeconds(timeframe);
           const tfKey = `${contract!.id}:${timeframe.unit}:${timeframe.unitNumber}`;
-          const cachedBars = barsCacheRef.current.get(tfKey);
+          const cacheEntry = barsCacheRef.current.get(tfKey);
+          const cachedBars = cacheEntry?.bars ?? null;
           const lastCached = cachedBars && cachedBars.length > 0
             ? cachedBars[cachedBars.length - 1]
             : null;
           // Use incremental fetch when: bars are cached, TF is time-based, and
-          // the cache is less than 12 h stale (older gaps exceed the limit:500 delta).
-          const cacheAgeMs = lastCached
-            ? Date.now() - new Date(lastCached.t).getTime()
+          // the cache was written less than 12 h ago (keyed on write-time, not last
+          // bar time — last bar can be days old during weekends/overnight closures).
+          const cacheAgeMs = cacheEntry
+            ? Date.now() - cacheEntry.cachedAt
             : Infinity;
 
           if (lastCached && periodSec > 0 && cacheAgeMs < 12 * 3_600_000) {
