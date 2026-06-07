@@ -505,11 +505,12 @@
         "useStore (showPriceLimits, priceLimitBlocked, setPriceLimitBlocked)",
         "PriceLevelPrimitive (4 lines: 2 dashed outer limit, 2 solid inner threshold)",
         "realtimeService.onQuote (live price check for block state)",
-        "getCurrentSessionStartSec (settlement price anchor)",
+        "marketDataService.retrieveBars (1-second bars for VWAP settlement fetch)",
+        "getCurrentSessionStartSec (settlement date anchor)",
         "BuySellButtons (reads priceLimitBlocked to disable buy/sell)",
         "useQuickOrder (guards placeQuickOrder with priceLimitBlocked check)"
       ],
-      "notes": "Applies only to CME equity index contracts (EP, ENQ, MES, MNQ, ERY, M2K, YM, MYM) with 7% daily limit. Settlement = close of last bar before current session start (18:00 ET). Fail-open: if settlement unavailable, draws nothing and never blocks. Toggled in Settings → Market tab."
+      "notes": "Applies only to CME equity index contracts (EP, ENQ, MES, MNQ, ERY, M2K, YM, MYM) with 7% daily limit. Settlement = VWAP of 1-second bars over 14:59:30–15:00:00 CT on the most recent weekday (CME Tier 1 methodology); falls back to bar-close approximation if API returns nothing. Fail-open: if both paths fail, draws nothing and never blocks. Toggled in Settings → Market tab."
     }
   ]
 }

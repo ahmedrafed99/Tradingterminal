@@ -65,9 +65,18 @@ Toggle lives in **Chart Settings → Market tab → "Show CME price limit lines"
 
 ### Settlement price
 
-The settlement price is derived from bar history — it is the **close of the last bar before the current session start** (18:00 ET boundary, resolved via `getCurrentSessionStartSec()`). No external API call is made.
+The settlement price is computed as a **VWAP over the CME official settlement window**: **14:59:30–15:00:00 CT** on the most recent weekday (Tier 1 methodology per CME Group). The hook calls `fetchVWAPSettlement(contractId)` which:
 
-**Fail-open**: if no prior-session bar exists (e.g. a brand-new symbol or chart with no history), no lines are drawn and trading is never blocked.
+1. Resolves the settlement calendar date from `getCurrentSessionStartSec()` (walks back Sunday→Friday when needed).
+2. Converts 14:59:30 CT → UTC via `Intl.DateTimeFormat('America/Chicago')` for DST safety (CDT = UTC−5, CST = UTC−6).
+3. Fetches 1-second bars (`unit: 1, unitNumber: 1`) over that 31-second window via `marketDataService.retrieveBars()`.
+4. Computes `Σ((H+L+C)/3 × V) / Σ(V)` and rounds to the nearest tick (0.25).
+
+**Fallback**: if the API returns no bars or errors, settlement falls back to the close of the last bar before the 16:00 ET cutoff (`deriveSettlementPrice(bars)`).
+
+**Fail-open**: if both paths return null, no lines are drawn and trading is never blocked.
+
+> **Accuracy note**: 1-second bar VWAP typically matches CME's published settlement within one tick (0.25). CME computes its figure tick-by-tick; any sub-second weighting difference explains the residual.
 
 ### Block logic
 

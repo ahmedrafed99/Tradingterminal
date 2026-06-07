@@ -7,6 +7,7 @@ import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import {
   getPriceLimitConfig,
   deriveSettlementPrice,
+  fetchVWAPSettlement,
   computeLimitLevels,
   isPriceNearLimit,
   type PriceLimitLevels,
@@ -79,83 +80,94 @@ export function usePriceLimitLines(
       return;
     }
 
-    const series  = refs.series.current;
-    const bars    = refs.bars.current;
-    if (!series || bars.length === 0) return;
+    let cancelled = false;
+    let cleanupQuote: (() => void) | null = null;
 
-    const settlement = deriveSettlementPrice(bars);
-    if (settlement == null) return;  // fail-open: no history → draw nothing
+    (async () => {
+      // Fetch VWAP settlement; fall back to bar-close approximation if it fails
+      let settlement = await fetchVWAPSettlement(contract.id);
+      if (settlement == null) {
+        const bars = refs.bars.current;
+        if (bars.length > 0) settlement = deriveSettlementPrice(bars);
+      }
+      if (settlement == null || cancelled) return;
 
-    const levels = computeLimitLevels(settlement, cfg.limitPct, cfg.bufferPct);
-    levelsRef.current = levels;
+      const series = refs.series.current;
+      if (!series || cancelled) return;
 
-    const decimals = Math.max(2, Math.ceil(-Math.log10(contract.tickSize)));
+      const levels = computeLimitLevels(settlement, cfg.limitPct, cfg.bufferPct);
+      levelsRef.current = levels;
 
-    // ── Build the 4 primitives ────────────────────────────────────────────────
+      const decimals = Math.max(2, Math.ceil(-Math.log10(contract.tickSize)));
 
-    function makeOuter(price: number, label: string): PriceLevelPrimitive {
-      return new PriceLevelPrimitive({
-        price,
-        lineColor: COLOR_DASHED,
-        lineWidth: 1,
-        lineStyle: 'dashed',
-        priceLabel: { visible: false },
-        labelPosition: 'right',
-        ...makeLimitLabel(label, COLOR_DASHED),
-      });
-    }
+      // ── Build the 4 primitives ──────────────────────────────────────────────
 
-    function makeInner(price: number, label: string): PriceLevelPrimitive {
-      return new PriceLevelPrimitive({
-        price,
-        lineColor: COLOR_NORMAL,
-        lineWidth: 1,
-        lineStyle: 'solid',
-        priceLabel: { visible: false },
-        labelPosition: 'right',
-        ...makeLimitLabel(label, COLOR_NORMAL),
-      });
-    }
+      function makeOuter(price: number, label: string): PriceLevelPrimitive {
+        return new PriceLevelPrimitive({
+          price,
+          lineColor: COLOR_DASHED,
+          lineWidth: 1,
+          lineStyle: 'dashed',
+          priceLabel: { visible: false },
+          labelPosition: 'right',
+          ...makeLimitLabel(label, COLOR_DASHED),
+        });
+      }
 
-    const upperLimit     = makeOuter(levels.upperLimit,     `+${cfg.limitPct}% limit  ${levels.upperLimit.toFixed(decimals)}`);
-    const upperThreshold = makeInner(levels.upperThreshold, `+${cfg.limitPct - cfg.bufferPct}% limit  ${levels.upperThreshold.toFixed(decimals)}`);
-    const lowerThreshold = makeInner(levels.lowerThreshold, `-${cfg.limitPct - cfg.bufferPct}% limit  ${levels.lowerThreshold.toFixed(decimals)}`);
-    const lowerLimit     = makeOuter(levels.lowerLimit,     `-${cfg.limitPct}% limit  ${levels.lowerLimit.toFixed(decimals)}`);
+      function makeInner(price: number, label: string): PriceLevelPrimitive {
+        return new PriceLevelPrimitive({
+          price,
+          lineColor: COLOR_NORMAL,
+          lineWidth: 1,
+          lineStyle: 'solid',
+          priceLabel: { visible: false },
+          labelPosition: 'right',
+          ...makeLimitLabel(label, COLOR_NORMAL),
+        });
+      }
 
-    [upperLimit, upperThreshold, lowerThreshold, lowerLimit].forEach((p) => series.attachPrimitive(p));
-    primitivesRef.current = [upperLimit, upperThreshold, lowerThreshold, lowerLimit];
+      const upperLimit     = makeOuter(levels.upperLimit,     `+${cfg.limitPct}% limit  ${levels.upperLimit.toFixed(decimals)}`);
+      const upperThreshold = makeInner(levels.upperThreshold, `+${cfg.limitPct - cfg.bufferPct}% limit  ${levels.upperThreshold.toFixed(decimals)}`);
+      const lowerThreshold = makeInner(levels.lowerThreshold, `-${cfg.limitPct - cfg.bufferPct}% limit  ${levels.lowerThreshold.toFixed(decimals)}`);
+      const lowerLimit     = makeOuter(levels.lowerLimit,     `-${cfg.limitPct}% limit  ${levels.lowerLimit.toFixed(decimals)}`);
 
-    // ── Live price subscription ───────────────────────────────────────────────
+      [upperLimit, upperThreshold, lowerThreshold, lowerLimit].forEach((p) => series.attachPrimitive(p));
+      primitivesRef.current = [upperLimit, upperThreshold, lowerThreshold, lowerLimit];
 
-    function updateBlockedState(price: number) {
-      const lvls = levelsRef.current;
-      if (!lvls) return;
-      const blocked = isPriceNearLimit(price, lvls);
-      if (blocked === blockedRef.current) return;
-      blockedRef.current = blocked;
-      setPriceLimitBlocked(blocked);
+      // ── Live price subscription ─────────────────────────────────────────────
 
-      const innerColor  = blocked ? COLOR_BREACH   : COLOR_NORMAL;
-      const outerColor  = blocked ? COLOR_DASHED_B : COLOR_DASHED;
-      upperThreshold.setLineColor(innerColor);
-      lowerThreshold.setLineColor(innerColor);
-      upperLimit.setLineColor(outerColor);
-      lowerLimit.setLineColor(outerColor);
-      upperThreshold.setCell('lbl', { bg: innerColor });
-      lowerThreshold.setCell('lbl', { bg: innerColor });
-      upperLimit.setCell('lbl', { bg: outerColor });
-      lowerLimit.setCell('lbl', { bg: outerColor });
-    }
+      function updateBlockedState(price: number) {
+        const lvls = levelsRef.current;
+        if (!lvls) return;
+        const blocked = isPriceNearLimit(price, lvls);
+        if (blocked === blockedRef.current) return;
+        blockedRef.current = blocked;
+        setPriceLimitBlocked(blocked);
 
-    const quoteHandler = (contractId: string, data: GatewayQuote) => {
-      if (contractId !== contract!.id) return;
-      const price = data.lastPrice ?? data.bestBid ?? data.bestAsk;
-      if (price != null) updateBlockedState(price);
-    };
-    realtimeService.onQuote(quoteHandler);
+        const innerColor  = blocked ? COLOR_BREACH   : COLOR_NORMAL;
+        const outerColor  = blocked ? COLOR_DASHED_B : COLOR_DASHED;
+        upperThreshold.setLineColor(innerColor);
+        lowerThreshold.setLineColor(innerColor);
+        upperLimit.setLineColor(outerColor);
+        lowerLimit.setLineColor(outerColor);
+        upperThreshold.setCell('lbl', { bg: innerColor });
+        lowerThreshold.setCell('lbl', { bg: innerColor });
+        upperLimit.setCell('lbl', { bg: outerColor });
+        lowerLimit.setCell('lbl', { bg: outerColor });
+      }
+
+      const quoteHandler = (contractId: string, data: GatewayQuote) => {
+        if (contractId !== contract!.id) return;
+        const price = data.lastPrice ?? data.bestBid ?? data.bestAsk;
+        if (price != null) updateBlockedState(price);
+      };
+      realtimeService.onQuote(quoteHandler);
+      cleanupQuote = () => realtimeService.offQuote(quoteHandler);
+    })();
 
     return () => {
-      realtimeService.offQuote(quoteHandler);
+      cancelled = true;
+      cleanupQuote?.();
       detachAll();
       if (blockedRef.current) { blockedRef.current = false; setPriceLimitBlocked(false); }
     };
