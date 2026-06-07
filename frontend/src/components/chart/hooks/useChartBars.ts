@@ -246,6 +246,10 @@ export function useChartBars(
       // Require enough source bars for at least ~50 aggregated bars — below that,
       // a fresh fetch gives a more useful range.
       if (refs.bars.current.length < 50 * ratio) return null;
+      // If the target TF is already cached, skip aggregation: the source (finer) TF
+      // covers less history, so aggregating it would produce fewer bars than the cache.
+      const tfKey = `${contract!.id}:${timeframe.unit}:${timeframe.unitNumber}`;
+      if (barsCacheRef.current.has(tfKey)) return null;
       return { bars: refs.bars.current, sourcePeriodSec, targetPeriodSec };
     })();
 
@@ -427,9 +431,10 @@ export function useChartBars(
 
         const sorted = sortBarsAscending(bars);
 
-        // Tick bars: chartapi timestamps are millisecond-precise but LWC uses seconds.
-        // Multiple bars can close within the same second — bump duplicates by 1s so
-        // setData never gets two bars with identical timestamps.
+        // LWC uses integer second timestamps. For tick bars, sub-second collisions are
+        // common so we bump duplicates by 1s. For all other timeframes (including daily),
+        // the API can occasionally return two bars with the same second-level timestamp
+        // (e.g. at session boundaries or contract rollovers) — drop the earlier duplicate.
         if (timeframe.unit === 7) {
           for (let i = 1; i < sorted.length; i++) {
             const prevSec = Math.floor(new Date(sorted[i - 1].t).getTime() / 1000);
@@ -437,6 +442,16 @@ export function useChartBars(
             if (currSec <= prevSec) {
               sorted[i] = { ...sorted[i], t: new Date((prevSec + 1) * 1000).toISOString() };
             }
+          }
+        } else {
+          // Deduplicate by second — keep the last bar for any colliding second.
+          const bySecond = new Map<number, Bar>();
+          for (const bar of sorted) {
+            bySecond.set(Math.floor(new Date(bar.t).getTime() / 1000), bar);
+          }
+          if (bySecond.size < sorted.length) {
+            sorted.length = 0;
+            bySecond.forEach((bar) => sorted.push(bar));
           }
         }
 
