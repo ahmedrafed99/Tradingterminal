@@ -1,27 +1,28 @@
 import api from './api';
 
-export interface SavedCredentials {
+export interface CredentialProfile {
+  id: string;        // username used as stable key
   userName: string;
   apiKey: string;
+  baseUrl?: string;
+  label?: string;    // display name (optional)
 }
 
-let cached: SavedCredentials | null | undefined;
-
 export const credentialService = {
-  async load(): Promise<SavedCredentials | null> {
-    if (cached !== undefined) return cached;
-    const res = await api.get('/credentials');
-    cached = res.data.data ?? null;
-    return cached ?? null;
+  async loadAll(): Promise<CredentialProfile[]> {
+    const res = await api.get<{ data: CredentialProfile[] }>('/credentials');
+    return res.data.data ?? [];
   },
 
-  async save(userName: string, apiKey: string): Promise<void> {
-    await api.put('/credentials', { userName, apiKey });
-    cached = { userName, apiKey };
+  async save(profile: CredentialProfile): Promise<void> {
+    await api.put(`/credentials/${encodeURIComponent(profile.id)}`, profile);
+  },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/credentials/${encodeURIComponent(id)}`);
   },
 
   async clear(): Promise<void> {
     await api.delete('/credentials');
-    cached = null;
   },
 };

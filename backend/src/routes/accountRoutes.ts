@@ -1,19 +1,35 @@
 import { Router } from 'express';
-import { withConnection, resolveAdapter } from '../middleware/withConnection';
+import { withConnection } from '../middleware/withConnection';
+import { listConnected, getAdapter } from '../adapters/registry';
 
 const router = Router();
 
-// GET /accounts?exchange=hyperliquid  (exchange param optional, defaults to active)
-router.get('/', withConnection(async (req, res) => {
-  const data = await resolveAdapter(req).accounts.list();
-  res.json(data);
+// GET /accounts — aggregate accounts from all connected adapters
+router.get('/', withConnection(async (_req, res) => {
+  const connected = listConnected();
+  const results = await Promise.allSettled(
+    connected.map((id) => getAdapter(id).accounts.list() as Promise<{ accounts?: unknown[] }>),
+  );
+  const allAccounts = results.flatMap((r) =>
+    r.status === 'fulfilled' ? (r.value.accounts ?? []) : [],
+  );
+  res.json({ success: true, accounts: allAccounts });
 }));
 
-router.get('/eligibility', withConnection(async (req, res) => {
-  const accts = resolveAdapter(req).accounts;
-  if (!accts.eligibility) { res.json([]); return; }
-  const data = await accts.eligibility();
-  res.json(data);
+// GET /accounts/eligibility — aggregate eligibility from all connected adapters
+router.get('/eligibility', withConnection(async (_req, res) => {
+  const connected = listConnected();
+  const results = await Promise.allSettled(
+    connected.map(async (id) => {
+      const accts = getAdapter(id).accounts;
+      if (!accts.eligibility) return [];
+      return accts.eligibility() as Promise<unknown[]>;
+    }),
+  );
+  const allEligibility = results.flatMap((r) =>
+    r.status === 'fulfilled' ? r.value : [],
+  );
+  res.json(allEligibility);
 }));
 
 export default router;

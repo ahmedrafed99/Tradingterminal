@@ -10,12 +10,12 @@ const router = Router();
 
 const DATA_DIR = path.resolve(__dirname, '../../data');
 const CREDS_FILE = path.join(DATA_DIR, '.credentials.enc');
+const DEFAULT_BASE_URL = 'https://api.topstepx.com';
 
 // ---------------------------------------------------------------------------
 // Encryption helpers — AES-256-GCM with a machine-derived key
 // ---------------------------------------------------------------------------
 
-/** Derive a stable encryption key from machine-specific identifiers */
 function deriveKey(): Buffer {
   const machineId = `${os.hostname()}:${os.homedir()}:trading-terminal`;
   return crypto.scryptSync(machineId, 'trading-terminal-salt', 32);
@@ -27,7 +27,6 @@ function encrypt(plaintext: string): string {
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
-  // Format: iv:tag:ciphertext (all hex)
   return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
@@ -47,43 +46,91 @@ async function ensureDir() {
 }
 
 // ---------------------------------------------------------------------------
-// Routes
+// Profile type
 // ---------------------------------------------------------------------------
 
-// GET /credentials — load saved credentials
-router.get('/', async (_req, res) => {
+interface CredentialProfile {
+  id: string;
+  userName: string;
+  apiKey: string;
+  baseUrl?: string;
+  label?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Read/write helpers with migration shim
+// ---------------------------------------------------------------------------
+
+async function readProfiles(): Promise<CredentialProfile[]> {
   try {
-    await ensureDir();
     const raw = await fs.readFile(CREDS_FILE, 'utf-8');
     const decrypted = decrypt(raw);
     const data = JSON.parse(decrypted);
-    res.json({ success: true, data });
+    // Migration: legacy single-credential object → array
+    if (!Array.isArray(data)) {
+      if (data && typeof data === 'object' && (data as Record<string, unknown>)['userName']) {
+        const legacy = data as { userName: string; apiKey?: string };
+        return [{
+          id: legacy.userName,
+          userName: legacy.userName,
+          apiKey: legacy.apiKey ?? '',
+          baseUrl: DEFAULT_BASE_URL,
+        }];
+      }
+      return [];
+    }
+    return data as CredentialProfile[];
   } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-      res.json({ success: true, data: null });
-      return;
-    }
-    // Decryption failure (machine changed, tampered file) — treat as empty
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
     if (err instanceof Error && (err.message.includes('Unsupported state') || err.message.includes('unable to authenticate'))) {
-      res.json({ success: true, data: null });
-      return;
+      return [];
     }
+    throw err;
+  }
+}
+
+async function writeProfiles(profiles: CredentialProfile[]): Promise<void> {
+  const encrypted = encrypt(JSON.stringify(profiles));
+  await fs.writeFile(CREDS_FILE, encrypted, 'utf-8');
+}
+
+// ---------------------------------------------------------------------------
+// Routes
+// ---------------------------------------------------------------------------
+
+// GET /credentials — return all profiles
+router.get('/', async (_req, res) => {
+  try {
+    await ensureDir();
+    const profiles = await readProfiles();
+    res.json({ success: true, data: profiles });
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     res.status(500).json({ success: false, errorMessage: msg });
   }
 });
 
-// PUT /credentials — save credentials (encrypted)
-const CredentialsSchema = z.object({
+const ProfileSchema = z.object({
+  id: z.string(),
   userName: z.string(),
   apiKey: z.string(),
+  baseUrl: z.string().optional(),
+  label: z.string().optional(),
 });
 
-router.put('/', validateBody(CredentialsSchema), async (req, res) => {
+// PUT /credentials/:id — upsert one profile
+router.put('/:id', validateBody(ProfileSchema), async (req, res) => {
   try {
     await ensureDir();
-    const encrypted = encrypt(JSON.stringify(req.body));
-    await fs.writeFile(CREDS_FILE, encrypted, 'utf-8');
+    const profiles = await readProfiles();
+    const profile = req.body as z.infer<typeof ProfileSchema>;
+    const idx = profiles.findIndex((p) => p.id === req.params['id']);
+    if (idx >= 0) {
+      profiles[idx] = profile;
+    } else {
+      profiles.push(profile);
+    }
+    await writeProfiles(profiles);
     res.json({ success: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -91,7 +138,24 @@ router.put('/', validateBody(CredentialsSchema), async (req, res) => {
   }
 });
 
-// DELETE /credentials — remove saved credentials
+// DELETE /credentials/:id — remove one profile
+router.delete('/:id', async (req, res) => {
+  try {
+    await ensureDir();
+    const profiles = await readProfiles();
+    await writeProfiles(profiles.filter((p) => p.id !== req.params['id']));
+    res.json({ success: true });
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      res.json({ success: true });
+      return;
+    }
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    res.status(500).json({ success: false, errorMessage: msg });
+  }
+});
+
+// DELETE /credentials — remove all
 router.delete('/', async (_req, res) => {
   try {
     await fs.unlink(CREDS_FILE).catch(() => {});

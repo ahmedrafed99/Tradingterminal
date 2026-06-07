@@ -1,6 +1,7 @@
 import type { ExchangeAdapter } from './types';
 
 const adapters = new Map<string, ExchangeAdapter>();
+const accountToConnection = new Map<string, string>(); // accountId → connectionId
 
 /** Default exchange used when no exchangeId is specified. */
 let defaultExchangeId: string | null = null;
@@ -36,6 +37,7 @@ export function removeAdapter(exchangeId: string): void {
 
 export function clearAdapter(): void {
   adapters.clear();
+  accountToConnection.clear();
   defaultExchangeId = null;
 }
 
@@ -63,4 +65,28 @@ export function setDefaultExchangeId(id: string): void {
     throw new Error(`Cannot set default: exchange "${id}" is not connected.`);
   }
   defaultExchangeId = id;
+}
+
+// ---------------------------------------------------------------------------
+// Account → connection routing
+// ---------------------------------------------------------------------------
+
+export function registerAccountConnection(accountId: string, connectionId: string): void {
+  accountToConnection.set(accountId, connectionId);
+}
+
+export function unregisterConnectionAccounts(connectionId: string): void {
+  for (const [accountId, connId] of accountToConnection.entries()) {
+    if (connId === connectionId) {
+      accountToConnection.delete(accountId);
+    }
+  }
+}
+
+export function getAdapterForAccount(accountId: string): ExchangeAdapter {
+  const connId = accountToConnection.get(accountId);
+  if (connId && adapters.has(connId)) {
+    return getAdapter(connId);
+  }
+  return getAdapter(); // fallback to default
 }

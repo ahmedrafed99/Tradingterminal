@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import axios from 'axios';
 import { validateBody, validateQuery } from '../validate';
-import { withConnection, resolveAdapter } from '../middleware/withConnection';
-import { getToken } from '../adapters/projectx/auth';
+import { withConnection, resolveAdapter, getAdapter } from '../middleware/withConnection';
 
 const router = Router();
 
@@ -159,7 +158,7 @@ router.get('/chartapi-test', (req, res, next) => {
   const { symbol, resolution, from, to, countback, live } = req.query as Record<string, string>;
 
   try {
-    const token = getToken();
+    const token = getAdapter().auth.getRealtimeCredentials?.()?.token;
     if (!token) {
       res.status(401).json({ success: false, error: 'Not connected to ProjectX — no auth token' });
       return;

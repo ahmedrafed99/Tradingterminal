@@ -17,6 +17,11 @@ export interface ExchangeAuth {
   disconnect(): void;
   isConnected(): boolean;
   getStatus(): Record<string, unknown>;
+  getRealtimeCredentials?(): { token: string; rtcBaseUrl: string } | null;
+  /** ProjectX-specific: returns the userapi base URL for the active connection. */
+  getUserApiBaseUrl?(): string | null;
+  /** ProjectX-specific: returns the numeric userId extracted from the JWT. */
+  getUserId?(): number | null;
 }
 
 // ---------------------------------------------------------------------------

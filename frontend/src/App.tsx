@@ -9,6 +9,7 @@ import { BottomPanel } from './components/bottom-panel/BottomPanel';
 import { OrderPanel } from './components/order-panel';
 import { authService } from './services/authService';
 import { accountService } from './services/accountService';
+import { credentialService } from './services/credentialService';
 import { marketDataService } from './services/marketDataService';
 import { realtimeService } from './services/realtimeService';
 import { useStore } from './store/useStore';
@@ -49,15 +50,51 @@ export default function App() {
   // Poll backend for Claude-pushed drawings
   useRemoteDrawings();
 
-  // On mount, check if the backend is already connected (e.g. after page refresh)
+  // On mount: restore backend-connected adapters + auto-connect saved profiles
   useEffect(() => {
-    authService
-      .getStatus()
+    const store = useStore.getState();
+
+    // 1. Restore any connections already live in the backend (e.g. after page refresh)
+    authService.getStatus()
       .then(async (status) => {
-        useStore.getState().setConnected(status.connected, status.baseUrl);
         if (status.connected) {
           const accounts = await accountService.searchAccounts();
-          useStore.getState().setAccounts(accounts);
+          store.setAccounts(accounts);
+          const restoredIds = new Set<string>();
+          for (const [id, s] of Object.entries(status.exchanges ?? {})) {
+            store.addConnection({ id, userName: id, baseUrl: (s as { baseUrl?: string }).baseUrl ?? 'https://api.topstepx.com', status: 'connected' });
+            restoredIds.add(id);
+          }
+          // 2. Auto-connect saved profiles that aren't already active
+          const profiles = await credentialService.loadAll();
+          for (const p of profiles) {
+            if (restoredIds.has(p.id)) continue; // already live
+            store.addConnection({ id: p.id, userName: p.userName, label: p.label, baseUrl: p.baseUrl ?? 'https://api.topstepx.com', status: 'connecting' });
+            authService.connect(p.userName, p.apiKey, p.baseUrl)
+              .then(async () => {
+                store.updateConnection(p.id, { status: 'connected' });
+                const accts = await accountService.searchAccounts().catch(() => []);
+                store.setAccounts(accts);
+              })
+              .catch((err) => {
+                store.updateConnection(p.id, { status: 'error', errorMessage: err instanceof Error ? err.message : 'Failed' });
+              });
+          }
+        } else {
+          // Not connected — still try auto-connect from saved credentials
+          const profiles = await credentialService.loadAll();
+          for (const p of profiles) {
+            store.addConnection({ id: p.id, userName: p.userName, label: p.label, baseUrl: p.baseUrl ?? 'https://api.topstepx.com', status: 'connecting' });
+            authService.connect(p.userName, p.apiKey, p.baseUrl)
+              .then(async () => {
+                store.updateConnection(p.id, { status: 'connected' });
+                const accts = await accountService.searchAccounts().catch(() => []);
+                store.setAccounts(accts);
+              })
+              .catch((err) => {
+                store.updateConnection(p.id, { status: 'error', errorMessage: err instanceof Error ? err.message : 'Failed' });
+              });
+          }
         }
       })
       .catch((err) => {
@@ -77,8 +114,9 @@ export default function App() {
         const event = JSON.parse(e.data as string);
         if (event.type === 'disconnect') {
           await realtimeService.disconnect();
-          useStore.getState().setConnected(false);
-          useStore.getState().setAccounts([]);
+          const s = useStore.getState();
+          s.connections.forEach((c) => s.removeConnection(c.id));
+          s.setAccounts([]);
         }
       } catch { /* ignore malformed */ }
     };

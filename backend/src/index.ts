@@ -208,12 +208,23 @@ async function autoConnect(): Promise<void> {
   try {
     const adapter = createAdapter(exchange);
     await adapter.auth.connect({ exchange, credentials });
-    setAdapter(exchange, adapter);
-    console.log(`[auto-connect] Connected to ${exchange} successfully`);
+    const connectionId = exchange === 'projectx'
+      ? (credentials['username'] ?? exchange)
+      : exchange;
+    setAdapter(connectionId, adapter);
+    console.log(`[auto-connect] Connected to ${exchange} as "${connectionId}" successfully`);
     if (exchange === 'projectx') {
-      realtimeService.connect().catch((err) => {
-        console.error('[auto-connect] realtimeService connect failed:', err instanceof Error ? err.message : err);
-      });
+      const rtCreds = adapter.auth.getRealtimeCredentials?.();
+      if (rtCreds) {
+        try {
+          const accountsData = await adapter.accounts.list() as { accounts?: { id: number | string }[] };
+          const accountIds = (accountsData.accounts ?? []).map((a) => String(a.id));
+          realtimeService.registerConnectionAccounts(connectionId, accountIds);
+        } catch { /* non-fatal */ }
+        realtimeService.connect(connectionId, rtCreds.token, rtCreds.rtcBaseUrl).catch((err) => {
+          console.error('[auto-connect] realtimeService connect failed:', err instanceof Error ? err.message : err);
+        });
+      }
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';

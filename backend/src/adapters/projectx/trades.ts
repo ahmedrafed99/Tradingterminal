@@ -1,15 +1,17 @@
 import axios from 'axios';
 import type { ExchangeTrades } from '../types';
-import { getBaseUrl, authHeaders } from './auth';
+import type { ProjectXHelpers } from './auth';
 
-export const projectXTrades: ExchangeTrades = {
-  async search(params) {
-    const body = { ...params, accountId: Number(params.accountId) };
-    const response = await axios.post(
-      `${getBaseUrl()}/api/Trade/search`,
-      body,
-      { headers: authHeaders() },
-    );
-    return response.data;
-  },
-};
+export function createProjectXTrades(h: ProjectXHelpers): ExchangeTrades {
+  return {
+    async search(params) {
+      const body = { ...params, accountId: Number(params.accountId) };
+      const response = await axios.post(
+        `${h.getBaseUrl()}/api/Trade/search`,
+        body,
+        { headers: h.authHeaders() },
+      );
+      return response.data;
+    },
+  };
+}

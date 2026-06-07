@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { validateBody } from '../validate';
-import { getAdapter, setAdapter, removeAdapter, isConnected, listConnected, getDefaultExchangeId, setDefaultExchangeId } from '../adapters/registry';
+import { getAdapter, setAdapter, removeAdapter, isConnected, listConnected, getDefaultExchangeId, setDefaultExchangeId, registerAccountConnection, unregisterConnectionAccounts, getAdapterForAccount } from '../adapters/registry';
 import { createAdapter, listExchanges } from '../adapters/factory';
 import { realtimeService } from '../services/realtimeService';
 
@@ -34,6 +34,11 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
     credentials['baseUrl'] = body.baseUrl;
   }
 
+  // For ProjectX, use username as the connectionId so multiple accounts can coexist
+  const connectionId = exchange === 'projectx'
+    ? (credentials['username'] ?? exchange)
+    : exchange;
+
   try {
     const adapter = createAdapter(exchange);
     await adapter.auth.connect({
@@ -41,14 +46,31 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
       credentials,
       baseUrl: credentials['baseUrl'],
     });
-    setAdapter(exchange, adapter);
-    // Connect the backend realtime service for ProjectX (sole SignalR connection)
+    setAdapter(connectionId, adapter);
+
+    // Register each account → connectionId mapping for routing
     if (exchange === 'projectx') {
-      realtimeService.connect().catch((err) => {
-        console.error('[auth] realtimeService connect failed:', err instanceof Error ? err.message : err);
-      });
+      try {
+        const accountsData = await adapter.accounts.list() as { accounts?: { id: number | string }[] };
+        const accountIds = (accountsData.accounts ?? []).map((a) => String(a.id));
+        for (const aid of accountIds) {
+          registerAccountConnection(aid, connectionId);
+        }
+        // Register with realtimeService BEFORE starting its hub so the initial
+        // subscription flush routes to the right user hub
+        const rtCreds = adapter.auth.getRealtimeCredentials?.();
+        if (rtCreds) {
+          realtimeService.registerConnectionAccounts(connectionId, accountIds);
+          realtimeService.connect(connectionId, rtCreds.token, rtCreds.rtcBaseUrl).catch((err) => {
+            console.error('[auth] realtimeService connect failed:', err instanceof Error ? err.message : err);
+          });
+        }
+      } catch (err) {
+        console.warn('[auth] account registration failed (non-fatal):', err instanceof Error ? err.message : err);
+      }
     }
-    res.json({ success: true, exchange });
+
+    res.json({ success: true, exchange, connectionId });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.error('[auth/connect]', msg);
@@ -58,21 +80,23 @@ router.post('/connect', validateBody(ConnectSchema), async (req, res) => {
 
 // POST /auth/disconnect
 router.post('/disconnect', (req, res) => {
-  const exchange = (req.body as Record<string, unknown>)?.exchange as string | undefined;
+  const body = req.body as Record<string, unknown>;
+  // Accept both `exchange` (legacy) and `connectionId`
+  const connectionId = (body?.connectionId ?? body?.exchange) as string | undefined;
 
-  if (exchange) {
-    // Disconnect specific exchange
-    if (isConnected(exchange)) {
-      getAdapter(exchange).auth.disconnect();
-      removeAdapter(exchange);
+  if (connectionId) {
+    if (isConnected(connectionId)) {
+      getAdapter(connectionId).auth.disconnect();
+      unregisterConnectionAccounts(connectionId);
+      removeAdapter(connectionId);
     }
-    if (exchange === 'projectx') {
-      realtimeService.disconnect().catch(() => {});
-    }
+    // Tear down only this account's user hub; market hub + other user hubs stay up
+    realtimeService.disconnectUser(connectionId).catch(() => {});
   } else {
     // Disconnect all
     for (const id of listConnected()) {
       getAdapter(id).auth.disconnect();
+      unregisterConnectionAccounts(id);
       removeAdapter(id);
     }
     realtimeService.disconnect().catch(() => {});

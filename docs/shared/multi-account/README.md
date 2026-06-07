@@ -1,8 +1,8 @@
 # Feature: Multi-Account Connections
 
-Allow multiple ProjectX/TopstepX API keys to be connected **simultaneously**. All active connections are live at the same time — no profile switching required. API calls route to the correct connection by account ID. SignalR uses one connection from any active account.
+Allow multiple ProjectX/TopstepX API keys to be connected **simultaneously**. All active connections are live at the same time — no profile switching required. API calls route to the correct connection by account ID. Each connected account gets its own SignalR user hub so fills/positions/orders arrive for all users; one shared market hub handles quotes for all.
 
-**Status**: Planned
+**Status**: Implemented (branch: feat/multi-account)
 
 ---
 
@@ -212,7 +212,7 @@ async connect(token: string, rtcBaseUrl: string) {
 }
 ```
 
-Only one SignalR session is maintained. Subsequent `connect()` calls when already running are no-ops (or ignored — SignalR allows only one session per ProjectX account anyway).
+One shared market hub handles quotes and depth for all accounts (symbol-based, not identity-scoped). Each connected account gets its own user hub authenticated with that account's token, so fills/positions/orders arrive for every user simultaneously.
 
 ---
 

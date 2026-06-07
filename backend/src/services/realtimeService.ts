@@ -1,19 +1,17 @@
 /**
  * Backend SignalR client + WebSocket forwarder.
  *
- * Owns the sole SignalR connection to ProjectX (both /hubs/market and
- * /hubs/user). Forwards events to connected frontend WebSocket clients and
- * emits them internally for backend consumers (bracketEngine, etc.).
+ * One marketHub (shared; token stays live by tracking the current owner).
+ * One userHub per connected account — user-hub events are identity-scoped,
+ * so a single hub only delivers events for the authenticated user's accounts.
  *
- * Only one SignalR session is allowed per ProjectX account — this service
- * holds it. The frontend connects here via /ws/realtime instead of directly
- * to ProjectX.
+ * Forwards events to connected frontend WebSocket clients and emits them
+ * internally for backend consumers (bracketEngine, etc.).
  */
 
 import * as signalR from '@microsoft/signalr';
 import { EventEmitter } from 'events';
 import type WebSocket from 'ws';
-import { getRtcBaseUrl, getToken } from '../adapters/projectx/auth';
 import { debugLog } from '../utils/debugLog';
 
 // ---------------------------------------------------------------------------
@@ -24,9 +22,9 @@ export interface RealtimeOrder {
   id: string;
   accountId: string;
   contractId: string;
-  status: number;           // OrderStatus enum value
-  type: number;             // OrderType enum value
-  side: number;             // OrderSide enum value
+  status: number;
+  type: number;
+  side: number;
   size: number;
   fillVolume?: number;
   filledPrice?: number;
@@ -82,54 +80,149 @@ function normalizeUserHubArgs<T>(args: unknown[]): UserHubItem<T>[] {
 
 class BackendRealtimeService extends EventEmitter {
   private marketHub: signalR.HubConnection | null = null;
-  private userHub:   signalR.HubConnection | null = null;
-  private connectingPromise: Promise<void> | null = null;
+  private connectingMarket: Promise<void> | null = null;
+
+  // Per-connection user hubs
+  private userHubs = new Map<string, signalR.HubConnection>(); // connectionId → hub
+  // Guards against concurrent connect() calls for the same connectionId
+  private connectingUsers = new Map<string, Promise<void>>(); // connectionId → in-progress promise
+
+  // Token store used by the market hub's accessTokenFactory at reconnect time
+  private connectionTokens = new Map<string, string>(); // connectionId → token
+  private marketHubOwner: string | null = null;          // which connectionId backs market hub
 
   // Subscription tracking (for re-subscribe on reconnect)
   private subscribedQuotes  = new Map<string, number>(); // contractId → refcount
   private subscribedDepth   = new Map<string, number>(); // contractId → refcount
-  private subscribedAccounts = new Set<string>();
+  private subscribedAccounts = new Set<string>();         // accountIds pending/active subscription
+  private accountToConnection = new Map<string, string>(); // accountId → connectionId (within service)
 
   // Connected frontend WS clients
   private clients = new Set<WebSocket>();
 
   // ── Public connection lifecycle ────────────────────────────────────────────
 
-  async connect(): Promise<void> {
-    if (this.isConnected()) return;
-    if (this.connectingPromise) return this.connectingPromise;
-    this.connectingPromise = this._doConnect();
-    try {
-      await this.connectingPromise;
-    } finally {
-      this.connectingPromise = null;
-    }
-  }
-
-  async disconnect(): Promise<void> {
-    await this.marketHub?.stop();
-    await this.userHub?.stop();
-    this.marketHub = null;
-    this.userHub   = null;
-    this.subscribedQuotes.clear();
-    this.subscribedDepth.clear();
-    this.subscribedAccounts.clear();
-    debugLog.log('realtimeService:disconnected', {});
-  }
+  isRunning(): boolean { return this.isConnected(); }
 
   isConnected(): boolean {
     return this.marketHub?.state === signalR.HubConnectionState.Connected;
+  }
+
+  /**
+   * Start (or join) the shared market hub, then start a dedicated user hub for
+   * this connection. Safe to call for every account — market hub is started only
+   * once, user hub is always per-connection.
+   *
+   * Call `registerConnectionAccounts` BEFORE this so that the user hub's initial
+   * subscription flush routes to the right hub.
+   */
+  async connect(connectionId: string, token: string, rtcBaseUrl: string): Promise<void> {
+    this.connectionTokens.set(connectionId, token);
+
+    // Market hub: start once, stay up as long as any user is connected.
+    // accessTokenFactory reads from connectionTokens[marketHubOwner] at reconnect time,
+    // so it remains valid even after the original owner disconnects.
+    if (!this.isConnected()) {
+      this.marketHubOwner = connectionId;
+      if (this.connectingMarket) {
+        await this.connectingMarket;
+      } else {
+        this.connectingMarket = this._startMarketHub(rtcBaseUrl);
+        try { await this.connectingMarket; } finally { this.connectingMarket = null; }
+      }
+    }
+
+    // User hub: serialize concurrent connect() calls for the same connectionId.
+    // Without this, two simultaneous calls (e.g. two profiles with the same username)
+    // both enter _startUserHub, the second calls stop() on the hub the first just
+    // created (still in Connecting state), causing SignalR to reject the first start().
+    const pending = this.connectingUsers.get(connectionId);
+    if (pending) await pending.catch(() => {});
+
+    const p = this._startUserHub(connectionId, token, rtcBaseUrl);
+    this.connectingUsers.set(connectionId, p);
+    try {
+      await p;
+    } finally {
+      if (this.connectingUsers.get(connectionId) === p) this.connectingUsers.delete(connectionId);
+    }
+  }
+
+  /**
+   * Register which accountIds belong to a connection so subscriptions can be
+   * flushed to the right user hub. Must be called before `connect()` so the
+   * initial hub-start flush routes correctly.
+   */
+  registerConnectionAccounts(connectionId: string, accountIds: string[]): void {
+    for (const aid of accountIds) {
+      this.accountToConnection.set(aid, connectionId);
+    }
+  }
+
+  /**
+   * Disconnect just this account's user hub. The market hub and all other user
+   * hubs stay running. If this was the last account, tears down the market hub too.
+   */
+  async disconnectUser(connectionId: string): Promise<void> {
+    const hub = this.userHubs.get(connectionId);
+    if (hub) {
+      await hub.stop().catch(() => {});
+      this.userHubs.delete(connectionId);
+    }
+    this.connectionTokens.delete(connectionId);
+
+    // Remove account → connection mappings for this user
+    for (const [aid, cid] of this.accountToConnection) {
+      if (cid === connectionId) this.accountToConnection.delete(aid);
+    }
+
+    // If the market hub was backed by this connection's token, hand off to a survivor
+    if (this.marketHubOwner === connectionId) {
+      this.marketHubOwner = [...this.connectionTokens.keys()][0] ?? null;
+      // accessTokenFactory reads marketHubOwner at call time — no rebuild needed
+    }
+
+    // Tear down market hub when no user hubs remain
+    if (this.userHubs.size === 0) {
+      await this.marketHub?.stop().catch(() => {});
+      this.marketHub    = null;
+      this.marketHubOwner = null;
+      this.subscribedQuotes.clear();
+      this.subscribedDepth.clear();
+      this.subscribedAccounts.clear();
+      this.accountToConnection.clear();
+      debugLog.log('realtimeService:disconnected', { reason: 'last user hub gone' });
+    }
+  }
+
+  /** Full teardown — all hubs, all subscriptions. */
+  async disconnect(): Promise<void> {
+    for (const hub of this.userHubs.values()) {
+      await hub.stop().catch(() => {});
+    }
+    this.userHubs.clear();
+    await this.marketHub?.stop().catch(() => {});
+    this.marketHub    = null;
+    this.marketHubOwner = null;
+    this.connectionTokens.clear();
+    this.subscribedQuotes.clear();
+    this.subscribedDepth.clear();
+    this.subscribedAccounts.clear();
+    this.accountToConnection.clear();
+    debugLog.log('realtimeService:disconnected', { reason: 'full teardown' });
   }
 
   // ── Frontend WebSocket client management ──────────────────────────────────
 
   registerClient(ws: WebSocket): void {
     this.clients.add(ws);
-    // Immediately sync hub state to new client
     const marketState = this.marketHub?.state ?? 'disconnected';
-    const userState   = this.userHub?.state   ?? 'disconnected';
     this._sendToClient(ws, { event: 'hubState', hub: 'market', state: this._mapState(marketState) });
-    this._sendToClient(ws, { event: 'hubState', hub: 'user',   state: this._mapState(userState)   });
+    // Report user hub state as connected if any user hub is up
+    const anyUserConnected = [...this.userHubs.values()].some(
+      (h) => h.state === signalR.HubConnectionState.Connected,
+    );
+    this._sendToClient(ws, { event: 'hubState', hub: 'user', state: anyUserConnected ? 'connected' : 'disconnected' });
 
     ws.on('message', (raw) => {
       try {
@@ -154,7 +247,7 @@ class BackendRealtimeService extends EventEmitter {
       case 'unsubscribeQuotes': if (contractId) this.unsubscribeQuotes(contractId); break;
       case 'subscribeDepth':    if (contractId) this.subscribeDepth(contractId);    break;
       case 'unsubscribeDepth':  if (contractId) this.unsubscribeDepth(contractId);  break;
-      case 'subscribeUser':     if (accountId)  this.subscribeUserEvents(accountId);break;
+      case 'subscribeUser':     if (accountId)  this.subscribeUserEvents(accountId); break;
       case 'unsubscribeUser':   if (accountId)  this.unsubscribeUserEvents(accountId); break;
       case 'ping':
         this._sendToClient(ws, { event: 'pong', id: msg['id'] });
@@ -212,14 +305,16 @@ class BackendRealtimeService extends EventEmitter {
 
   subscribeUserEvents(accountId: string): void {
     this.subscribedAccounts.add(accountId);
-    if (this.userHub?.state === signalR.HubConnectionState.Connected) {
-      this._flushUserSubscriptions(accountId);
+    const connectionId = this.accountToConnection.get(accountId);
+    const hub = connectionId ? this.userHubs.get(connectionId) : undefined;
+    if (hub?.state === signalR.HubConnectionState.Connected) {
+      this._flushAccountSubscription(accountId, hub);
     }
   }
 
   unsubscribeUserEvents(accountId: string): void {
     this.subscribedAccounts.delete(accountId);
-    // Note: ProjectX doesn't expose Unsubscribe* for user hub events
+    // ProjectX doesn't expose Unsubscribe* for user hub events
   }
 
   // ── Internal helpers ───────────────────────────────────────────────────────
@@ -245,51 +340,37 @@ class BackendRealtimeService extends EventEmitter {
     return 'disconnected';
   }
 
-  private _flushUserSubscriptions(accountId: string): void {
+  private _flushAccountSubscription(accountId: string, hub: signalR.HubConnection): void {
     const numericId = Number(accountId);
-    this.userHub?.invoke('SubscribeAccounts').catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeAccounts', error: String(e) }));
-    this.userHub?.invoke('SubscribeOrders',    numericId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeOrders', accountId, error: String(e) }));
-    this.userHub?.invoke('SubscribePositions', numericId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribePositions', accountId, error: String(e) }));
-    this.userHub?.invoke('SubscribeTrades',    numericId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeTrades', accountId, error: String(e) }));
+    hub.invoke('SubscribeAccounts').catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeAccounts', error: String(e) }));
+    hub.invoke('SubscribeOrders',    numericId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeOrders',    accountId, error: String(e) }));
+    hub.invoke('SubscribePositions', numericId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribePositions', accountId, error: String(e) }));
+    hub.invoke('SubscribeTrades',    numericId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeTrades',    accountId, error: String(e) }));
   }
 
-  // ── SignalR connection setup ───────────────────────────────────────────────
+  // ── SignalR: market hub ────────────────────────────────────────────────────
 
-  private async _doConnect(): Promise<void> {
-    const rtcBase = getRtcBaseUrl();
-
+  private async _startMarketHub(rtcBaseUrl: string): Promise<void> {
     this.marketHub = new signalR.HubConnectionBuilder()
-      .withUrl(`${rtcBase}/hubs/market`, {
-        accessTokenFactory: () => getToken() ?? '',
+      .withUrl(`${rtcBaseUrl}/hubs/market`, {
+        // Reads the current owner's token at every (re)connect, surviving ownership hand-off
+        accessTokenFactory: () =>
+          (this.marketHubOwner ? this.connectionTokens.get(this.marketHubOwner) : null) ?? '',
         skipNegotiation: true,
         transport: signalR.HttpTransportType.WebSockets,
       })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build();
-
-    this.userHub = new signalR.HubConnectionBuilder()
-      .withUrl(`${rtcBase}/hubs/user`, {
-        accessTokenFactory: () => getToken() ?? '',
-        skipNegotiation: true,
-        transport: signalR.HttpTransportType.WebSockets,
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build();
-
-    // ── Market hub event handlers ──────────────────────────────────────────
 
     this.marketHub.on('GatewayQuote', (contractId: string, data: unknown) => {
-      const payload = { event: 'GatewayQuote', contractId, data };
-      this._broadcast(payload);
+      this._broadcast({ event: 'GatewayQuote', contractId, data });
       this.emit('quote', contractId, data);
     });
 
     this.marketHub.on('GatewayTrade', (contractId: string, trades: unknown) => {
       const arr = Array.isArray(trades) ? trades : [trades];
-      const payload = { event: 'GatewayTrade', contractId, data: arr };
-      this._broadcast(payload);
+      this._broadcast({ event: 'GatewayTrade', contractId, data: arr });
       this.emit('tick', contractId, arr);
     });
 
@@ -299,14 +380,9 @@ class BackendRealtimeService extends EventEmitter {
       this.emit('depth', contractId, arr);
     });
 
-    // ProjectX sends this when it forces a session disconnect (e.g. another client logged in).
-    // Register a handler on both hubs so SignalR doesn't warn about unknown method.
-    // withAutomaticReconnect() handles the reconnect automatically after the timeout drop.
     this.marketHub.on('gatewaylogout', () => {
       debugLog.log('realtimeService:gatewaylogout', { hub: 'market' });
     });
-
-    // ── Market hub lifecycle ───────────────────────────────────────────────
 
     this.marketHub.onreconnecting(() => {
       this._broadcast({ event: 'hubState', hub: 'market', state: 'reconnecting' });
@@ -328,22 +404,67 @@ class BackendRealtimeService extends EventEmitter {
       debugLog.log('realtimeService:market:closed', {});
     });
 
-    // ── User hub event handlers ────────────────────────────────────────────
+    await this.marketHub.start();
+    this._broadcast({ event: 'hubState', hub: 'market', state: 'connected' });
 
-    this.userHub.on('GatewayUserOrder', (...args: unknown[]) => {
+    // Flush any pre-subscribed contracts
+    for (const contractId of this.subscribedQuotes.keys()) {
+      this.marketHub.invoke('SubscribeContractQuotes', contractId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeContractQuotes', contractId, error: String(e) }));
+      this.marketHub.invoke('SubscribeContractTrades', contractId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeContractTrades', contractId, error: String(e) }));
+    }
+    for (const contractId of this.subscribedDepth.keys()) {
+      this.marketHub.invoke('SubscribeContractMarketDepth', contractId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeContractMarketDepth', contractId, error: String(e) }));
+    }
+
+    debugLog.log('realtimeService:market:connected', { rtcBaseUrl });
+  }
+
+  // ── SignalR: user hub (one per connection) ─────────────────────────────────
+
+  private async _startUserHub(connectionId: string, token: string, rtcBaseUrl: string): Promise<void> {
+    // Stop any existing hub for this connection
+    const existing = this.userHubs.get(connectionId);
+    if (existing) {
+      await existing.stop().catch(() => {});
+      this.userHubs.delete(connectionId);
+    }
+
+    const hub = new signalR.HubConnectionBuilder()
+      .withUrl(`${rtcBaseUrl}/hubs/user`, {
+        accessTokenFactory: () => token,
+        skipNegotiation: true,
+        transport: signalR.HttpTransportType.WebSockets,
+      })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    this._wireUserHubEvents(hub, connectionId);
+    this.userHubs.set(connectionId, hub);
+    await hub.start();
+    this._broadcast({ event: 'hubState', hub: 'user', state: 'connected' });
+
+    // Flush pending subscriptions for accounts belonging to this connection
+    for (const accountId of this.subscribedAccounts) {
+      if (this.accountToConnection.get(accountId) === connectionId) {
+        this._flushAccountSubscription(accountId, hub);
+      }
+    }
+
+    debugLog.log('realtimeService:user:connected', { connectionId, rtcBaseUrl });
+  }
+
+  private _wireUserHubEvents(hub: signalR.HubConnection, connectionId: string): void {
+    hub.on('GatewayUserOrder', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeOrder>(args)) {
         const data = item.data;
-        const order: RealtimeOrder = {
-          ...data,
-          id:        String(data.id),
-          accountId: String(data.accountId),
-        };
+        const order: RealtimeOrder = { ...data, id: String(data.id), accountId: String(data.accountId) };
         this._broadcast({ event: 'GatewayUserOrder', action: item.action, data: order });
         this.emit('order', order, item.action);
       }
     });
 
-    this.userHub.on('GatewayUserPosition', (...args: unknown[]) => {
+    hub.on('GatewayUserPosition', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimePosition>(args)) {
         const data = item.data;
         const pos: RealtimePosition = { ...data, id: String(data.id), accountId: String(data.accountId) };
@@ -352,7 +473,7 @@ class BackendRealtimeService extends EventEmitter {
       }
     });
 
-    this.userHub.on('GatewayUserAccount', (...args: unknown[]) => {
+    hub.on('GatewayUserAccount', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeAccount>(args)) {
         const data = item.data;
         const acct: RealtimeAccount = { ...data, id: String(data.id) };
@@ -361,7 +482,7 @@ class BackendRealtimeService extends EventEmitter {
       }
     });
 
-    this.userHub.on('GatewayUserTrade', (...args: unknown[]) => {
+    hub.on('GatewayUserTrade', (...args: unknown[]) => {
       for (const item of normalizeUserHubArgs<RealtimeTrade>(args)) {
         const data = item.data;
         const trade: RealtimeTrade = {
@@ -375,49 +496,36 @@ class BackendRealtimeService extends EventEmitter {
       }
     });
 
-    this.userHub.on('gatewaylogout', () => {
-      debugLog.log('realtimeService:gatewaylogout', { hub: 'user' });
+    hub.on('gatewaylogout', () => {
+      debugLog.log('realtimeService:gatewaylogout', { hub: 'user', connectionId });
     });
 
-    // ── User hub lifecycle ─────────────────────────────────────────────────
-
-    this.userHub.onreconnecting(() => {
+    hub.onreconnecting(() => {
       this._broadcast({ event: 'hubState', hub: 'user', state: 'reconnecting' });
-      debugLog.log('realtimeService:user:reconnecting', {});
+      debugLog.log('realtimeService:user:reconnecting', { connectionId });
     });
-    this.userHub.onreconnected(() => {
+
+    hub.onreconnected(() => {
+      // Re-subscribe only this connection's accounts
       for (const accountId of this.subscribedAccounts) {
-        this._flushUserSubscriptions(accountId);
+        if (this.accountToConnection.get(accountId) === connectionId) {
+          this._flushAccountSubscription(accountId, hub);
+        }
       }
       this._broadcast({ event: 'hubState', hub: 'user', state: 'connected' });
-      debugLog.log('realtimeService:user:reconnected', {});
-    });
-    this.userHub.onclose(() => {
-      this._broadcast({ event: 'hubState', hub: 'user', state: 'disconnected' });
-      debugLog.log('realtimeService:user:closed', {});
+      debugLog.log('realtimeService:user:reconnected', { connectionId });
     });
 
-    // ── Start both hubs ────────────────────────────────────────────────────
-
-    await this.marketHub.start();
-    await this.userHub.start();
-
-    this._broadcast({ event: 'hubState', hub: 'market', state: 'connected' });
-    this._broadcast({ event: 'hubState', hub: 'user',   state: 'connected' });
-
-    // Flush any subscriptions that were requested before connection
-    for (const contractId of this.subscribedQuotes.keys()) {
-      this.marketHub.invoke('SubscribeContractQuotes', contractId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeContractQuotes', contractId, error: String(e) }));
-      this.marketHub.invoke('SubscribeContractTrades', contractId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeContractTrades', contractId, error: String(e) }));
-    }
-    for (const contractId of this.subscribedDepth.keys()) {
-      this.marketHub.invoke('SubscribeContractMarketDepth', contractId).catch((e) => debugLog.log('realtimeService:invokeError', { method: 'SubscribeContractMarketDepth', contractId, error: String(e) }));
-    }
-    for (const accountId of this.subscribedAccounts) {
-      this._flushUserSubscriptions(accountId);
-    }
-
-    debugLog.log('realtimeService:connected', { rtcBase });
+    hub.onclose(() => {
+      // Only broadcast "disconnected" when ALL user hubs are gone
+      const anyUp = [...this.userHubs.values()].some(
+        (h) => h !== hub && h.state === signalR.HubConnectionState.Connected,
+      );
+      if (!anyUp) {
+        this._broadcast({ event: 'hubState', hub: 'user', state: 'disconnected' });
+      }
+      debugLog.log('realtimeService:user:closed', { connectionId });
+    });
   }
 }
 

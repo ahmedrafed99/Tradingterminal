@@ -26,14 +26,17 @@ export function getPriceLimitConfig(contractId: string): { limitPct: number; buf
 }
 
 /**
- * Derives settlement price = close of the last bar from the PREVIOUS session.
- * Uses getCurrentSessionStartSec() (18:00 ET) as the session boundary.
- * Returns null if bar history doesn't reach the previous session.
+ * Derives settlement price ≈ close of the last bar from the PREVIOUS regular session.
+ * CME equity settlement is at 15:15 CT (= 16:15 ET). We use a cutoff of 16:00 ET
+ * (sessionStart − 2h) so extended-trading bars (16:15–17:00 ET) are excluded and
+ * we get the price closest to the official settlement without overshooting into
+ * post-settlement extended moves.
  */
 export function deriveSettlementPrice(bars: Bar[]): number | null {
   const sessionStartMs = getCurrentSessionStartSec() * 1000;
+  const cutoffMs = sessionStartMs - 2 * 60 * 60 * 1000; // 18:00 ET − 2h = 16:00 ET
   for (let i = bars.length - 1; i >= 0; i--) {
-    if (new Date(bars[i].t).getTime() < sessionStartMs) return bars[i].c;
+    if (new Date(bars[i].t).getTime() < cutoffMs) return bars[i].c;
   }
   return null;
 }

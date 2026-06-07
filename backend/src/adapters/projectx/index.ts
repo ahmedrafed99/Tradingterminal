@@ -1,20 +1,21 @@
 import type { ExchangeAdapter } from '../types';
-import { projectXAuth } from './auth';
-import { projectXAccounts } from './accounts';
-import { projectXMarketData } from './marketData';
-import { projectXOrders } from './orders';
-import { projectXPositions } from './positions';
-import { projectXTrades } from './trades';
+import { createProjectXAuth } from './auth';
+import { createProjectXAccounts } from './accounts';
+import { createProjectXMarketData } from './marketData';
+import { createProjectXOrders } from './orders';
+import { createProjectXPositions } from './positions';
+import { createProjectXTrades } from './trades';
 
 export function createProjectXAdapter(): ExchangeAdapter {
+  const { auth, helpers } = createProjectXAuth();
   return {
     name: 'projectx',
-    auth: projectXAuth,
-    accounts: projectXAccounts,
-    marketData: projectXMarketData,
-    orders: projectXOrders,
-    positions: projectXPositions,
-    trades: projectXTrades,
-    // realtime is now managed by realtimeService.ts (sole SignalR connection)
+    auth,
+    accounts:   createProjectXAccounts(helpers),
+    marketData: createProjectXMarketData(helpers),
+    orders:     createProjectXOrders(helpers),
+    positions:  createProjectXPositions(helpers),
+    trades:     createProjectXTrades(helpers),
+    // realtime is managed by realtimeService.ts (sole SignalR connection)
   };
 }

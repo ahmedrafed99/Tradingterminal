@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import axios from 'axios';
 import { validateBody } from '../validate';
-import { withConnection } from '../middleware/withConnection';
-import { getToken, authHeaders, getUserId, getUserApiBaseUrl } from '../adapters/projectx/auth';
+import { withConnection, resolveAdapter } from '../middleware/withConnection';
 
 const router = Router();
 
@@ -14,17 +13,21 @@ const AddLockoutSchema = z.object({
 
 // GET /lockout/active/:accountId — fetch active personal lockouts for an account
 router.get('/active/:accountId', withConnection(async (req, res) => {
-  const token = getToken();
+  const accountId = req.params['accountId'];
+  // Route via accountId so multi-account works correctly
+  req.body = { ...(req.body ?? {}), accountId };
+  const auth = resolveAdapter(req).auth;
+  const token = auth.getRealtimeCredentials?.()?.token;
   if (!token) { res.status(401).json({ success: false, errorMessage: 'Not connected' }); return; }
 
-  const accountId = req.params['accountId'];
-  const userApiBase = getUserApiBaseUrl();
+  const userApiBase = auth.getUserApiBaseUrl?.();
+  if (!userApiBase) { res.status(500).json({ success: false, errorMessage: 'userApiBase unavailable' }); return; }
+
   const response = await axios.get(
     `${userApiBase}/PersonalLockout/active/${accountId}`,
-    { headers: authHeaders() },
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' } },
   );
 
-  // Array of active lockout objects; each has expiresAt
   const lockouts: { expiresAt: string }[] = Array.isArray(response.data) ? response.data : [];
   const active = lockouts
     .map((l) => ({ expiresAt: l.expiresAt, expiryMs: new Date(l.expiresAt).getTime() }))
@@ -41,13 +44,19 @@ router.post('/add', withConnection(async (req, res) => {
     return;
   }
 
-  const token = getToken();
+  // tradingAccountId is used to route to the correct connection
+  const body = req.body as { tradingAccountId?: string | number };
+  if (body.tradingAccountId) {
+    req.body = { ...req.body, accountId: String(body.tradingAccountId) };
+  }
+  const auth = resolveAdapter(req).auth;
+  const token = auth.getRealtimeCredentials?.()?.token;
   if (!token) {
     res.status(401).json({ success: false, errorMessage: 'Not connected to ProjectX' });
     return;
   }
 
-  const userId = getUserId();
+  const userId = auth.getUserId?.();
   if (!userId) {
     res.status(500).json({ success: false, errorMessage: 'userId not available — reconnect and try again' });
     return;
@@ -64,11 +73,16 @@ router.post('/add', withConnection(async (req, res) => {
     expiresAt,
   }];
 
-  const userApiBase = getUserApiBaseUrl();
+  const userApiBase = auth.getUserApiBaseUrl?.();
+  if (!userApiBase) {
+    res.status(500).json({ success: false, errorMessage: 'userApiBase unavailable' });
+    return;
+  }
+
   const response = await axios.post(
     `${userApiBase}/PersonalLockout/add`,
     payload,
-    { headers: authHeaders() },
+    { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', Accept: 'application/json' } },
   );
 
   res.json(response.data);
