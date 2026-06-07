@@ -434,6 +434,18 @@ export function useChartBars(
         }
 
         const sorted = sortBarsAscending(bars);
+        const countBeforeDedup = sorted.length;
+
+        // Floor daily bar timestamps to midnight UTC — primary API returns 05:00 UTC
+        // (midnight ET), chartapi returns 00:00 UTC; normalizing here makes both share
+        // the same second so the dedup below collapses same-day bars from either source.
+        if (timeframe.unit === 4) {
+          for (let i = 0; i < sorted.length; i++) {
+            const ms = new Date(sorted[i].t).getTime();
+            const floored = Math.floor(ms / 86_400_000) * 86_400_000;
+            if (floored !== ms) sorted[i] = { ...sorted[i], t: new Date(floored).toISOString() };
+          }
+        }
 
         // LWC uses integer second timestamps. For tick bars, sub-second collisions are
         // common so we bump duplicates by 1s. For all other timeframes (including daily),
@@ -454,6 +466,12 @@ export function useChartBars(
             bySecond.set(Math.floor(new Date(bar.t).getTime() / 1000), bar);
           }
           if (bySecond.size < sorted.length) {
+            debugLog.log('load-bars-dedup', {
+              before: sorted.length,
+              after: bySecond.size,
+              dropped: sorted.length - bySecond.size,
+              tf: `${timeframe.unitNumber}${['','s','m','h','d','w','mo','tick'][timeframe.unit] ?? '?'}`,
+            });
             sorted.length = 0;
             bySecond.forEach((bar) => sorted.push(bar));
           }
@@ -474,6 +492,17 @@ export function useChartBars(
           refs.whitespaceSeries.current.setData(generateWhitespace(lastTime, periodSec, wsCount, wsFilter));
         }
 
+        debugLog.log('load-bars-setData', {
+          tf: `${timeframe.unitNumber}${['','s','m','h','d','w','mo','tick'][timeframe.unit] ?? '?'}`,
+          count: candles.length,
+          firstTime: candles[0]?.time,
+          lastTime: candles[candles.length - 1]?.time,
+          firstISO: candles[0] ? new Date((candles[0].time as number) * 1000).toISOString() : null,
+          lastISO: candles[candles.length - 1] ? new Date(((candles[candles.length - 1].time) as number) * 1000).toISOString() : null,
+          dedupFired: sorted.length < countBeforeDedup,
+          rawCount: bars.length,
+        });
+
         series.setData(candles);
         earliestLoadedTimeRef.current = sorted.length > 0 ? sorted[0].t : null;
         refs.lastBar.current = candles.length > 0 ? candles[candles.length - 1] : null;
@@ -492,6 +521,14 @@ export function useChartBars(
         // fetch the partial bar explicitly so there's no gap at the right edge on load.
         // Not applicable for tick bars — their bars close on tick count, not time.
         const currentPeriodStart = periodSec > 0 ? floorToCandlePeriod(Date.now() / 1000, periodSec) : Infinity;
+        debugLog.log('load-bars-topup-check', {
+          periodSec,
+          lastBarTime: refs.lastBar.current?.time,
+          lastBarISO: refs.lastBar.current ? new Date((refs.lastBar.current.time as number) * 1000).toISOString() : null,
+          currentPeriodStart,
+          currentPeriodISO: currentPeriodStart !== Infinity ? new Date(currentPeriodStart * 1000).toISOString() : null,
+          topupWillFire: periodSec > 0 && !!refs.lastBar.current && (refs.lastBar.current.time as number) < currentPeriodStart,
+        });
         if (periodSec > 0 && refs.lastBar.current && (refs.lastBar.current.time as number) < currentPeriodStart) {
           try {
             const partialBars = await marketDataService.retrieveBars({
@@ -504,10 +541,27 @@ export function useChartBars(
               limit: 5,
               includePartialBar: true,
             });
+            debugLog.log('load-bars-topup-result', {
+              fetched: partialBars.length,
+              bars: partialBars.map(b => ({ t: b.t, tSec: Math.floor(new Date(b.t).getTime() / 1000) })),
+            });
             if (!cancelled && partialBars.length > 0) {
               const partialSorted = sortBarsAscending(partialBars);
+              if (timeframe.unit === 4) {
+                for (let i = 0; i < partialSorted.length; i++) {
+                  const ms = new Date(partialSorted[i].t).getTime();
+                  const floored = Math.floor(ms / 86_400_000) * 86_400_000;
+                  if (floored !== ms) partialSorted[i] = { ...partialSorted[i], t: new Date(floored).toISOString() };
+                }
+              }
               const partialCandles = partialSorted.map(barToCandle);
               for (let i = 0; i < partialCandles.length; i++) {
+                const alreadyInSeries = candles.some(c => c.time === partialCandles[i].time);
+                debugLog.log('load-bars-topup-update', {
+                  time: partialCandles[i].time,
+                  iso: new Date((partialCandles[i].time as number) * 1000).toISOString(),
+                  alreadyInMainFetch: alreadyInSeries,
+                });
                 series.update(partialCandles[i]);
                 refs.bars.current.push(partialSorted[i]);
                 refs.dataMap.current.set(partialCandles[i].time as number, partialCandles[i].close);

@@ -5,7 +5,7 @@ import type { Timeframe } from '../../store/useStore';
 /** Convert API Bar to Lightweight Charts CandlestickData */
 export function barToCandle(bar: Bar): CandlestickData<UTCTimestamp> {
   return {
-    time: (new Date(bar.t).getTime() / 1000) as UTCTimestamp,
+    time: Math.floor(new Date(bar.t).getTime() / 1000) as UTCTimestamp,
     open: bar.o,
     high: bar.h,
     low: bar.l,

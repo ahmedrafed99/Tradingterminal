@@ -169,6 +169,7 @@ export function createProjectXMarketData(h: ProjectXHelpers): ExchangeMarketData
 
   return {
     async retrieveBars(params) {
+      debugLog.log('bars:retrieveBars-entry', { unit: params['unit'], contractId: params['contractId'] });
       const unit       = params['unit'] as number;
       const unitNumber = params['unitNumber'] as number;
       const startTime  = params['startTime'] as string;
@@ -212,8 +213,18 @@ export function createProjectXMarketData(h: ProjectXHelpers): ExchangeMarketData
         );
         const data = response.data as { success: boolean; bars?: NormalizedBar[]; errorMessage?: string };
         if (data.success !== false) {
-          primaryBars = data.bars ?? [];
-          primaryRaw  = data;
+          let bars = data.bars ?? [];
+          // Primary API uses session-open time (05:00 UTC = midnight ET for CME daily bars).
+          // chartapi uses midnight UTC. Floor to day boundary so both sources share one convention.
+          if (unit === 4) {
+            debugLog.log('bars:normalize-daily', { count: bars.length, sample: bars.slice(0, 2).map(b => b.t) });
+            bars = bars.map(b => ({
+              ...b,
+              t: new Date(Math.floor(new Date(b.t).getTime() / 86_400_000) * 86_400_000).toISOString(),
+            }));
+          }
+          primaryBars = bars;
+          primaryRaw  = { ...data, bars };
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
