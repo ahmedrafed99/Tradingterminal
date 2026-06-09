@@ -68,7 +68,7 @@ export function onMouseUp(e: MouseEvent, ctx: DrawingContext): void {
     state.drawingDragOccurred = false;
     state.drawingJustSelected = false;
     container.style.cursor = CROSSHAIR_CURSOR;
-    chart.applyOptions({ handleScroll: true, handleScale: true, crosshair: { horzLine: { labelVisible: true } } });
+    chart.applyOptions({ handleScroll: true, handleScale: true, crosshair: { horzLine: { labelVisible: false } } });
     return;
   }
 
