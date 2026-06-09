@@ -273,6 +273,8 @@ export function SettingsModal() {
                             <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>Username</span>
                             <input
                               type="text"
+                              name="username"
+                              autoComplete="username"
                               value={newUserName}
                               onChange={(e) => setNewUserName(e.target.value)}
                               disabled={adding}
@@ -285,6 +287,8 @@ export function SettingsModal() {
                             <span className="block text-xs text-(--color-text-medium)" style={{ marginBottom: 6 }}>API Key</span>
                             <input
                               type="password"
+                              name="password"
+                              autoComplete="current-password"
                               value={newApiKey}
                               onChange={(e) => setNewApiKey(e.target.value)}
                               disabled={adding}
