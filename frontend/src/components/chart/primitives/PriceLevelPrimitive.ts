@@ -821,7 +821,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._dragCellKey = null;
     this._removeWindowListeners();
     if (wasActive) {
-      this._chart?.applyOptions({ crosshair: { horzLine: { labelVisible: true } } });
+      this._chart?.applyOptions({ crosshair: { horzLine: { labelVisible: false } } });
       this._coordinator?.setDraggingLabel(null);
       this._syncCoordinator();
       this._onDragEnd?.(this._price);
