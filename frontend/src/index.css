@@ -155,3 +155,8 @@ body {
 .chart-loading-dot {
   animation: chart-dot-wave 1.2s ease-in-out infinite;
 }
+
+/* Stats calendar day cell hover underline */
+.stats-day-cell:hover {
+  box-shadow: inset 0 -2px 0 var(--cell-accent);
+}

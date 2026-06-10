@@ -6,9 +6,8 @@ const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 function cellBg(net: number, maxAbs: number): string {
   if (net === 0 || maxAbs === 0) return 'transparent';
-  // Square root scale so small values are still visible
   const ratio = Math.min(Math.abs(net) / maxAbs, 1);
-  const intensity = Math.sqrt(ratio) * 0.55 + 0.15;
+  const intensity = Math.sqrt(ratio) * 0.18 + 0.05;
   return net > 0
     ? hexToRgba(COLOR_HEAT_GREEN, intensity)
     : hexToRgba(COLOR_HEAT_RED, intensity);
@@ -99,7 +98,7 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
                 return (
                   <div
                     key={dow}
-                    className="text-center transition-colors"
+                    className={`text-center transition-colors${dayData ? ' stats-day-cell' : ''}`}
                     title={dayData ? `${dayData.date} · ${dayData.tradeCount} ${dayData.tradeCount === 1 ? 'trade' : 'trades'} · Net: ${dayData.net > 0 ? '+' : dayData.net < 0 ? '-' : ''}$${Math.abs(dayData.net).toFixed(2)}` : undefined}
                     onClick={dayData && onDayClick ? () => onDayClick(dayData.date) : undefined}
                     style={{
@@ -107,12 +106,13 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
                       background: dayData ? cellBg(dayData.net, maxAbs) : 'transparent',
                       borderLeft: '1px solid var(--color-border)',
                       cursor: dayData && onDayClick ? 'pointer' : undefined,
+                      ['--cell-accent' as string]: dayData ? hexToRgba(dayData.net > 0 ? COLOR_HEAT_GREEN : COLOR_HEAT_RED, 0.7) : undefined,
                     }}
                   >
                     {dayData ? (
                       <>
                         <div
-                          className="font-semibold"
+                          className=""
                           style={{ fontSize: 20, color: pnlColor(dayData.net), fontFeatureSettings: '"tnum"', lineHeight: 1.2 }}
                         >
                           {dayData.net > 0 ? '+' : dayData.net < 0 ? '-' : ''}${Math.abs(dayData.net).toFixed(2)}
@@ -129,14 +129,13 @@ export function StatsCalendarGrid({ dailyData, onDayClick }: { dailyData: DayPnl
               })}
 
               <div
-                className="flex flex-col items-center justify-center"
+                className="flex flex-col items-center justify-start"
                 style={{
                   padding: '22px 10px',
                   borderLeft: '1px solid var(--color-border)',
                 }}
               >
                 <div
-                  className="font-semibold"
                   style={{ fontSize: 20, color: pnlColor(weekTotal), fontFeatureSettings: '"tnum"' }}
                 >
                   {weekTotal > 0 ? '+' : weekTotal < 0 ? '-' : ''}${Math.abs(weekTotal).toFixed(2)}
