@@ -20,14 +20,18 @@ import { contrastText } from './hooks/labelUtils';
 class PriceLabelAxisView implements ISeriesPrimitiveAxisView {
   _coordinate = 0;
   _text = '';
+  _timerOffset = 0;
 
-  update(coordinate: number, text: string): void {
+  update(coordinate: number, text: string, timerOffset = 0): void {
     this._coordinate = coordinate;
     this._text = text;
+    this._timerOffset = timerOffset;
   }
 
   coordinate(): number { return -10000; }
-  fixedCoordinate(): number { return this._coordinate; }
+  // Report the geometric center of the label so LWC's crosshair avoidance
+  // accounts for the asymmetric timer row that grows downward from the price.
+  fixedCoordinate(): number { return this._coordinate + this._timerOffset; }
   text(): string { return this._text; }
   textColor(): string { return COLOR_BG; }
   backColor(): string { return '#ffffff'; }
@@ -41,7 +45,7 @@ class PriceLabelAxisView implements ISeriesPrimitiveAxisView {
 // ---------------------------------------------------------------------------
 const FONT_NORMAL = `12px ${FONT_FAMILY}`;
 const PRICE_ROW_H = 20;
-const TIMER_ROW_H = 16;
+export const TIMER_ROW_H = 16;
 /** Half-height of the tallest countdown badge (price row + timer row). Used by axis stacking. */
 export const COUNTDOWN_BADGE_HALF_H = (PRICE_ROW_H + TIMER_ROW_H) / 2;
 
@@ -63,11 +67,14 @@ class CountdownAxisRenderer implements IPrimitivePaneRenderer {
   draw(target: CanvasRenderingTarget2D): void {
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
       const hasTimer = this._countdownText !== '';
+      // Snap to integer pixels so the rectangle and both text rows share the
+      // same pixel grid — prevents countdown text from appearing to lag.
+      const y = Math.round(this._y);
+      const priceTop = y - PRICE_ROW_H / 2;
       const totalH = hasTimer ? PRICE_ROW_H + TIMER_ROW_H : PRICE_ROW_H;
-      const top = this._y - totalH / 2;
 
       ctx.fillStyle = this._bgColor;
-      ctx.fillRect(0, top, mediaSize.width, totalH);
+      ctx.fillRect(0, priceTop, mediaSize.width, totalH);
 
       ctx.fillStyle = this._textColor;
       ctx.textAlign = 'center';
@@ -75,11 +82,10 @@ class CountdownAxisRenderer implements IPrimitivePaneRenderer {
       const cx = mediaSize.width / 2;
 
       ctx.font = FONT_NORMAL;
-      ctx.fillText(this._priceText, cx, top + PRICE_ROW_H / 2);
+      ctx.fillText(this._priceText, cx, y);
 
       if (hasTimer) {
-        ctx.font = FONT_NORMAL;
-        ctx.fillText(this._countdownText, cx, top + PRICE_ROW_H + TIMER_ROW_H / 2);
+        ctx.fillText(this._countdownText, cx, priceTop + PRICE_ROW_H + TIMER_ROW_H / 2);
       }
     });
   }
@@ -197,6 +203,11 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     this._requestUpdate?.();
   }
 
+  /** Offset from price coordinate to geometric label center. 0 when timer is hidden. */
+  getTimerOffset(): number {
+    return this._countdownText !== '' ? TIMER_ROW_H / 2 : 0;
+  }
+
   // -- ISeriesPrimitive rendering --
 
   priceAxisPaneViews(): readonly IPrimitivePaneView[] {
@@ -215,7 +226,7 @@ export class CountdownPrimitive implements ISeriesPrimitive<Time> {
     const yCoord = this._series.priceToCoordinate(this._price);
     if (yCoord === null) return this._emptyAxisViews;
 
-    this._axisView.update(yCoord as number, this._priceText);
+    this._axisView.update(yCoord as number, this._priceText, this.getTimerOffset());
     return this._axisViewsArr;
   }
 

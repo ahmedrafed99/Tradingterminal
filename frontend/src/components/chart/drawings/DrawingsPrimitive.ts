@@ -19,7 +19,7 @@ import { FONT_FAMILY } from '../../../constants/layout';
 import { contrastText } from '../hooks/labelUtils';
 import { debugLog } from '../../../utils/debugLog';
 import { stackAxisLabels } from '../utils/stackAxisLabels';
-import { COUNTDOWN_BADGE_HALF_H } from '../CountdownPrimitive';
+import { COUNTDOWN_BADGE_HALF_H, TIMER_ROW_H } from '../CountdownPrimitive';
 import { PRICE_AXIS_LABEL_H, PRICE_SCALE_FONT_SIZE } from '../chartTheme';
 import { HLinePaneView } from './HLineRenderer';
 import { OvalPaneView } from './OvalRenderer';
@@ -879,6 +879,8 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   private _selectedHLineAxisY: number | null = null;
   /** Current price from the countdown label — drawing labels avoid this zone */
   private _countdownPrice: number | null = null;
+  /** Offset from price coordinate to geometric label center (0 when no timer row) */
+  private _countdownTimerOffset = 0;
   /** External axis labels registered by order-line primitives */
   private _externalLabels = new Map<string, { price: number; color: string; text: string; textColor: string }>();
   /** ID of the external label currently being dragged — rendered elevated, excluded from stacking */
@@ -914,8 +916,9 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
   }
 
   /** Feed current price so drawing labels can avoid the countdown label zone */
-  setCountdownPrice(price: number | null): void {
+  setCountdownPrice(price: number | null, timerOffset = 0): void {
     this._countdownPrice = price;
+    this._countdownTimerOffset = timerOffset;
   }
 
   registerAxisLabel(id: string, price: number, color: string, text: string, textColor: string): void {
@@ -1253,11 +1256,12 @@ export class DrawingsPrimitive implements ISeriesPrimitive<Time> {
       items.push({ y, text: label.text, color: label.color, selected: false, textColor: label.textColor, isExternal: true });
     }
 
-    const countdownY = this._countdownPrice !== null
+    const rawCountdownY = this._countdownPrice !== null
       ? this._series.priceToCoordinate(this._countdownPrice)
       : null;
+    const countdownY = rawCountdownY !== null ? (rawCountdownY as number) + this._countdownTimerOffset : null;
     const countdownZone = COUNTDOWN_BADGE_HALF_H + PRICE_AXIS_LABEL_H / 2;
-    stackAxisLabels(items, countdownY as number | null, PRICE_AXIS_LABEL_H, countdownZone);
+    stackAxisLabels(items, countdownY, PRICE_AXIS_LABEL_H, countdownZone);
 
     // Grow pool to fit all items
     while (this._priceAxisViewPool.length < items.length) {

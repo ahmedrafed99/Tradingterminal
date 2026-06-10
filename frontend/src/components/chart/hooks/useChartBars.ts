@@ -151,7 +151,7 @@ export function useChartBars(
       refs.drawingsPrimitive.current?.setBarsRef(bars);
       refs.countdown.current?.updatePrice(last.close, false);
       refs.countdown.current?.setOpen(last.open);
-      refs.drawingsPrimitive.current?.setCountdownPrice(last.close);
+      refs.drawingsPrimitive.current?.setCountdownPrice(last.close, refs.countdown.current?.getTimerOffset() ?? 0);
 
       // Initial window: only the most recent VIEWPORT_BARS go into LWC.
       windowStartIdx = Math.max(0, accumulated.length - VIEWPORT_BARS);
@@ -807,7 +807,7 @@ export function useChartBars(
       if (pendingPrice != null) {
         refs.countdown.current?.updatePrice(pendingPrice, true);
         if (pendingBar) refs.countdown.current?.setOpen(pendingBar.open);
-        refs.drawingsPrimitive.current?.setCountdownPrice(pendingPrice);
+        refs.drawingsPrimitive.current?.setCountdownPrice(pendingPrice, refs.countdown.current?.getTimerOffset() ?? 0);
       }
       pendingBar = null;
       pendingPrice = null;
@@ -995,7 +995,7 @@ export function useChartBars(
 
           refs.countdown.current?.updatePrice(tick.price, true);
           if (refs.lastBar.current) refs.countdown.current?.setOpen(refs.lastBar.current.open);
-          refs.drawingsPrimitive.current?.setCountdownPrice(tick.price);
+          refs.drawingsPrimitive.current?.setCountdownPrice(tick.price, refs.countdown.current?.getTimerOffset() ?? 0);
         }
         return;
       }
