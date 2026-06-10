@@ -42,3 +42,46 @@ Standardizes: padding (sm/md/lg), font-size `text-xs`, `rounded`, `transition-co
 | `BuySellButtons` | Button (primary) |
 | `ConditionModal` | Button (primary, ghost) |
 | `BracketSettingsModal` | Button (primary, ghost) |
+
+---
+
+## useChartBars Split
+
+`useChartBars.ts` is 1183 lines across 7 concerns. Target: 4 focused hooks + a thin coordinator.
+
+### Phase 1 — Bug fixes ✅
+1. Added `if (cancelled) return;` after the partial-bar try/catch — prevents post-unmount state mutations and a subscription leak.
+2. Rebuilt `dataMap` from `refs.bars.current` using `barToCandle()` instead of `candles` — partial bars now included in crosshair sync.
+
+### Phase 2 — Pure moves ✅
+
+| New file | Responsibility | Source lines |
+|---|---|---|
+| `useHistoricalBars.ts` | Backtest streaming + live load + cache + load-more + aggregation | 90–622 |
+| `useRealtimeQuotes.ts` | Quotes + ticks + visibility backfill | 624–978 |
+| `useMarketDepth.ts` | Depth subscription + DOM settings + hover | 980–1136 |
+| `useChartInteraction.ts` | Dblclick chart-settings opener | 1138–1180 |
+| `useChartBars.ts` | Thin coordinator | ~20 lines |
+
+**Shared state** — coordinator owns, passes as args:
+- `tradeAnchorMapRef` — written on load (historical), updated per tick (realtime)
+- `ticksRemainingRef` — set on load (historical), decremented per tick (realtime)
+
+Everything else owns cleanly: load-more refs + cache → `useHistoricalBars`; `domContractIdRef` → `useMarketDepth`; effect-local lets (`pendingBar`, `quoteRafId`, etc.) stay inside `useRealtimeQuotes`.
+
+**Invariant:** hook call order in coordinator must match today's effect order — `useHistoricalBars` → `useRealtimeQuotes` → `useMarketDepth` → `useChartInteraction`. React fires effects in hook declaration order; reordering is an invisible behavior change.
+
+**Do not split `useRealtimeQuotes` internally** — `handleQuote`, `flushQuote`, `triggerBackfill`, etc. share effect-local state. Splitting would force those into refs for no clarity gain.
+
+### Phase 3 — Optional (separate PR)
+- Consolidate the 6 DOM micro-effects in `useMarketDepth` into one.
+- `useHistoricalBars` will still be ~530 lines — candidates for a further split: backtest vs live loading, load-more as `useLoadMore`.
+
+### Verification (manual, after Phase 2)
+1. Load chart → switch timeframe (aggregation fast-path + cache)
+2. Switch contract (scroll reset, depth clear)
+3. Watch live ticks update the forming bar
+4. Switch to a tick-bar timeframe
+5. Load backtest mode
+6. Toggle market depth on/off
+7. Simulate reconnect
