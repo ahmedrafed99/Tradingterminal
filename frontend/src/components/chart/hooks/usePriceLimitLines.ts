@@ -15,18 +15,22 @@ import {
 import type { ChartRefs } from './types';
 
 // ── Colors ────────────────────────────────────────────────────────────────────
-const COLOR_NORMAL   = 'rgba(255, 160, 0, 0.75)';   // amber — neutral warning
-const COLOR_BREACH   = 'rgba(239, 68, 68, 0.90)';   // red   — actively blocked
-const COLOR_DASHED   = 'rgba(255, 160, 0, 0.40)';   // faint amber for outer dashed line
-const COLOR_DASHED_B = 'rgba(239, 68, 68, 0.50)';   // faint red when breached
+const COLOR_NORMAL      = 'rgba(255, 160, 0, 0.75)';  // amber line — neutral warning
+const COLOR_NORMAL_BG   = '#c47d00';                   // opaque amber for label bg
+const COLOR_BREACH      = 'rgba(239, 68, 68, 0.90)';  // red line  — actively blocked
+const COLOR_BREACH_BG   = '#ef4444';                   // opaque red for label bg
+const COLOR_DASHED      = 'rgba(255, 160, 0, 0.40)';  // faint amber for outer dashed line
+const COLOR_DASHED_BG   = '#b37200';                   // opaque darker amber for outer label bg
+const COLOR_DASHED_B    = 'rgba(239, 68, 68, 0.50)';  // faint red when breached
+const COLOR_DASHED_B_BG = '#ef4444';                   // opaque red for outer label bg when breached
 
-function makeLimitLabel(text: string, color: string) {
+function makeLimitLabel(text: string, lineColor: string, bgColor: string) {
   return {
     cellOrder: ['lbl'],
     cells: {
       lbl: {
         text,
-        bg:    color,
+        bg:    bgColor,
         color: '#ffffff',
         fontSize: 10,
       },
@@ -110,7 +114,7 @@ export function usePriceLimitLines(
           lineStyle: 'dashed',
           priceLabel: { visible: false },
           labelPosition: 'right',
-          ...makeLimitLabel(label, COLOR_DASHED),
+          ...makeLimitLabel(label, COLOR_DASHED, COLOR_DASHED_BG),
         });
       }
 
@@ -122,7 +126,7 @@ export function usePriceLimitLines(
           lineStyle: 'solid',
           priceLabel: { visible: false },
           labelPosition: 'right',
-          ...makeLimitLabel(label, COLOR_NORMAL),
+          ...makeLimitLabel(label, COLOR_NORMAL, COLOR_NORMAL_BG),
         });
       }
 
@@ -144,16 +148,18 @@ export function usePriceLimitLines(
         blockedRef.current = blocked;
         setPriceLimitBlocked(blocked);
 
-        const innerColor  = blocked ? COLOR_BREACH   : COLOR_NORMAL;
-        const outerColor  = blocked ? COLOR_DASHED_B : COLOR_DASHED;
+        const innerColor   = blocked ? COLOR_BREACH      : COLOR_NORMAL;
+        const innerBg      = blocked ? COLOR_BREACH_BG   : COLOR_NORMAL_BG;
+        const outerColor   = blocked ? COLOR_DASHED_B    : COLOR_DASHED;
+        const outerBg      = blocked ? COLOR_DASHED_B_BG : COLOR_DASHED_BG;
         upperThreshold.setLineColor(innerColor);
         lowerThreshold.setLineColor(innerColor);
         upperLimit.setLineColor(outerColor);
         lowerLimit.setLineColor(outerColor);
-        upperThreshold.setCell('lbl', { bg: innerColor });
-        lowerThreshold.setCell('lbl', { bg: innerColor });
-        upperLimit.setCell('lbl', { bg: outerColor });
-        lowerLimit.setCell('lbl', { bg: outerColor });
+        upperThreshold.setCell('lbl', { bg: innerBg });
+        lowerThreshold.setCell('lbl', { bg: innerBg });
+        upperLimit.setCell('lbl', { bg: outerBg });
+        lowerLimit.setCell('lbl', { bg: outerBg });
       }
 
       const quoteHandler = (contractId: string, data: GatewayQuote) => {
