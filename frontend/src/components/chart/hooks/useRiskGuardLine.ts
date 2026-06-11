@@ -4,16 +4,11 @@ import { useStore } from '../../../store/useStore';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import { PositionType } from '../../../types/enums';
 import type { ChartRefs } from './types';
-import { LABEL_TEXT } from './labelUtils';
+import { SELL_COLOR, SELL_TEXT } from './labelUtils';
+import { roundToTick } from '../../../utils/instrument';
 
 const LINE_COLOR = 'rgba(239, 68, 68, 0.70)';
-const LABEL_BG   = '#ef4444';
 
-/**
- * Draws a dashed red horizontal line at the risk guard price level when a
- * position is open and risk guard is enabled. The line sits at the entry price
- * offset by the configured max-loss dollar amount.
- */
 export function useRiskGuardLine(
   refs: ChartRefs,
   contract: Contract | null,
@@ -37,7 +32,7 @@ export function useRiskGuardLine(
 
     const decimals = Math.max(2, Math.ceil(-Math.log10(contract.tickSize)));
 
-    const computeGuardPrice = (): number | null => {
+    const computeGuardPrice = (): { price: number; offset: number; maxLoss: number } | null => {
       const state = useStore.getState();
       if (!state.riskGuardEnabled) return null;
       const pos = state.positions.find(
@@ -48,49 +43,66 @@ export function useRiskGuardLine(
       );
       if (!pos) return null;
       const offset = (state.riskGuardMaxLoss / pos.size / contract.tickValue) * contract.tickSize;
-      return pos.type === PositionType.Long
+      const price = pos.type === PositionType.Long
         ? pos.averagePrice - offset
         : pos.averagePrice + offset;
+      return { price, offset, maxLoss: state.riskGuardMaxLoss };
+    };
+
+    const fmtPnl = (offset: number, maxLoss: number): string => {
+      if (useStore.getState().pnlMode === 'points') {
+        return `-${roundToTick(offset, contract.tickSize).toFixed(2)} pts`;
+      }
+      return `-$${maxLoss.toFixed(2)}`;
     };
 
     const draw = () => {
-      const guardPrice = computeGuardPrice();
+      const result = computeGuardPrice();
       const series = refs.series.current;
       if (!series) return;
 
-      if (guardPrice == null) {
+      if (result == null) {
         detach();
         return;
       }
 
+      const { price, offset, maxLoss } = result;
+      const pnlText = fmtPnl(offset, maxLoss);
+
       if (primitiveRef.current) {
-        if (lastGuardPriceRef.current !== guardPrice) {
-          primitiveRef.current.setPrice(guardPrice);
-          primitiveRef.current.setCell('lbl', { text: `Guard  ${guardPrice.toFixed(decimals)}` });
-          lastGuardPriceRef.current = guardPrice;
+        if (lastGuardPriceRef.current !== price) {
+          primitiveRef.current.setPrice(price);
+          lastGuardPriceRef.current = price;
         }
+        primitiveRef.current.setCell('pnl', { text: pnlText });
         return;
       }
 
       const p = new PriceLevelPrimitive({
-        price: guardPrice,
+        price,
         lineColor: LINE_COLOR,
         lineWidth: 1,
         lineStyle: 'dashed',
-        priceLabel: { visible: false },
+        priceLabel: { visible: true, tickSize: contract.tickSize, color: SELL_COLOR },
         labelPosition: 'right',
-        cellOrder: ['lbl'],
+        cellOrder: ['pnl', 'lbl'],
         cells: {
+          pnl: {
+            text: pnlText,
+            bg: SELL_COLOR,
+            color: SELL_TEXT,
+            minWidthText: '-100.00 pts',
+          },
           lbl: {
-            text: `Guard  ${guardPrice.toFixed(decimals)}`,
-            bg: LABEL_BG,
-            color: LABEL_TEXT,
+            text: 'Guard',
+            bg: SELL_COLOR,
+            color: SELL_TEXT,
           },
         },
       });
       series.attachPrimitive(p);
       primitiveRef.current = p;
-      lastGuardPriceRef.current = guardPrice;
+      lastGuardPriceRef.current = price;
     };
 
     draw();

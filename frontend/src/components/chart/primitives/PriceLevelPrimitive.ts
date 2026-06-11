@@ -50,6 +50,7 @@ export type PriceLevelCells = Record<string, PriceLevelCell>;
 export interface PriceLevelPriceLabel {
   visible?: boolean;
   tickSize?: number;
+  color?: string;
 }
 
 export interface PriceLevelPrimitiveOptions {
@@ -88,8 +89,8 @@ const DRAG_THRESHOLD_PX = 4;
 const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
-const FONT = `bold ${FONT_PX}px ${FONT_FAMILY}`;
-const FONT_ZONE_HOVER = `bold 14px ${FONT_FAMILY}`;
+const FONT = `${FONT_PX}px ${FONT_FAMILY}`;
+const FONT_ZONE_HOVER = `14px ${FONT_FAMILY}`;
 const ICON_SLOT = 11; // px reserved for arrow icon + gap
 
 // Cursor override (single style tag, shared across all primitive instances)
@@ -298,7 +299,7 @@ class PriceLevelRenderer implements IPrimitivePaneRenderer {
         const displayColor = isHover && cell.hoverColor != null ? cell.hoverColor : cell.color;
         const showIcon = cell.icon != null && !(isHover && cell.hoverText != null);
         const arrowScale = anim ? (1 + 0.6 * (1 - animEased)) : 1; // 1.6× → 1.0×
-        if (cell.fontSize) ctx.font = `bold ${cell.fontSize}px ${FONT_FAMILY}`;
+        if (cell.fontSize) ctx.font = `${cell.fontSize}px ${FONT_FAMILY}`;
         ctx.fillStyle = displayColor;
         if (showIcon) {
           const textW = ctx.measureText(displayText).width;
@@ -410,6 +411,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
   private _lineStyle: 'solid' | 'dashed';
   private _cells: PriceLevelCells;
   private _priceLabelVisible: boolean;
+  private _priceLabelColor: string | null;
   private _decimals: number;
   private _cellOrder: string[];
   private _onDragStart?: (originalPrice: number) => void;
@@ -455,6 +457,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     this._lineWidth = opts.lineWidth ?? 1;
     this._lineStyle = opts.lineStyle ?? 'solid';
     this._priceLabelVisible = opts.priceLabel?.visible ?? true;
+    this._priceLabelColor = opts.priceLabel?.color ?? null;
     this._decimals = decimalsFor(opts.priceLabel?.tickSize ?? 0.01);
     this._onDragStart = opts.onDragStart;
     this._onDrag = opts.onDrag;
@@ -492,12 +495,13 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
 
   private _syncCoordinator(): void {
     if (!this._coordinator || !this._priceLabelVisible) return;
+    const labelBg = this._priceLabelColor ?? this._lineColor;
     this._coordinator.registerAxisLabel(
       this._coordinatorId,
       this._price,
-      this._lineColor,
+      labelBg,
       this._price.toFixed(this._decimals),
-      contrastText(this._lineColor, COLOR_BG),
+      contrastText(labelBg, COLOR_BG),
     );
   }
 
@@ -632,11 +636,12 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
     if (!this._priceLabelVisible || !this._series) return [];
     const yCoord = this._series.priceToCoordinate(this._price);
     if (yCoord === null) return [];
+    const labelBg = this._priceLabelColor ?? this._lineColor;
     return [new PriceLevelAxisView(
       yCoord,
       this._price.toFixed(this._decimals),
-      this._lineColor,
-      contrastText(this._lineColor, COLOR_BG),
+      labelBg,
+      contrastText(labelBg, COLOR_BG),
     )];
   }
 
@@ -658,7 +663,7 @@ export class PriceLevelPrimitive implements ISeriesPrimitive<Time> {
       const leftZoneW = hasLeft ? (symW || leftRaw) : 0;
       const rightZoneW = hasRight ? (symW || rightRaw) : 0;
       const mainPad = (hasLeft || hasRight) ? 4 : CELL_PAD_H;
-      if (cell.fontSize) ctx.font = `bold ${cell.fontSize}px ${FONT_FAMILY}`;
+      if (cell.fontSize) ctx.font = `${cell.fontSize}px ${FONT_FAMILY}`;
       const iconSlot = cell.icon ? ICON_SLOT : 0;
       const textMeasure = Math.max(
         ctx.measureText(cell.text).width + iconSlot,
