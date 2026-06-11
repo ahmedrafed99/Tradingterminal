@@ -34,6 +34,7 @@ import { useConditionLines } from './hooks/useConditionLines';
 import { useNewsEvents } from './hooks/useNewsEvents';
 import { useFpsCounter } from './hooks/useFpsCounter';
 import { usePriceLimitLines } from './hooks/usePriceLimitLines';
+import { useRiskGuardLine } from './hooks/useRiskGuardLine';
 import { MarketStatusBadge } from './MarketStatusBadge';
 import type { ChartRefs, HitTarget, PreviewLineRole, OrderLineEntry, PosDragState } from './hooks/types';
 
@@ -347,6 +348,7 @@ export const CandlestickChart = memo(forwardRef<CandlestickChartHandle, Candlest
   useOverlayLabels(refs, contract, isOrderChart);
   useConditionLines(refs, contract, timeframe);
   usePriceLimitLines(refs, contract, chartId, loading);
+  useRiskGuardLine(refs, contract, chartId);
 
   const priceLimitBlocked = useStore((s) => s.priceLimitBlocked);
   const showFps = chartSettings.showFpsCounter;

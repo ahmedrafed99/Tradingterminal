@@ -15,6 +15,7 @@ import { createBlacklistSlice } from './slices/blacklistSlice';
 import { createLockoutSlice } from './slices/lockoutSlice';
 import { createBacktestSlice } from './slices/backtestSlice';
 import { createLiveStrategySlice } from './slices/liveStrategySlice';
+import { createRiskGuardSlice } from './slices/riskGuardSlice';
 
 // Slice types
 import type { ConnectionSlice } from './slices/connectionSlice';
@@ -30,6 +31,7 @@ import type { BlacklistSlice } from './slices/blacklistSlice';
 import type { LockoutSlice } from './slices/lockoutSlice';
 import type { BacktestSlice } from './slices/backtestSlice';
 import type { LiveStrategySlice } from './slices/liveStrategySlice';
+import type { RiskGuardSlice } from './slices/riskGuardSlice';
 
 // Re-export commonly used types so consumers don't need to change imports
 export type { Timeframe } from './slices/instrumentSlice';
@@ -41,10 +43,10 @@ export type { ToastItem } from './slices/toastSlice';
 // ---------------------------------------------------------------------------
 
 // AUTO-BUMPED by pre-commit hook when store slices change. Do not edit manually.
-const STORE_VERSION = 22;
+const STORE_VERSION = 23;
 
 type Store = ConnectionSlice & InstrumentSlice & TradingSlice
-  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice & LiveStrategySlice;
+  & DrawingsSlice & LayoutSlice & ConditionsSlice & ToastSlice & ChartSettingsSlice & ShortcutsSlice & BlacklistSlice & LockoutSlice & BacktestSlice & LiveStrategySlice & RiskGuardSlice;
 
 export const useStore = create<Store>()(
   persist(
@@ -62,6 +64,7 @@ export const useStore = create<Store>()(
       ...createLockoutSlice(set as any, get as any),
       ...createBacktestSlice(set as any),
       ...createLiveStrategySlice(set as any),
+      ...createRiskGuardSlice(set as any),
     }),
     {
       name: 'chart-store',
@@ -155,6 +158,8 @@ export const useStore = create<Store>()(
         backtestStrategies: s.backtestStrategies,
         backtestBottomRatio: s.backtestBottomRatio,
         backtestBottomPreviousRatio: s.backtestBottomPreviousRatio,
+        riskGuardEnabled: s.riskGuardEnabled,
+        riskGuardMaxLoss: s.riskGuardMaxLoss,
       }),
     },
   ),

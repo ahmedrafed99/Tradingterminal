@@ -511,6 +511,27 @@
         "useQuickOrder (guards placeQuickOrder with priceLimitBlocked check)"
       ],
       "notes": "Applies only to CME equity index contracts (EP, ENQ, MES, MNQ, ERY, M2K, YM, MYM) with 7% daily limit. Settlement = VWAP of 1-second bars over 14:59:30–15:00:00 CT on the most recent weekday (CME Tier 1 methodology); falls back to bar-close approximation if API returns nothing. Fail-open: if both paths fail, draws nothing and never blocks. Toggled in Settings → Market tab."
+    },
+    {
+      "name": "RiskGuard",
+      "keywords": ["risk guard", "max loss", "auto flatten", "stop loss", "dollar threshold", "position flatten", "guard line"],
+      "files": [
+        "frontend/src/store/slices/riskGuardSlice.ts",
+        "frontend/src/services/riskGuardService.ts",
+        "frontend/src/components/order-panel/RiskGuardBox.tsx",
+        "frontend/src/components/chart/hooks/useRiskGuardLine.ts"
+      ],
+      "dependencies": [
+        "useStore (riskGuardEnabled, riskGuardMaxLoss, positions, activeAccountId, contract, secondContract, orderContract)",
+        "realtimeService.onQuote (monitors live price ticks for all positions)",
+        "realtimeService.onPosition (clears triggered set when position size → 0)",
+        "positionService.closePosition (flattens the position when guard fires)",
+        "bracketEngine.clearSession (cancels open bracket orders after flatten)",
+        "PriceLevelPrimitive (dashed red horizontal line on chart at guard price level)",
+        "calcPnl (computes unrealized P&L from price diff, contract, size)",
+        "OrderPanel (mounts RiskGuardBox, starts/stops service on connect/disconnect)"
+      ],
+      "notes": "Global max-loss safeguard: monitors ALL open positions across all instruments and accounts via quote ticks. Triggered set (accountId:contractId) prevents double-fire; added synchronously before await. Re-arms on closePosition failure. Chart line shows guard price for active account + chart contract. Guard price = averagePrice ∓ (maxLoss / size / tickValue * tickSize). Non-dismissible red toast on trigger."
     }
   ]
 }

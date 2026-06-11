@@ -21,11 +21,13 @@ import type { GatewayQuote, RealtimeOrder, RealtimePosition } from '../../servic
 import { OrderTypeTabs } from './OrderTypeTabs';
 import { ContractsSpinner } from './ContractsSpinner';
 import { BracketSummary } from './BracketSummary';
+import { RiskGuardBox } from './RiskGuardBox';
 import { BuySellButtons } from './BuySellButtons';
 import { BlacklistBanner } from './BlacklistBanner';
 import { PositionDisplay } from './PositionDisplay';
 import { Button } from '../shared/Button';
 import { GridIcon } from '../icons/GridIcon';
+import { riskGuardService } from '../../services/riskGuardService';
 
 const BracketSettingsModal = lazy(() => import('./BracketSettingsModal').then(m => ({ default: m.BracketSettingsModal })));
 
@@ -240,6 +242,14 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
   const connected = useStore((s) => s.connected);
   useEffect(() => {
     if (!connected) subscribedAccountRef.current = null;
+  }, [connected]);
+
+  useEffect(() => {
+    if (connected) {
+      riskGuardService.start();
+    } else {
+      riskGuardService.stop();
+    }
   }, [connected]);
 
   // Subscribe to user hub events (orders, positions) when account changes
@@ -803,6 +813,9 @@ export function OrderPanel({ side = 'left', collapsed = false }: { side?: 'left'
 
             {/* Bracket Settings */}
             <BracketSummary />
+
+            {/* Risk Guard */}
+            <RiskGuardBox />
 
             {/* Preview toggle */}
             <PreviewToggle />
