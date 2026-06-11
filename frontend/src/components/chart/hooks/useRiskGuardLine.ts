@@ -101,6 +101,7 @@ export function useRiskGuardLine(
         },
       });
       series.attachPrimitive(p);
+      p.setCoordinator(refs.drawingsPrimitive.current, 'risk-guard');
       primitiveRef.current = p;
       lastGuardPriceRef.current = price;
     };
