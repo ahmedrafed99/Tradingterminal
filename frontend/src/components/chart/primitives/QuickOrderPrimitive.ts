@@ -13,7 +13,7 @@ import type { CanvasRenderingTarget2D } from 'fancy-canvas';
 
 import { FONT_FAMILY } from '../../../constants/layout';
 import { COLOR_TEXT, COLOR_BORDER } from '../../../constants/colors';
-import { BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT } from '../hooks/labelUtils';
+import { BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT, contrastText } from '../hooks/labelUtils';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CELL_HEIGHT = 20;
@@ -392,16 +392,17 @@ export class QuickOrderPrimitive implements ISeriesPrimitive<Time> {
       color: LABEL_TEXT,
       hoverBg: '#b0afb1',
     });
+    const sizeTextColor = contrastText(sizeBg);
     defs.set('size', {
       text: String(this._orderSize),
       bg: sizeBg,
-      color: LABEL_TEXT,
+      color: sizeTextColor,
       hoverBg: sizeHoverBg,
       leftText: '−',
-      leftColor: LABEL_TEXT,
+      leftColor: sizeTextColor,
       leftClick: minDisabled ? undefined : () => { this.onSizeChange?.(-1); },
       rightText: '+',
-      rightColor: LABEL_TEXT,
+      rightColor: sizeTextColor,
       rightClick: plusDisabled ? undefined : () => { this.onSizeChange?.(1); },
     });
     defs.set('plus', {
