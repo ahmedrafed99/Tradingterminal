@@ -84,7 +84,7 @@ export function useRiskGuardLine(
         lineWidth: 1,
         lineStyle: 'dashed',
         priceLabel: { visible: true, tickSize: contract.tickSize, color: SELL_COLOR },
-        labelPosition: 'right',
+        labelPosition: 'mid',
         cellOrder: ['pnl', 'lbl'],
         cells: {
           pnl: {
