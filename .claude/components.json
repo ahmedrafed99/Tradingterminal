@@ -532,6 +532,22 @@
         "OrderPanel (mounts RiskGuardBox, starts/stops service on connect/disconnect)"
       ],
       "notes": "Global max-loss safeguard: monitors ALL open positions across all instruments and accounts via quote ticks. Triggered set (accountId:contractId) prevents double-fire; added synchronously before await. Re-arms on closePosition failure. Chart line shows guard price for active account + chart contract. Guard price = averagePrice ∓ (maxLoss / size / tickValue * tickSize). Non-dismissible red toast on trigger."
+    },
+    {
+      "name": "QuickOrder",
+      "keywords": ["quick order", "quick buy", "quick sell", "plus button", "size cell", "drag to order", "limit order", "canvas label", "crosshair order", "order primitive"],
+      "files": [
+        "frontend/src/components/chart/primitives/QuickOrderPrimitive.ts",
+        "frontend/src/components/chart/hooks/useQuickOrder.ts"
+      ],
+      "dependencies": [
+        "labelUtils (BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT, contrastText)",
+        "COLOR_TEXT, COLOR_BORDER (constants/colors)",
+        "FONT_FAMILY (constants/layout)",
+        "PriceLimitGuard (useQuickOrder checks priceLimitBlocked before placing)",
+        "placeOrderWithBrackets (useQuickOrder calls to submit the order)"
+      ],
+      "notes": "Canvas-drawn overlay primitive. Shows a ⊕ plus button at the crosshair price; hovering expands to label + size cells. Click places a limit order at that price; drag repositions it. Size cell bg is BUY_COLOR or SELL_COLOR; text uses contrastText(sizeBg) for dynamic contrast (same as position/order labels). −/+ zones on size cell adjust quantity."
     }
   ]
 }
