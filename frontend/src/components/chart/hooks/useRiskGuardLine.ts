@@ -4,10 +4,11 @@ import { useStore } from '../../../store/useStore';
 import { PriceLevelPrimitive } from '../primitives/PriceLevelPrimitive';
 import { PositionType } from '../../../types/enums';
 import type { ChartRefs } from './types';
-import { SELL_COLOR, SELL_TEXT } from './labelUtils';
+import { SELL_TEXT } from './labelUtils';
 import { roundToTick } from '../../../utils/instrument';
 
 const LINE_COLOR = 'rgba(239, 68, 68, 0.70)';
+const GUARD_COLOR = '#9f1239';
 
 export function useRiskGuardLine(
   refs: ChartRefs,
@@ -83,19 +84,19 @@ export function useRiskGuardLine(
         lineColor: LINE_COLOR,
         lineWidth: 1,
         lineStyle: 'dashed',
-        priceLabel: { visible: true, tickSize: contract.tickSize, color: SELL_COLOR },
+        priceLabel: { visible: true, tickSize: contract.tickSize, color: GUARD_COLOR },
         labelPosition: 'mid',
         cellOrder: ['pnl', 'lbl'],
         cells: {
           pnl: {
             text: pnlText,
-            bg: SELL_COLOR,
+            bg: GUARD_COLOR,
             color: SELL_TEXT,
             minWidthText: '-100.00 pts',
           },
           lbl: {
             text: 'Guard',
-            bg: SELL_COLOR,
+            bg: GUARD_COLOR,
             color: SELL_TEXT,
           },
         },
