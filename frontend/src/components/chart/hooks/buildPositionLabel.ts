@@ -42,29 +42,34 @@ export function buildPositionLabel(
   const posPrimitive = posEntry?.line ?? null;
   if (!posPrimitive) return pnlUpdaters;
 
-  function fmtPnl(diff: number, pnl: number): string {
-    if (useStore.getState().pnlMode === 'points') {
-      const pts = roundToTick(diff, contract.tickSize);
-      return `${pts >= 0 ? '+' : ''}${pts.toFixed(2)} pts`;
-    }
-    return `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+  function fmtBoth(diff: number, pnl: number): { text: string; minWidthText: string } {
+    const pts = roundToTick(diff, contract.tickSize);
+    const ptsText = `${pts >= 0 ? '+' : ''}${pts.toFixed(2)} pts`;
+    const dolText = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
+    const text = useStore.getState().pnlMode === 'points' ? ptsText : dolText;
+    // minWidthText is always the wider of both formats so toggling never shrinks the cell
+    const minWidthText = ptsText.length >= dolText.length ? ptsText : dolText;
+    return { text, minWidthText };
   }
 
   // Compute initial P&L
   const lp = useStore.getState().lastPrice;
   let initText: string;
+  let initMinWidthText: string;
   let initBg: string;
   if (lp != null) {
     const diff = isLong ? lp - pos.averagePrice : pos.averagePrice - lp;
     const initPnl = calcPnl(diff, contract, pos.size);
-    initText = fmtPnl(diff, initPnl);
+    ({ text: initText, minWidthText: initMinWidthText } = fmtBoth(diff, initPnl));
     initBg = initPnl >= 0 ? BUY_COLOR : SELL_COLOR;
     refs.lastPnlCache.current = { text: initText, bg: initBg };
   } else if (refs.lastPnlCache.current.text) {
     initText = refs.lastPnlCache.current.text;
+    initMinWidthText = initText;
     initBg = refs.lastPnlCache.current.bg;
   } else {
     initText = '---';
+    initMinWidthText = '---';
     initBg = COLOR_TEXT_MUTED;
   }
 
@@ -83,7 +88,7 @@ export function buildPositionLabel(
     useStore.getState().setPnlMode(next);
   }
 
-  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: contrastText(initBg), onClick: togglePnlMode });
+  posPrimitive.setCell('pnl', { text: initText, bg: initBg, color: contrastText(initBg), onClick: togglePnlMode, minWidthText: initMinWidthText });
   posPrimitive.setCell('size', { text: String(pos.size), bg: sideBg, color: contrastText(sideBg) });
   posPrimitive.setCell('close', { text: '✕', bg: CLOSE_BG, color: LABEL_TEXT, onClick: handleClose });
   posPrimitive.setCellOrder(['pnl', 'size', 'close']);
@@ -106,9 +111,9 @@ export function buildPositionLabel(
     const diff = isLong ? curPrice - pos.averagePrice : pos.averagePrice - curPrice;
     const pnl = calcPnl(diff, contract, pos.size);
     const bg = pnl >= 0 ? BUY_COLOR : SELL_COLOR;
-    const text = fmtPnl(diff, pnl);
+    const { text, minWidthText } = fmtBoth(diff, pnl);
     refs.lastPnlCache.current = { text, bg };
-    posPrimitive.setCell('pnl', { text, bg, color: contrastText(bg), onClick: togglePnlMode });
+    posPrimitive.setCell('pnl', { text, bg, color: contrastText(bg), onClick: togglePnlMode, minWidthText });
   });
 
   return pnlUpdaters;
