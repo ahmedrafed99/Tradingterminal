@@ -19,7 +19,7 @@ import { BUY_COLOR, SELL_COLOR, BUY_HOVER, SELL_HOVER, LABEL_BG, LABEL_TEXT } fr
 const CELL_HEIGHT = 20;
 const CELL_PAD_H = 8;
 const FONT_PX = 12;
-const FONT = `bold ${FONT_PX}px ${FONT_FAMILY}`;
+const FONT = `${FONT_PX}px ${FONT_FAMILY}`;
 const PLUS_CELL_W = 20;
 const DRAG_THRESHOLD_PX = 3;
 const ZONE_PAD = 4;
